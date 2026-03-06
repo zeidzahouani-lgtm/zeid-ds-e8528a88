@@ -56,7 +56,7 @@ export default function Player() {
   const isPortrait = screen.orientation === "portrait";
 
   return (
-    <div className="fixed inset-0 bg-background overflow-hidden">
+    <div ref={containerRef} className="fixed inset-0 bg-background overflow-hidden cursor-none" onClick={requestFullscreen}>
       <div
         className="w-full h-full transition-transform duration-700 ease-in-out"
         style={isPortrait ? {
