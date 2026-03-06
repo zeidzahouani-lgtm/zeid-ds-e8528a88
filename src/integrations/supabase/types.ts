@@ -14,7 +14,110 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      media: {
+        Row: {
+          created_at: string
+          duration: number
+          id: string
+          name: string
+          type: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          duration?: number
+          id?: string
+          name: string
+          type: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          duration?: number
+          id?: string
+          name?: string
+          type?: string
+          url?: string
+        }
+        Relationships: []
+      }
+      playlist_items: {
+        Row: {
+          created_at: string
+          id: string
+          media_id: string
+          position: number
+          screen_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          media_id: string
+          position?: number
+          screen_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          media_id?: string
+          position?: number
+          screen_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlist_items_media_id_fkey"
+            columns: ["media_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "playlist_items_screen_id_fkey"
+            columns: ["screen_id"]
+            isOneToOne: false
+            referencedRelation: "screens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      screens: {
+        Row: {
+          created_at: string
+          current_media_id: string | null
+          id: string
+          name: string
+          orientation: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_media_id?: string | null
+          id?: string
+          name: string
+          orientation?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_media_id?: string | null
+          id?: string
+          name?: string
+          orientation?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "screens_current_media_id_fkey"
+            columns: ["current_media_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
