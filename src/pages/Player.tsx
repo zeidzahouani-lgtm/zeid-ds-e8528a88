@@ -1,12 +1,31 @@
 import { useParams } from "react-router-dom";
 import { useScreenRealtime } from "@/hooks/useScreenRealtime";
 import { MonitorPlay } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 
 export default function Player() {
   const { id } = useParams<{ id: string }>();
   const { screen, media, loading } = useScreenRealtime(id);
   const [visible, setVisible] = useState(true);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Request fullscreen on mount
+  const requestFullscreen = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) return;
+    el.requestFullscreen?.().catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    // Auto-fullscreen on first click (browsers require user gesture)
+    const handler = () => {
+      requestFullscreen();
+      document.removeEventListener("click", handler);
+    };
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, [requestFullscreen]);
 
   // Transition effect when media changes
   useEffect(() => {
@@ -37,7 +56,7 @@ export default function Player() {
   const isPortrait = screen.orientation === "portrait";
 
   return (
-    <div className="fixed inset-0 bg-background overflow-hidden">
+    <div ref={containerRef} className="fixed inset-0 bg-background overflow-hidden cursor-none" onClick={requestFullscreen}>
       <div
         className="w-full h-full transition-transform duration-700 ease-in-out"
         style={isPortrait ? {
