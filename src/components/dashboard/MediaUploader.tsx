@@ -1,0 +1,126 @@
+import { useState, useRef } from "react";
+import { Upload, Link, Trash2, Image, Video, Globe } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { useMedia } from "@/hooks/useMedia";
+import { toast } from "sonner";
+
+export function MediaUploader() {
+  const { media, isLoading, uploadMutation, addIframeMutation, deleteMutation } = useMedia();
+  const [iframeName, setIframeName] = useState("");
+  const [iframeUrl, setIframeUrl] = useState("");
+  const [showIframe, setShowIframe] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    for (const file of Array.from(files)) {
+      try {
+        await uploadMutation.mutateAsync(file);
+        toast.success(`${file.name} uploadé avec succès`);
+      } catch {
+        toast.error(`Erreur lors de l'upload de ${file.name}`);
+      }
+    }
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const handleAddIframe = async () => {
+    if (!iframeName || !iframeUrl) return;
+    try {
+      await addIframeMutation.mutateAsync({ name: iframeName, url: iframeUrl });
+      toast.success("iFrame ajouté");
+      setIframeName("");
+      setIframeUrl("");
+      setShowIframe(false);
+    } catch {
+      toast.error("Erreur lors de l'ajout");
+    }
+  };
+
+  const typeIcon = (type: string) => {
+    if (type === 'image') return <Image className="h-4 w-4" />;
+    if (type === 'video') return <Video className="h-4 w-4" />;
+    return <Globe className="h-4 w-4" />;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <h2 className="text-xl font-semibold text-foreground">Bibliothèque Média</h2>
+        <span className="text-sm text-muted-foreground">({media.length})</span>
+      </div>
+
+      <div className="flex gap-3">
+        <Button onClick={() => fileRef.current?.click()} className="gap-2">
+          <Upload className="h-4 w-4" /> Upload Fichier
+        </Button>
+        <Button variant="outline" onClick={() => setShowIframe(!showIframe)} className="gap-2">
+          <Link className="h-4 w-4" /> Ajouter iFrame
+        </Button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/jpeg,image/png,video/mp4"
+          multiple
+          className="hidden"
+          onChange={handleUpload}
+        />
+      </div>
+
+      {showIframe && (
+        <Card className="p-4 space-y-3 glass-panel">
+          <Input
+            placeholder="Nom (ex: Présentation Q1)"
+            value={iframeName}
+            onChange={(e) => setIframeName(e.target.value)}
+          />
+          <Input
+            placeholder="URL (ex: https://docs.google.com/presentation/d/.../embed)"
+            value={iframeUrl}
+            onChange={(e) => setIframeUrl(e.target.value)}
+          />
+          <Button onClick={handleAddIframe} size="sm">Ajouter</Button>
+        </Card>
+      )}
+
+      {isLoading ? (
+        <p className="text-muted-foreground">Chargement...</p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {media.map((item) => (
+            <Card key={item.id} className="glass-panel overflow-hidden group">
+              <div className="aspect-video bg-secondary relative">
+                {item.type === 'image' && (
+                  <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
+                )}
+                {item.type === 'video' && (
+                  <video src={item.url} className="w-full h-full object-cover" muted />
+                )}
+                {item.type === 'iframe' && (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Globe className="h-12 w-12 text-muted-foreground" />
+                  </div>
+                )}
+                <Button
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8"
+                  onClick={() => deleteMutation.mutate(item.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="p-3 flex items-center gap-2">
+                {typeIcon(item.type)}
+                <span className="text-sm font-medium truncate">{item.name}</span>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
