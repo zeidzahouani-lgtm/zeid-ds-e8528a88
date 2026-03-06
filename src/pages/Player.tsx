@@ -5,20 +5,17 @@ import { useEffect, useState, useRef, useCallback } from "react";
 
 export default function Player() {
   const { id } = useParams<{ id: string }>();
-  const { screen, media, loading } = useScreenRealtime(id);
+  const { screen, media, loading, playlistLength, currentIndex } = useScreenRealtime(id);
   const [visible, setVisible] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Request fullscreen on mount
   const requestFullscreen = useCallback(() => {
     const el = containerRef.current;
-    if (!el) return;
-    if (document.fullscreenElement) return;
+    if (!el || document.fullscreenElement) return;
     el.requestFullscreen?.().catch(() => {});
   }, []);
 
   useEffect(() => {
-    // Auto-fullscreen on first click (browsers require user gesture)
     const handler = () => {
       requestFullscreen();
       document.removeEventListener("click", handler);
@@ -32,7 +29,7 @@ export default function Player() {
     setVisible(false);
     const timer = setTimeout(() => setVisible(true), 300);
     return () => clearTimeout(timer);
-  }, [media?.id]);
+  }, [media?.id, currentIndex]);
 
   if (loading) {
     return (
@@ -82,29 +79,35 @@ export default function Player() {
               <p className="text-muted-foreground/50 text-sm">En attente de contenu...</p>
             </div>
           ) : media.type === "image" ? (
-            <img
-              src={media.url}
-              alt={media.name}
-              className="w-full h-full object-cover"
-            />
+            <img src={media.url} alt={media.name} className="w-full h-full object-cover" />
           ) : media.type === "video" ? (
             <video
+              key={media.id + currentIndex}
               src={media.url}
               className="w-full h-full object-cover"
               autoPlay
-              loop
+              loop={playlistLength <= 1}
               muted
               playsInline
             />
           ) : (
-            <iframe
-              src={media.url}
-              className="w-full h-full border-0"
-              allowFullScreen
-              title={media.name}
-            />
+            <iframe src={media.url} className="w-full h-full border-0" allowFullScreen title={media.name} />
           )}
         </div>
+
+        {/* Playlist indicator */}
+        {playlistLength > 1 && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+            {Array.from({ length: playlistLength }).map((_, i) => (
+              <div
+                key={i}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  i === currentIndex ? "w-6 bg-primary" : "w-1.5 bg-muted-foreground/30"
+                }`}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

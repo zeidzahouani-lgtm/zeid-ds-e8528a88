@@ -80,6 +80,54 @@ export type Database = {
           },
         ]
       }
+      schedules: {
+        Row: {
+          active: boolean
+          created_at: string
+          days_of_week: number[]
+          end_time: string
+          id: string
+          media_id: string | null
+          screen_id: string
+          start_time: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          days_of_week?: number[]
+          end_time?: string
+          id?: string
+          media_id?: string | null
+          screen_id: string
+          start_time?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          days_of_week?: number[]
+          end_time?: string
+          id?: string
+          media_id?: string | null
+          screen_id?: string
+          start_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedules_media_id_fkey"
+            columns: ["media_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedules_screen_id_fkey"
+            columns: ["screen_id"]
+            isOneToOne: false
+            referencedRelation: "screens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       screens: {
         Row: {
           created_at: string
