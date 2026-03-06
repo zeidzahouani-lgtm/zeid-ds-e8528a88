@@ -1,12 +1,13 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MediaUploader } from "@/components/dashboard/MediaUploader";
 import { ScreenManager } from "@/components/dashboard/ScreenManager";
-import { MonitorPlay, Image, Tv } from "lucide-react";
+import { PlaylistManager } from "@/components/dashboard/PlaylistManager";
+import { ScheduleManager } from "@/components/dashboard/ScheduleManager";
+import { MonitorPlay, Image, Tv, ListMusic, Clock } from "lucide-react";
 
 export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b border-border/50 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center gap-3">
           <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -19,7 +20,6 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
         <Tabs defaultValue="screens" className="space-y-6">
           <TabsList className="bg-secondary/50">
@@ -29,14 +29,25 @@ export default function Dashboard() {
             <TabsTrigger value="media" className="gap-2">
               <Image className="h-4 w-4" /> Médias
             </TabsTrigger>
+            <TabsTrigger value="playlists" className="gap-2">
+              <ListMusic className="h-4 w-4" /> Playlists
+            </TabsTrigger>
+            <TabsTrigger value="schedules" className="gap-2">
+              <Clock className="h-4 w-4" /> Programmation
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="screens">
             <ScreenManager />
           </TabsContent>
-
           <TabsContent value="media">
             <MediaUploader />
+          </TabsContent>
+          <TabsContent value="playlists">
+            <PlaylistManager />
+          </TabsContent>
+          <TabsContent value="schedules">
+            <ScheduleManager />
           </TabsContent>
         </Tabs>
       </main>
