@@ -143,32 +143,34 @@ export function useScreenRealtime(screenId: string | undefined) {
     // Set offline on tab close / navigation
     const setOffline = () => {
       if (!screenId) return;
-      // Use sendBeacon for reliability on page unload
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/screens?id=eq.${screenId}`;
+      const apiKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/screens?id=eq.${screenId}&apikey=${apiKey}`;
       const body = JSON.stringify({ status: "offline" });
-      const headers = {
-        'Content-Type': 'application/json',
-        'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        'Prefer': 'return=minimal',
-      };
-      // Try sendBeacon first (works on unload), fallback to fetch
-      const blob = new Blob([body], { type: 'application/json' });
-      try {
-        navigator.sendBeacon(url, blob);
-      } catch {
-        fetch(url, { method: 'PATCH', headers, body, keepalive: true });
-      }
+      // keepalive fetch works on beforeunload and supports headers
+      fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': apiKey,
+          'Authorization': `Bearer ${apiKey}`,
+          'Prefer': 'return=minimal',
+        },
+        body,
+        keepalive: true,
+      }).catch(() => {});
+    };
+
+    const onVisChange = () => {
+      if (document.visibilityState === "hidden") setOffline();
     };
 
     window.addEventListener("beforeunload", setOffline);
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "hidden") setOffline();
-    });
+    document.addEventListener("visibilitychange", onVisChange);
 
     return () => {
       setOffline();
       window.removeEventListener("beforeunload", setOffline);
+      document.removeEventListener("visibilitychange", onVisChange);
     };
   }, [screenId, fetchPlaylist, fetchSchedules, resolveMedia]);
 
