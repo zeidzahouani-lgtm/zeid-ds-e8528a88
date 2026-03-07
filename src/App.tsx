@@ -2,14 +2,38 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
-import Index from "./pages/Index";
+import { useAuth } from "@/hooks/useAuth";
+import { DashboardLayout } from "@/components/DashboardLayout";
 import NotFound from "./pages/NotFound";
 
 const Player = lazy(() => import("./pages/Player"));
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const DashboardHome = lazy(() => import("./pages/DashboardHome"));
+const Displays = lazy(() => import("./pages/Displays"));
+const Library = lazy(() => import("./pages/Library"));
+const Playlists = lazy(() => import("./pages/Playlists"));
+const Schedules = lazy(() => import("./pages/Schedules"));
 
 const queryClient = new QueryClient();
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-muted-foreground">Chargement...</div></div>;
+  if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
+function PublicRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (user) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -17,10 +41,26 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Suspense fallback={null}>
+        <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-muted-foreground">Chargement...</div></div>}>
           <Routes>
-            <Route path="/" element={<Index />} />
+            {/* Public auth routes */}
+            <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+            <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+
+            {/* Player (no auth needed) */}
             <Route path="/player/:id" element={<Player />} />
+
+            {/* Protected dashboard routes */}
+            <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+              <Route path="/" element={<DashboardHome />} />
+              <Route path="/displays" element={<Displays />} />
+              <Route path="/library" element={<Library />} />
+              <Route path="/playlists" element={<Playlists />} />
+              <Route path="/schedules" element={<Schedules />} />
+            </Route>
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
