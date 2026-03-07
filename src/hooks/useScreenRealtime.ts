@@ -140,8 +140,35 @@ export function useScreenRealtime(screenId: string | undefined) {
 
     init();
 
+    // Set offline on tab close / navigation
+    const setOffline = () => {
+      if (!screenId) return;
+      // Use sendBeacon for reliability on page unload
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/screens?id=eq.${screenId}`;
+      const body = JSON.stringify({ status: "offline" });
+      const headers = {
+        'Content-Type': 'application/json',
+        'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        'Prefer': 'return=minimal',
+      };
+      // Try sendBeacon first (works on unload), fallback to fetch
+      const blob = new Blob([body], { type: 'application/json' });
+      try {
+        navigator.sendBeacon(url, blob);
+      } catch {
+        fetch(url, { method: 'PATCH', headers, body, keepalive: true });
+      }
+    };
+
+    window.addEventListener("beforeunload", setOffline);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") setOffline();
+    });
+
     return () => {
-      supabase.from("screens").update({ status: "offline" }).eq("id", screenId);
+      setOffline();
+      window.removeEventListener("beforeunload", setOffline);
     };
   }, [screenId, fetchPlaylist, fetchSchedules, resolveMedia]);
 
