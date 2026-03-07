@@ -92,7 +92,19 @@ export function MediaUploader() {
         />
       </div>
 
-      {showIframe && (
+      {/* Upload progress bars */}
+      {uploads.length > 0 && (
+        <div className="space-y-2">
+          {uploads.map((u, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground truncate min-w-0 flex-1 max-w-[200px]">{u.name}</span>
+              <Progress value={u.percent} className="flex-1 h-2" />
+              <span className="text-xs text-muted-foreground w-10 text-right">{u.percent}%</span>
+            </div>
+          ))}
+        </div>
+      )}
+
         <Card className="p-4 space-y-3 glass-panel">
           <Input
             placeholder="Nom (ex: Présentation Q1)"
