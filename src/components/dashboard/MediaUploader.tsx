@@ -3,27 +3,49 @@ import { Upload, Link, Trash2, Image, Video, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { useMedia } from "@/hooks/useMedia";
 import { toast } from "sonner";
+
+interface UploadProgress {
+  name: string;
+  percent: number;
+}
 
 export function MediaUploader() {
   const { media, isLoading, uploadMutation, addIframeMutation, deleteMutation } = useMedia();
   const [iframeName, setIframeName] = useState("");
   const [iframeUrl, setIframeUrl] = useState("");
   const [showIframe, setShowIframe] = useState(false);
+  const [uploads, setUploads] = useState<UploadProgress[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-    for (const file of Array.from(files)) {
+    const fileList = Array.from(files);
+
+    // Init progress entries
+    setUploads(fileList.map((f) => ({ name: f.name, percent: 0 })));
+
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i];
       try {
-        await uploadMutation.mutateAsync(file);
+        await uploadMutation.mutateAsync({
+          file,
+          onProgress: (percent) => {
+            setUploads((prev) =>
+              prev.map((u, idx) => (idx === i ? { ...u, percent } : u))
+            );
+          },
+        });
         toast.success(`${file.name} uploadé avec succès`);
       } catch {
         toast.error(`Erreur lors de l'upload de ${file.name}`);
       }
     }
+
+    setUploads([]);
     if (fileRef.current) fileRef.current.value = "";
   };
 
@@ -69,6 +91,19 @@ export function MediaUploader() {
           onChange={handleUpload}
         />
       </div>
+
+      {/* Upload progress bars */}
+      {uploads.length > 0 && (
+        <div className="space-y-2">
+          {uploads.map((u, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <span className="text-sm text-muted-foreground truncate min-w-0 flex-1 max-w-[200px]">{u.name}</span>
+              <Progress value={u.percent} className="flex-1 h-2" />
+              <span className="text-xs text-muted-foreground w-10 text-right">{u.percent}%</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       {showIframe && (
         <Card className="p-4 space-y-3 glass-panel">

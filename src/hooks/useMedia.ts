@@ -15,8 +15,8 @@ export function useMedia() {
   });
 
   const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const url = await uploadMediaFile(file);
+    mutationFn: async ({ file, onProgress }: { file: File; onProgress?: (p: number) => void }) => {
+      const url = await uploadMediaFile(file, onProgress);
       const type = getMediaType(file);
       const { error } = await supabase.from("media").insert({
         name: file.name,
