@@ -140,8 +140,37 @@ export function useScreenRealtime(screenId: string | undefined) {
 
     init();
 
+    // Set offline on tab close / navigation
+    const setOffline = () => {
+      if (!screenId) return;
+      const apiKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/screens?id=eq.${screenId}&apikey=${apiKey}`;
+      const body = JSON.stringify({ status: "offline" });
+      // keepalive fetch works on beforeunload and supports headers
+      fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': apiKey,
+          'Authorization': `Bearer ${apiKey}`,
+          'Prefer': 'return=minimal',
+        },
+        body,
+        keepalive: true,
+      }).catch(() => {});
+    };
+
+    const onVisChange = () => {
+      if (document.visibilityState === "hidden") setOffline();
+    };
+
+    window.addEventListener("beforeunload", setOffline);
+    document.addEventListener("visibilitychange", onVisChange);
+
     return () => {
-      supabase.from("screens").update({ status: "offline" }).eq("id", screenId);
+      setOffline();
+      window.removeEventListener("beforeunload", setOffline);
+      document.removeEventListener("visibilitychange", onVisChange);
     };
   }, [screenId, fetchPlaylist, fetchSchedules, resolveMedia]);
 
@@ -227,5 +256,9 @@ export function useScreenRealtime(screenId: string | undefined) {
     return () => { supabase.removeChannel(channel); };
   }, [screenId, screen, playlist, currentIndex, fetchPlaylist, fetchSchedules, resolveMedia]);
 
-  return { screen, media, loading, playlistLength: playlist.length, currentIndex };
+  const currentDuration = playlist.length > 0
+    ? (playlist[currentIndex % playlist.length]?.media?.duration ?? 10)
+    : (media?.duration ?? 0);
+
+  return { screen, media, loading, playlistLength: playlist.length, currentIndex, currentDuration };
 }

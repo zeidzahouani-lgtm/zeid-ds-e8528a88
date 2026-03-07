@@ -5,9 +5,12 @@ import { useEffect, useState, useRef, useCallback } from "react";
 
 export default function Player() {
   const { id } = useParams<{ id: string }>();
-  const { screen, media, loading, playlistLength, currentIndex } = useScreenRealtime(id);
+  const { screen, media, loading, playlistLength, currentIndex, currentDuration } = useScreenRealtime(id);
   const [visible, setVisible] = useState(true);
+  const [progress, setProgress] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const progressRef = useRef<number>(0);
+  const rafRef = useRef<number>();
 
   const requestFullscreen = useCallback(() => {
     const el = containerRef.current;
@@ -30,6 +33,32 @@ export default function Player() {
     const timer = setTimeout(() => setVisible(true), 300);
     return () => clearTimeout(timer);
   }, [media?.id, currentIndex]);
+
+  // Progress bar animation
+  useEffect(() => {
+    if (!currentDuration || currentDuration <= 0) {
+      setProgress(0);
+      return;
+    }
+
+    const durationMs = currentDuration * 1000;
+    const startTime = Date.now();
+    progressRef.current = 0;
+
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const pct = Math.min((elapsed / durationMs) * 100, 100);
+      setProgress(pct);
+      if (pct < 100) {
+        rafRef.current = requestAnimationFrame(animate);
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [media?.id, currentIndex, currentDuration]);
 
   if (loading) {
     return (
@@ -95,9 +124,19 @@ export default function Player() {
           )}
         </div>
 
+        {/* Progress bar */}
+        {playlistLength > 1 && currentDuration > 0 && (
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-muted/20">
+            <div
+              className="h-full bg-primary transition-none"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        )}
+
         {/* Playlist indicator */}
         {playlistLength > 1 && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
             {Array.from({ length: playlistLength }).map((_, i) => (
               <div
                 key={i}
