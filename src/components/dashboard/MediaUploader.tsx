@@ -105,6 +105,7 @@ export function MediaUploader() {
         </div>
       )}
 
+      {showIframe && (
         <Card className="p-4 space-y-3 glass-panel">
           <Input
             placeholder="Nom (ex: Présentation Q1)"
