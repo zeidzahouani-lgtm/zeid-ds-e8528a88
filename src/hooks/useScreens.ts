@@ -31,7 +31,9 @@ export function useScreens() {
 
   const addScreen = useMutation({
     mutationFn: async (name: string) => {
-      const { error } = await supabase.from("screens").insert({ name });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+      const { error } = await supabase.from("screens").insert({ name, user_id: user.id } as any);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["screens"] }),
