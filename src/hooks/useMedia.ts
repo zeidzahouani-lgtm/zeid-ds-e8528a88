@@ -18,12 +18,15 @@ export function useMedia() {
     mutationFn: async ({ file, onProgress }: { file: File; onProgress?: (p: number) => void }) => {
       const url = await uploadMediaFile(file, onProgress);
       const type = getMediaType(file);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
       const { error } = await supabase.from("media").insert({
         name: file.name,
         type,
         url,
         duration: type === 'image' ? 10 : 30,
-      });
+        user_id: user.id,
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["media"] }),
@@ -31,12 +34,15 @@ export function useMedia() {
 
   const addIframeMutation = useMutation({
     mutationFn: async ({ name, url }: { name: string; url: string }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
       const { error } = await supabase.from("media").insert({
         name,
         type: 'iframe',
         url,
         duration: 30,
-      });
+        user_id: user.id,
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["media"] }),
