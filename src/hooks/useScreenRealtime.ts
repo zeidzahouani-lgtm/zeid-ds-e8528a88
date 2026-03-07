@@ -254,5 +254,9 @@ export function useScreenRealtime(screenId: string | undefined) {
     return () => { supabase.removeChannel(channel); };
   }, [screenId, screen, playlist, currentIndex, fetchPlaylist, fetchSchedules, resolveMedia]);
 
-  return { screen, media, loading, playlistLength: playlist.length, currentIndex };
+  const currentDuration = playlist.length > 0
+    ? (playlist[currentIndex % playlist.length]?.media?.duration ?? 10)
+    : (media?.duration ?? 0);
+
+  return { screen, media, loading, playlistLength: playlist.length, currentIndex, currentDuration };
 }
