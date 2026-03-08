@@ -1,4 +1,4 @@
-import { Tv, Image, ListMusic, Clock, LayoutDashboard, LogOut, User } from "lucide-react";
+import { Tv, Image, ListMusic, Clock, LayoutDashboard, LogOut, User, LayoutGrid, Users } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,8 +22,13 @@ const mainItems = [
   { title: "Tableau de bord", url: "/", icon: LayoutDashboard },
   { title: "Écrans", url: "/displays", icon: Tv },
   { title: "Bibliothèque", url: "/library", icon: Image },
+  { title: "Layouts", url: "/layouts", icon: LayoutGrid },
   { title: "Playlists", url: "/playlists", icon: ListMusic },
   { title: "Programmation", url: "/schedules", icon: Clock },
+];
+
+const adminItems = [
+  { title: "Utilisateurs", url: "/admin/users", icon: Users },
 ];
 
 export function AppSidebar() {
@@ -54,6 +59,28 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {mainItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={location.pathname === item.url}>
+                    <NavLink
+                      to={item.url}
+                      end
+                      className="hover:bg-muted/50"
+                      activeClassName="bg-muted text-primary font-medium"
+                    >
+                      <item.icon className="mr-2 h-4 w-4" />
+                      {!collapsed && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel>Administration</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {adminItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location.pathname === item.url}>
                     <NavLink

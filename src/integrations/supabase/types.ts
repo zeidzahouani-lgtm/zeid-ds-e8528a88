@@ -14,6 +14,93 @@ export type Database = {
   }
   public: {
     Tables: {
+      layout_regions: {
+        Row: {
+          created_at: string
+          height: number
+          id: string
+          layout_id: string
+          media_id: string | null
+          name: string
+          width: number
+          x: number
+          y: number
+          z_index: number
+        }
+        Insert: {
+          created_at?: string
+          height?: number
+          id?: string
+          layout_id: string
+          media_id?: string | null
+          name?: string
+          width?: number
+          x?: number
+          y?: number
+          z_index?: number
+        }
+        Update: {
+          created_at?: string
+          height?: number
+          id?: string
+          layout_id?: string
+          media_id?: string | null
+          name?: string
+          width?: number
+          x?: number
+          y?: number
+          z_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "layout_regions_layout_id_fkey"
+            columns: ["layout_id"]
+            isOneToOne: false
+            referencedRelation: "layouts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "layout_regions_media_id_fkey"
+            columns: ["media_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      layouts: {
+        Row: {
+          background_color: string
+          created_at: string
+          height: number
+          id: string
+          name: string
+          updated_at: string
+          user_id: string
+          width: number
+        }
+        Insert: {
+          background_color?: string
+          created_at?: string
+          height?: number
+          id?: string
+          name: string
+          updated_at?: string
+          user_id: string
+          width?: number
+        }
+        Update: {
+          background_color?: string
+          created_at?: string
+          height?: number
+          id?: string
+          name?: string
+          updated_at?: string
+          user_id?: string
+          width?: number
+        }
+        Relationships: []
+      }
       media: {
         Row: {
           created_at: string
