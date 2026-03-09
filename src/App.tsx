@@ -22,6 +22,7 @@ const Layouts = lazy(() => import("./pages/Layouts"));
 const LayoutEditor = lazy(() => import("./pages/LayoutEditor"));
 const AdminUsers = lazy(() => import("./pages/AdminUsers"));
 const Establishments = lazy(() => import("./pages/Establishments"));
+const ScreenSetup = lazy(() => import("./pages/ScreenSetup"));
 
 const queryClient = new QueryClient();
 
