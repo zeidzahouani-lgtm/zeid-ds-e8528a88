@@ -212,17 +212,18 @@ export function useScreenRealtime(screenId: string | undefined) {
     return () => clearInterval(interval);
   }, [screenId, screen, playlist, currentIndex, resolveMedia]);
 
-  // Real-time: screen updates
+  // Real-time: screen updates (use resolved UUID, not slug)
   useEffect(() => {
-    if (!screenId) return;
+    const realId = realScreenIdRef.current;
+    if (!realId) return;
 
     const channel = supabase
-      .channel(`screen-${screenId}`)
+      .channel(`screen-${realId}`)
       .on("postgres_changes", {
         event: "UPDATE",
         schema: "public",
         table: "screens",
-        filter: `id=eq.${screenId}`,
+        filter: `id=eq.${realId}`,
       }, async (payload) => {
         const newData = payload.new as ScreenData;
         setScreen(newData);
@@ -248,7 +249,7 @@ export function useScreenRealtime(screenId: string | undefined) {
         schema: "public",
         table: "playlist_items",
       }, async () => {
-        const pl = await fetchPlaylist(realScreenIdRef.current!);
+        const pl = await fetchPlaylist(realId);
         setPlaylist(pl);
         setCurrentIndex(0);
         resolveMedia(screen, pl, 0);
@@ -258,14 +259,14 @@ export function useScreenRealtime(screenId: string | undefined) {
         schema: "public",
         table: "schedules",
       }, async () => {
-        const sch = await fetchSchedules(realScreenIdRef.current!);
+        const sch = await fetchSchedules(realId);
         schedulesRef.current = sch;
         resolveMedia(screen, playlist, currentIndex);
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [screenId, screen, playlist, currentIndex, fetchPlaylist, fetchSchedules, resolveMedia]);
+  }, [screen?.id, screen, playlist, currentIndex, fetchPlaylist, fetchSchedules, resolveMedia]);
 
   const currentDuration = playlist.length > 0
     ? (playlist[currentIndex % playlist.length]?.media?.duration ?? 10)
