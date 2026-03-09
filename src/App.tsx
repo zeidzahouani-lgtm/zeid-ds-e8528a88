@@ -68,6 +68,7 @@ const App = () => (
               <Route path="/layouts/:id" element={<LayoutEditor />} />
               <Route path="/admin/users" element={<AdminUsers />} />
               <Route path="/admin/establishments" element={<Establishments />} />
+              <Route path="/setup" element={<ScreenSetup />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

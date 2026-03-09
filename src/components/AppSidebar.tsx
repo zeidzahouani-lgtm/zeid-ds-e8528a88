@@ -25,6 +25,7 @@ const mainItems = [
   { title: "Layouts", url: "/layouts", icon: LayoutGrid },
   { title: "Playlists", url: "/playlists", icon: ListMusic },
   { title: "Programmation", url: "/schedules", icon: Clock },
+  { title: "Config. Écrans", url: "/setup", icon: Settings },
 ];
 
 const adminItems = [
