@@ -26,10 +26,12 @@ export default function AdminUsers() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { screens } = useScreens();
+  const { establishments, assignUserToEstablishment } = useEstablishments();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
+  const [newEstablishmentId, setNewEstablishmentId] = useState("");
   const [showScreenDialog, setShowScreenDialog] = useState<string | null>(null);
 
   const { data: currentUserRoles = [] } = useQuery({
