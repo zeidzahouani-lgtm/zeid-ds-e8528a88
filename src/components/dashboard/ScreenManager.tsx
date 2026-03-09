@@ -174,7 +174,7 @@ export function ScreenManager() {
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => window.open(`/player/${screen.id}`, '_blank')}
+                    onClick={() => window.open(`/player/${(screen as any).slug || screen.id}`, '_blank')}
                     title="Ouvrir le player"
                   >
                     <ExternalLink className="h-4 w-4" />

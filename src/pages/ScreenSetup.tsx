@@ -71,11 +71,12 @@ export default function ScreenSetup() {
                     <p className="text-sm font-semibold truncate">{s.name}</p>
                     <Badge variant="outline" className="text-[10px] shrink-0">{s.orientation}</Badge>
                   </div>
+                  <p className="font-mono text-xs text-muted-foreground mt-1">{playerUrl}{(s as any).slug || s.id}</p>
                 </div>
-                <a href={`${playerUrl}${s.id}`} target="_blank" rel="noopener noreferrer">
+                <a href={`${playerUrl}${(s as any).slug || s.id}`} target="_blank" rel="noopener noreferrer">
                   <Button variant="ghost" size="sm"><ExternalLink className="h-3.5 w-3.5" /></Button>
                 </a>
-                <CopyButton text={`${playerUrl}${s.id}`} />
+                <CopyButton text={`${playerUrl}${(s as any).slug || s.id}`} />
               </div>
             ))
           ) : (

@@ -109,9 +109,11 @@ export function useScreenRealtime(screenId: string | undefined) {
     if (!screenId) return;
 
     const init = async () => {
-      const [screenRes, pl, sch] = await Promise.all([
-        supabase.from("screens").select("*").eq("id", screenId).single(),
-        fetchPlaylist(),
+        // Try by slug first, then by id (backward compat)
+        let screenRes = await supabase.from("screens").select("*").eq("slug", screenId).single();
+        if (screenRes.error) {
+          screenRes = await supabase.from("screens").select("*").eq("id", screenId).single();
+        }
         fetchSchedules(),
       ]);
 
