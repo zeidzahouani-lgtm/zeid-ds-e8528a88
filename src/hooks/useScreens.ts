@@ -33,7 +33,8 @@ export function useScreens() {
     mutationFn: async (name: string) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
-      const { error } = await supabase.from("screens").insert({ name, user_id: user.id } as any);
+      const slug = name.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-");
+      const { error } = await supabase.from("screens").insert({ name, slug, user_id: user.id } as any);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["screens"] }),
