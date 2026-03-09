@@ -109,18 +109,17 @@ export function useScreenRealtime(screenId: string | undefined) {
     if (!screenId) return;
 
     const init = async () => {
-        // Try by slug first, then by id (backward compat)
-        let screenRes = await supabase.from("screens").select("*").eq("slug", screenId).single();
-        if (screenRes.error) {
-          screenRes = await supabase.from("screens").select("*").eq("id", screenId).single();
-        }
-        fetchSchedules(),
-      ]);
+      // Try by slug first, then by id (backward compat)
+      let screenRes = await supabase.from("screens").select("*").eq("slug", screenId).maybeSingle();
+      if (!screenRes.data) {
+        screenRes = await supabase.from("screens").select("*").eq("id", screenId).maybeSingle();
+      }
+      const [pl, sch] = await Promise.all([fetchPlaylist(), fetchSchedules()]);
 
       const screenData = screenRes.data as ScreenData | null;
       if (screenData) {
         setScreen(screenData);
-        await supabase.from("screens").update({ status: "online" }).eq("id", screenId);
+        await supabase.from("screens").update({ status: "online" }).eq("id", screenData.id);
       }
 
       setPlaylist(pl);
