@@ -95,13 +95,24 @@ export default function AdminUsers() {
       if (res.data?.error) throw new Error(res.data.error);
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
+      // If an establishment was selected, assign the new user
+      if (newEstablishmentId && data?.user?.id) {
+        try {
+          await assignUserToEstablishment.mutateAsync({
+            userId: data.user.id,
+            establishmentId: newEstablishmentId,
+          });
+        } catch {}
+      }
       queryClient.invalidateQueries({ queryKey: ["admin_users"] });
+      queryClient.invalidateQueries({ queryKey: ["user_establishments"] });
       toast({ title: "Utilisateur créé avec succès" });
       setShowAddDialog(false);
       setNewEmail("");
       setNewPassword("");
       setNewDisplayName("");
+      setNewEstablishmentId("");
     },
     onError: (e) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
