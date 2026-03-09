@@ -273,5 +273,5 @@ export function useScreenRealtime(screenId: string | undefined) {
     ? (playlist[currentIndex % playlist.length]?.media?.duration ?? 10)
     : (media?.duration ?? 0);
 
-  return { screen, media, loading, playlistLength: playlist.length, currentIndex, currentDuration };
+  return { screen, media, loading, playlistLength: playlist.length, currentIndex, currentDuration, layoutId: screen?.layout_id ?? null };
 }
