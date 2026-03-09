@@ -29,6 +29,7 @@ const mainItems = [
 
 const adminItems = [
   { title: "Utilisateurs", url: "/admin/users", icon: Users },
+  { title: "Établissements", url: "/admin/establishments", icon: Building2 },
 ];
 
 export function AppSidebar() {
