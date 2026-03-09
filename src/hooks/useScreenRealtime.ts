@@ -133,6 +133,9 @@ export function useScreenRealtime(screenId: string | undefined) {
 
       setPlaylist(pl);
       schedulesRef.current = sch;
+
+      // If single media assigned and no playlist/schedule override
+      if (screenData?.current_media_id && pl.length === 0) {
         const { data: mediaData } = await supabase
           .from("media")
           .select("*")
