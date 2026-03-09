@@ -59,6 +59,7 @@ export function useScreenRealtime(screenId: string | undefined) {
   const [loading, setLoading] = useState(true);
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
   const schedulesRef = useRef<ScheduleRow[]>([]);
+  const realScreenIdRef = useRef<string | undefined>(undefined);
 
   const fetchPlaylist = useCallback(async (realId: string) => {
     if (!realId) return [];
