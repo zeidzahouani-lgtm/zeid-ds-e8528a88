@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useScreens } from "@/hooks/useScreens";
 
 const playerUrl = window.location.origin + "/player/";
 
@@ -40,6 +41,8 @@ function StepList({ steps }: { steps: string[] }) {
 }
 
 export default function ScreenSetup() {
+  const { screens } = useScreens();
+
   return (
     <div className="space-y-6">
       <div>
@@ -53,16 +56,28 @@ export default function ScreenSetup() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">URL du Player</CardTitle>
+          <CardTitle className="text-base">URLs de vos écrans</CardTitle>
           <CardDescription>
-            Ouvrez cette URL sur votre écran en remplaçant <code className="bg-muted px-1 rounded text-xs">SCREEN_ID</code> par l'identifiant de l'écran
+            Copiez l'URL complète de l'écran à configurer et collez-la dans le navigateur de votre appareil
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-3 bg-muted/50 border rounded-lg px-4 py-3 font-mono text-sm break-all">
-            <span className="flex-1">{playerUrl}<span className="text-primary font-semibold">SCREEN_ID</span></span>
-            <CopyButton text={playerUrl} />
-          </div>
+        <CardContent className="space-y-3">
+          {screens && screens.length > 0 ? (
+            screens.map((s: any) => (
+              <div key={s.id} className="flex items-center gap-3 bg-muted/50 border rounded-lg px-4 py-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{s.name}</p>
+                  <p className="font-mono text-xs text-muted-foreground break-all">{playerUrl}{s.id}</p>
+                </div>
+                <a href={`${playerUrl}${s.id}`} target="_blank" rel="noopener noreferrer">
+                  <Button variant="ghost" size="sm"><ExternalLink className="h-3.5 w-3.5" /></Button>
+                </a>
+                <CopyButton text={`${playerUrl}${s.id}`} />
+              </div>
+            ))
+          ) : (
+            <p className="text-sm text-muted-foreground">Aucun écran créé. Créez un écran dans l'onglet « Écrans » d'abord.</p>
+          )}
         </CardContent>
       </Card>
 
