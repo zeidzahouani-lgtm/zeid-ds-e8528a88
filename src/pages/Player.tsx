@@ -2,14 +2,128 @@ import { useParams } from "react-router-dom";
 import { useScreenRealtime } from "@/hooks/useScreenRealtime";
 import { MonitorPlay } from "lucide-react";
 import { useEffect, useState, useRef, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import WidgetRenderer from "@/components/widgets/WidgetRenderer";
+
+interface LayoutRegionData {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  z_index: number;
+  media_id: string | null;
+  widget_type: string | null;
+  widget_config: Record<string, any> | null;
+  media: { id: string; name: string; type: string; url: string } | null;
+}
+
+interface LayoutData {
+  id: string;
+  width: number;
+  height: number;
+  background_color: string;
+}
+
+function MediaRenderer({ media, playlistLength }: { media: { id: string; name: string; type: string; url: string }; playlistLength?: number }) {
+  if (media.type === "image") {
+    return <img src={media.url} alt={media.name} className="w-full h-full object-cover" />;
+  }
+  if (media.type === "video") {
+    return (
+      <video
+        key={media.id}
+        src={media.url}
+        className="w-full h-full object-cover"
+        autoPlay
+        loop={!playlistLength || playlistLength <= 1}
+        muted
+        playsInline
+      />
+    );
+  }
+  return <iframe src={media.url} className="w-full h-full border-0" allowFullScreen title={media.name} />;
+}
+
+function LayoutRenderer({ layoutId, screenOrientation }: { layoutId: string; screenOrientation: string }) {
+  const [layout, setLayout] = useState<LayoutData | null>(null);
+  const [regions, setRegions] = useState<LayoutRegionData[]>([]);
+
+  useEffect(() => {
+    const fetchLayout = async () => {
+      const [layoutRes, regionsRes] = await Promise.all([
+        supabase.from("layouts").select("id, width, height, background_color").eq("id", layoutId).single(),
+        supabase.from("layout_regions").select("*, media:media_id(id, name, type, url)").eq("layout_id", layoutId).order("z_index", { ascending: true }),
+      ]);
+      if (layoutRes.data) setLayout(layoutRes.data as LayoutData);
+      if (regionsRes.data) setRegions(regionsRes.data as LayoutRegionData[]);
+    };
+    fetchLayout();
+
+    // Listen for realtime changes on layout_regions
+    const channel = supabase
+      .channel(`layout-regions-${layoutId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "layout_regions", filter: `layout_id=eq.${layoutId}` }, () => {
+        fetchLayout();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [layoutId]);
+
+  if (!layout) return null;
+
+  const isPortrait = screenOrientation === "portrait";
+
+  return (
+    <div
+      className="w-full h-full relative"
+      style={{
+        backgroundColor: layout.background_color,
+        ...(isPortrait ? {
+          transform: "rotate(90deg)",
+          transformOrigin: "center center",
+          width: "100vh",
+          height: "100vw",
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          marginTop: "calc(-50vw)",
+          marginLeft: "calc(-50vh)",
+        } : {}),
+      }}
+    >
+      {regions.map((region) => {
+        const style: React.CSSProperties = {
+          position: "absolute",
+          left: `${(region.x / layout.width) * 100}%`,
+          top: `${(region.y / layout.height) * 100}%`,
+          width: `${(region.width / layout.width) * 100}%`,
+          height: `${(region.height / layout.height) * 100}%`,
+          zIndex: region.z_index,
+          overflow: "hidden",
+        };
+
+        return (
+          <div key={region.id} style={style}>
+            {region.widget_type ? (
+              <WidgetRenderer widgetType={region.widget_type} widgetConfig={region.widget_config ?? undefined} />
+            ) : region.media ? (
+              <MediaRenderer media={region.media} />
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function Player() {
   const { id } = useParams<{ id: string }>();
-  const { screen, media, loading, playlistLength, currentIndex, currentDuration } = useScreenRealtime(id);
+  const { screen, media, loading, playlistLength, currentIndex, currentDuration, layoutId } = useScreenRealtime(id);
   const [visible, setVisible] = useState(true);
   const [progress, setProgress] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
-  const progressRef = useRef<number>(0);
   const rafRef = useRef<number>();
 
   const requestFullscreen = useCallback(() => {
@@ -29,21 +143,21 @@ export default function Player() {
 
   // Transition effect when media changes
   useEffect(() => {
+    if (layoutId) return; // No transition for layouts
     setVisible(false);
     const timer = setTimeout(() => setVisible(true), 300);
     return () => clearTimeout(timer);
-  }, [media?.id, currentIndex]);
+  }, [media?.id, currentIndex, layoutId]);
 
   // Progress bar animation
   useEffect(() => {
-    if (!currentDuration || currentDuration <= 0) {
+    if (!currentDuration || currentDuration <= 0 || layoutId) {
       setProgress(0);
       return;
     }
 
     const durationMs = currentDuration * 1000;
     const startTime = Date.now();
-    progressRef.current = 0;
 
     const animate = () => {
       const elapsed = Date.now() - startTime;
@@ -58,7 +172,7 @@ export default function Player() {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [media?.id, currentIndex, currentDuration]);
+  }, [media?.id, currentIndex, currentDuration, layoutId]);
 
   if (loading) {
     return (
@@ -75,6 +189,15 @@ export default function Player() {
     return (
       <div className="fixed inset-0 bg-background flex items-center justify-center">
         <p className="text-destructive text-lg">Écran introuvable</p>
+      </div>
+    );
+  }
+
+  // If layout is assigned, render layout view
+  if (layoutId) {
+    return (
+      <div ref={containerRef} className="fixed inset-0 bg-background overflow-hidden cursor-none" onClick={requestFullscreen}>
+        <LayoutRenderer layoutId={layoutId} screenOrientation={screen.orientation} />
       </div>
     );
   }
@@ -107,30 +230,15 @@ export default function Player() {
               <p className="text-muted-foreground text-lg">{screen.name}</p>
               <p className="text-muted-foreground/50 text-sm">En attente de contenu...</p>
             </div>
-          ) : media.type === "image" ? (
-            <img src={media.url} alt={media.name} className="w-full h-full object-cover" />
-          ) : media.type === "video" ? (
-            <video
-              key={media.id + currentIndex}
-              src={media.url}
-              className="w-full h-full object-cover"
-              autoPlay
-              loop={playlistLength <= 1}
-              muted
-              playsInline
-            />
           ) : (
-            <iframe src={media.url} className="w-full h-full border-0" allowFullScreen title={media.name} />
+            <MediaRenderer media={media} playlistLength={playlistLength} />
           )}
         </div>
 
         {/* Progress bar */}
         {playlistLength > 1 && currentDuration > 0 && (
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-muted/20">
-            <div
-              className="h-full bg-primary transition-none"
-              style={{ width: `${progress}%` }}
-            />
+            <div className="h-full bg-primary transition-none" style={{ width: `${progress}%` }} />
           </div>
         )}
 
