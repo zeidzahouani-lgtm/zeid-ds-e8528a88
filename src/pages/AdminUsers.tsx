@@ -235,6 +235,19 @@ export default function AdminUsers() {
               <label className="text-sm font-medium">Mot de passe</label>
               <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Min. 6 caractères" className="mt-1" />
             </div>
+            <div>
+              <label className="text-sm font-medium">Établissement (optionnel)</label>
+              <Select value={newEstablishmentId} onValueChange={setNewEstablishmentId}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Aucun établissement" />
+                </SelectTrigger>
+                <SelectContent>
+                  {establishments.map((est: any) => (
+                    <SelectItem key={est.id} value={est.id}>{est.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>Annuler</Button>
