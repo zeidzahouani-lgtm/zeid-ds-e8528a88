@@ -60,25 +60,25 @@ export function useScreenRealtime(screenId: string | undefined) {
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
   const schedulesRef = useRef<ScheduleRow[]>([]);
 
-  const fetchPlaylist = useCallback(async () => {
-    if (!screenId) return [];
+  const fetchPlaylist = useCallback(async (realId: string) => {
+    if (!realId) return [];
     const { data } = await supabase
       .from("playlist_items")
       .select("*, media:media_id(id, name, type, url, duration)")
-      .eq("screen_id", screenId)
+      .eq("screen_id", realId)
       .order("position", { ascending: true });
     return (data ?? []) as PlaylistItem[];
-  }, [screenId]);
+  }, []);
 
-  const fetchSchedules = useCallback(async () => {
-    if (!screenId) return [];
+  const fetchSchedules = useCallback(async (realId: string) => {
+    if (!realId) return [];
     const { data } = await supabase
       .from("schedules")
       .select("*, media:media_id(id, name, type, url, duration)")
-      .eq("screen_id", screenId)
+      .eq("screen_id", realId)
       .eq("active", true);
     return (data ?? []) as ScheduleRow[];
-  }, [screenId]);
+  }, []);
 
   // Determine what media to show
   const resolveMedia = useCallback(
