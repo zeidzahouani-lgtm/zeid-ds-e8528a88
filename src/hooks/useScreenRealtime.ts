@@ -115,19 +115,24 @@ export function useScreenRealtime(screenId: string | undefined) {
       if (!screenRes.data) {
         screenRes = await supabase.from("screens").select("*").eq("id", screenId).maybeSingle();
       }
-      const [pl, sch] = await Promise.all([fetchPlaylist(), fetchSchedules()]);
-
+      
       const screenData = screenRes.data as ScreenData | null;
-      if (screenData) {
-        setScreen(screenData);
-        await supabase.from("screens").update({ status: "online" }).eq("id", screenData.id);
+      if (!screenData) {
+        setLoading(false);
+        return;
       }
+      
+      realScreenIdRef.current = screenData.id;
+      setScreen(screenData);
+      await supabase.from("screens").update({ status: "online" }).eq("id", screenData.id);
+      
+      const [pl, sch] = await Promise.all([
+        fetchPlaylist(screenData.id),
+        fetchSchedules(screenData.id)
+      ]);
 
       setPlaylist(pl);
       schedulesRef.current = sch;
-
-      // If single media assigned and no playlist/schedule override
-      if (screenData?.current_media_id && pl.length === 0) {
         const { data: mediaData } = await supabase
           .from("media")
           .select("*")
