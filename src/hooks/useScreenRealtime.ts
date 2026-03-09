@@ -15,6 +15,7 @@ interface ScreenData {
   orientation: string;
   status: string;
   current_media_id: string | null;
+  layout_id: string | null;
 }
 
 interface PlaylistItem {
@@ -272,5 +273,5 @@ export function useScreenRealtime(screenId: string | undefined) {
     ? (playlist[currentIndex % playlist.length]?.media?.duration ?? 10)
     : (media?.duration ?? 0);
 
-  return { screen, media, loading, playlistLength: playlist.length, currentIndex, currentDuration };
+  return { screen, media, loading, playlistLength: playlist.length, currentIndex, currentDuration, layoutId: screen?.layout_id ?? null };
 }
