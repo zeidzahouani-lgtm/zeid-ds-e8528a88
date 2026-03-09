@@ -59,26 +59,27 @@ export function useScreenRealtime(screenId: string | undefined) {
   const [loading, setLoading] = useState(true);
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
   const schedulesRef = useRef<ScheduleRow[]>([]);
+  const realScreenIdRef = useRef<string | undefined>(undefined);
 
-  const fetchPlaylist = useCallback(async () => {
-    if (!screenId) return [];
+  const fetchPlaylist = useCallback(async (realId: string) => {
+    if (!realId) return [];
     const { data } = await supabase
       .from("playlist_items")
       .select("*, media:media_id(id, name, type, url, duration)")
-      .eq("screen_id", screenId)
+      .eq("screen_id", realId)
       .order("position", { ascending: true });
     return (data ?? []) as PlaylistItem[];
-  }, [screenId]);
+  }, []);
 
-  const fetchSchedules = useCallback(async () => {
-    if (!screenId) return [];
+  const fetchSchedules = useCallback(async (realId: string) => {
+    if (!realId) return [];
     const { data } = await supabase
       .from("schedules")
       .select("*, media:media_id(id, name, type, url, duration)")
-      .eq("screen_id", screenId)
+      .eq("screen_id", realId)
       .eq("active", true);
     return (data ?? []) as ScheduleRow[];
-  }, [screenId]);
+  }, []);
 
   // Determine what media to show
   const resolveMedia = useCallback(
@@ -109,17 +110,26 @@ export function useScreenRealtime(screenId: string | undefined) {
     if (!screenId) return;
 
     const init = async () => {
-      const [screenRes, pl, sch] = await Promise.all([
-        supabase.from("screens").select("*").eq("id", screenId).single(),
-        fetchPlaylist(),
-        fetchSchedules(),
-      ]);
-
-      const screenData = screenRes.data as ScreenData | null;
-      if (screenData) {
-        setScreen(screenData);
-        await supabase.from("screens").update({ status: "online" }).eq("id", screenId);
+      // Try by slug first, then by id (backward compat)
+      let screenRes = await supabase.from("screens").select("*").eq("slug", screenId).maybeSingle();
+      if (!screenRes.data) {
+        screenRes = await supabase.from("screens").select("*").eq("id", screenId).maybeSingle();
       }
+      
+      const screenData = screenRes.data as ScreenData | null;
+      if (!screenData) {
+        setLoading(false);
+        return;
+      }
+      
+      realScreenIdRef.current = screenData.id;
+      setScreen(screenData);
+      await supabase.from("screens").update({ status: "online" }).eq("id", screenData.id);
+      
+      const [pl, sch] = await Promise.all([
+        fetchPlaylist(screenData.id),
+        fetchSchedules(screenData.id)
+      ]);
 
       setPlaylist(pl);
       schedulesRef.current = sch;
@@ -142,9 +152,10 @@ export function useScreenRealtime(screenId: string | undefined) {
 
     // Set offline on tab close / navigation
     const setOffline = () => {
-      if (!screenId) return;
+      const realId = realScreenIdRef.current;
+      if (!realId) return;
       const apiKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/screens?id=eq.${screenId}&apikey=${apiKey}`;
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/screens?id=eq.${realId}&apikey=${apiKey}`;
       const body = JSON.stringify({ status: "offline" });
       // keepalive fetch works on beforeunload and supports headers
       fetch(url, {
@@ -172,7 +183,7 @@ export function useScreenRealtime(screenId: string | undefined) {
       window.removeEventListener("beforeunload", setOffline);
       document.removeEventListener("visibilitychange", onVisChange);
     };
-  }, [screenId, fetchPlaylist, fetchSchedules, resolveMedia]);
+  }, [screenId, resolveMedia]);
 
   // Playlist rotation timer
   useEffect(() => {
@@ -226,7 +237,7 @@ export function useScreenRealtime(screenId: string | undefined) {
         }
 
         // Re-fetch playlist & schedules
-        const [pl, sch] = await Promise.all([fetchPlaylist(), fetchSchedules()]);
+        const [pl, sch] = await Promise.all([fetchPlaylist(newData.id), fetchSchedules(newData.id)]);
         setPlaylist(pl);
         schedulesRef.current = sch;
         setCurrentIndex(0);
@@ -237,7 +248,7 @@ export function useScreenRealtime(screenId: string | undefined) {
         schema: "public",
         table: "playlist_items",
       }, async () => {
-        const pl = await fetchPlaylist();
+        const pl = await fetchPlaylist(realScreenIdRef.current!);
         setPlaylist(pl);
         setCurrentIndex(0);
         resolveMedia(screen, pl, 0);
@@ -247,7 +258,7 @@ export function useScreenRealtime(screenId: string | undefined) {
         schema: "public",
         table: "schedules",
       }, async () => {
-        const sch = await fetchSchedules();
+        const sch = await fetchSchedules(realScreenIdRef.current!);
         schedulesRef.current = sch;
         resolveMedia(screen, playlist, currentIndex);
       })
