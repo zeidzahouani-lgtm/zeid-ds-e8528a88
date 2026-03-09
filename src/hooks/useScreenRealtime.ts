@@ -245,7 +245,7 @@ export function useScreenRealtime(screenId: string | undefined) {
         schema: "public",
         table: "playlist_items",
       }, async () => {
-        const pl = await fetchPlaylist();
+        const pl = await fetchPlaylist(realScreenIdRef.current!);
         setPlaylist(pl);
         setCurrentIndex(0);
         resolveMedia(screen, pl, 0);
