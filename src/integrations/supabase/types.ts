@@ -278,6 +278,7 @@ export type Database = {
           current_media_id: string | null
           establishment_id: string | null
           id: string
+          layout_id: string | null
           name: string
           orientation: string
           status: string
@@ -289,6 +290,7 @@ export type Database = {
           current_media_id?: string | null
           establishment_id?: string | null
           id?: string
+          layout_id?: string | null
           name: string
           orientation?: string
           status?: string
@@ -300,6 +302,7 @@ export type Database = {
           current_media_id?: string | null
           establishment_id?: string | null
           id?: string
+          layout_id?: string | null
           name?: string
           orientation?: string
           status?: string
@@ -319,6 +322,13 @@ export type Database = {
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "screens_layout_id_fkey"
+            columns: ["layout_id"]
+            isOneToOne: false
+            referencedRelation: "layouts"
             referencedColumns: ["id"]
           },
         ]
