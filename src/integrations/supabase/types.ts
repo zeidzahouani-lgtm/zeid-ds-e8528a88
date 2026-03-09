@@ -49,6 +49,8 @@ export type Database = {
           layout_id: string
           media_id: string | null
           name: string
+          widget_config: Json | null
+          widget_type: string | null
           width: number
           x: number
           y: number
@@ -61,6 +63,8 @@ export type Database = {
           layout_id: string
           media_id?: string | null
           name?: string
+          widget_config?: Json | null
+          widget_type?: string | null
           width?: number
           x?: number
           y?: number
@@ -73,6 +77,8 @@ export type Database = {
           layout_id?: string
           media_id?: string | null
           name?: string
+          widget_config?: Json | null
+          widget_type?: string | null
           width?: number
           x?: number
           y?: number
