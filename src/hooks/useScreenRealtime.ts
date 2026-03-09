@@ -15,6 +15,7 @@ interface ScreenData {
   orientation: string;
   status: string;
   current_media_id: string | null;
+  layout_id: string | null;
 }
 
 interface PlaylistItem {
