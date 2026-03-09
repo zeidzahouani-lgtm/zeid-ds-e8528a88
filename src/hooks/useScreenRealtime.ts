@@ -183,7 +183,7 @@ export function useScreenRealtime(screenId: string | undefined) {
       window.removeEventListener("beforeunload", setOffline);
       document.removeEventListener("visibilitychange", onVisChange);
     };
-  }, [screenId, fetchPlaylist, fetchSchedules, resolveMedia]);
+  }, [screenId, resolveMedia]);
 
   // Playlist rotation timer
   useEffect(() => {
