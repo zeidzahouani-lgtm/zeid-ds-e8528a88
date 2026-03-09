@@ -149,9 +149,10 @@ export function useScreenRealtime(screenId: string | undefined) {
 
     // Set offline on tab close / navigation
     const setOffline = () => {
-      if (!screenId) return;
+      const realId = realScreenIdRef.current;
+      if (!realId) return;
       const apiKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/screens?id=eq.${screenId}&apikey=${apiKey}`;
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/screens?id=eq.${realId}&apikey=${apiKey}`;
       const body = JSON.stringify({ status: "offline" });
       // keepalive fetch works on beforeunload and supports headers
       fetch(url, {
