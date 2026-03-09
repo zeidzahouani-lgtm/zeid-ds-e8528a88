@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Monitor, Smartphone, Tv, Copy, CheckCheck, ExternalLink } from "lucide-react";
+import { Monitor, Smartphone, Tv, Copy, CheckCheck, ExternalLink, Pencil, Check, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useScreens } from "@/hooks/useScreens";
 
@@ -40,8 +41,70 @@ function StepList({ steps }: { steps: string[] }) {
   );
 }
 
+function ScreenRow({ screen, updateScreen }: { screen: any; updateScreen: any }) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(screen.name);
+  const url = `${playerUrl}${screen.slug || screen.id}`;
+
+  const handleSave = () => {
+    if (!name.trim()) return;
+    const slug = name.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-");
+    updateScreen.mutate({ id: screen.id, name: name.trim(), slug } as any);
+    setEditing(false);
+    toast.success("Écran renommé !");
+  };
+
+  const handleCancel = () => {
+    setName(screen.name);
+    setEditing(false);
+  };
+
+  return (
+    <div className="flex items-center gap-3 bg-muted/50 border rounded-lg px-4 py-3">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <Monitor className="h-4 w-4 text-primary shrink-0" />
+          {editing ? (
+            <div className="flex items-center gap-1.5">
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="h-7 text-sm w-48"
+                autoFocus
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSave();
+                  if (e.key === "Escape") handleCancel();
+                }}
+              />
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleSave}>
+                <Check className="h-3.5 w-3.5 text-green-500" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCancel}>
+                <X className="h-3.5 w-3.5 text-destructive" />
+              </Button>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm font-semibold truncate">{screen.name}</p>
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setEditing(true)}>
+                <Pencil className="h-3 w-3 text-muted-foreground" />
+              </Button>
+            </>
+          )}
+          <Badge variant="outline" className="text-[10px] shrink-0">{screen.orientation}</Badge>
+        </div>
+        <p className="font-mono text-xs text-muted-foreground mt-1">{url}</p>
+      </div>
+      <a href={url} target="_blank" rel="noopener noreferrer">
+        <Button variant="ghost" size="sm"><ExternalLink className="h-3.5 w-3.5" /></Button>
+      </a>
+      <CopyButton text={url} />
+    </div>
+  );
+}
+
 export default function ScreenSetup() {
-  const { screens } = useScreens();
+  const { screens, updateScreen } = useScreens();
 
   return (
     <div className="space-y-6">
@@ -64,20 +127,7 @@ export default function ScreenSetup() {
         <CardContent className="space-y-3">
           {screens && screens.length > 0 ? (
             screens.map((s: any) => (
-              <div key={s.id} className="flex items-center gap-3 bg-muted/50 border rounded-lg px-4 py-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <Monitor className="h-4 w-4 text-primary shrink-0" />
-                    <p className="text-sm font-semibold truncate">{s.name}</p>
-                    <Badge variant="outline" className="text-[10px] shrink-0">{s.orientation}</Badge>
-                  </div>
-                  <p className="font-mono text-xs text-muted-foreground mt-1">{playerUrl}{(s as any).slug || s.id}</p>
-                </div>
-                <a href={`${playerUrl}${(s as any).slug || s.id}`} target="_blank" rel="noopener noreferrer">
-                  <Button variant="ghost" size="sm"><ExternalLink className="h-3.5 w-3.5" /></Button>
-                </a>
-                <CopyButton text={`${playerUrl}${(s as any).slug || s.id}`} />
-              </div>
+              <ScreenRow key={s.id} screen={s} updateScreen={updateScreen} />
             ))
           ) : (
             <p className="text-sm text-muted-foreground">Aucun écran créé. Créez un écran dans l'onglet « Écrans » d'abord.</p>
@@ -87,18 +137,10 @@ export default function ScreenSetup() {
 
       <Tabs defaultValue="samsung" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="samsung" className="gap-1.5">
-            <Tv className="h-4 w-4" /> Samsung
-          </TabsTrigger>
-          <TabsTrigger value="lg" className="gap-1.5">
-            <Tv className="h-4 w-4" /> LG
-          </TabsTrigger>
-          <TabsTrigger value="philips" className="gap-1.5">
-            <Monitor className="h-4 w-4" /> Philips
-          </TabsTrigger>
-          <TabsTrigger value="android" className="gap-1.5">
-            <Smartphone className="h-4 w-4" /> Android
-          </TabsTrigger>
+          <TabsTrigger value="samsung" className="gap-1.5"><Tv className="h-4 w-4" /> Samsung</TabsTrigger>
+          <TabsTrigger value="lg" className="gap-1.5"><Tv className="h-4 w-4" /> LG</TabsTrigger>
+          <TabsTrigger value="philips" className="gap-1.5"><Monitor className="h-4 w-4" /> Philips</TabsTrigger>
+          <TabsTrigger value="android" className="gap-1.5"><Smartphone className="h-4 w-4" /> Android</TabsTrigger>
         </TabsList>
 
         <TabsContent value="samsung">

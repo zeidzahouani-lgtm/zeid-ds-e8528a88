@@ -107,7 +107,7 @@ export function useLayoutRegions(layoutId: string | undefined) {
   });
 
   const updateRegion = useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string; x?: number; y?: number; width?: number; height?: number; name?: string; media_id?: string | null; z_index?: number }) => {
+    mutationFn: async ({ id, ...updates }: { id: string; x?: number; y?: number; width?: number; height?: number; name?: string; media_id?: string | null; z_index?: number; widget_type?: string | null; widget_config?: any }) => {
       const { error } = await supabase.from("layout_regions").update(updates).eq("id", id);
       if (error) throw error;
     },
