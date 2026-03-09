@@ -66,8 +66,11 @@ export default function ScreenSetup() {
             screens.map((s: any) => (
               <div key={s.id} className="flex items-center gap-3 bg-muted/50 border rounded-lg px-4 py-3">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{s.name}</p>
-                  <p className="font-mono text-xs text-muted-foreground break-all">{playerUrl}{s.id}</p>
+                  <div className="flex items-center gap-2">
+                    <Monitor className="h-4 w-4 text-primary shrink-0" />
+                    <p className="text-sm font-semibold truncate">{s.name}</p>
+                    <Badge variant="outline" className="text-[10px] shrink-0">{s.orientation}</Badge>
+                  </div>
                 </div>
                 <a href={`${playerUrl}${s.id}`} target="_blank" rel="noopener noreferrer">
                   <Button variant="ghost" size="sm"><ExternalLink className="h-3.5 w-3.5" /></Button>
