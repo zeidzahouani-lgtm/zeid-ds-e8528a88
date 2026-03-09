@@ -234,7 +234,7 @@ export function useScreenRealtime(screenId: string | undefined) {
         }
 
         // Re-fetch playlist & schedules
-        const [pl, sch] = await Promise.all([fetchPlaylist(), fetchSchedules()]);
+        const [pl, sch] = await Promise.all([fetchPlaylist(newData.id), fetchSchedules(newData.id)]);
         setPlaylist(pl);
         schedulesRef.current = sch;
         setCurrentIndex(0);
