@@ -281,6 +281,7 @@ export type Database = {
           layout_id: string | null
           name: string
           orientation: string
+          slug: string | null
           status: string
           updated_at: string
           user_id: string | null
@@ -293,6 +294,7 @@ export type Database = {
           layout_id?: string | null
           name: string
           orientation?: string
+          slug?: string | null
           status?: string
           updated_at?: string
           user_id?: string | null
@@ -305,6 +307,7 @@ export type Database = {
           layout_id?: string | null
           name?: string
           orientation?: string
+          slug?: string | null
           status?: string
           updated_at?: string
           user_id?: string | null
