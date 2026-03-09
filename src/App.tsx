@@ -21,6 +21,7 @@ const Schedules = lazy(() => import("./pages/Schedules"));
 const Layouts = lazy(() => import("./pages/Layouts"));
 const LayoutEditor = lazy(() => import("./pages/LayoutEditor"));
 const AdminUsers = lazy(() => import("./pages/AdminUsers"));
+const Establishments = lazy(() => import("./pages/Establishments"));
 
 const queryClient = new QueryClient();
 
