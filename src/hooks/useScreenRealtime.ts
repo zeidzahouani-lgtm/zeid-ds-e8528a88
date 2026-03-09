@@ -255,7 +255,7 @@ export function useScreenRealtime(screenId: string | undefined) {
         schema: "public",
         table: "schedules",
       }, async () => {
-        const sch = await fetchSchedules();
+        const sch = await fetchSchedules(realScreenIdRef.current!);
         schedulesRef.current = sch;
         resolveMedia(screen, playlist, currentIndex);
       })
