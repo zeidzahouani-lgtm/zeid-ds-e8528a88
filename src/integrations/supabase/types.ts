@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      establishments: {
+        Row: {
+          address: string | null
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       layout_regions: {
         Row: {
           created_at: string
@@ -249,6 +276,7 @@ export type Database = {
         Row: {
           created_at: string
           current_media_id: string | null
+          establishment_id: string | null
           id: string
           name: string
           orientation: string
@@ -259,6 +287,7 @@ export type Database = {
         Insert: {
           created_at?: string
           current_media_id?: string | null
+          establishment_id?: string | null
           id?: string
           name: string
           orientation?: string
@@ -269,6 +298,7 @@ export type Database = {
         Update: {
           created_at?: string
           current_media_id?: string | null
+          establishment_id?: string | null
           id?: string
           name?: string
           orientation?: string
@@ -282,6 +312,42 @@ export type Database = {
             columns: ["current_media_id"]
             isOneToOne: false
             referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "screens_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_establishments: {
+        Row: {
+          created_at: string
+          establishment_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          establishment_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          establishment_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_establishments_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
             referencedColumns: ["id"]
           },
         ]

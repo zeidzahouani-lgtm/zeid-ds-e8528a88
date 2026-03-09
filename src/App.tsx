@@ -21,6 +21,7 @@ const Schedules = lazy(() => import("./pages/Schedules"));
 const Layouts = lazy(() => import("./pages/Layouts"));
 const LayoutEditor = lazy(() => import("./pages/LayoutEditor"));
 const AdminUsers = lazy(() => import("./pages/AdminUsers"));
+const Establishments = lazy(() => import("./pages/Establishments"));
 
 const queryClient = new QueryClient();
 
@@ -65,6 +66,7 @@ const App = () => (
               <Route path="/layouts" element={<Layouts />} />
               <Route path="/layouts/:id" element={<LayoutEditor />} />
               <Route path="/admin/users" element={<AdminUsers />} />
+              <Route path="/admin/establishments" element={<Establishments />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

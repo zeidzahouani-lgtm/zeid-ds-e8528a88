@@ -1,4 +1,4 @@
-import { Tv, Image, ListMusic, Clock, LayoutDashboard, LogOut, User, LayoutGrid, Users } from "lucide-react";
+import { Tv, Image, ListMusic, Clock, LayoutDashboard, LogOut, User, LayoutGrid, Users, Building2 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,6 +29,7 @@ const mainItems = [
 
 const adminItems = [
   { title: "Utilisateurs", url: "/admin/users", icon: Users },
+  { title: "Établissements", url: "/admin/establishments", icon: Building2 },
 ];
 
 export function AppSidebar() {

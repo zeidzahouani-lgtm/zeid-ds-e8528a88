@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Users, Shield, ShieldCheck, Plus, Tv, UserPlus } from "lucide-react";
+import { Users, Shield, ShieldCheck, Plus, Tv, UserPlus, Building2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useScreens } from "@/hooks/useScreens";
+import { useEstablishments } from "@/hooks/useEstablishments";
 
 interface UserProfile {
   id: string;
@@ -25,10 +26,12 @@ export default function AdminUsers() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const { screens } = useScreens();
+  const { establishments, assignUserToEstablishment } = useEstablishments();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
+  const [newEstablishmentId, setNewEstablishmentId] = useState("");
   const [showScreenDialog, setShowScreenDialog] = useState<string | null>(null);
 
   const { data: currentUserRoles = [] } = useQuery({
@@ -92,13 +95,24 @@ export default function AdminUsers() {
       if (res.data?.error) throw new Error(res.data.error);
       return res.data;
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
+      // If an establishment was selected, assign the new user
+      if (newEstablishmentId && data?.user?.id) {
+        try {
+          await assignUserToEstablishment.mutateAsync({
+            userId: data.user.id,
+            establishmentId: newEstablishmentId,
+          });
+        } catch {}
+      }
       queryClient.invalidateQueries({ queryKey: ["admin_users"] });
+      queryClient.invalidateQueries({ queryKey: ["user_establishments"] });
       toast({ title: "Utilisateur créé avec succès" });
       setShowAddDialog(false);
       setNewEmail("");
       setNewPassword("");
       setNewDisplayName("");
+      setNewEstablishmentId("");
     },
     onError: (e) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
@@ -220,6 +234,19 @@ export default function AdminUsers() {
             <div>
               <label className="text-sm font-medium">Mot de passe</label>
               <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Min. 6 caractères" className="mt-1" />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Établissement (optionnel)</label>
+              <Select value={newEstablishmentId} onValueChange={setNewEstablishmentId}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Aucun établissement" />
+                </SelectTrigger>
+                <SelectContent>
+                  {establishments.map((est: any) => (
+                    <SelectItem key={est.id} value={est.id}>{est.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
