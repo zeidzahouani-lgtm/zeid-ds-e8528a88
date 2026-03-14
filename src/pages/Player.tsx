@@ -140,6 +140,7 @@ function LicenseScreen({
   message,
   screenId,
   onActivated,
+  logoUrl,
 }: {
   containerRef: React.RefObject<HTMLDivElement>;
   requestFullscreen: () => void;
