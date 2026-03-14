@@ -398,6 +398,7 @@ export default function Player() {
         <div className="w-full h-full transition-opacity duration-500 ease-in-out" style={{ opacity: visible ? 1 : 0 }}>
           {!media ? (
             <div className="w-full h-full flex flex-col items-center justify-center gap-4">
+              <CompanyLogo logoUrl={logoUrl} />
               <MonitorPlay className="h-16 w-16 text-primary/30" />
               <p className="text-muted-foreground text-lg">{screen.name}</p>
               <p className="text-muted-foreground/50 text-sm">En attente de contenu...</p>
