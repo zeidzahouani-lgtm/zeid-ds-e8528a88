@@ -62,6 +62,17 @@ export default function AdminLicenses() {
         </p>
       </div>
 
+      {selectedScreen && selectedScreen !== "none" && screens.find((s: any) => s.id === selectedScreen) && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="py-3 flex items-center gap-3">
+            <QrCode className="h-5 w-5 text-primary shrink-0" />
+            <p className="text-sm">
+              Écran pré-sélectionné : <span className="font-semibold text-primary">{screens.find((s: any) => s.id === selectedScreen)?.name}</span>
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Create license */}
       <Card>
         <CardHeader>
