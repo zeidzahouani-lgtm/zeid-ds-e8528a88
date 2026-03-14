@@ -241,7 +241,6 @@ export function useScreenRealtime(screenId: string | undefined) {
     return () => {
       setOffline();
       window.removeEventListener("beforeunload", setOffline);
-      document.removeEventListener("visibilitychange", onVisChange);
     };
   }, [screenId, resolveMedia]);
 
