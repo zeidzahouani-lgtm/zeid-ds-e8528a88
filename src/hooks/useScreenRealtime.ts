@@ -154,9 +154,11 @@ export function useScreenRealtime(screenId: string | undefined) {
 
       // Start heartbeat
       heartbeatRef.current = setInterval(async () => {
-        await supabase.from("screens").update({
+        const realId = realScreenIdRef.current;
+        if (!realId) return;
+        await (supabase.from("screens").update({
           player_heartbeat_at: new Date().toISOString(),
-        } as any).eq("id", screenData.id).eq("player_session_id" as any, SESSION_ID);
+        } as any) as any).eq("id", realId).eq("player_session_id", SESSION_ID);
       }, HEARTBEAT_INTERVAL);
 
       setScreen(screenData as ScreenData);
