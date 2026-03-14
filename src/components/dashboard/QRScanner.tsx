@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -13,55 +13,51 @@ interface QRScannerProps {
 export default function QRScanner({ open, onClose, onScan }: QRScannerProps) {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
-
-    const startScanner = async () => {
-      try {
-        const scanner = new Html5Qrcode("qr-reader");
-        scannerRef.current = scanner;
-        await scanner.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 } },
-          (decodedText) => {
-            // Extract screen ID from URL like /admin/licenses?screen=UUID
-            try {
-              const url = new URL(decodedText);
-              const screenId = url.searchParams.get("screen");
-              if (screenId) {
-                scanner.stop().catch(() => {});
-                onScan(screenId);
-                onClose();
-              }
-            } catch {
-              // Not a valid URL, ignore
-            }
-          },
-          () => {} // ignore scan failures
-        );
-      } catch (err) {
-        setError("Impossible d'accéder à la caméra");
-      }
-    };
-
-    // Small delay for DOM to be ready
-    const timeout = setTimeout(startScanner, 300);
-
-    return () => {
-      clearTimeout(timeout);
-      if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {});
-        scannerRef.current = null;
-      }
-    };
-  }, [open, onScan, onClose]);
-
-  const handleClose = () => {
+  const stopScanner = useCallback(() => {
     if (scannerRef.current) {
       scannerRef.current.stop().catch(() => {});
       scannerRef.current = null;
     }
+    setScanning(false);
+  }, []);
+
+  const startScanner = useCallback(() => {
+    setError(null);
+    try {
+      const scanner = new Html5Qrcode("qr-reader");
+      scannerRef.current = scanner;
+      scanner.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        (decodedText) => {
+          try {
+            const url = new URL(decodedText);
+            const screenId = url.searchParams.get("screen");
+            if (screenId) {
+              stopScanner();
+              onScan(screenId);
+              onClose();
+            }
+          } catch {
+            // Not a valid URL, ignore
+          }
+        },
+        () => {}
+      ).then(() => {
+        setScanning(true);
+      }).catch(() => {
+        setError("Impossible d'accéder à la caméra. Vérifiez les permissions.");
+        scannerRef.current = null;
+      });
+    } catch {
+      setError("Impossible d'initialiser le scanner");
+    }
+  }, [onScan, onClose, stopScanner]);
+
+  const handleClose = () => {
+    stopScanner();
     setError(null);
     onClose();
   };
@@ -78,14 +74,27 @@ export default function QRScanner({ open, onClose, onScan }: QRScannerProps) {
         <div className="space-y-4">
           <div
             id="qr-reader"
-            className="w-full rounded-lg overflow-hidden bg-muted min-h-[280px]"
-          />
+            className="w-full rounded-lg overflow-hidden bg-muted min-h-[280px] flex items-center justify-center"
+          >
+            {!scanning && !error && (
+              <p className="text-sm text-muted-foreground">
+                Appuyez sur le bouton ci-dessous pour activer la caméra
+              </p>
+            )}
+          </div>
           {error && (
             <p className="text-sm text-destructive text-center">{error}</p>
           )}
-          <p className="text-xs text-muted-foreground text-center">
-            Scannez le QR code affiché sur l'écran du player
-          </p>
+          {!scanning ? (
+            <Button className="w-full gap-2" onClick={startScanner}>
+              <Camera className="h-4 w-4" />
+              Activer la caméra
+            </Button>
+          ) : (
+            <p className="text-xs text-muted-foreground text-center">
+              Scannez le QR code affiché sur l'écran du player
+            </p>
+          )}
           <Button variant="outline" className="w-full" onClick={handleClose}>
             <X className="h-4 w-4 mr-2" />
             Annuler
