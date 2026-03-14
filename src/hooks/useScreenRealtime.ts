@@ -338,6 +338,7 @@ export function useScreenRealtime(screenId: string | undefined) {
     await supabase.from("screens").update({
       player_session_id: SESSION_ID,
       player_heartbeat_at: new Date().toISOString(),
+      player_user_agent: navigator.userAgent,
       status: "online",
     } as any).eq("id", realId);
 
