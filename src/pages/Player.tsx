@@ -27,6 +27,29 @@ interface LayoutData {
   background_color: string;
 }
 
+function getOrientationStyle(orientation: string): React.CSSProperties {
+  const rotatedBase: React.CSSProperties = {
+    transformOrigin: "center center",
+    width: "100vh",
+    height: "100vw",
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    marginTop: "calc(-50vw)",
+    marginLeft: "calc(-50vh)",
+  };
+  switch (orientation) {
+    case "portrait":
+      return { ...rotatedBase, transform: "rotate(90deg)" };
+    case "landscape-flipped":
+      return { ...rotatedBase, transform: "rotate(180deg)", width: "100vw", height: "100vh", marginTop: "calc(-50vh)", marginLeft: "calc(-50vw)" };
+    case "portrait-flipped":
+      return { ...rotatedBase, transform: "rotate(270deg)" };
+    default:
+      return {};
+  }
+}
+
 function MediaRenderer({ media, playlistLength }: { media: { id: string; name: string; type: string; url: string }; playlistLength?: number }) {
   if (media.type === "image") {
     return <img src={media.url} alt={media.name} className="w-full h-full object-cover" />;
