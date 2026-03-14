@@ -5,204 +5,114 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+async function callAI(apiKey: string, body: Record<string, unknown>) {
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    console.error(`AI gateway ${response.status}:`, text);
+    if (response.status === 429) throw { status: 429, message: "Limite de requêtes atteinte, réessayez plus tard." };
+    if (response.status === 402) throw { status: 402, message: "Crédits insuffisants." };
+    throw { status: 500, message: `Erreur IA (${response.status})` };
+  }
+
+  return await response.json();
+}
+
+function jsonResponse(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-
-    console.log("LOVABLE_API_KEY present:", !!LOVABLE_API_KEY, "length:", LOVABLE_API_KEY.length);
+    if (!LOVABLE_API_KEY) throw { status: 500, message: "LOVABLE_API_KEY is not configured" };
 
     const { action, prompt, imageUrl } = await req.json();
-    console.log("Action:", action, "Prompt:", prompt?.substring(0, 50));
 
+    // ── Generate Image ──
     if (action === "generate_image") {
-      const payload = {
+      const data = await callAI(LOVABLE_API_KEY, {
         model: "google/gemini-3.1-flash-image-preview",
-        messages: [
-          { role: "user", content: `Generate a high-quality, professional image for digital signage display: ${prompt}` },
-        ],
+        messages: [{ role: "user", content: `Generate a high-quality, professional image for digital signage display: ${prompt}` }],
         modalities: ["image", "text"],
-      };
-      console.log("Sending generate request with model:", payload.model);
-
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
       });
-
-      console.log("Generate response status:", response.status);
-
-      if (!response.ok) {
-        const t = await response.text();
-        console.error("AI gateway error:", response.status, t);
-        if (response.status === 429) {
-          return new Response(JSON.stringify({ error: "Limite de requêtes atteinte, réessayez plus tard." }), {
-            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        if (response.status === 402) {
-          return new Response(JSON.stringify({ error: "Crédits insuffisants." }), {
-            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        throw new Error(`AI gateway error: ${response.status} - ${t}`);
-      }
-
-      const data = await response.json();
-      const message = data.choices?.[0]?.message;
-      const generatedImage = message?.images?.[0]?.image_url?.url;
-      const text = message?.content || "";
-
-      return new Response(JSON.stringify({ image: generatedImage, text }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      const msg = data.choices?.[0]?.message;
+      return jsonResponse({ image: msg?.images?.[0]?.image_url?.url, text: msg?.content || "" });
     }
 
+    // ── Enhance Image ──
     if (action === "enhance_image") {
-      if (!imageUrl) throw new Error("imageUrl is required for enhance");
-
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3.1-flash-image-preview",
-          messages: [
-            {
-              role: "user",
-              content: [
-                { type: "text", text: prompt || "Enhance this image: improve quality, colors, sharpness and make it look more professional for digital signage display. Keep the same subject and composition." },
-                { type: "image_url", image_url: { url: imageUrl } },
-              ],
-            },
+      if (!imageUrl) throw { status: 400, message: "imageUrl requis" };
+      const data = await callAI(LOVABLE_API_KEY, {
+        model: "google/gemini-3.1-flash-image-preview",
+        messages: [{
+          role: "user",
+          content: [
+            { type: "text", text: prompt || "Enhance this image: improve quality, colors, sharpness. Keep same subject and composition." },
+            { type: "image_url", image_url: { url: imageUrl } },
           ],
-          modalities: ["image", "text"],
-        }),
+        }],
+        modalities: ["image", "text"],
       });
-
-      if (!response.ok) {
-        const t = await response.text();
-        console.error("AI enhance error:", response.status, t);
-        if (response.status === 429) {
-          return new Response(JSON.stringify({ error: "Limite de requêtes atteinte." }), {
-            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        throw new Error(`AI gateway error: ${response.status} - ${t}`);
-      }
-
-      const data = await response.json();
-      const message = data.choices?.[0]?.message;
-      const enhancedImage = message?.images?.[0]?.image_url?.url;
-      const text = message?.content || "";
-
-      return new Response(JSON.stringify({ image: enhancedImage, text }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      const msg = data.choices?.[0]?.message;
+      return jsonResponse({ image: msg?.images?.[0]?.image_url?.url, text: msg?.content || "" });
     }
 
+    // ── Suggestions ──
     if (action === "suggest") {
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            {
-              role: "system",
-              content: `Tu es un expert en affichage dynamique (digital signage). Tu aides les utilisateurs à créer des playlists et des layouts efficaces pour leurs écrans.
-Réponds toujours en français. Sois concis et pratique.`,
-            },
-            { role: "user", content: prompt },
-          ],
-          tools: [
-            {
-              type: "function",
-              function: {
-                name: "provide_suggestions",
-                description: "Provide structured suggestions for playlists or layouts",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    suggestions: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          title: { type: "string" },
-                          description: { type: "string" },
-                          type: { type: "string", enum: ["playlist", "layout", "tip"] },
-                        },
-                        required: ["title", "description", "type"],
-                        additionalProperties: false,
-                      },
-                    },
-                    summary: { type: "string" },
-                  },
-                  required: ["suggestions", "summary"],
-                  additionalProperties: false,
-                },
-              },
-            },
-          ],
-          tool_choice: { type: "function", function: { name: "provide_suggestions" } },
-        }),
+      const data = await callAI(LOVABLE_API_KEY, {
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: "Tu es un expert en affichage dynamique (digital signage). Réponds en français. Sois concis et pratique." },
+          { role: "user", content: prompt },
+        ],
       });
 
-      console.log("Suggest response status:", response.status);
-
-      if (!response.ok) {
-        const t = await response.text();
-        console.error("AI suggest error:", response.status, t);
-        if (response.status === 429) {
-          return new Response(JSON.stringify({ error: "Limite de requêtes atteinte." }), {
-            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+      const content = data.choices?.[0]?.message?.content || "";
+      
+      // Parse the text response into structured suggestions
+      const lines = content.split("\n").filter((l: string) => l.trim());
+      const suggestions: { title: string; description: string; type: string }[] = [];
+      let currentTitle = "";
+      
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("##") || trimmed.startsWith("**")) {
+          currentTitle = trimmed.replace(/^#+\s*/, "").replace(/\*\*/g, "").trim();
+        } else if (currentTitle && trimmed.length > 10) {
+          const type = currentTitle.toLowerCase().includes("playlist") ? "playlist" 
+            : currentTitle.toLowerCase().includes("layout") ? "layout" : "tip";
+          suggestions.push({ title: currentTitle, description: trimmed.replace(/^[-*]\s*/, ""), type });
+          currentTitle = "";
         }
-        throw new Error(`AI gateway error: ${response.status} - ${t}`);
       }
 
-      const data = await response.json();
-      console.log("Suggest response data keys:", Object.keys(data));
-      const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-      if (toolCall) {
-        const args = JSON.parse(toolCall.function.arguments);
-        return new Response(JSON.stringify(args), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      // If parsing didn't work, return as summary
+      if (suggestions.length === 0) {
+        return jsonResponse({ suggestions: [], summary: content });
       }
 
-      // Fallback: try to extract from content
-      const content = data.choices?.[0]?.message?.content;
-      if (content) {
-        return new Response(JSON.stringify({ suggestions: [], summary: content }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      return new Response(JSON.stringify({ suggestions: [], summary: "Aucune suggestion disponible." }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return jsonResponse({ suggestions: suggestions.slice(0, 6), summary: "" });
     }
 
-    return new Response(JSON.stringify({ error: "Action inconnue" }), {
-      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (e) {
+    return jsonResponse({ error: "Action inconnue" }, 400);
+  } catch (e: any) {
     console.error("ai-assistant error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Erreur inconnue" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    const status = e?.status || 500;
+    const message = e?.message || (e instanceof Error ? e.message : "Erreur inconnue");
+    return jsonResponse({ error: message }, status);
   }
 });
