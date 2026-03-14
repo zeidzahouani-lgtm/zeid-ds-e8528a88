@@ -16,11 +16,12 @@ export default function QRScanner({ open, onClose, onScan }: QRScannerProps) {
   const [scanning, setScanning] = useState(false);
 
   const stopScanner = useCallback(() => {
-    if (scannerRef.current) {
-      scannerRef.current.stop().catch(() => {});
-      scannerRef.current = null;
-    }
+    const scanner = scannerRef.current;
+    scannerRef.current = null;
     setScanning(false);
+    if (scanner) {
+      scanner.isScanning && scanner.stop().catch(() => {});
+    }
   }, []);
 
   const startScanner = useCallback(() => {
