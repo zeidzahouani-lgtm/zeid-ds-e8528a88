@@ -52,15 +52,22 @@ function getActiveScheduleMedia(schedules: ScheduleRow[]): MediaData | null {
   return null;
 }
 
+// Generate a unique session ID per tab
+const SESSION_ID = crypto.randomUUID();
+const HEARTBEAT_INTERVAL = 5000; // 5s
+const SESSION_TIMEOUT = 15000; // 15s — if no heartbeat for this long, session is stale
+
 export function useScreenRealtime(screenId: string | undefined) {
   const [screen, setScreen] = useState<ScreenData | null>(null);
   const [media, setMedia] = useState<MediaData | null>(null);
   const [playlist, setPlaylist] = useState<PlaylistItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [sessionBlocked, setSessionBlocked] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
   const schedulesRef = useRef<ScheduleRow[]>([]);
   const realScreenIdRef = useRef<string | undefined>(undefined);
+  const heartbeatRef = useRef<ReturnType<typeof setInterval>>();
 
   const fetchPlaylist = useCallback(async (realId: string) => {
     if (!realId) return [];
