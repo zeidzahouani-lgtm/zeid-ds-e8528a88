@@ -317,11 +317,11 @@ export default function Player() {
     );
   }
 
-  const isPortrait = screen.orientation === "portrait";
+  const rotationStyle = getOrientationStyle(screen.orientation);
 
   return (
     <div ref={containerRef} className="fixed inset-0 bg-black overflow-hidden cursor-none" onClick={requestFullscreen}>
-      <div className="w-full h-full transition-transform duration-700 ease-in-out" style={isPortrait ? { transform: "rotate(90deg)", transformOrigin: "center center", width: "100vh", height: "100vw", position: "absolute", top: "50%", left: "50%", marginTop: "calc(-50vw)", marginLeft: "calc(-50vh)" } : undefined}>
+      <div className="w-full h-full transition-transform duration-700 ease-in-out" style={rotationStyle}>
         <div className="w-full h-full transition-opacity duration-500 ease-in-out" style={{ opacity: visible ? 1 : 0 }}>
           {!media ? (
             <div className="w-full h-full flex flex-col items-center justify-center gap-4">
