@@ -125,7 +125,11 @@ export default function AdminLicenses() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-end">
+            <div className="flex items-end gap-2">
+              <Button variant="outline" onClick={() => setScannerOpen(true)} className="gap-2 shrink-0">
+                <Camera className="h-4 w-4" />
+                Scanner
+              </Button>
               <Button onClick={handleCreate} disabled={creating} className="w-full gap-2">
                 <Key className="h-4 w-4" />
                 {creating ? "Génération..." : "Générer"}
