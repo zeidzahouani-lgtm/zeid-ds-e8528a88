@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-async function callAI(apiKey: string, body: Record<string, unknown>, retries = 2) {
+async function callAI(apiKey: string, body: Record<string, unknown>, retries = 1) {
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
