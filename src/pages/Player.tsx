@@ -64,13 +64,12 @@ function LayoutRenderer({ layoutId, screenOrientation }: { layoutId: string; scr
     return () => { supabase.removeChannel(channel); };
   }, [layoutId]);
 
-  if (!layout) return null;
-  const isPortrait = screenOrientation === "portrait";
+  const rotationStyle = getOrientationStyle(screenOrientation);
 
   return (
     <div className="w-full h-full relative" style={{
       backgroundColor: layout.background_color,
-      ...(isPortrait ? { transform: "rotate(90deg)", transformOrigin: "center center", width: "100vh", height: "100vw", position: "absolute", top: "50%", left: "50%", marginTop: "calc(-50vw)", marginLeft: "calc(-50vh)" } : {}),
+      ...rotationStyle,
     }}>
       {regions.map((region) => {
         const style: React.CSSProperties = {
