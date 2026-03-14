@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Key, Plus, Trash2, Copy, Shield, ShieldOff, Monitor, Calendar, QrCode } from "lucide-react";
+import { Key, Plus, Trash2, Copy, Shield, ShieldOff, Monitor, Calendar, QrCode, Camera } from "lucide-react";
+import QRScanner from "@/components/dashboard/QRScanner";
 
 export default function AdminLicenses() {
   const [searchParams, setSearchParams] = useSearchParams();
