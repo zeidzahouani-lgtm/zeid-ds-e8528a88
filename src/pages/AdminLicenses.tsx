@@ -64,6 +64,16 @@ export default function AdminLicenses() {
         </p>
       </div>
 
+      <QRScanner
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={(screenId) => {
+          setSelectedScreen(screenId);
+          const screenName = screens.find((s: any) => s.id === screenId)?.name;
+          toast.success(screenName ? `Écran détecté : ${screenName}` : "Écran détecté");
+        }}
+      />
+
       {selectedScreen && selectedScreen !== "none" && screens.find((s: any) => s.id === selectedScreen) && (
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="py-3 flex items-center gap-3">
