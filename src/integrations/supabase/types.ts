@@ -355,6 +355,8 @@ export type Database = {
           layout_id: string | null
           name: string
           orientation: string
+          player_heartbeat_at: string | null
+          player_session_id: string | null
           slug: string | null
           status: string
           updated_at: string
@@ -368,6 +370,8 @@ export type Database = {
           layout_id?: string | null
           name: string
           orientation?: string
+          player_heartbeat_at?: string | null
+          player_session_id?: string | null
           slug?: string | null
           status?: string
           updated_at?: string
@@ -381,6 +385,8 @@ export type Database = {
           layout_id?: string | null
           name?: string
           orientation?: string
+          player_heartbeat_at?: string | null
+          player_session_id?: string | null
           slug?: string | null
           status?: string
           updated_at?: string
