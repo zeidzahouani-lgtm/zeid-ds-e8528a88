@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useScreenRealtime } from "@/hooks/useScreenRealtime";
-import { MonitorPlay, ShieldOff, KeyRound, QrCode } from "lucide-react";
+import { MonitorPlay, ShieldOff, KeyRound, QrCode, MonitorX } from "lucide-react";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import WidgetRenderer from "@/components/widgets/WidgetRenderer";
@@ -206,7 +206,7 @@ function LicenseScreen({
 
 export default function Player() {
   const { id } = useParams<{ id: string }>();
-  const { screen, media, loading, playlistLength, currentIndex, currentDuration, layoutId } = useScreenRealtime(id);
+  const { screen, media, loading, sessionBlocked, playlistLength, currentIndex, currentDuration, layoutId } = useScreenRealtime(id);
   const [visible, setVisible] = useState(true);
   const [progress, setProgress] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -305,6 +305,27 @@ export default function Player() {
     return (
       <div className="fixed inset-0 bg-black flex items-center justify-center">
         <p className="text-destructive text-lg">Écran introuvable</p>
+      </div>
+    );
+  }
+
+  // Session blocked — another device is already playing this screen
+  if (sessionBlocked) {
+    return (
+      <div ref={containerRef} className="fixed inset-0 bg-black flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 text-center p-8">
+          <div className="h-20 w-20 rounded-2xl bg-destructive/10 flex items-center justify-center">
+            <MonitorX className="h-10 w-10 text-destructive" />
+          </div>
+          <h1 className="text-2xl font-bold text-destructive uppercase tracking-widest">Écran déjà actif</h1>
+          <p className="text-muted-foreground max-w-sm">
+            Cet écran est déjà ouvert sur un autre appareil. Fermez l'autre session pour pouvoir l'utiliser ici.
+          </p>
+          <p className="text-xs text-muted-foreground/50 mt-2">
+            Vérification automatique toutes les 15 secondes
+            <span className="inline-block ml-1 h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+          </p>
+        </div>
       </div>
     );
   }

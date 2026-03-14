@@ -52,15 +52,22 @@ function getActiveScheduleMedia(schedules: ScheduleRow[]): MediaData | null {
   return null;
 }
 
+// Generate a unique session ID per tab
+const SESSION_ID = crypto.randomUUID();
+const HEARTBEAT_INTERVAL = 5000; // 5s
+const SESSION_TIMEOUT = 15000; // 15s — if no heartbeat for this long, session is stale
+
 export function useScreenRealtime(screenId: string | undefined) {
   const [screen, setScreen] = useState<ScreenData | null>(null);
   const [media, setMedia] = useState<MediaData | null>(null);
   const [playlist, setPlaylist] = useState<PlaylistItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [sessionBlocked, setSessionBlocked] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
   const schedulesRef = useRef<ScheduleRow[]>([]);
   const realScreenIdRef = useRef<string | undefined>(undefined);
+  const heartbeatRef = useRef<ReturnType<typeof setInterval>>();
 
   const fetchPlaylist = useCallback(async (realId: string) => {
     if (!realId) return [];
@@ -117,15 +124,44 @@ export function useScreenRealtime(screenId: string | undefined) {
         screenRes = await supabase.from("screens").select("*").eq("id", screenId).maybeSingle();
       }
       
-      const screenData = screenRes.data as ScreenData | null;
+      const screenData = screenRes.data as any;
       if (!screenData) {
         setLoading(false);
         return;
       }
       
       realScreenIdRef.current = screenData.id;
-      setScreen(screenData);
-      await supabase.from("screens").update({ status: "online" }).eq("id", screenData.id);
+
+      // --- Session lock check ---
+      const existingSession = screenData.player_session_id;
+      const lastHeartbeat = screenData.player_heartbeat_at ? new Date(screenData.player_heartbeat_at).getTime() : 0;
+      const isStale = Date.now() - lastHeartbeat > SESSION_TIMEOUT;
+
+      if (existingSession && existingSession !== SESSION_ID && !isStale) {
+        // Another active session exists
+        setSessionBlocked(true);
+        setScreen(screenData as ScreenData);
+        setLoading(false);
+        return;
+      }
+
+      // Claim session
+      await supabase.from("screens").update({
+        player_session_id: SESSION_ID,
+        player_heartbeat_at: new Date().toISOString(),
+        status: "online",
+      } as any).eq("id", screenData.id);
+
+      // Start heartbeat
+      heartbeatRef.current = setInterval(async () => {
+        const realId = realScreenIdRef.current;
+        if (!realId) return;
+        await (supabase.from("screens").update({
+          player_heartbeat_at: new Date().toISOString(),
+        } as any) as any).eq("id", realId).eq("player_session_id", SESSION_ID);
+      }, HEARTBEAT_INTERVAL);
+
+      setScreen(screenData as ScreenData);
       
       const [pl, sch] = await Promise.all([
         fetchPlaylist(screenData.id),
@@ -151,14 +187,14 @@ export function useScreenRealtime(screenId: string | undefined) {
 
     init();
 
-    // Set offline on tab close / navigation
+    // Clear session + set offline on tab close / navigation
     const setOffline = () => {
       const realId = realScreenIdRef.current;
       if (!realId) return;
+      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
       const apiKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/screens?id=eq.${realId}&apikey=${apiKey}`;
-      const body = JSON.stringify({ status: "offline" });
-      // keepalive fetch works on beforeunload and supports headers
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/screens?id=eq.${realId}&player_session_id=eq.${SESSION_ID}&apikey=${apiKey}`;
+      const body = JSON.stringify({ status: "offline", player_session_id: null, player_heartbeat_at: null });
       fetch(url, {
         method: 'PATCH',
         headers: {
@@ -273,5 +309,5 @@ export function useScreenRealtime(screenId: string | undefined) {
     ? (playlist[currentIndex % playlist.length]?.media?.duration ?? 10)
     : (media?.duration ?? 0);
 
-  return { screen, media, loading, playlistLength: playlist.length, currentIndex, currentDuration, layoutId: screen?.layout_id ?? null };
+  return { screen, media, loading, sessionBlocked, playlistLength: playlist.length, currentIndex, currentDuration, layoutId: screen?.layout_id ?? null };
 }
