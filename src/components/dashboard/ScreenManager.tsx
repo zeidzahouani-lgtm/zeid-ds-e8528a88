@@ -139,8 +139,10 @@ export function ScreenManager() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="landscape">Paysage</SelectItem>
-                    <SelectItem value="portrait">Portrait</SelectItem>
+                    <SelectItem value="landscape">Paysage (0°)</SelectItem>
+                    <SelectItem value="portrait">Portrait (90°)</SelectItem>
+                    <SelectItem value="landscape-flipped">Paysage inversé (180°)</SelectItem>
+                    <SelectItem value="portrait-flipped">Portrait inversé (270°)</SelectItem>
                   </SelectContent>
                 </Select>
 
