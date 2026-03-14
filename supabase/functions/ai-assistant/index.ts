@@ -5,48 +5,32 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-async function callAI(apiKey: string, body: Record<string, unknown>, retries = 1) {
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      });
+async function callAI(apiKey: string, body: Record<string, unknown>) {
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
 
-      if (response.status === 429) {
-        const text = await response.text();
-        throw { status: 429, message: "Limite de requêtes atteinte, réessayez plus tard." };
-      }
-      if (response.status === 402) {
-        const text = await response.text();
-        throw { status: 402, message: "Crédits insuffisants." };
-      }
-
-      if (!response.ok) {
-        const text = await response.text();
-        console.error(`AI gateway attempt ${attempt + 1}/${retries + 1} failed:`, response.status, text);
-        if (attempt < retries) {
-          await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-          continue;
-        }
-        throw { status: 500, message: `Erreur du service IA (${response.status}). Veuillez réessayer.` };
-      }
-
-      return await response.json();
-    } catch (e: any) {
-      if (e?.status) throw e;
-      console.error(`AI gateway attempt ${attempt + 1} network error:`, e);
-      if (attempt < retries) {
-        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-        continue;
-      }
-      throw { status: 500, message: "Service IA temporairement indisponible. Veuillez réessayer." };
-    }
+  if (response.status === 429) {
+    await response.text();
+    throw { status: 429, message: "Limite de requêtes atteinte, réessayez dans quelques minutes." };
   }
+  if (response.status === 402) {
+    await response.text();
+    throw { status: 402, message: "Crédits IA insuffisants." };
+  }
+
+  if (!response.ok) {
+    const text = await response.text();
+    console.error(`AI gateway ${response.status}:`, text);
+    throw { status: 503, message: "Le service IA est temporairement indisponible. Veuillez réessayer dans quelques minutes." };
+  }
+
+  return await response.json();
 }
 
 function jsonResponse(data: unknown, status = 200) {
