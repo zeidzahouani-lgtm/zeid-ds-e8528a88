@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Key, Plus, Trash2, Copy, Shield, ShieldOff, Monitor, Calendar, QrCode } from "lucide-react";
+import { Key, Plus, Trash2, Copy, Shield, ShieldOff, Monitor, Calendar, QrCode, Camera } from "lucide-react";
+import QRScanner from "@/components/dashboard/QRScanner";
 
 export default function AdminLicenses() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -18,6 +19,7 @@ export default function AdminLicenses() {
   const [durationDays, setDurationDays] = useState("365");
   const [selectedScreen, setSelectedScreen] = useState("");
   const [creating, setCreating] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const screenFromQR = searchParams.get("screen");
 
   // Pre-select screen from QR code scan
@@ -61,6 +63,16 @@ export default function AdminLicenses() {
           Générez et gérez les licences d'activation des écrans
         </p>
       </div>
+
+      <QRScanner
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={(screenId) => {
+          setSelectedScreen(screenId);
+          const screenName = screens.find((s: any) => s.id === screenId)?.name;
+          toast.success(screenName ? `Écran détecté : ${screenName}` : "Écran détecté");
+        }}
+      />
 
       {selectedScreen && selectedScreen !== "none" && screens.find((s: any) => s.id === selectedScreen) && (
         <Card className="border-primary/30 bg-primary/5">
@@ -113,7 +125,11 @@ export default function AdminLicenses() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-end">
+            <div className="flex items-end gap-2">
+              <Button variant="outline" onClick={() => setScannerOpen(true)} className="gap-2 shrink-0">
+                <Camera className="h-4 w-4" />
+                Scanner
+              </Button>
               <Button onClick={handleCreate} disabled={creating} className="w-full gap-2">
                 <Key className="h-4 w-4" />
                 {creating ? "Génération..." : "Générer"}
