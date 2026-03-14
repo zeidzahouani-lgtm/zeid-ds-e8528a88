@@ -206,7 +206,7 @@ function LicenseScreen({
 
 export default function Player() {
   const { id } = useParams<{ id: string }>();
-  const { screen, media, loading, sessionBlocked, playlistLength, currentIndex, currentDuration, layoutId } = useScreenRealtime(id);
+  const { screen, media, loading, sessionBlocked, forceTakeover, playlistLength, currentIndex, currentDuration, layoutId } = useScreenRealtime(id);
   const [visible, setVisible] = useState(true);
   const [progress, setProgress] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -321,6 +321,12 @@ export default function Player() {
           <p className="text-muted-foreground max-w-sm">
             Cet écran est déjà ouvert sur un autre appareil. Fermez l'autre session pour pouvoir l'utiliser ici.
           </p>
+          <button
+            onClick={forceTakeover}
+            className="mt-4 px-6 py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors"
+          >
+            Forcer la prise de contrôle
+          </button>
           <p className="text-xs text-muted-foreground/50 mt-2">
             Vérification automatique toutes les 15 secondes
             <span className="inline-block ml-1 h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />

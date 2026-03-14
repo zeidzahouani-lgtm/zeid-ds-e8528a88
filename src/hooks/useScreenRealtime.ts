@@ -309,5 +309,42 @@ export function useScreenRealtime(screenId: string | undefined) {
     ? (playlist[currentIndex % playlist.length]?.media?.duration ?? 10)
     : (media?.duration ?? 0);
 
-  return { screen, media, loading, sessionBlocked, playlistLength: playlist.length, currentIndex, currentDuration, layoutId: screen?.layout_id ?? null };
+  const forceTakeover = useCallback(async () => {
+    const realId = realScreenIdRef.current;
+    if (!realId) return;
+    // Force claim the session
+    await supabase.from("screens").update({
+      player_session_id: SESSION_ID,
+      player_heartbeat_at: new Date().toISOString(),
+      status: "online",
+    } as any).eq("id", realId);
+
+    setSessionBlocked(false);
+
+    // Start heartbeat
+    if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+    heartbeatRef.current = setInterval(async () => {
+      if (!realScreenIdRef.current) return;
+      await (supabase.from("screens").update({
+        player_heartbeat_at: new Date().toISOString(),
+      } as any) as any).eq("id", realScreenIdRef.current).eq("player_session_id", SESSION_ID);
+    }, HEARTBEAT_INTERVAL);
+
+    // Re-fetch data
+    const [pl, sch] = await Promise.all([
+      fetchPlaylist(realId),
+      fetchSchedules(realId),
+    ]);
+    setPlaylist(pl);
+    schedulesRef.current = sch;
+
+    if (screen?.current_media_id && pl.length === 0) {
+      const { data: mediaData } = await supabase
+        .from("media").select("*").eq("id", screen.current_media_id).single();
+      if (mediaData) setMedia(mediaData as MediaData);
+    }
+    resolveMedia(screen, pl, 0);
+  }, [screen, fetchPlaylist, fetchSchedules, resolveMedia]);
+
+  return { screen, media, loading, sessionBlocked, forceTakeover, playlistLength: playlist.length, currentIndex, currentDuration, layoutId: screen?.layout_id ?? null };
 }
