@@ -5,9 +5,17 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Palette, Type, Image, Globe, Save, RotateCcw, Upload } from "lucide-react";
+import { Palette, Type, Image, Globe, Save, RotateCcw, Upload, Bot, Eye, EyeOff, BarChart3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+
+interface AIStats {
+  today: number;
+  this_month: number;
+  total: number;
+  provider: string;
+}
 
 export default function AdminCustomization() {
   const { settings, updateSetting } = useAppSettings();
@@ -15,11 +23,48 @@ export default function AdminCustomization() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [openaiKey, setOpenaiKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
+  const [savingKey, setSavingKey] = useState(false);
+  const [aiStats, setAiStats] = useState<AIStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
 
-  // Sync form when settings load
   useEffect(() => {
     setForm(settings);
   }, [settings]);
+
+  // Load OpenAI key from app_settings
+  useEffect(() => {
+    supabase
+      .from("app_settings" as any)
+      .select("value")
+      .eq("key", "openai_api_key")
+      .single()
+      .then(({ data }: any) => {
+        if (data?.value) setOpenaiKey(data.value);
+      });
+  }, []);
+
+  // Load AI stats
+  useEffect(() => {
+    loadAIStats();
+  }, []);
+
+  const loadAIStats = async () => {
+    setLoadingStats(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-assistant", {
+        body: { action: "stats" },
+      });
+      if (!error && data && !data.error) {
+        setAiStats(data);
+      }
+    } catch {
+      // Stats loading failed silently
+    } finally {
+      setLoadingStats(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -42,25 +87,47 @@ export default function AdminCustomization() {
     setForm(settings);
   };
 
+  const handleSaveOpenAIKey = async () => {
+    setSavingKey(true);
+    try {
+      // Upsert the key in app_settings
+      const { data: existing } = await supabase
+        .from("app_settings" as any)
+        .select("id")
+        .eq("key", "openai_api_key")
+        .single();
+
+      if (existing) {
+        await supabase
+          .from("app_settings" as any)
+          .update({ value: openaiKey, updated_at: new Date().toISOString() } as any)
+          .eq("key", "openai_api_key" as any);
+      } else {
+        await supabase
+          .from("app_settings" as any)
+          .insert({ key: "openai_api_key", value: openaiKey } as any);
+      }
+      toast.success(openaiKey ? "Clé OpenAI sauvegardée" : "Clé OpenAI supprimée, retour au service par défaut");
+    } catch {
+      toast.error("Erreur lors de la sauvegarde de la clé");
+    } finally {
+      setSavingKey(false);
+    }
+  };
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     if (!file.type.startsWith("image/")) {
       toast.error("Veuillez sélectionner une image");
       return;
     }
-
     setUploading(true);
     try {
       const ext = file.name.split(".").pop();
       const fileName = `branding/logo-${Date.now()}.${ext}`;
-
-      const { error } = await supabase.storage.from("media").upload(fileName, file, {
-        upsert: true,
-      });
+      const { error } = await supabase.storage.from("media").upload(fileName, file, { upsert: true });
       if (error) throw error;
-
       const { data } = supabase.storage.from("media").getPublicUrl(fileName);
       setForm({ ...form, logo_url: data.publicUrl });
       toast.success("Logo uploadé avec succès");
@@ -72,12 +139,14 @@ export default function AdminCustomization() {
     }
   };
 
+  const maskedKey = openaiKey ? `sk-...${openaiKey.slice(-6)}` : "";
+
   return (
     <div className="space-y-6 animate-cyber-in">
       <div>
         <h1 className="text-2xl font-bold tracking-widest neon-glow-cyan text-primary">Personnalisation</h1>
         <p className="text-muted-foreground text-sm mt-1 normal-case tracking-normal">
-          Configurez l'apparence de votre application
+          Configurez l'apparence et les services de votre application
         </p>
       </div>
 
@@ -93,27 +162,15 @@ export default function AdminCustomization() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">Nom de la solution</Label>
-              <Input
-                value={form.app_name}
-                onChange={(e) => setForm({ ...form, app_name: e.target.value })}
-                placeholder="SignageOS"
-              />
+              <Input value={form.app_name} onChange={(e) => setForm({ ...form, app_name: e.target.value })} placeholder="SignageOS" />
             </div>
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">Sous-titre</Label>
-              <Input
-                value={form.app_tagline}
-                onChange={(e) => setForm({ ...form, app_tagline: e.target.value })}
-                placeholder="Digital Signage CMS"
-              />
+              <Input value={form.app_tagline} onChange={(e) => setForm({ ...form, app_tagline: e.target.value })} placeholder="Digital Signage CMS" />
             </div>
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">Titre de la page (onglet navigateur)</Label>
-              <Input
-                value={form.page_title}
-                onChange={(e) => setForm({ ...form, page_title: e.target.value })}
-                placeholder="SignageOS — Digital Signage CMS"
-              />
+              <Input value={form.page_title} onChange={(e) => setForm({ ...form, page_title: e.target.value })} placeholder="SignageOS — Digital Signage CMS" />
             </div>
           </CardContent>
         </Card>
@@ -130,32 +187,13 @@ export default function AdminCustomization() {
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">Logo</Label>
               <div className="flex gap-2">
-                <Input
-                  value={form.logo_url}
-                  onChange={(e) => setForm({ ...form, logo_url: e.target.value })}
-                  placeholder="URL du logo ou uploadez un fichier"
-                  className="flex-1"
-                />
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleLogoUpload}
-                />
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  className="shrink-0"
-                >
+                <Input value={form.logo_url} onChange={(e) => setForm({ ...form, logo_url: e.target.value })} placeholder="URL du logo ou uploadez un fichier" className="flex-1" />
+                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
+                <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="shrink-0">
                   <Upload className="h-4 w-4" />
                 </Button>
               </div>
-              {uploading && (
-                <p className="text-xs text-primary animate-pulse normal-case">Upload en cours...</p>
-              )}
+              {uploading && <p className="text-xs text-primary animate-pulse normal-case">Upload en cours...</p>}
               {form.logo_url && (
                 <div className="mt-2 p-4 rounded-lg bg-secondary/50 flex items-center justify-center">
                   <img src={form.logo_url} alt="Aperçu logo" className="max-h-20 object-contain" />
@@ -164,11 +202,7 @@ export default function AdminCustomization() {
             </div>
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">URL du favicon</Label>
-              <Input
-                value={form.favicon_url}
-                onChange={(e) => setForm({ ...form, favicon_url: e.target.value })}
-                placeholder="https://example.com/favicon.ico"
-              />
+              <Input value={form.favicon_url} onChange={(e) => setForm({ ...form, favicon_url: e.target.value })} placeholder="https://example.com/favicon.ico" />
             </div>
           </CardContent>
         </Card>
@@ -185,30 +219,16 @@ export default function AdminCustomization() {
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">Couleur principale (HSL)</Label>
               <div className="flex gap-2 items-center">
-                <Input
-                  value={form.primary_color}
-                  onChange={(e) => setForm({ ...form, primary_color: e.target.value })}
-                  placeholder="185 100% 55%"
-                />
-                <div
-                  className="h-10 w-10 rounded-md border border-border shrink-0"
-                  style={{ backgroundColor: `hsl(${form.primary_color})` }}
-                />
+                <Input value={form.primary_color} onChange={(e) => setForm({ ...form, primary_color: e.target.value })} placeholder="185 100% 55%" />
+                <div className="h-10 w-10 rounded-md border border-border shrink-0" style={{ backgroundColor: `hsl(${form.primary_color})` }} />
               </div>
               <p className="text-[10px] text-muted-foreground normal-case">Format : H S% L% (ex: 185 100% 55% pour cyan)</p>
             </div>
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">Couleur d'accent (HSL)</Label>
               <div className="flex gap-2 items-center">
-                <Input
-                  value={form.accent_color}
-                  onChange={(e) => setForm({ ...form, accent_color: e.target.value })}
-                  placeholder="270 80% 60%"
-                />
-                <div
-                  className="h-10 w-10 rounded-md border border-border shrink-0"
-                  style={{ backgroundColor: `hsl(${form.accent_color})` }}
-                />
+                <Input value={form.accent_color} onChange={(e) => setForm({ ...form, accent_color: e.target.value })} placeholder="270 80% 60%" />
+                <div className="h-10 w-10 rounded-md border border-border shrink-0" style={{ backgroundColor: `hsl(${form.accent_color})` }} />
               </div>
             </div>
             <div className="flex gap-2 flex-wrap mt-2">
@@ -244,12 +264,102 @@ export default function AdminCustomization() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">Message de bienvenue</Label>
-              <Textarea
-                value={form.welcome_message}
-                onChange={(e) => setForm({ ...form, welcome_message: e.target.value })}
-                placeholder="Connectez-vous à votre tableau de bord"
-                rows={3}
-              />
+              <Textarea value={form.welcome_message} onChange={(e) => setForm({ ...form, welcome_message: e.target.value })} placeholder="Connectez-vous à votre tableau de bord" rows={3} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* AI Configuration */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Bot className="h-4 w-4 text-primary icon-neon" />
+              Configuration IA
+              {aiStats && (
+                <Badge variant="outline" className="ml-auto text-xs">
+                  {aiStats.provider === "openai" ? "OpenAI (ChatGPT Pro)" : "Service par défaut"}
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* API Key */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Clé API OpenAI</Label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        type={showKey ? "text" : "password"}
+                        value={openaiKey}
+                        onChange={(e) => setOpenaiKey(e.target.value)}
+                        placeholder="sk-..."
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowKey(!showKey)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    <Button onClick={handleSaveOpenAIKey} disabled={savingKey} size="sm" className="gap-1.5">
+                      <Save className="h-3.5 w-3.5" />
+                      {savingKey ? "..." : "Sauver"}
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground normal-case">
+                    Connectez votre compte ChatGPT Pro / OpenAI. Laissez vide pour utiliser le service IA par défaut.
+                    Obtenez votre clé sur <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" className="text-primary hover:underline">platform.openai.com/api-keys</a>
+                  </p>
+                </div>
+                {openaiKey && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => {
+                      setOpenaiKey("");
+                      handleSaveOpenAIKey();
+                    }}
+                  >
+                    Supprimer la clé et revenir au service par défaut
+                  </Button>
+                )}
+              </div>
+
+              {/* Stats */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Compteur de requêtes IA</Label>
+                  <Button variant="ghost" size="sm" onClick={loadAIStats} disabled={loadingStats} className="ml-auto text-xs h-7">
+                    {loadingStats ? "..." : "Actualiser"}
+                  </Button>
+                </div>
+                {aiStats ? (
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="rounded-lg bg-secondary/50 p-3 text-center">
+                      <p className="text-2xl font-bold text-foreground">{aiStats.today}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Aujourd'hui</p>
+                    </div>
+                    <div className="rounded-lg bg-secondary/50 p-3 text-center">
+                      <p className="text-2xl font-bold text-foreground">{aiStats.this_month}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Ce mois</p>
+                    </div>
+                    <div className="rounded-lg bg-secondary/50 p-3 text-center">
+                      <p className="text-2xl font-bold text-foreground">{aiStats.total}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {loadingStats ? "Chargement..." : "Aucune statistique disponible"}
+                  </p>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
