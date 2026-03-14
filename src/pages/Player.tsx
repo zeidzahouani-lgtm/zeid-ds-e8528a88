@@ -146,6 +146,7 @@ function LicenseScreen({
   message: string;
   screenId: string;
   onActivated: () => void;
+  logoUrl: string;
 }) {
   const [key, setKey] = useState("");
   const [error, setError] = useState("");
