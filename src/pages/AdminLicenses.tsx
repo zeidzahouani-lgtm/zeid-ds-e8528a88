@@ -19,6 +19,7 @@ export default function AdminLicenses() {
   const [durationDays, setDurationDays] = useState("365");
   const [selectedScreen, setSelectedScreen] = useState("");
   const [creating, setCreating] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
   const screenFromQR = searchParams.get("screen");
 
   // Pre-select screen from QR code scan
