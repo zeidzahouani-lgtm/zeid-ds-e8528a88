@@ -235,12 +235,8 @@ export function useScreenRealtime(screenId: string | undefined) {
       }).catch(() => {});
     };
 
-    const onVisChange = () => {
-      if (document.visibilityState === "hidden") setOffline();
-    };
-
+    // Only go offline on actual page unload, not on tab switch
     window.addEventListener("beforeunload", setOffline);
-    document.addEventListener("visibilitychange", onVisChange);
 
     return () => {
       setOffline();
