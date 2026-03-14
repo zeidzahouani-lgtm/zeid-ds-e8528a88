@@ -27,6 +27,7 @@ const mainItems = [
   { title: "Playlists", url: "/playlists", icon: ListMusic },
   { title: "Programmation", url: "/schedules", icon: Clock },
   { title: "Config. Écrans", url: "/setup", icon: Settings },
+  { title: "Assistant IA", url: "/ai-assistant", icon: Sparkles },
 ];
 
 const adminItems = [

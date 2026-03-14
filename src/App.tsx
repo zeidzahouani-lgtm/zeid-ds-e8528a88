@@ -77,6 +77,7 @@ const App = () => (
                 <Route path="/admin/customization" element={<AdminCustomization />} />
                 <Route path="/admin/licenses" element={<AdminLicenses />} />
                 <Route path="/setup" element={<ScreenSetup />} />
+                <Route path="/ai-assistant" element={<AIAssistant />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
