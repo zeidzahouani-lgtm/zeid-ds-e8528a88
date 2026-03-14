@@ -209,7 +209,22 @@ export default function Player() {
       if (licenseValid !== true) checkLicense();
     }, 5000);
 
-    return () => clearInterval(interval);
+    // Realtime: immediately re-check when any license for this screen changes
+    const channel = supabase
+      .channel(`license-realtime-${screen.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "licenses", filter: `screen_id=eq.${screen.id}` },
+        () => {
+          checkLicense();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, [screen?.id, licenseValid]);
 
   const requestFullscreen = useCallback(() => {
