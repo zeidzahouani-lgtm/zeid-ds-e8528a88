@@ -377,6 +377,7 @@ export default function Player() {
         message={licenseMessage}
         screenId={screen.id}
         onActivated={() => setLicenseValid(true)}
+        logoUrl={logoUrl}
       />
     );
   }
