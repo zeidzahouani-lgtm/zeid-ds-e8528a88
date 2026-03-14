@@ -98,7 +98,20 @@ export function useLicenses() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["licenses"] }),
   });
 
-  return { licenses, isLoading, createLicense, toggleLicense, deleteLicense, assignScreen };
+  const renewLicense = useMutation({
+    mutationFn: async ({ id, durationDays }: { id: string; durationDays: number }) => {
+      const validUntil = new Date();
+      validUntil.setDate(validUntil.getDate() + durationDays);
+      const { error } = await supabase
+        .from("licenses" as any)
+        .update({ valid_until: validUntil.toISOString(), is_active: true } as any)
+        .eq("id", id as any);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["licenses"] }),
+  });
+
+  return { licenses, isLoading, createLicense, toggleLicense, deleteLicense, assignScreen, renewLicense };
 }
 
 // Validate a license key for a specific screen (used by Player)

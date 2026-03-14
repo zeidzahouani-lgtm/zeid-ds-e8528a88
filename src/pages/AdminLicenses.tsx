@@ -8,18 +8,21 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Key, Plus, Trash2, Copy, Shield, ShieldOff, Monitor, Calendar, QrCode, Camera } from "lucide-react";
+import { Key, Plus, Trash2, Copy, Shield, ShieldOff, Monitor, Calendar, QrCode, Camera, RefreshCw } from "lucide-react";
 import QRScanner from "@/components/dashboard/QRScanner";
 
 export default function AdminLicenses() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { licenses, isLoading, createLicense, toggleLicense, deleteLicense, assignScreen } = useLicenses();
+  const { licenses, isLoading, createLicense, toggleLicense, deleteLicense, assignScreen, renewLicense } = useLicenses();
   const { screens } = useScreens();
   const [durationDays, setDurationDays] = useState("365");
   const [selectedScreen, setSelectedScreen] = useState("");
   const [creating, setCreating] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [renewingId, setRenewingId] = useState<string | null>(null);
+  const [renewDays, setRenewDays] = useState("365");
   const screenFromQR = searchParams.get("screen");
 
   // Pre-select screen from QR code scan
@@ -211,6 +214,17 @@ export default function AdminLicenses() {
 
                     {/* Actions */}
                     <div className="flex items-center gap-2">
+                      {expired && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5 text-xs border-primary/30 text-primary hover:bg-primary/10"
+                          onClick={() => { setRenewingId(license.id); setRenewDays("365"); }}
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" />
+                          Renouveler
+                        </Button>
+                      )}
                       {!license.screen_id && (
                         <Select onValueChange={(val) => {
                           if (val) assignScreen.mutate({ id: license.id, screen_id: val });
@@ -249,6 +263,53 @@ export default function AdminLicenses() {
           </div>
         )}
       </div>
+
+      {/* Renew dialog */}
+      <Dialog open={!!renewingId} onOpenChange={(open) => !open && setRenewingId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RefreshCw className="h-4 w-4 text-primary" />
+              Renouveler la licence
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Nouvelle durée</Label>
+            <Select value={renewDays} onValueChange={setRenewDays}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="30">30 jours</SelectItem>
+                <SelectItem value="90">90 jours</SelectItem>
+                <SelectItem value="180">6 mois</SelectItem>
+                <SelectItem value="365">1 an</SelectItem>
+                <SelectItem value="730">2 ans</SelectItem>
+                <SelectItem value="1825">5 ans</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenewingId(null)}>Annuler</Button>
+            <Button
+              onClick={async () => {
+                if (!renewingId) return;
+                try {
+                  await renewLicense.mutateAsync({ id: renewingId, durationDays: parseInt(renewDays) });
+                  toast.success("Licence renouvelée avec succès");
+                  setRenewingId(null);
+                } catch {
+                  toast.error("Erreur lors du renouvellement");
+                }
+              }}
+              className="gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Renouveler
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
