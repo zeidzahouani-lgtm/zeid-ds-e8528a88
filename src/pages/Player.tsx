@@ -206,7 +206,7 @@ function LicenseScreen({
 
 export default function Player() {
   const { id } = useParams<{ id: string }>();
-  const { screen, media, loading, sessionBlocked, playlistLength, currentIndex, currentDuration, layoutId } = useScreenRealtime(id);
+  const { screen, media, loading, sessionBlocked, forceTakeover, playlistLength, currentIndex, currentDuration, layoutId } = useScreenRealtime(id);
   const [visible, setVisible] = useState(true);
   const [progress, setProgress] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
