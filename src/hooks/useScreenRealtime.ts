@@ -124,15 +124,42 @@ export function useScreenRealtime(screenId: string | undefined) {
         screenRes = await supabase.from("screens").select("*").eq("id", screenId).maybeSingle();
       }
       
-      const screenData = screenRes.data as ScreenData | null;
+      const screenData = screenRes.data as any;
       if (!screenData) {
         setLoading(false);
         return;
       }
       
       realScreenIdRef.current = screenData.id;
-      setScreen(screenData);
-      await supabase.from("screens").update({ status: "online" }).eq("id", screenData.id);
+
+      // --- Session lock check ---
+      const existingSession = screenData.player_session_id;
+      const lastHeartbeat = screenData.player_heartbeat_at ? new Date(screenData.player_heartbeat_at).getTime() : 0;
+      const isStale = Date.now() - lastHeartbeat > SESSION_TIMEOUT;
+
+      if (existingSession && existingSession !== SESSION_ID && !isStale) {
+        // Another active session exists
+        setSessionBlocked(true);
+        setScreen(screenData as ScreenData);
+        setLoading(false);
+        return;
+      }
+
+      // Claim session
+      await supabase.from("screens").update({
+        player_session_id: SESSION_ID,
+        player_heartbeat_at: new Date().toISOString(),
+        status: "online",
+      } as any).eq("id", screenData.id);
+
+      // Start heartbeat
+      heartbeatRef.current = setInterval(async () => {
+        await supabase.from("screens").update({
+          player_heartbeat_at: new Date().toISOString(),
+        } as any).eq("id", screenData.id).eq("player_session_id" as any, SESSION_ID);
+      }, HEARTBEAT_INTERVAL);
+
+      setScreen(screenData as ScreenData);
       
       const [pl, sch] = await Promise.all([
         fetchPlaylist(screenData.id),
