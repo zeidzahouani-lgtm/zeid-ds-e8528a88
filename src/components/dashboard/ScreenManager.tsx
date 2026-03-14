@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -87,9 +87,29 @@ export function ScreenManager() {
         <p className="text-muted-foreground">Chargement...</p>
       ) : (
         <div className="space-y-3">
-          {screens.map((screen) => (
+          {screens.map((screen) => {
+            const assignedMedia = media.find((m) => m.id === screen.current_media_id);
+            const assignedLayout = layouts.find((l) => l.id === (screen as any).layout_id);
+
+            return (
             <Card key={screen.id} className="glass-panel p-4">
               <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                {/* Thumbnail */}
+                <div className="w-24 h-16 rounded-md border border-border bg-muted/30 overflow-hidden shrink-0 flex items-center justify-center">
+                  {assignedMedia && assignedMedia.type === "image" ? (
+                    <img src={assignedMedia.url} alt={assignedMedia.name} className="w-full h-full object-cover" />
+                  ) : assignedMedia && assignedMedia.type === "video" ? (
+                    <video src={assignedMedia.url} className="w-full h-full object-cover" muted preload="metadata" />
+                  ) : assignedLayout ? (
+                    <div className="flex flex-col items-center gap-0.5">
+                      <LayoutGrid className="h-4 w-4 text-primary/60" />
+                      <span className="text-[9px] text-muted-foreground truncate max-w-[80px]">{assignedLayout.name}</span>
+                    </div>
+                  ) : (
+                    <Image className="h-5 w-5 text-muted-foreground/30" />
+                  )}
+                </div>
+
                 {/* Info */}
                 <div className="flex items-center gap-3 min-w-[200px]">
                   <Monitor className="h-5 w-5 text-primary shrink-0" />
@@ -189,7 +209,8 @@ export function ScreenManager() {
                 </div>
               </div>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 

@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Key, Plus, Trash2, Copy, Shield, ShieldOff, Monitor, Calendar, QrCode, Camera, RefreshCw } from "lucide-react";
 import QRScanner from "@/components/dashboard/QRScanner";
@@ -23,6 +24,7 @@ export default function AdminLicenses() {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [renewingId, setRenewingId] = useState<string | null>(null);
   const [renewDays, setRenewDays] = useState("365");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const screenFromQR = searchParams.get("screen");
 
   // Pre-select screen from QR code scan
@@ -251,7 +253,7 @@ export default function AdminLicenses() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => deleteLicense.mutate(license.id)}
+                        onClick={() => setDeletingId(license.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -310,6 +312,33 @@ export default function AdminLicenses() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deletingId} onOpenChange={(open) => !open && setDeletingId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cette licence ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. La licence sera définitivement supprimée et l'écran associé ne pourra plus l'utiliser.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deletingId) {
+                  deleteLicense.mutate(deletingId);
+                  toast.success("Licence supprimée");
+                  setDeletingId(null);
+                }
+              }}
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
