@@ -187,14 +187,14 @@ export function useScreenRealtime(screenId: string | undefined) {
 
     init();
 
-    // Set offline on tab close / navigation
+    // Clear session + set offline on tab close / navigation
     const setOffline = () => {
       const realId = realScreenIdRef.current;
       if (!realId) return;
+      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
       const apiKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/screens?id=eq.${realId}&apikey=${apiKey}`;
-      const body = JSON.stringify({ status: "offline" });
-      // keepalive fetch works on beforeunload and supports headers
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/screens?id=eq.${realId}&player_session_id=eq.${SESSION_ID}&apikey=${apiKey}`;
+      const body = JSON.stringify({ status: "offline", player_session_id: null, player_heartbeat_at: null });
       fetch(url, {
         method: 'PATCH',
         headers: {
