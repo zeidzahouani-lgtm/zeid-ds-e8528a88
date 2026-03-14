@@ -12,6 +12,21 @@ import { useLayouts } from "@/hooks/useLayouts";
 import { usePlaylistItems } from "@/hooks/usePlaylistItems";
 import { toast } from "sonner";
 
+type OrientationPreview = {
+  label: string;
+  rotationClass: string;
+};
+
+const ORIENTATION_PREVIEWS: Record<string, OrientationPreview> = {
+  landscape: { label: "0°", rotationClass: "rotate-0" },
+  portrait: { label: "90°", rotationClass: "rotate-90" },
+  "landscape-flipped": { label: "180°", rotationClass: "rotate-180" },
+  "portrait-flipped": { label: "270°", rotationClass: "-rotate-90" },
+};
+
+const getOrientationPreview = (orientation: string): OrientationPreview =>
+  ORIENTATION_PREVIEWS[orientation] ?? ORIENTATION_PREVIEWS.landscape;
+
 function PlaylistPanel({ screenId, media }: { screenId: string; media: any[] }) {
   const { items, addItem, removeItem } = usePlaylistItems(screenId);
 
@@ -90,12 +105,13 @@ export function ScreenManager() {
           {screens.map((screen) => {
             const assignedMedia = media.find((m) => m.id === screen.current_media_id);
             const assignedLayout = layouts.find((l) => l.id === (screen as any).layout_id);
+            const orientationPreview = getOrientationPreview(screen.orientation);
 
             return (
             <Card key={screen.id} className="glass-panel p-4">
               <div className="flex flex-col lg:flex-row lg:items-center gap-4">
                 {/* Thumbnail */}
-                <div className="w-24 h-16 rounded-md border border-border bg-muted/30 overflow-hidden shrink-0 flex items-center justify-center">
+                <div className="relative w-24 h-16 rounded-md border border-border bg-muted/30 overflow-hidden shrink-0 flex items-center justify-center">
                   {assignedMedia && assignedMedia.type === "image" ? (
                     <img src={assignedMedia.url} alt={assignedMedia.name} className="w-full h-full object-cover" />
                   ) : assignedMedia && assignedMedia.type === "video" ? (
@@ -108,6 +124,11 @@ export function ScreenManager() {
                   ) : (
                     <Image className="h-5 w-5 text-muted-foreground/30" />
                   )}
+
+                  <div className="absolute bottom-1 right-1 h-5 min-w-5 px-1 rounded border border-border bg-background/90 flex items-center justify-center gap-1">
+                    <Monitor className={`h-3 w-3 text-foreground/70 transition-transform ${orientationPreview.rotationClass}`} />
+                    <span className="text-[9px] leading-none text-muted-foreground">{orientationPreview.label}</span>
+                  </div>
                 </div>
 
                 {/* Info */}

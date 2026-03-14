@@ -87,6 +87,8 @@ function LayoutRenderer({ layoutId, screenOrientation }: { layoutId: string; scr
     return () => { supabase.removeChannel(channel); };
   }, [layoutId]);
 
+  if (!layout) return null;
+
   const rotationStyle = getOrientationStyle(screenOrientation);
 
   return (
