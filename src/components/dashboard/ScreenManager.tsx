@@ -27,6 +27,23 @@ const ORIENTATION_PREVIEWS: Record<string, OrientationPreview> = {
 const getOrientationPreview = (orientation: string): OrientationPreview =>
   ORIENTATION_PREVIEWS[orientation] ?? ORIENTATION_PREVIEWS.landscape;
 
+function parseUserAgent(ua: string | null): { device: string; icon: React.ReactNode } {
+  if (!ua) return { device: "Inconnu", icon: <Monitor className="h-3 w-3" /> };
+  const lower = ua.toLowerCase();
+  if (/iphone|android.*mobile/.test(lower)) return { device: "Mobile", icon: <Smartphone className="h-3 w-3" /> };
+  if (/ipad|android(?!.*mobile)|tablet/.test(lower)) return { device: "Tablette", icon: <Tablet className="h-3 w-3" /> };
+  let browser = "Navigateur";
+  if (lower.includes("chrome") && !lower.includes("edg")) browser = "Chrome";
+  else if (lower.includes("firefox")) browser = "Firefox";
+  else if (lower.includes("safari") && !lower.includes("chrome")) browser = "Safari";
+  else if (lower.includes("edg")) browser = "Edge";
+  let os = "";
+  if (lower.includes("windows")) os = "Windows";
+  else if (lower.includes("mac os")) os = "Mac";
+  else if (lower.includes("linux")) os = "Linux";
+  return { device: os ? `${browser} / ${os}` : browser, icon: <Laptop className="h-3 w-3" /> };
+}
+
 function PlaylistPanel({ screenId, media }: { screenId: string; media: any[] }) {
   const { items, addItem, removeItem } = usePlaylistItems(screenId);
 
