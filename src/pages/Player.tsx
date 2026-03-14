@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useScreenRealtime } from "@/hooks/useScreenRealtime";
-import { MonitorPlay, ShieldOff, KeyRound, QrCode } from "lucide-react";
+import { MonitorPlay, ShieldOff, KeyRound, QrCode, MonitorX } from "lucide-react";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import WidgetRenderer from "@/components/widgets/WidgetRenderer";
