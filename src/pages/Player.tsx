@@ -56,10 +56,24 @@ function MediaRenderer({ media, playlistLength }: { media: { id: string; name: s
   }
   if (media.type === "video") {
     return (
-      <video key={media.id} src={media.url} className="w-full h-full object-cover" autoPlay loop={!playlistLength || playlistLength <= 1} muted playsInline />
+      <video key={media.id} src={media.url} className="w-full h-full object-cover" autoPlay loop={!playlistLength || playlistLength <= 1} playsInline />
     );
   }
   return <iframe src={media.url} className="w-full h-full border-0" allowFullScreen title={media.name} />;
+}
+
+function usePlayerLogo() {
+  const [logoUrl, setLogoUrl] = useState<string>("");
+  useEffect(() => {
+    supabase.from("app_settings").select("key, value").eq("key", "logo_url").single()
+      .then(({ data }) => { if (data?.value) setLogoUrl(data.value); });
+  }, []);
+  return logoUrl;
+}
+
+function CompanyLogo({ logoUrl }: { logoUrl: string }) {
+  if (!logoUrl) return null;
+  return <img src={logoUrl} alt="Logo" className="h-16 w-auto object-contain mb-4" />;
 }
 
 function LayoutRenderer({ layoutId, screenOrientation }: { layoutId: string; screenOrientation: string }) {
