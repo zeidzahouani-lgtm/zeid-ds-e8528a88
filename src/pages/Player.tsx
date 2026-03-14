@@ -1,10 +1,10 @@
 import { useParams } from "react-router-dom";
 import { useScreenRealtime } from "@/hooks/useScreenRealtime";
-import { MonitorPlay, ShieldOff } from "lucide-react";
+import { MonitorPlay, ShieldOff, KeyRound } from "lucide-react";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import WidgetRenderer from "@/components/widgets/WidgetRenderer";
-import { validateLicense } from "@/hooks/useLicenses";
+import { validateLicense, activateLicenseByKey } from "@/hooks/useLicenses";
 
 interface LayoutRegionData {
   id: string;
@@ -91,6 +91,79 @@ function LayoutRenderer({ layoutId, screenOrientation }: { layoutId: string; scr
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function LicenseScreen({
+  containerRef,
+  requestFullscreen,
+  message,
+  screenId,
+  onActivated,
+}: {
+  containerRef: React.RefObject<HTMLDivElement>;
+  requestFullscreen: () => void;
+  message: string;
+  screenId: string;
+  onActivated: () => void;
+}) {
+  const [key, setKey] = useState("");
+  const [error, setError] = useState("");
+  const [checking, setChecking] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!key.trim()) return;
+    setChecking(true);
+    setError("");
+    const result = await activateLicenseByKey(key, screenId);
+    if (result.valid) {
+      onActivated();
+    } else {
+      setError(result.message || "Clé invalide");
+    }
+    setChecking(false);
+  };
+
+  return (
+    <div ref={containerRef} className="fixed inset-0 bg-black flex items-center justify-center" onClick={requestFullscreen}>
+      <div className="flex flex-col items-center gap-6 text-center p-8 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+        <div className="h-20 w-20 rounded-2xl bg-destructive/10 flex items-center justify-center">
+          <ShieldOff className="h-10 w-10 text-destructive" />
+        </div>
+        <h1 className="text-2xl font-bold text-destructive uppercase tracking-widest">Licence invalide</h1>
+        <p className="text-gray-400">{message}</p>
+
+        <form onSubmit={handleSubmit} className="w-full space-y-3 mt-2">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+              <input
+                type="text"
+                value={key}
+                onChange={(e) => { setKey(e.target.value.toUpperCase()); setError(""); }}
+                placeholder="XXXX-XXXX-XXXX-XXXX"
+                className="w-full h-11 pl-10 pr-3 rounded-lg bg-white/5 border border-white/10 text-white font-mono tracking-widest text-sm placeholder:text-gray-600 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-colors"
+                autoFocus
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={checking || !key.trim()}
+              className="h-11 px-5 rounded-lg bg-primary text-black font-semibold text-sm tracking-wider uppercase hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+            >
+              {checking ? "..." : "Activer"}
+            </button>
+          </div>
+          {error && <p className="text-destructive text-sm">{error}</p>}
+        </form>
+
+        <p className="text-xs text-gray-600 mt-2">
+          Vérification automatique toutes les 5 secondes
+          <span className="inline-block ml-1 h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+        </p>
+      </div>
     </div>
   );
 }
@@ -197,19 +270,16 @@ export default function Player() {
     );
   }
 
-  // LICENSE CHECK - Show black screen with message if invalid
+  // LICENSE CHECK - Show black screen with manual entry
   if (licenseValid === false) {
     return (
-      <div ref={containerRef} className="fixed inset-0 bg-black flex items-center justify-center cursor-pointer" onClick={requestFullscreen}>
-        <div className="flex flex-col items-center gap-4 text-center p-8">
-          <div className="h-20 w-20 rounded-2xl bg-destructive/10 flex items-center justify-center">
-            <ShieldOff className="h-10 w-10 text-destructive" />
-          </div>
-          <h1 className="text-2xl font-bold text-destructive uppercase tracking-widest">Licence invalide</h1>
-          <p className="text-muted-foreground max-w-md">{licenseMessage}</p>
-          <p className="text-xs text-muted-foreground/50 mt-4">Contactez votre administrateur pour obtenir une licence valide.</p>
-        </div>
-      </div>
+      <LicenseScreen
+        containerRef={containerRef}
+        requestFullscreen={requestFullscreen}
+        message={licenseMessage}
+        screenId={screen.id}
+        onActivated={() => setLicenseValid(true)}
+      />
     );
   }
 

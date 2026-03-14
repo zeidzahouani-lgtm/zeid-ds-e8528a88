@@ -123,3 +123,39 @@ export async function validateLicense(screenId: string): Promise<{ valid: boolea
 
   return { valid: true };
 }
+
+// Activate a license by key for a specific screen (used by Player manual entry)
+export async function activateLicenseByKey(licenseKey: string, screenId: string): Promise<{ valid: boolean; message?: string }> {
+  // Find the license by key
+  const { data, error } = await supabase
+    .from("licenses" as any)
+    .select("*")
+    .eq("license_key", licenseKey.trim().toUpperCase() as any)
+    .eq("is_active", true as any)
+    .single();
+
+  if (error || !data) return { valid: false, message: "Clé de licence introuvable ou désactivée" };
+
+  const license = data as unknown as License;
+
+  // Check expiry
+  const now = new Date();
+  if (new Date(license.valid_until) < now) return { valid: false, message: "Cette licence est expirée" };
+
+  // Check if already assigned to another screen
+  if (license.screen_id && license.screen_id !== screenId) {
+    return { valid: false, message: "Cette licence est déjà assignée à un autre écran" };
+  }
+
+  // Assign to this screen if not yet assigned
+  if (!license.screen_id) {
+    const { error: updateError } = await supabase
+      .from("licenses" as any)
+      .update({ screen_id: screenId, activated_at: new Date().toISOString() } as any)
+      .eq("id", license.id as any);
+
+    if (updateError) return { valid: false, message: "Erreur lors de l'activation" };
+  }
+
+  return { valid: true };
+}
