@@ -209,7 +209,8 @@ export function ScreenManager() {
                 </div>
               </div>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 
