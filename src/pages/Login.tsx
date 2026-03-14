@@ -28,19 +28,19 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-md p-8 glass-panel space-y-6">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'radial-gradient(ellipse at 50% 30%, hsl(185 100% 55% / 0.03), transparent 60%), radial-gradient(ellipse at 50% 0%, hsl(0 0% 7%) 0%, hsl(0 0% 2%) 70%)' }}>
+      <Card className="w-full max-w-md p-8 space-y-6 animate-cyber-in">
         <div className="flex flex-col items-center gap-3">
-          <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-            <MonitorPlay className="h-7 w-7 text-primary" />
+          <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center shadow-neon-cyan">
+            <MonitorPlay className="h-8 w-8 text-primary icon-neon" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">SignageOS</h1>
-          <p className="text-sm text-muted-foreground">Connectez-vous à votre tableau de bord</p>
+          <h1 className="text-2xl font-bold tracking-widest neon-glow-cyan text-primary">SIGNAGEOS</h1>
+          <p className="text-sm text-muted-foreground normal-case tracking-normal">Connectez-vous à votre tableau de bord</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Email</label>
+            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Email</label>
             <Input
               type="email"
               placeholder="vous@exemple.com"
@@ -50,7 +50,7 @@ export default function Login() {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Mot de passe</label>
+            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Mot de passe</label>
             <Input
               type="password"
               placeholder="••••••••"
@@ -64,7 +64,7 @@ export default function Login() {
           </Button>
         </form>
 
-        <div className="text-center text-sm space-y-2">
+        <div className="text-center text-sm space-y-2 normal-case">
           <Link to="/forgot-password" className="text-primary hover:underline block">
             Mot de passe oublié ?
           </Link>
