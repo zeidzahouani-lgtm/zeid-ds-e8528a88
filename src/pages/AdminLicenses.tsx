@@ -253,7 +253,7 @@ export default function AdminLicenses() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => deleteLicense.mutate(license.id)}
+                        onClick={() => setDeletingId(license.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
