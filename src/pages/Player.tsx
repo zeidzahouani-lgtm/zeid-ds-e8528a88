@@ -197,19 +197,16 @@ export default function Player() {
     );
   }
 
-  // LICENSE CHECK - Show black screen with message if invalid
+  // LICENSE CHECK - Show black screen with manual entry
   if (licenseValid === false) {
     return (
-      <div ref={containerRef} className="fixed inset-0 bg-black flex items-center justify-center cursor-pointer" onClick={requestFullscreen}>
-        <div className="flex flex-col items-center gap-4 text-center p-8">
-          <div className="h-20 w-20 rounded-2xl bg-destructive/10 flex items-center justify-center">
-            <ShieldOff className="h-10 w-10 text-destructive" />
-          </div>
-          <h1 className="text-2xl font-bold text-destructive uppercase tracking-widest">Licence invalide</h1>
-          <p className="text-muted-foreground max-w-md">{licenseMessage}</p>
-          <p className="text-xs text-muted-foreground/50 mt-4">Contactez votre administrateur pour obtenir une licence valide.</p>
-        </div>
-      </div>
+      <LicenseScreen
+        containerRef={containerRef}
+        requestFullscreen={requestFullscreen}
+        message={licenseMessage}
+        screenId={screen.id}
+        onActivated={() => setLicenseValid(true)}
+      />
     );
   }
 
