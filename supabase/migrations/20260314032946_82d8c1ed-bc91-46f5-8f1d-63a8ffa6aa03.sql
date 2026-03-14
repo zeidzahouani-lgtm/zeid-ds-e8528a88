@@ -1,0 +1,1 @@
+ALTER TABLE public.screens ADD COLUMN IF NOT EXISTS player_user_agent text DEFAULT NULL;
