@@ -40,16 +40,16 @@ export function AppSidebar() {
   const { user, signOut } = useAuth();
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" className="glass-sidebar">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-            <MonitorPlay className="h-5 w-5 text-primary" />
+          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 shadow-neon-cyan">
+            <MonitorPlay className="h-5 w-5 text-primary icon-neon" />
           </div>
           {!collapsed && (
             <div>
-              <h1 className="text-base font-bold tracking-tight">SignageOS</h1>
-              <p className="text-[10px] text-muted-foreground">Digital Signage CMS</p>
+              <h1 className="text-base font-bold tracking-widest neon-glow-cyan normal-case">SignageOS</h1>
+              <p className="text-[10px] text-muted-foreground tracking-wider uppercase">Digital Signage CMS</p>
             </div>
           )}
         </div>
@@ -57,7 +57,7 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-muted-foreground/60 uppercase tracking-widest text-[10px]">Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {mainItems.map((item) => (
@@ -66,11 +66,11 @@ export function AppSidebar() {
                     <NavLink
                       to={item.url}
                       end
-                      className="hover:bg-muted/50"
-                      activeClassName="bg-muted text-primary font-medium"
+                      className="hover:bg-primary/5 transition-all duration-200 group"
+                      activeClassName="bg-primary/10 text-primary font-medium border-l-2 border-primary"
                     >
-                      <item.icon className="mr-2 h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
+                      <item.icon className="mr-2 h-4 w-4 group-hover:text-primary transition-colors" />
+                      {!collapsed && <span className="normal-case tracking-normal">{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -79,7 +79,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
         <SidebarGroup>
-          <SidebarGroupLabel>Administration</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-muted-foreground/60 uppercase tracking-widest text-[10px]">Administration</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {adminItems.map((item) => (
@@ -88,11 +88,11 @@ export function AppSidebar() {
                     <NavLink
                       to={item.url}
                       end
-                      className="hover:bg-muted/50"
-                      activeClassName="bg-muted text-primary font-medium"
+                      className="hover:bg-accent/5 transition-all duration-200 group"
+                      activeClassName="bg-accent/10 text-accent font-medium border-l-2 border-accent"
                     >
-                      <item.icon className="mr-2 h-4 w-4" />
-                      {!collapsed && <span>{item.title}</span>}
+                      <item.icon className="mr-2 h-4 w-4 group-hover:text-accent transition-colors" />
+                      {!collapsed && <span className="normal-case tracking-normal">{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -105,7 +105,7 @@ export function AppSidebar() {
       <SidebarFooter className="p-3">
         {!collapsed && user && (
           <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground truncate mb-2">
-            <User className="h-3.5 w-3.5 shrink-0" />
+            <User className="h-3.5 w-3.5 shrink-0 text-primary/50" />
             <span className="truncate">{user.email}</span>
           </div>
         )}
@@ -113,7 +113,7 @@ export function AppSidebar() {
           variant="ghost"
           size={collapsed ? "icon" : "sm"}
           onClick={signOut}
-          className="w-full justify-start gap-2 text-muted-foreground hover:text-destructive"
+          className="w-full justify-start gap-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
         >
           <LogOut className="h-4 w-4" />
           {!collapsed && "Déconnexion"}
