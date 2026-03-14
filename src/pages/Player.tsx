@@ -309,6 +309,27 @@ export default function Player() {
     );
   }
 
+  // Session blocked — another device is already playing this screen
+  if (sessionBlocked) {
+    return (
+      <div ref={containerRef} className="fixed inset-0 bg-black flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 text-center p-8">
+          <div className="h-20 w-20 rounded-2xl bg-destructive/10 flex items-center justify-center">
+            <MonitorX className="h-10 w-10 text-destructive" />
+          </div>
+          <h1 className="text-2xl font-bold text-destructive uppercase tracking-widest">Écran déjà actif</h1>
+          <p className="text-muted-foreground max-w-sm">
+            Cet écran est déjà ouvert sur un autre appareil. Fermez l'autre session pour pouvoir l'utiliser ici.
+          </p>
+          <p className="text-xs text-muted-foreground/50 mt-2">
+            Vérification automatique toutes les 15 secondes
+            <span className="inline-block ml-1 h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Still validating license
   if (licenseValid === null) {
     return (
