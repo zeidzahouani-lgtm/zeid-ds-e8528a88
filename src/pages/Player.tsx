@@ -160,6 +160,17 @@ function LicenseScreen({
           {error && <p className="text-destructive text-sm">{error}</p>}
         </form>
 
+        <div className="w-full border-t border-white/5 pt-5 mt-3 flex flex-col items-center gap-3">
+          <p className="text-xs text-gray-500 uppercase tracking-wider">ou scannez pour assigner depuis l'admin</p>
+          <div className="bg-white p-3 rounded-xl">
+            <QRCodeSVG
+              value={`${window.location.origin}/admin/licenses?screen=${screenId}`}
+              size={140}
+              level="M"
+            />
+          </div>
+        </div>
+
         <p className="text-xs text-gray-600 mt-2">
           Vérification automatique toutes les 5 secondes
           <span className="inline-block ml-1 h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />

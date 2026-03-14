@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useLicenses } from "@/hooks/useLicenses";
 import { useScreens } from "@/hooks/useScreens";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,14 +9,26 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Key, Plus, Trash2, Copy, Shield, ShieldOff, Monitor, Calendar } from "lucide-react";
+import { Key, Plus, Trash2, Copy, Shield, ShieldOff, Monitor, Calendar, QrCode } from "lucide-react";
 
 export default function AdminLicenses() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { licenses, isLoading, createLicense, toggleLicense, deleteLicense, assignScreen } = useLicenses();
   const { screens } = useScreens();
   const [durationDays, setDurationDays] = useState("365");
   const [selectedScreen, setSelectedScreen] = useState("");
   const [creating, setCreating] = useState(false);
+  const screenFromQR = searchParams.get("screen");
+
+  // Pre-select screen from QR code scan
+  useEffect(() => {
+    if (screenFromQR) {
+      setSelectedScreen(screenFromQR);
+      // Clear the param so it doesn't persist
+      searchParams.delete("screen");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [screenFromQR]);
 
   const handleCreate = async () => {
     setCreating(true);
