@@ -56,10 +56,24 @@ function MediaRenderer({ media, playlistLength }: { media: { id: string; name: s
   }
   if (media.type === "video") {
     return (
-      <video key={media.id} src={media.url} className="w-full h-full object-cover" autoPlay loop={!playlistLength || playlistLength <= 1} muted playsInline />
+      <video key={media.id} src={media.url} className="w-full h-full object-cover" autoPlay loop={!playlistLength || playlistLength <= 1} playsInline />
     );
   }
   return <iframe src={media.url} className="w-full h-full border-0" allowFullScreen title={media.name} />;
+}
+
+function usePlayerLogo() {
+  const [logoUrl, setLogoUrl] = useState<string>("");
+  useEffect(() => {
+    supabase.from("app_settings").select("key, value").eq("key", "logo_url").single()
+      .then(({ data }) => { if (data?.value) setLogoUrl(data.value); });
+  }, []);
+  return logoUrl;
+}
+
+function CompanyLogo({ logoUrl }: { logoUrl: string }) {
+  if (!logoUrl) return null;
+  return <img src={logoUrl} alt="Logo" className="h-16 w-auto object-contain mb-4" />;
 }
 
 function LayoutRenderer({ layoutId, screenOrientation }: { layoutId: string; screenOrientation: string }) {
@@ -126,12 +140,14 @@ function LicenseScreen({
   message,
   screenId,
   onActivated,
+  logoUrl,
 }: {
   containerRef: React.RefObject<HTMLDivElement>;
   requestFullscreen: () => void;
   message: string;
   screenId: string;
   onActivated: () => void;
+  logoUrl: string;
 }) {
   const [key, setKey] = useState("");
   const [error, setError] = useState("");
@@ -154,6 +170,7 @@ function LicenseScreen({
   return (
     <div ref={containerRef} className="fixed inset-0 bg-black flex items-center justify-center" onClick={requestFullscreen}>
       <div className="flex flex-col items-center gap-6 text-center p-8 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+        {logoUrl && <CompanyLogo logoUrl={logoUrl} />}
         <div className="h-20 w-20 rounded-2xl bg-destructive/10 flex items-center justify-center">
           <ShieldOff className="h-10 w-10 text-destructive" />
         </div>
@@ -207,6 +224,7 @@ function LicenseScreen({
 export default function Player() {
   const { id } = useParams<{ id: string }>();
   const { screen, media, loading, sessionBlocked, forceTakeover, playlistLength, currentIndex, currentDuration, layoutId } = useScreenRealtime(id);
+  const logoUrl = usePlayerLogo();
   const [visible, setVisible] = useState(true);
   const [progress, setProgress] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -294,6 +312,7 @@ export default function Player() {
     return (
       <div className="fixed inset-0 bg-black flex items-center justify-center">
         <div className="animate-pulse flex flex-col items-center gap-3">
+          <CompanyLogo logoUrl={logoUrl} />
           <MonitorPlay className="h-12 w-12 text-primary" />
           <p className="text-muted-foreground">Connexion à l'écran...</p>
         </div>
@@ -314,6 +333,7 @@ export default function Player() {
     return (
       <div ref={containerRef} className="fixed inset-0 bg-black flex items-center justify-center">
         <div className="flex flex-col items-center gap-4 text-center p-8">
+          <CompanyLogo logoUrl={logoUrl} />
           <div className="h-20 w-20 rounded-2xl bg-destructive/10 flex items-center justify-center">
             <MonitorX className="h-10 w-10 text-destructive" />
           </div>
@@ -341,6 +361,7 @@ export default function Player() {
     return (
       <div className="fixed inset-0 bg-black flex items-center justify-center">
         <div className="animate-pulse flex flex-col items-center gap-3">
+          <CompanyLogo logoUrl={logoUrl} />
           <MonitorPlay className="h-12 w-12 text-primary" />
           <p className="text-muted-foreground">Vérification de la licence...</p>
         </div>
@@ -357,6 +378,7 @@ export default function Player() {
         message={licenseMessage}
         screenId={screen.id}
         onActivated={() => setLicenseValid(true)}
+        logoUrl={logoUrl}
       />
     );
   }
@@ -377,6 +399,7 @@ export default function Player() {
         <div className="w-full h-full transition-opacity duration-500 ease-in-out" style={{ opacity: visible ? 1 : 0 }}>
           {!media ? (
             <div className="w-full h-full flex flex-col items-center justify-center gap-4">
+              <CompanyLogo logoUrl={logoUrl} />
               <MonitorPlay className="h-16 w-16 text-primary/30" />
               <p className="text-muted-foreground text-lg">{screen.name}</p>
               <p className="text-muted-foreground/50 text-sm">En attente de contenu...</p>
