@@ -332,6 +332,7 @@ export default function Player() {
     return (
       <div ref={containerRef} className="fixed inset-0 bg-black flex items-center justify-center">
         <div className="flex flex-col items-center gap-4 text-center p-8">
+          <CompanyLogo logoUrl={logoUrl} />
           <div className="h-20 w-20 rounded-2xl bg-destructive/10 flex items-center justify-center">
             <MonitorX className="h-10 w-10 text-destructive" />
           </div>
