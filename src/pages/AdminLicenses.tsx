@@ -15,12 +15,14 @@ import QRScanner from "@/components/dashboard/QRScanner";
 
 export default function AdminLicenses() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { licenses, isLoading, createLicense, toggleLicense, deleteLicense, assignScreen } = useLicenses();
+  const { licenses, isLoading, createLicense, toggleLicense, deleteLicense, assignScreen, renewLicense } = useLicenses();
   const { screens } = useScreens();
   const [durationDays, setDurationDays] = useState("365");
   const [selectedScreen, setSelectedScreen] = useState("");
   const [creating, setCreating] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [renewingId, setRenewingId] = useState<string | null>(null);
+  const [renewDays, setRenewDays] = useState("365");
   const screenFromQR = searchParams.get("screen");
 
   // Pre-select screen from QR code scan
