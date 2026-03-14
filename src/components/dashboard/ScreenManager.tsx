@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image } from "lucide-react";
+import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -26,6 +26,23 @@ const ORIENTATION_PREVIEWS: Record<string, OrientationPreview> = {
 
 const getOrientationPreview = (orientation: string): OrientationPreview =>
   ORIENTATION_PREVIEWS[orientation] ?? ORIENTATION_PREVIEWS.landscape;
+
+function parseUserAgent(ua: string | null): { device: string; icon: React.ReactNode } {
+  if (!ua) return { device: "Inconnu", icon: <Monitor className="h-3 w-3" /> };
+  const lower = ua.toLowerCase();
+  if (/iphone|android.*mobile/.test(lower)) return { device: "Mobile", icon: <Smartphone className="h-3 w-3" /> };
+  if (/ipad|android(?!.*mobile)|tablet/.test(lower)) return { device: "Tablette", icon: <Tablet className="h-3 w-3" /> };
+  let browser = "Navigateur";
+  if (lower.includes("chrome") && !lower.includes("edg")) browser = "Chrome";
+  else if (lower.includes("firefox")) browser = "Firefox";
+  else if (lower.includes("safari") && !lower.includes("chrome")) browser = "Safari";
+  else if (lower.includes("edg")) browser = "Edge";
+  let os = "";
+  if (lower.includes("windows")) os = "Windows";
+  else if (lower.includes("mac os")) os = "Mac";
+  else if (lower.includes("linux")) os = "Linux";
+  return { device: os ? `${browser} / ${os}` : browser, icon: <Laptop className="h-3 w-3" /> };
+}
 
 function PlaylistPanel({ screenId, media }: { screenId: string; media: any[] }) {
   const { items, addItem, removeItem } = usePlaylistItems(screenId);
@@ -136,11 +153,21 @@ export function ScreenManager() {
                   <Monitor className="h-5 w-5 text-primary shrink-0" />
                   <div>
                     <p className="font-medium">{screen.name}</p>
-                    <div className="flex items-center gap-1.5 mt-1">
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                       {screen.status === 'online' ? (
-                        <Badge variant="outline" className="text-status-online border-status-online/30 gap-1 text-xs">
-                          <Wifi className="h-3 w-3" /> En ligne
-                        </Badge>
+                        <>
+                          <Badge variant="outline" className="text-status-online border-status-online/30 gap-1 text-xs">
+                            <Wifi className="h-3 w-3" /> En ligne
+                          </Badge>
+                          {(() => {
+                            const parsed = parseUserAgent((screen as any).player_user_agent);
+                            return (
+                              <Badge variant="outline" className="text-muted-foreground border-border gap-1 text-xs">
+                                {parsed.icon} {parsed.device}
+                              </Badge>
+                            );
+                          })()}
+                        </>
                       ) : (
                         <Badge variant="outline" className="text-status-offline border-status-offline/30 gap-1 text-xs">
                           <WifiOff className="h-3 w-3" /> Hors ligne

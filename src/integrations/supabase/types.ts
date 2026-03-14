@@ -357,6 +357,7 @@ export type Database = {
           orientation: string
           player_heartbeat_at: string | null
           player_session_id: string | null
+          player_user_agent: string | null
           slug: string | null
           status: string
           updated_at: string
@@ -372,6 +373,7 @@ export type Database = {
           orientation?: string
           player_heartbeat_at?: string | null
           player_session_id?: string | null
+          player_user_agent?: string | null
           slug?: string | null
           status?: string
           updated_at?: string
@@ -387,6 +389,7 @@ export type Database = {
           orientation?: string
           player_heartbeat_at?: string | null
           player_session_id?: string | null
+          player_user_agent?: string | null
           slug?: string | null
           status?: string
           updated_at?: string
