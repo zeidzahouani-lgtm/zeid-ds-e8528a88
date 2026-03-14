@@ -12,6 +12,7 @@ interface QRScannerProps {
 
 export default function QRScanner({ open, onClose, onScan }: QRScannerProps) {
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const stoppingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
 
@@ -19,8 +20,27 @@ export default function QRScanner({ open, onClose, onScan }: QRScannerProps) {
     const scanner = scannerRef.current;
     scannerRef.current = null;
     setScanning(false);
-    if (scanner) {
-      scanner.isScanning && scanner.stop().catch(() => {});
+
+    if (!scanner || stoppingRef.current) return;
+    stoppingRef.current = true;
+
+    const safeClear = () => {
+      try {
+        Promise.resolve(scanner.clear()).catch(() => {});
+      } catch {
+        // ignore
+      } finally {
+        stoppingRef.current = false;
+      }
+    };
+
+    try {
+      scanner
+        .stop()
+        .catch(() => {})
+        .finally(safeClear);
+    } catch {
+      safeClear();
     }
   }, []);
 
