@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,17 +6,20 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Palette, Type, Image, Globe, Save, RotateCcw } from "lucide-react";
+import { Palette, Type, Image, Globe, Save, RotateCcw, Upload } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function AdminCustomization() {
   const { settings, updateSetting } = useAppSettings();
   const [form, setForm] = useState(settings);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync form when settings load
-  useState(() => {
+  useEffect(() => {
     setForm(settings);
-  });
+  }, [settings]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -37,6 +40,36 @@ export default function AdminCustomization() {
 
   const handleReset = () => {
     setForm(settings);
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Veuillez sélectionner une image");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const fileName = `branding/logo-${Date.now()}.${ext}`;
+
+      const { error } = await supabase.storage.from("media").upload(fileName, file, {
+        upsert: true,
+      });
+      if (error) throw error;
+
+      const { data } = supabase.storage.from("media").getPublicUrl(fileName);
+      setForm({ ...form, logo_url: data.publicUrl });
+      toast.success("Logo uploadé avec succès");
+    } catch {
+      toast.error("Erreur lors de l'upload du logo");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   return (
@@ -85,7 +118,7 @@ export default function AdminCustomization() {
           </CardContent>
         </Card>
 
-        {/* Visual */}
+        {/* Visual - Logo Upload */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm">
@@ -95,15 +128,37 @@ export default function AdminCustomization() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">URL du logo</Label>
-              <Input
-                value={form.logo_url}
-                onChange={(e) => setForm({ ...form, logo_url: e.target.value })}
-                placeholder="https://example.com/logo.png"
-              />
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Logo</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={form.logo_url}
+                  onChange={(e) => setForm({ ...form, logo_url: e.target.value })}
+                  placeholder="URL du logo ou uploadez un fichier"
+                  className="flex-1"
+                />
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleLogoUpload}
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="shrink-0"
+                >
+                  <Upload className="h-4 w-4" />
+                </Button>
+              </div>
+              {uploading && (
+                <p className="text-xs text-primary animate-pulse normal-case">Upload en cours...</p>
+              )}
               {form.logo_url && (
-                <div className="mt-2 p-3 rounded-lg bg-secondary/50 flex items-center justify-center">
-                  <img src={form.logo_url} alt="Aperçu logo" className="max-h-16 object-contain" />
+                <div className="mt-2 p-4 rounded-lg bg-secondary/50 flex items-center justify-center">
+                  <img src={form.logo_url} alt="Aperçu logo" className="max-h-20 object-contain" />
                 </div>
               )}
             </div>
