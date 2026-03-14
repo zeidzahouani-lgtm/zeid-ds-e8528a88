@@ -153,11 +153,21 @@ export function ScreenManager() {
                   <Monitor className="h-5 w-5 text-primary shrink-0" />
                   <div>
                     <p className="font-medium">{screen.name}</p>
-                    <div className="flex items-center gap-1.5 mt-1">
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                       {screen.status === 'online' ? (
-                        <Badge variant="outline" className="text-status-online border-status-online/30 gap-1 text-xs">
-                          <Wifi className="h-3 w-3" /> En ligne
-                        </Badge>
+                        <>
+                          <Badge variant="outline" className="text-status-online border-status-online/30 gap-1 text-xs">
+                            <Wifi className="h-3 w-3" /> En ligne
+                          </Badge>
+                          {(() => {
+                            const parsed = parseUserAgent((screen as any).player_user_agent);
+                            return (
+                              <Badge variant="outline" className="text-muted-foreground border-border gap-1 text-xs">
+                                {parsed.icon} {parsed.device}
+                              </Badge>
+                            );
+                          })()}
+                        </>
                       ) : (
                         <Badge variant="outline" className="text-status-offline border-status-offline/30 gap-1 text-xs">
                           <WifiOff className="h-3 w-3" /> Hors ligne
