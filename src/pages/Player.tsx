@@ -168,6 +168,7 @@ function LicenseScreen({
   return (
     <div ref={containerRef} className="fixed inset-0 bg-black flex items-center justify-center" onClick={requestFullscreen}>
       <div className="flex flex-col items-center gap-6 text-center p-8 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+        {logoUrl && <CompanyLogo logoUrl={logoUrl} />}
         <div className="h-20 w-20 rounded-2xl bg-destructive/10 flex items-center justify-center">
           <ShieldOff className="h-10 w-10 text-destructive" />
         </div>
