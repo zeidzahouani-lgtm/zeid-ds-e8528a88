@@ -132,25 +132,52 @@ export function useScreenRealtime(screenId: string | undefined) {
       
       realScreenIdRef.current = screenData.id;
 
-      // --- Session lock check ---
-      const existingSession = screenData.player_session_id;
-      const lastHeartbeat = screenData.player_heartbeat_at ? new Date(screenData.player_heartbeat_at).getTime() : 0;
-      const isStale = Date.now() - lastHeartbeat > SESSION_TIMEOUT;
+      // --- Atomic session claim ---
+      // Use a conditional update: only claim if no active session exists or existing is stale
+      const userAgent = navigator.userAgent;
+      const staleThreshold = new Date(Date.now() - SESSION_TIMEOUT).toISOString();
 
-      if (existingSession && existingSession !== SESSION_ID && !isStale) {
-        // Another active session exists
+      // Attempt 1: claim if no session at all
+      let claimRes = await supabase.from("screens").update({
+        player_session_id: SESSION_ID,
+        player_heartbeat_at: new Date().toISOString(),
+        player_user_agent: userAgent,
+        status: "online",
+      } as any).eq("id", screenData.id).is("player_session_id", null);
+
+      // Attempt 2: claim if same session (page reload)
+      if ((claimRes as any).count === 0) {
+        claimRes = await supabase.from("screens").update({
+          player_session_id: SESSION_ID,
+          player_heartbeat_at: new Date().toISOString(),
+          player_user_agent: userAgent,
+          status: "online",
+        } as any).eq("id", screenData.id).eq("player_session_id", SESSION_ID);
+      }
+
+      // Attempt 3: claim if stale heartbeat
+      if ((claimRes as any).count === 0) {
+        claimRes = await supabase.from("screens").update({
+          player_session_id: SESSION_ID,
+          player_heartbeat_at: new Date().toISOString(),
+          player_user_agent: userAgent,
+          status: "online",
+        } as any).eq("id", screenData.id).lt("player_heartbeat_at", staleThreshold);
+      }
+
+      // Verify we actually own the session now
+      const { data: verifyData } = await supabase
+        .from("screens")
+        .select("player_session_id")
+        .eq("id", screenData.id)
+        .single();
+
+      if (verifyData && (verifyData as any).player_session_id !== SESSION_ID) {
         setSessionBlocked(true);
         setScreen(screenData as ScreenData);
         setLoading(false);
         return;
       }
-
-      // Claim session
-      await supabase.from("screens").update({
-        player_session_id: SESSION_ID,
-        player_heartbeat_at: new Date().toISOString(),
-        status: "online",
-      } as any).eq("id", screenData.id);
 
       // Start heartbeat
       heartbeatRef.current = setInterval(async () => {
