@@ -360,6 +360,7 @@ export default function Player() {
     return (
       <div className="fixed inset-0 bg-black flex items-center justify-center">
         <div className="animate-pulse flex flex-col items-center gap-3">
+          <CompanyLogo logoUrl={logoUrl} />
           <MonitorPlay className="h-12 w-12 text-primary" />
           <p className="text-muted-foreground">Vérification de la licence...</p>
         </div>
