@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { DashboardLayout } from "@/components/DashboardLayout";
+import { useAppSettings } from "@/hooks/useAppSettings";
 import NotFound from "./pages/NotFound";
 
 const Player = lazy(() => import("./pages/Player"));
@@ -23,6 +24,8 @@ const LayoutEditor = lazy(() => import("./pages/LayoutEditor"));
 const AdminUsers = lazy(() => import("./pages/AdminUsers"));
 const Establishments = lazy(() => import("./pages/Establishments"));
 const ScreenSetup = lazy(() => import("./pages/ScreenSetup"));
+const AdminCustomization = lazy(() => import("./pages/AdminCustomization"));
+const AdminLicenses = lazy(() => import("./pages/AdminLicenses"));
 
 const queryClient = new QueryClient();
 
@@ -40,41 +43,46 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function AppSettingsProvider({ children }: { children: React.ReactNode }) {
+  useAppSettings(); // Applies CSS variables, page title, favicon
+  return <>{children}</>;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-muted-foreground">Chargement...</div></div>}>
-          <Routes>
-            {/* Public auth routes */}
-            <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-            <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
+      <AppSettingsProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-muted-foreground">Chargement...</div></div>}>
+            <Routes>
+              <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+              <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/player/:id" element={<Player />} />
 
-            {/* Player (no auth needed) */}
-            <Route path="/player/:id" element={<Player />} />
+              <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+                <Route path="/" element={<DashboardHome />} />
+                <Route path="/displays" element={<Displays />} />
+                <Route path="/library" element={<Library />} />
+                <Route path="/playlists" element={<Playlists />} />
+                <Route path="/schedules" element={<Schedules />} />
+                <Route path="/layouts" element={<Layouts />} />
+                <Route path="/layouts/:id" element={<LayoutEditor />} />
+                <Route path="/admin/users" element={<AdminUsers />} />
+                <Route path="/admin/establishments" element={<Establishments />} />
+                <Route path="/admin/customization" element={<AdminCustomization />} />
+                <Route path="/admin/licenses" element={<AdminLicenses />} />
+                <Route path="/setup" element={<ScreenSetup />} />
+              </Route>
 
-            {/* Protected dashboard routes */}
-            <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-              <Route path="/" element={<DashboardHome />} />
-              <Route path="/displays" element={<Displays />} />
-              <Route path="/library" element={<Library />} />
-              <Route path="/playlists" element={<Playlists />} />
-              <Route path="/schedules" element={<Schedules />} />
-              <Route path="/layouts" element={<Layouts />} />
-              <Route path="/layouts/:id" element={<LayoutEditor />} />
-              <Route path="/admin/users" element={<AdminUsers />} />
-              <Route path="/admin/establishments" element={<Establishments />} />
-              <Route path="/setup" element={<ScreenSetup />} />
-            </Route>
-
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </AppSettingsProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );

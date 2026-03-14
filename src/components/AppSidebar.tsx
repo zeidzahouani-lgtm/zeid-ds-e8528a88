@@ -1,7 +1,8 @@
-import { Tv, Image, ListMusic, Clock, LayoutDashboard, LogOut, User, LayoutGrid, Users, Building2, Settings } from "lucide-react";
+import { Tv, Image, ListMusic, Clock, LayoutDashboard, LogOut, User, LayoutGrid, Users, Building2, Settings, Palette, Key } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useAppSettings } from "@/hooks/useAppSettings";
 import {
   Sidebar,
   SidebarContent,
@@ -31,6 +32,8 @@ const mainItems = [
 const adminItems = [
   { title: "Utilisateurs", url: "/admin/users", icon: Users },
   { title: "Établissements", url: "/admin/establishments", icon: Building2 },
+  { title: "Personnalisation", url: "/admin/customization", icon: Palette },
+  { title: "Licences", url: "/admin/licenses", icon: Key },
 ];
 
 export function AppSidebar() {
@@ -38,18 +41,23 @@ export function AppSidebar() {
   const collapsed = state === "collapsed";
   const location = useLocation();
   const { user, signOut } = useAuth();
+  const { settings } = useAppSettings();
 
   return (
     <Sidebar collapsible="icon" className="glass-sidebar">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 shadow-neon-cyan">
-            <MonitorPlay className="h-5 w-5 text-primary icon-neon" />
-          </div>
+          {settings.logo_url ? (
+            <img src={settings.logo_url} alt={settings.app_name} className="h-9 w-9 rounded-lg object-contain shrink-0" />
+          ) : (
+            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 shadow-neon-cyan">
+              <MonitorPlay className="h-5 w-5 text-primary icon-neon" />
+            </div>
+          )}
           {!collapsed && (
             <div>
-              <h1 className="text-base font-bold tracking-widest neon-glow-cyan normal-case">SignageOS</h1>
-              <p className="text-[10px] text-muted-foreground tracking-wider uppercase">Digital Signage CMS</p>
+              <h1 className="text-base font-bold tracking-widest neon-glow-cyan normal-case">{settings.app_name}</h1>
+              <p className="text-[10px] text-muted-foreground tracking-wider uppercase">{settings.app_tagline}</p>
             </div>
           )}
         </div>
@@ -63,12 +71,7 @@ export function AppSidebar() {
               {mainItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location.pathname === item.url}>
-                    <NavLink
-                      to={item.url}
-                      end
-                      className="hover:bg-primary/5 transition-all duration-200 group"
-                      activeClassName="bg-primary/10 text-primary font-medium border-l-2 border-primary"
-                    >
+                    <NavLink to={item.url} end className="hover:bg-primary/5 transition-all duration-200 group" activeClassName="bg-primary/10 text-primary font-medium border-l-2 border-primary">
                       <item.icon className="mr-2 h-4 w-4 group-hover:text-primary transition-colors" />
                       {!collapsed && <span className="normal-case tracking-normal">{item.title}</span>}
                     </NavLink>
@@ -85,12 +88,7 @@ export function AppSidebar() {
               {adminItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location.pathname === item.url}>
-                    <NavLink
-                      to={item.url}
-                      end
-                      className="hover:bg-accent/5 transition-all duration-200 group"
-                      activeClassName="bg-accent/10 text-accent font-medium border-l-2 border-accent"
-                    >
+                    <NavLink to={item.url} end className="hover:bg-accent/5 transition-all duration-200 group" activeClassName="bg-accent/10 text-accent font-medium border-l-2 border-accent">
                       <item.icon className="mr-2 h-4 w-4 group-hover:text-accent transition-colors" />
                       {!collapsed && <span className="normal-case tracking-normal">{item.title}</span>}
                     </NavLink>
@@ -109,12 +107,7 @@ export function AppSidebar() {
             <span className="truncate">{user.email}</span>
           </div>
         )}
-        <Button
-          variant="ghost"
-          size={collapsed ? "icon" : "sm"}
-          onClick={signOut}
-          className="w-full justify-start gap-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-        >
+        <Button variant="ghost" size={collapsed ? "icon" : "sm"} onClick={signOut} className="w-full justify-start gap-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
           <LogOut className="h-4 w-4" />
           {!collapsed && "Déconnexion"}
         </Button>
