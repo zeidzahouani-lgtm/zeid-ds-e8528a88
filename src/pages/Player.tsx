@@ -1,10 +1,11 @@
 import { useParams } from "react-router-dom";
 import { useScreenRealtime } from "@/hooks/useScreenRealtime";
-import { MonitorPlay, ShieldOff, KeyRound } from "lucide-react";
+import { MonitorPlay, ShieldOff, KeyRound, QrCode } from "lucide-react";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import WidgetRenderer from "@/components/widgets/WidgetRenderer";
 import { validateLicense, activateLicenseByKey } from "@/hooks/useLicenses";
+import { QRCodeSVG } from "qrcode.react";
 
 interface LayoutRegionData {
   id: string;
@@ -158,6 +159,17 @@ function LicenseScreen({
           </div>
           {error && <p className="text-destructive text-sm">{error}</p>}
         </form>
+
+        <div className="w-full border-t border-white/5 pt-5 mt-3 flex flex-col items-center gap-3">
+          <p className="text-xs text-gray-500 uppercase tracking-wider">ou scannez pour assigner depuis l'admin</p>
+          <div className="bg-white p-3 rounded-xl">
+            <QRCodeSVG
+              value={`${window.location.origin}/admin/licenses?screen=${screenId}`}
+              size={140}
+              level="M"
+            />
+          </div>
+        </div>
 
         <p className="text-xs text-gray-600 mt-2">
           Vérification automatique toutes les 5 secondes
