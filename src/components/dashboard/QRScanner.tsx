@@ -26,7 +26,7 @@ export default function QRScanner({ open, onClose, onScan }: QRScannerProps) {
 
     const safeClear = () => {
       try {
-        scanner.clear().catch(() => {});
+        Promise.resolve(scanner.clear()).catch(() => {});
       } catch {
         // ignore
       } finally {
