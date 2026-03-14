@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          id: string
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: string | null
+        }
+        Insert: {
+          id?: string
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: string | null
+        }
+        Update: {
+          id?: string
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: string | null
+        }
+        Relationships: []
+      }
       establishments: {
         Row: {
           address: string | null
@@ -133,6 +157,50 @@ export type Database = {
           width?: number
         }
         Relationships: []
+      }
+      licenses: {
+        Row: {
+          activated_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          license_key: string
+          screen_id: string | null
+          valid_from: string
+          valid_until: string
+        }
+        Insert: {
+          activated_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          license_key: string
+          screen_id?: string | null
+          valid_from?: string
+          valid_until: string
+        }
+        Update: {
+          activated_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          license_key?: string
+          screen_id?: string | null
+          valid_from?: string
+          valid_until?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "licenses_screen_id_fkey"
+            columns: ["screen_id"]
+            isOneToOne: false
+            referencedRelation: "screens"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       media: {
         Row: {
