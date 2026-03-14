@@ -64,7 +64,6 @@ function LayoutRenderer({ layoutId, screenOrientation }: { layoutId: string; scr
   }, [layoutId]);
 
   if (!layout) return null;
-
   const isPortrait = screenOrientation === "portrait";
 
   return (
@@ -104,17 +103,18 @@ export default function Player() {
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>();
 
-  // License validation
+  // License validation - must wait for screen to be resolved to get the real UUID
   const [licenseValid, setLicenseValid] = useState<boolean | null>(null);
   const [licenseMessage, setLicenseMessage] = useState("");
 
   useEffect(() => {
-    if (!id) return;
-    validateLicense(id).then((result) => {
+    // Only validate once we have the resolved screen with its real ID
+    if (!screen?.id) return;
+    validateLicense(screen.id).then((result) => {
       setLicenseValid(result.valid);
       if (!result.valid) setLicenseMessage(result.message || "Licence invalide");
     });
-  }, [id]);
+  }, [screen?.id]);
 
   const requestFullscreen = useCallback(() => {
     const el = containerRef.current;
@@ -155,12 +155,32 @@ export default function Player() {
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [media?.id, currentIndex, currentDuration, layoutId]);
 
-  if (loading || licenseValid === null) {
+  if (loading) {
     return (
       <div className="fixed inset-0 bg-black flex items-center justify-center">
         <div className="animate-pulse flex flex-col items-center gap-3">
           <MonitorPlay className="h-12 w-12 text-primary" />
           <p className="text-muted-foreground">Connexion à l'écran...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!screen) {
+    return (
+      <div className="fixed inset-0 bg-black flex items-center justify-center">
+        <p className="text-destructive text-lg">Écran introuvable</p>
+      </div>
+    );
+  }
+
+  // Still validating license
+  if (licenseValid === null) {
+    return (
+      <div className="fixed inset-0 bg-black flex items-center justify-center">
+        <div className="animate-pulse flex flex-col items-center gap-3">
+          <MonitorPlay className="h-12 w-12 text-primary" />
+          <p className="text-muted-foreground">Vérification de la licence...</p>
         </div>
       </div>
     );
@@ -178,14 +198,6 @@ export default function Player() {
           <p className="text-muted-foreground max-w-md">{licenseMessage}</p>
           <p className="text-xs text-muted-foreground/50 mt-4">Contactez votre administrateur pour obtenir une licence valide.</p>
         </div>
-      </div>
-    );
-  }
-
-  if (!screen) {
-    return (
-      <div className="fixed inset-0 bg-black flex items-center justify-center">
-        <p className="text-destructive text-lg">Écran introuvable</p>
       </div>
     );
   }
