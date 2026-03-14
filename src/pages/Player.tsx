@@ -108,13 +108,24 @@ export default function Player() {
   const [licenseMessage, setLicenseMessage] = useState("");
 
   useEffect(() => {
-    // Only validate once we have the resolved screen with its real ID
     if (!screen?.id) return;
-    validateLicense(screen.id).then((result) => {
-      setLicenseValid(result.valid);
-      if (!result.valid) setLicenseMessage(result.message || "Licence invalide");
-    });
-  }, [screen?.id]);
+
+    const checkLicense = () => {
+      validateLicense(screen.id).then((result) => {
+        setLicenseValid(result.valid);
+        if (!result.valid) setLicenseMessage(result.message || "Licence invalide");
+      });
+    };
+
+    checkLicense();
+
+    // Re-check every 5 seconds if license is not valid
+    const interval = setInterval(() => {
+      if (licenseValid !== true) checkLicense();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [screen?.id, licenseValid]);
 
   const requestFullscreen = useCallback(() => {
     const el = containerRef.current;
