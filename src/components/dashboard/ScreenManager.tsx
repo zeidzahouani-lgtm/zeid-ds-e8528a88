@@ -12,6 +12,21 @@ import { useLayouts } from "@/hooks/useLayouts";
 import { usePlaylistItems } from "@/hooks/usePlaylistItems";
 import { toast } from "sonner";
 
+type OrientationPreview = {
+  label: string;
+  rotationClass: string;
+};
+
+const ORIENTATION_PREVIEWS: Record<string, OrientationPreview> = {
+  landscape: { label: "0°", rotationClass: "rotate-0" },
+  portrait: { label: "90°", rotationClass: "rotate-90" },
+  "landscape-flipped": { label: "180°", rotationClass: "rotate-180" },
+  "portrait-flipped": { label: "270°", rotationClass: "-rotate-90" },
+};
+
+const getOrientationPreview = (orientation: string): OrientationPreview =>
+  ORIENTATION_PREVIEWS[orientation] ?? ORIENTATION_PREVIEWS.landscape;
+
 function PlaylistPanel({ screenId, media }: { screenId: string; media: any[] }) {
   const { items, addItem, removeItem } = usePlaylistItems(screenId);
 
