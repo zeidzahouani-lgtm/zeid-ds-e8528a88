@@ -214,6 +214,17 @@ export default function AdminLicenses() {
 
                     {/* Actions */}
                     <div className="flex items-center gap-2">
+                      {expired && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5 text-xs border-primary/30 text-primary hover:bg-primary/10"
+                          onClick={() => { setRenewingId(license.id); setRenewDays("365"); }}
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" />
+                          Renouveler
+                        </Button>
+                      )}
                       {!license.screen_id && (
                         <Select onValueChange={(val) => {
                           if (val) assignScreen.mutate({ id: license.id, screen_id: val });
