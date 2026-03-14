@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_requests: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          model: string | null
+          tokens_used: number | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          model?: string | null
+          tokens_used?: number | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          model?: string | null
+          tokens_used?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           id: string
