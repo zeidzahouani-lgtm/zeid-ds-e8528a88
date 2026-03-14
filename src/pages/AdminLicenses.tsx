@@ -263,6 +263,53 @@ export default function AdminLicenses() {
           </div>
         )}
       </div>
+
+      {/* Renew dialog */}
+      <Dialog open={!!renewingId} onOpenChange={(open) => !open && setRenewingId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RefreshCw className="h-4 w-4 text-primary" />
+              Renouveler la licence
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Nouvelle durée</Label>
+            <Select value={renewDays} onValueChange={setRenewDays}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="30">30 jours</SelectItem>
+                <SelectItem value="90">90 jours</SelectItem>
+                <SelectItem value="180">6 mois</SelectItem>
+                <SelectItem value="365">1 an</SelectItem>
+                <SelectItem value="730">2 ans</SelectItem>
+                <SelectItem value="1825">5 ans</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenewingId(null)}>Annuler</Button>
+            <Button
+              onClick={async () => {
+                if (!renewingId) return;
+                try {
+                  await renewLicense.mutateAsync({ id: renewingId, durationDays: parseInt(renewDays) });
+                  toast.success("Licence renouvelée avec succès");
+                  setRenewingId(null);
+                } catch {
+                  toast.error("Erreur lors du renouvellement");
+                }
+              }}
+              className="gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Renouveler
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
