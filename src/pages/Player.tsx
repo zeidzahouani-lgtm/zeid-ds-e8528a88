@@ -28,7 +28,7 @@ interface LayoutData {
 }
 
 function getOrientationStyle(orientation: string): React.CSSProperties {
-  const rotatedBase: React.CSSProperties = {
+  const swappedBase: React.CSSProperties = {
     transformOrigin: "center center",
     width: "100vh",
     height: "100vw",
@@ -40,11 +40,11 @@ function getOrientationStyle(orientation: string): React.CSSProperties {
   };
   switch (orientation) {
     case "portrait":
-      return { ...rotatedBase, transform: "rotate(90deg)" };
+      return { ...swappedBase, transform: "rotate(90deg)" };
     case "landscape-flipped":
-      return { ...rotatedBase, transform: "rotate(180deg)", width: "100vw", height: "100vh", marginTop: "calc(-50vh)", marginLeft: "calc(-50vw)" };
+      return { transform: "rotate(180deg)", width: "100%", height: "100%" };
     case "portrait-flipped":
-      return { ...rotatedBase, transform: "rotate(270deg)" };
+      return { ...swappedBase, transform: "rotate(270deg)" };
     default:
       return {};
   }
