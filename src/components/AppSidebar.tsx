@@ -1,4 +1,4 @@
-import { Tv, Image, ListMusic, Clock, LayoutDashboard, LogOut, User, LayoutGrid, Users, Building2, Settings, Palette, Key } from "lucide-react";
+import { Tv, Image, ListMusic, Clock, LayoutDashboard, LogOut, User, LayoutGrid, Users, Building2, Settings, Palette, Key, Sparkles } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -27,6 +27,7 @@ const mainItems = [
   { title: "Playlists", url: "/playlists", icon: ListMusic },
   { title: "Programmation", url: "/schedules", icon: Clock },
   { title: "Config. Écrans", url: "/setup", icon: Settings },
+  { title: "Assistant IA", url: "/ai-assistant", icon: Sparkles },
 ];
 
 const adminItems = [
