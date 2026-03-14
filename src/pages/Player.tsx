@@ -27,6 +27,29 @@ interface LayoutData {
   background_color: string;
 }
 
+function getOrientationStyle(orientation: string): React.CSSProperties {
+  const rotatedBase: React.CSSProperties = {
+    transformOrigin: "center center",
+    width: "100vh",
+    height: "100vw",
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    marginTop: "calc(-50vw)",
+    marginLeft: "calc(-50vh)",
+  };
+  switch (orientation) {
+    case "portrait":
+      return { ...rotatedBase, transform: "rotate(90deg)" };
+    case "landscape-flipped":
+      return { ...rotatedBase, transform: "rotate(180deg)", width: "100vw", height: "100vh", marginTop: "calc(-50vh)", marginLeft: "calc(-50vw)" };
+    case "portrait-flipped":
+      return { ...rotatedBase, transform: "rotate(270deg)" };
+    default:
+      return {};
+  }
+}
+
 function MediaRenderer({ media, playlistLength }: { media: { id: string; name: string; type: string; url: string }; playlistLength?: number }) {
   if (media.type === "image") {
     return <img src={media.url} alt={media.name} className="w-full h-full object-cover" />;
@@ -64,13 +87,12 @@ function LayoutRenderer({ layoutId, screenOrientation }: { layoutId: string; scr
     return () => { supabase.removeChannel(channel); };
   }, [layoutId]);
 
-  if (!layout) return null;
-  const isPortrait = screenOrientation === "portrait";
+  const rotationStyle = getOrientationStyle(screenOrientation);
 
   return (
     <div className="w-full h-full relative" style={{
       backgroundColor: layout.background_color,
-      ...(isPortrait ? { transform: "rotate(90deg)", transformOrigin: "center center", width: "100vh", height: "100vw", position: "absolute", top: "50%", left: "50%", marginTop: "calc(-50vw)", marginLeft: "calc(-50vh)" } : {}),
+      ...rotationStyle,
     }}>
       {regions.map((region) => {
         const style: React.CSSProperties = {
@@ -318,11 +340,11 @@ export default function Player() {
     );
   }
 
-  const isPortrait = screen.orientation === "portrait";
+  const rotationStyle = getOrientationStyle(screen.orientation);
 
   return (
     <div ref={containerRef} className="fixed inset-0 bg-black overflow-hidden cursor-none" onClick={requestFullscreen}>
-      <div className="w-full h-full transition-transform duration-700 ease-in-out" style={isPortrait ? { transform: "rotate(90deg)", transformOrigin: "center center", width: "100vh", height: "100vw", position: "absolute", top: "50%", left: "50%", marginTop: "calc(-50vw)", marginLeft: "calc(-50vh)" } : undefined}>
+      <div className="w-full h-full transition-transform duration-700 ease-in-out" style={rotationStyle}>
         <div className="w-full h-full transition-opacity duration-500 ease-in-out" style={{ opacity: visible ? 1 : 0 }}>
           {!media ? (
             <div className="w-full h-full flex flex-col items-center justify-center gap-4">
