@@ -38,7 +38,9 @@ export default function AutoFlow() {
   const [accessCodes, setAccessCodes] = useState<any[]>([]);
   const [newCode, setNewCode] = useState("");
   const [newUserName, setNewUserName] = useState("");
+  const [newUserId, setNewUserId] = useState("");
   const [addingCode, setAddingCode] = useState(false);
+  const [profiles, setProfiles] = useState<any[]>([]);
   const [preview, setPreview] = useState<Content | null>(null);
   const [editContent, setEditContent] = useState<Content | null>(null);
   const [filter, setFilter] = useState<string>("all");
