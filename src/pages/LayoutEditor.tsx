@@ -651,6 +651,37 @@ export default function LayoutEditor() {
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {/* Filters */}
+                    <div className="space-y-3 border-t border-border pt-3">
+                      <p className="text-xs font-medium flex items-center gap-1.5"><Palette className="h-3.5 w-3.5 text-primary" /> Filtres</p>
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 flex justify-between">
+                          Assombrir <span className="font-mono">{(layout as any).bg_overlay_darken || 0}%</span>
+                        </label>
+                        <input
+                          type="range"
+                          min={0}
+                          max={80}
+                          value={(layout as any).bg_overlay_darken || 0}
+                          onChange={(e) => updateLayout.mutate({ id: id!, bg_overlay_darken: +e.target.value })}
+                          className="w-full accent-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 flex justify-between">
+                          Flouter <span className="font-mono">{(layout as any).bg_overlay_blur || 0}px</span>
+                        </label>
+                        <input
+                          type="range"
+                          min={0}
+                          max={20}
+                          value={(layout as any).bg_overlay_blur || 0}
+                          onChange={(e) => updateLayout.mutate({ id: id!, bg_overlay_blur: +e.target.value })}
+                          className="w-full accent-primary"
+                        />
+                      </div>
+                    </div>
                   </div>
                 )}
               </CardContent>
