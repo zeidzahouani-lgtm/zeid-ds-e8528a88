@@ -120,12 +120,14 @@ export default function AdminRequests() {
   const [resetDialog, setResetDialog] = useState<PasswordResetRequest | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [sendResetEmail, setSendResetEmail] = useState(true);
 
   // State for registration review dialog
   const [regDialog, setRegDialog] = useState<RegistrationRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [showRegPassword, setShowRegPassword] = useState(false);
+  const [sendRegEmail, setSendRegEmail] = useState(true);
 
   const openResetDialog = (req: PasswordResetRequest) => {
     setNewPassword(generatePassword());
