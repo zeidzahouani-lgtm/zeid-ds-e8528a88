@@ -235,6 +235,14 @@ function LayoutRenderer({ layoutId, screenOrientation }: { layoutId: string; scr
       backgroundPosition: "center",
       ...rotationStyle,
     }}>
+      {/* Darken + Blur overlay */}
+      {layout.bg_type === "image" && layout.bg_image_url && ((layout.bg_overlay_darken || 0) > 0 || (layout.bg_overlay_blur || 0) > 0) && (
+        <div className="absolute inset-0 pointer-events-none" style={{
+          backgroundColor: `rgba(0,0,0,${(layout.bg_overlay_darken || 0) / 100})`,
+          backdropFilter: (layout.bg_overlay_blur || 0) > 0 ? `blur(${layout.bg_overlay_blur}px)` : undefined,
+          zIndex: 0,
+        }} />
+      )}
       {regions.map((region) => {
         const style: React.CSSProperties = {
           position: "absolute",
