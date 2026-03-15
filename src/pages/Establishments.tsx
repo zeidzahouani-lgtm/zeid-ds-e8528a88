@@ -5,13 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Plus, Tv, Users, Trash2, MapPin, X, Shield, Key } from "lucide-react";
+import { Building2, Plus, Tv, Users, Trash2, MapPin, X, Shield, Key, Phone, AtSign, FileText, Edit } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useEstablishments } from "@/hooks/useEstablishments";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
+import { EstablishmentDashboard } from "@/components/establishments/EstablishmentDashboard";
 
 export default function Establishments() {
   const { user } = useAuth();
@@ -19,16 +21,19 @@ export default function Establishments() {
   const queryClient = useQueryClient();
   const {
     establishments, isLoading,
-    addEstablishment, deleteEstablishment,
+    addEstablishment, updateEstablishment, deleteEstablishment,
     assignScreenToEstablishment,
     assignUserToEstablishment,
     removeUserFromEstablishment,
   } = useEstablishments();
 
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newAddress, setNewAddress] = useState("");
+  const [editingEstablishment, setEditingEstablishment] = useState<any>(null);
+  const [formData, setFormData] = useState({
+    name: "", address: "", description: "", phone: "", email: "", max_screens: 5,
+  });
   const [selectedEstablishment, setSelectedEstablishment] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"dashboard" | "screens" | "users">("dashboard");
 
   // All screens (admin)
   const { data: allScreens = [] } = useQuery({
@@ -52,7 +57,7 @@ export default function Establishments() {
     },
   });
 
-  // User-establishment assignments with role
+  // User-establishment assignments
   const { data: userEstablishments = [] } = useQuery({
     queryKey: ["user_establishments"],
     enabled: isGlobalAdmin,
@@ -73,9 +78,7 @@ export default function Establishments() {
       const counts: Record<string, number> = {};
       (data || []).forEach((l: any) => {
         const estId = l.screens?.establishment_id;
-        if (estId && l.is_active) {
-          counts[estId] = (counts[estId] || 0) + 1;
-        }
+        if (estId && l.is_active) counts[estId] = (counts[estId] || 0) + 1;
       });
       return counts;
     },
@@ -90,14 +93,39 @@ export default function Establishments() {
     );
   }
 
-  const handleAdd = async () => {
-    if (!newName.trim()) return;
+  const resetForm = () => setFormData({ name: "", address: "", description: "", phone: "", email: "", max_screens: 5 });
+
+  const openAdd = () => {
+    resetForm();
+    setEditingEstablishment(null);
+    setShowAddDialog(true);
+  };
+
+  const openEdit = (est: any) => {
+    setFormData({
+      name: est.name || "",
+      address: est.address || "",
+      description: est.description || "",
+      phone: est.phone || "",
+      email: est.email || "",
+      max_screens: est.max_screens ?? 5,
+    });
+    setEditingEstablishment(est);
+    setShowAddDialog(true);
+  };
+
+  const handleSave = async () => {
+    if (!formData.name.trim()) return;
     try {
-      await addEstablishment.mutateAsync({ name: newName, address: newAddress || undefined });
-      toast({ title: "Établissement créé" });
+      if (editingEstablishment) {
+        await updateEstablishment.mutateAsync({ id: editingEstablishment.id, ...formData });
+        toast({ title: "Établissement mis à jour" });
+      } else {
+        await addEstablishment.mutateAsync(formData);
+        toast({ title: "Établissement créé" });
+      }
       setShowAddDialog(false);
-      setNewName("");
-      setNewAddress("");
+      resetForm();
     } catch {
       toast({ title: "Erreur", variant: "destructive" });
     }
@@ -115,14 +143,9 @@ export default function Establishments() {
 
   const handleSetUserRole = async (userId: string, establishmentId: string, role: string) => {
     try {
-      const { error } = await supabase
-        .from("user_establishments")
-        .update({ role } as any)
-        .eq("user_id", userId)
-        .eq("establishment_id", establishmentId);
-      if (error) throw error;
+      await supabase.from("user_establishments").update({ role } as any).eq("user_id", userId).eq("establishment_id", establishmentId);
       queryClient.invalidateQueries({ queryKey: ["user_establishments"] });
-      toast({ title: `Rôle mis à jour: ${role === 'admin' ? 'Administrateur' : 'Membre'}` });
+      toast({ title: `Rôle mis à jour: ${role === "admin" ? "Administrateur" : "Membre"}` });
     } catch {
       toast({ title: "Erreur", variant: "destructive" });
     }
@@ -147,7 +170,7 @@ export default function Establishments() {
         </div>
         <div className="flex gap-2">
           <Badge variant="secondary">{establishments.length} établissement(s)</Badge>
-          <Button size="sm" onClick={() => setShowAddDialog(true)}>
+          <Button size="sm" onClick={openAdd}>
             <Plus className="h-4 w-4 mr-1" /> Ajouter
           </Button>
         </div>
@@ -165,27 +188,32 @@ export default function Establishments() {
               <Card
                 key={est.id}
                 className={`cursor-pointer transition-colors ${selectedEstablishment === est.id ? "border-primary bg-primary/5" : "hover:border-muted-foreground/30"}`}
-                onClick={() => setSelectedEstablishment(est.id)}
+                onClick={() => { setSelectedEstablishment(est.id); setActiveTab("dashboard"); }}
               >
-                <CardContent className="py-3 flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-sm">{est.name}</p>
-                    {est.address && (
-                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                        <MapPin className="h-3 w-3" /> {est.address}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="text-[10px] gap-1">
-                      <Tv className="h-3 w-3" /> {screenCount}
-                    </Badge>
-                    <Badge variant="outline" className="text-[10px] gap-1">
-                      <Users className="h-3 w-3" /> {userCount}
-                    </Badge>
-                    <Badge variant="outline" className="text-[10px] gap-1">
-                      <Key className="h-3 w-3" /> {licenseCount}
-                    </Badge>
+                <CardContent className="py-3">
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-sm">{est.name}</p>
+                      {est.address && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <MapPin className="h-3 w-3 shrink-0" /> {est.address}
+                        </p>
+                      )}
+                      {est.description && (
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">{est.description}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                      <Badge variant="outline" className="text-[10px] gap-1">
+                        <Tv className="h-3 w-3" /> {screenCount}/{est.max_screens || "∞"}
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px] gap-1">
+                        <Users className="h-3 w-3" /> {userCount}
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px] gap-1">
+                        <Key className="h-3 w-3" /> {licenseCount}
+                      </Badge>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -206,157 +234,205 @@ export default function Establishments() {
             </Card>
           ) : (
             <>
+              {/* Header */}
               <Card>
                 <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Building2 className="h-5 w-5 text-primary" /> {selected.name}
-                  </CardTitle>
-                  <Button variant="destructive" size="sm" onClick={() => handleDelete(selected.id)}>
-                    <Trash2 className="h-4 w-4 mr-1" /> Supprimer
-                  </Button>
-                </CardHeader>
-                {selected.address && (
-                  <CardContent className="pt-0 pb-3">
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <MapPin className="h-3.5 w-3.5" /> {selected.address}
-                    </p>
-                  </CardContent>
-                )}
-              </Card>
-
-              {/* Screens */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Tv className="h-4 w-4" /> Écrans ({selectedScreens.length})
-                    {(licenseCounts as any)[selectedEstablishment!] > 0 && (
-                      <Badge variant="outline" className="text-[10px] gap-1 ml-2">
-                        <Key className="h-3 w-3" /> {(licenseCounts as any)[selectedEstablishment!]} licence(s) active(s)
-                      </Badge>
-                    )}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {selectedScreens.map((s: any) => (
-                    <div key={s.id} className="flex items-center justify-between border rounded-md p-2">
-                      <div className="flex items-center gap-2">
-                        <Tv className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">{s.name}</span>
-                        <Badge variant={s.status === "online" ? "default" : "secondary"} className="text-[10px]">
-                          {s.status}
-                        </Badge>
-                      </div>
-                      <Button variant="ghost" size="sm" onClick={() => assignScreenToEstablishment.mutate({ screenId: s.id, establishmentId: null })}>
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Building2 className="h-5 w-5 text-primary" /> {selected.name}
+                    </CardTitle>
+                    <div className="flex flex-wrap gap-2 mt-1 text-xs text-muted-foreground">
+                      {selected.address && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {selected.address}</span>}
+                      {selected.phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {selected.phone}</span>}
+                      {selected.email && <span className="flex items-center gap-1"><AtSign className="h-3 w-3" /> {selected.email}</span>}
                     </div>
-                  ))}
-                  <Select onValueChange={(screenId) => assignScreenToEstablishment.mutate({ screenId, establishmentId: selectedEstablishment! })}>
-                    <SelectTrigger className="mt-2">
-                      <SelectValue placeholder="Ajouter un écran..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableScreens.map((s: any) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.name} {s.establishment_id ? "(autre établissement)" : "(non assigné)"}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </CardContent>
+                    {selected.description && <p className="text-xs text-muted-foreground mt-1">{selected.description}</p>}
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <Button variant="outline" size="sm" onClick={() => openEdit(selected)}>
+                      <Edit className="h-4 w-4 mr-1" /> Modifier
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={() => handleDelete(selected.id)}>
+                      <Trash2 className="h-4 w-4 mr-1" /> Supprimer
+                    </Button>
+                  </div>
+                </CardHeader>
               </Card>
 
-              {/* Users with roles */}
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Users className="h-4 w-4" /> Utilisateurs ({selectedUsers.length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {selectedUsers.map((u: any) => {
-                    const assignment = selectedUserAssignments.find((ue: any) => ue.user_id === u.id);
-                    const userRole = assignment?.role || 'member';
-                    return (
-                      <div key={u.id} className="flex items-center justify-between border rounded-md p-2">
+              {/* Tabs */}
+              <div className="flex gap-1 bg-secondary/30 p-1 rounded-lg">
+                {(["dashboard", "screens", "users"] as const).map((tab) => (
+                  <Button
+                    key={tab}
+                    variant={activeTab === tab ? "default" : "ghost"}
+                    size="sm"
+                    className="flex-1 text-xs"
+                    onClick={() => setActiveTab(tab)}
+                  >
+                    {tab === "dashboard" && "📊 Dashboard"}
+                    {tab === "screens" && `📺 Écrans (${selectedScreens.length})`}
+                    {tab === "users" && `👥 Utilisateurs (${selectedUsers.length})`}
+                  </Button>
+                ))}
+              </div>
+
+              {/* Tab content */}
+              {activeTab === "dashboard" && (
+                <EstablishmentDashboard establishmentId={selectedEstablishment!} />
+              )}
+
+              {activeTab === "screens" && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Tv className="h-4 w-4" /> Écrans ({selectedScreens.length}/{selected.max_screens || "∞"})
+                      {(licenseCounts as any)[selectedEstablishment!] > 0 && (
+                        <Badge variant="outline" className="text-[10px] gap-1 ml-2">
+                          <Key className="h-3 w-3" /> {(licenseCounts as any)[selectedEstablishment!]} licence(s)
+                        </Badge>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {selectedScreens.map((s: any) => (
+                      <div key={s.id} className="flex items-center justify-between border rounded-md p-2">
                         <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">{u.display_name || u.email}</span>
-                          <span className="text-xs text-muted-foreground">{u.email}</span>
+                          <Tv className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">{s.name}</span>
+                          <Badge variant={s.status === "online" ? "default" : "secondary"} className="text-[10px]">
+                            {s.status}
+                          </Badge>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Select
-                            value={userRole}
-                            onValueChange={(role) => handleSetUserRole(u.id, selectedEstablishment!, role)}
-                          >
-                            <SelectTrigger className="h-7 w-[130px] text-xs">
-                              <Shield className="h-3 w-3 mr-1" />
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="admin">Administrateur</SelectItem>
-                              <SelectItem value="member">Membre</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
+                        <Button variant="ghost" size="sm" onClick={() => assignScreenToEstablishment.mutate({ screenId: s.id, establishmentId: null })}>
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                    {selected.max_screens > 0 && selectedScreens.length >= selected.max_screens ? (
+                      <p className="text-xs text-destructive text-center py-2">Quota d'écrans atteint ({selected.max_screens})</p>
+                    ) : (
+                      <Select onValueChange={(screenId) => assignScreenToEstablishment.mutate({ screenId, establishmentId: selectedEstablishment! })}>
+                        <SelectTrigger className="mt-2">
+                          <SelectValue placeholder="Ajouter un écran..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableScreens.map((s: any) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              {s.name} {s.establishment_id ? "(autre étab.)" : "(non assigné)"}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {activeTab === "users" && (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Users className="h-4 w-4" /> Utilisateurs ({selectedUsers.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    {selectedUsers.map((u: any) => {
+                      const assignment = selectedUserAssignments.find((ue: any) => ue.user_id === u.id);
+                      const userRole = assignment?.role || "member";
+                      return (
+                        <div key={u.id} className="flex items-center justify-between border rounded-md p-2">
+                          <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm">{u.display_name || u.email}</span>
+                            <span className="text-xs text-muted-foreground">{u.email}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Select value={userRole} onValueChange={(role) => handleSetUserRole(u.id, selectedEstablishment!, role)}>
+                              <SelectTrigger className="h-7 w-[130px] text-xs">
+                                <Shield className="h-3 w-3 mr-1" />
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="admin">Administrateur</SelectItem>
+                                <SelectItem value="member">Membre</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Button variant="ghost" size="sm" onClick={() => {
                               removeUserFromEstablishment.mutate({ userId: u.id, establishmentId: selectedEstablishment! });
                               queryClient.invalidateQueries({ queryKey: ["user_establishments"] });
-                            }}
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </Button>
+                            }}>
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                  <Select
-                    onValueChange={(userId) => {
+                      );
+                    })}
+                    <Select onValueChange={(userId) => {
                       assignUserToEstablishment.mutate({ userId, establishmentId: selectedEstablishment! });
                       queryClient.invalidateQueries({ queryKey: ["user_establishments"] });
-                    }}
-                  >
-                    <SelectTrigger className="mt-2">
-                      <SelectValue placeholder="Ajouter un utilisateur..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableUsers.map((u: any) => (
-                        <SelectItem key={u.id} value={u.id}>
-                          {u.display_name || u.email}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </CardContent>
-              </Card>
+                    }}>
+                      <SelectTrigger className="mt-2">
+                        <SelectValue placeholder="Ajouter un utilisateur..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableUsers.map((u: any) => (
+                          <SelectItem key={u.id} value={u.id}>
+                            {u.display_name || u.email}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </CardContent>
+                </Card>
+              )}
             </>
           )}
         </div>
       </div>
 
-      {/* Add dialog */}
+      {/* Add/Edit dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Nouvel établissement</DialogTitle>
-            <DialogDescription>Créez un établissement pour regrouper écrans et utilisateurs</DialogDescription>
+            <DialogTitle>{editingEstablishment ? "Modifier l'établissement" : "Nouvel établissement"}</DialogTitle>
+            <DialogDescription>
+              {editingEstablishment ? "Modifiez les informations de l'établissement" : "Créez un établissement pour regrouper écrans et utilisateurs"}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <label className="text-sm font-medium">Nom</label>
-              <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ex: Siège Paris" className="mt-1" />
+              <label className="text-sm font-medium">Nom *</label>
+              <Input value={formData.name} onChange={(e) => setFormData(p => ({ ...p, name: e.target.value }))} placeholder="Ex: Siège Paris" className="mt-1" />
             </div>
             <div>
-              <label className="text-sm font-medium">Adresse (optionnel)</label>
-              <Input value={newAddress} onChange={(e) => setNewAddress(e.target.value)} placeholder="123 rue..." className="mt-1" />
+              <label className="text-sm font-medium">Description</label>
+              <Textarea value={formData.description} onChange={(e) => setFormData(p => ({ ...p, description: e.target.value }))} placeholder="Description de l'établissement..." className="mt-1" rows={2} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium">Adresse</label>
+                <Input value={formData.address} onChange={(e) => setFormData(p => ({ ...p, address: e.target.value }))} placeholder="123 rue..." className="mt-1" />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Nombre max d'écrans</label>
+                <Input type="number" min={0} value={formData.max_screens} onChange={(e) => setFormData(p => ({ ...p, max_screens: parseInt(e.target.value) || 0 }))} className="mt-1" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium">Téléphone</label>
+                <Input value={formData.phone} onChange={(e) => setFormData(p => ({ ...p, phone: e.target.value }))} placeholder="+33 1 23 45 67 89" className="mt-1" />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Email</label>
+                <Input value={formData.email} onChange={(e) => setFormData(p => ({ ...p, email: e.target.value }))} placeholder="contact@example.com" className="mt-1" />
+              </div>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>Annuler</Button>
-            <Button onClick={handleAdd} disabled={!newName.trim() || addEstablishment.isPending}>
-              {addEstablishment.isPending ? "Création..." : "Créer"}
+            <Button onClick={handleSave} disabled={!formData.name.trim() || addEstablishment.isPending || updateEstablishment.isPending}>
+              {addEstablishment.isPending || updateEstablishment.isPending ? "En cours..." : editingEstablishment ? "Sauvegarder" : "Créer"}
             </Button>
           </DialogFooter>
         </DialogContent>
