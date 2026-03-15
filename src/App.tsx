@@ -27,6 +27,7 @@ const ScreenSetup = lazy(() => import("./pages/ScreenSetup"));
 const AdminCustomization = lazy(() => import("./pages/AdminCustomization"));
 const AdminLicenses = lazy(() => import("./pages/AdminLicenses"));
 const AIAssistant = lazy(() => import("./pages/AIAssistant"));
+const AutoFlow = lazy(() => import("./pages/AutoFlow"));
 
 const queryClient = new QueryClient();
 
@@ -78,6 +79,7 @@ const App = () => (
                 <Route path="/admin/licenses" element={<AdminLicenses />} />
                 <Route path="/setup" element={<ScreenSetup />} />
                 <Route path="/ai-assistant" element={<AIAssistant />} />
+                <Route path="/auto-flow" element={<AutoFlow />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
