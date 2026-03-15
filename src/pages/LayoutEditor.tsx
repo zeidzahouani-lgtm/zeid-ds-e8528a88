@@ -390,6 +390,13 @@ export default function LayoutEditor() {
                 backgroundPosition: "center",
               }}
             >
+              {/* Preview overlay */}
+              {(layout as any).bg_type === "image" && (layout as any).bg_image_url && ((layout as any).bg_overlay_darken > 0 || (layout as any).bg_overlay_blur > 0) && (
+                <div className="absolute inset-0 pointer-events-none z-[0]" style={{
+                  backgroundColor: `rgba(0,0,0,${((layout as any).bg_overlay_darken || 0) / 100})`,
+                  backdropFilter: (layout as any).bg_overlay_blur > 0 ? `blur(${(layout as any).bg_overlay_blur}px)` : undefined,
+                }} />
+              )}
               {regions.map((r, idx) => {
                 const previewScale = scale * 0.8;
                 return (
@@ -457,8 +464,15 @@ export default function LayoutEditor() {
             onMouseLeave={handleMouseUp}
             onClick={() => setSelectedRegionId(null)}
           >
+            {/* Background overlay (darken + blur) */}
+            {(layout as any).bg_type === "image" && (layout as any).bg_image_url && ((layout as any).bg_overlay_darken > 0 || (layout as any).bg_overlay_blur > 0) && (
+              <div className="absolute inset-0 pointer-events-none z-[0]" style={{
+                backgroundColor: `rgba(0,0,0,${((layout as any).bg_overlay_darken || 0) / 100})`,
+                backdropFilter: (layout as any).bg_overlay_blur > 0 ? `blur(${(layout as any).bg_overlay_blur}px)` : undefined,
+              }} />
+            )}
             {/* Grid overlay */}
-            <div className="absolute inset-0 pointer-events-none opacity-10" style={{
+            <div className="absolute inset-0 pointer-events-none opacity-10 z-[0]" style={{
               backgroundImage: "linear-gradient(hsl(185 100% 55% / 0.3) 1px, transparent 1px), linear-gradient(90deg, hsl(185 100% 55% / 0.3) 1px, transparent 1px)",
               backgroundSize: `${(canvasW * scale) / 12}px ${(canvasH * scale) / 12}px`,
             }} />
@@ -650,6 +664,37 @@ export default function LayoutEditor() {
                           <SelectItem value="repeat">Mosaïque (Repeat)</SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+
+                    {/* Filters */}
+                    <div className="space-y-3 border-t border-border pt-3">
+                      <p className="text-xs font-medium flex items-center gap-1.5"><Palette className="h-3.5 w-3.5 text-primary" /> Filtres</p>
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 flex justify-between">
+                          Assombrir <span className="font-mono">{(layout as any).bg_overlay_darken || 0}%</span>
+                        </label>
+                        <input
+                          type="range"
+                          min={0}
+                          max={80}
+                          value={(layout as any).bg_overlay_darken || 0}
+                          onChange={(e) => updateLayout.mutate({ id: id!, bg_overlay_darken: +e.target.value })}
+                          className="w-full accent-primary"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground mb-1 flex justify-between">
+                          Flouter <span className="font-mono">{(layout as any).bg_overlay_blur || 0}px</span>
+                        </label>
+                        <input
+                          type="range"
+                          min={0}
+                          max={20}
+                          value={(layout as any).bg_overlay_blur || 0}
+                          onChange={(e) => updateLayout.mutate({ id: id!, bg_overlay_blur: +e.target.value })}
+                          className="w-full accent-primary"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}

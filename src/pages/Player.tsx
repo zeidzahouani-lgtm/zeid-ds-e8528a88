@@ -63,6 +63,8 @@ interface LayoutData {
   bg_type?: string;
   bg_image_url?: string | null;
   bg_image_fit?: string;
+  bg_overlay_darken?: number;
+  bg_overlay_blur?: number;
 }
 
 interface PlayerBranding {
@@ -202,7 +204,7 @@ function LayoutRenderer({ layoutId, screenOrientation }: { layoutId: string; scr
   useEffect(() => {
     const fetchLayout = async () => {
       const [layoutRes, regionsRes] = await Promise.all([
-        supabase.from("layouts").select("id, width, height, background_color, bg_type, bg_image_url, bg_image_fit").eq("id", layoutId).single(),
+        supabase.from("layouts").select("id, width, height, background_color, bg_type, bg_image_url, bg_image_fit, bg_overlay_darken, bg_overlay_blur").eq("id", layoutId).single(),
         supabase.from("layout_regions").select("*, media:media_id(id, name, type, url)").eq("layout_id", layoutId).order("z_index", { ascending: true }),
       ]);
       if (layoutRes.data) setLayout(layoutRes.data as LayoutData);
@@ -233,6 +235,14 @@ function LayoutRenderer({ layoutId, screenOrientation }: { layoutId: string; scr
       backgroundPosition: "center",
       ...rotationStyle,
     }}>
+      {/* Darken + Blur overlay */}
+      {layout.bg_type === "image" && layout.bg_image_url && ((layout.bg_overlay_darken || 0) > 0 || (layout.bg_overlay_blur || 0) > 0) && (
+        <div className="absolute inset-0 pointer-events-none" style={{
+          backgroundColor: `rgba(0,0,0,${(layout.bg_overlay_darken || 0) / 100})`,
+          backdropFilter: (layout.bg_overlay_blur || 0) > 0 ? `blur(${layout.bg_overlay_blur}px)` : undefined,
+          zIndex: 0,
+        }} />
+      )}
       {regions.map((region) => {
         const style: React.CSSProperties = {
           position: "absolute",
