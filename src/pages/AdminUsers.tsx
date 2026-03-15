@@ -56,11 +56,11 @@ export default function AdminUsers() {
         ...p,
         roles: (roles || []).filter((r) => r.user_id === p.id).map((r) => r.role),
         establishments: (userEsts || [])
-          .filter((ue: any) => ue.user_id === p.id)
+          .filter((ue: any) => ue.user_id === p.id && ue.establishment)
           .map((ue: any) => ({
             id: ue.establishment_id,
             name: ue.establishment?.name || "—",
-            role: ue.role,
+            role: ue.role || "member",
           })),
       })) as UserProfile[];
     },
