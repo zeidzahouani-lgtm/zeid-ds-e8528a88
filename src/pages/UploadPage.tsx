@@ -307,7 +307,7 @@ export default function UploadPage() {
                 className="gap-2"
               >
                 <Upload className="h-4 w-4" />
-                Envoyer une autre image
+                Envoyer un autre contenu
               </Button>
             </CardContent>
           </>
