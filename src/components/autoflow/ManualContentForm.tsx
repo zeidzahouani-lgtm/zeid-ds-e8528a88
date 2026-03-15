@@ -48,7 +48,7 @@ export function ManualContentForm({ screens }: ManualContentFormProps) {
       if (error) throw error;
 
       toast.success("Contenu ajouté avec succès");
-      setForm({ title: "", image_url: "", screen_id: "", start_time: "", end_time: "", status: "pending" });
+      setForm({ title: "", image_url: "", screen_id: "", start_time: "", end_time: "", status: "pending", sender_email: "" });
       setOpen(false);
     } catch (e: any) {
       toast.error("Erreur: " + (e.message || "Erreur inconnue"));
