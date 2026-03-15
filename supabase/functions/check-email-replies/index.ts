@@ -148,6 +148,14 @@ serve(async (req) => {
         if (content.status !== newStatus) {
           await supabase.from("contents").update({ status: newStatus }).eq("id", content.id);
           
+          // Log the action
+          await supabase.from("email_actions").insert({
+            content_id: content.id,
+            action_type: action === "validate" ? "validation" : "annulation",
+            actor_email: fromEmail || null,
+            details: `Action "${action}" via réponse email pour "${content.title || "Sans titre"}"`,
+          });
+
           results.push({
             content_id: content.id,
             title: content.title,
