@@ -216,6 +216,10 @@
     pointer-events: none;
   }
 
+  .light .neon-border::before {
+    background: linear-gradient(135deg, hsl(185 80% 40% / 0.15), hsl(270 60% 55% / 0.08), hsl(330 70% 55% / 0.05));
+  }
+
   /* Card hover glow */
   .card-neon-hover {
     transition: box-shadow 0.3s ease, border-color 0.3s ease;
@@ -226,6 +230,11 @@
     border-color: hsl(185 100% 55% / 0.15);
   }
 
+  .light .card-neon-hover:hover {
+    box-shadow: 0 2px 12px hsl(220 10% 50% / 0.1);
+    border-color: hsl(185 80% 40% / 0.25);
+  }
+
   /* Button glow hover */
   .btn-neon-glow {
     transition: box-shadow 0.25s ease, transform 0.15s ease;
@@ -233,6 +242,10 @@
 
   .btn-neon-glow:hover {
     box-shadow: 0 0 15px hsl(185 100% 55% / 0.35), 0 0 30px hsl(185 100% 55% / 0.15);
+  }
+
+  .light .btn-neon-glow:hover {
+    box-shadow: 0 2px 8px hsl(185 80% 40% / 0.2);
   }
 
   .btn-neon-glow:active {
