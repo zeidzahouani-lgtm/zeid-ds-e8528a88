@@ -297,6 +297,22 @@ serve(async (req) => {
             contentId = contentData.id;
             await supabase.from("inbox_emails").update({ is_processed: true, content_id: contentId } as any).eq("id", emailRecord?.id);
             imported++;
+
+            // Log action
+            await supabase.from("email_actions").insert({
+              content_id: contentId,
+              action_type: "réception",
+              actor_email: fromEmail,
+              details: `Contenu importé depuis email "${subject || "(Sans objet)"}" avec ${attachmentUrls.length} pièce(s) jointe(s)`,
+            });
+
+            // Send ACK email
+            try {
+              const baseUrl = Deno.env.get("SUPABASE_URL")!;
+              await sendAckEmail(supabase, contentData, baseUrl);
+            } catch (ackErr) {
+              console.error("ACK email error:", ackErr);
+            }
           }
         }
 

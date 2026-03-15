@@ -36,14 +36,13 @@ serve(async (req) => {
       });
     }
 
-    // Connect to IMAP via TCP
+    // Connect to IMAP
     let conn: Deno.Conn;
     try {
-      const tcpConn = await Deno.connect({ hostname: imapHost, port: imapPort });
       if (imapPort === 993) {
-        conn = await Deno.startTls(tcpConn, { hostname: imapHost });
+        conn = await Deno.connectTls({ hostname: imapHost, port: imapPort });
       } else {
-        conn = tcpConn;
+        conn = await Deno.connect({ hostname: imapHost, port: imapPort });
       }
     } catch (e: any) {
       return new Response(JSON.stringify({ error: `IMAP connection failed: ${e.message}` }), {
