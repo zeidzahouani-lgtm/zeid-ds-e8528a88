@@ -7,7 +7,11 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, Plus, Trash2, Save, Move, Maximize2, Image, Video, Globe, Clock, Cloud, Type } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  ArrowLeft, Plus, Trash2, Save, Move, Maximize2, Image, Video, Globe, Clock, Cloud, Type,
+  Monitor, Smartphone, LayoutGrid, Columns, PanelLeft, Square, Eye, QrCode, Palette, AlignLeft,
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import WidgetRenderer from "@/components/widgets/WidgetRenderer";
 
@@ -28,7 +32,79 @@ const WIDGET_TYPES = [
   { value: "clock", label: "Horloge", icon: Clock },
   { value: "weather", label: "Météo", icon: Cloud },
   { value: "marquee", label: "Texte défilant", icon: Type },
+  { value: "fixedtext", label: "Texte fixe", icon: AlignLeft },
+  { value: "qrcode", label: "QR Code", icon: QrCode },
 ];
+
+interface PresetTemplate {
+  id: string;
+  name: string;
+  icon: typeof Monitor;
+  description: string;
+  regions: (w: number, h: number) => Array<{ name: string; x: number; y: number; width: number; height: number; z_index: number; widget_type?: string; widget_config?: any }>;
+}
+
+const PRESETS: PresetTemplate[] = [
+  {
+    id: "fullscreen",
+    name: "Plein Écran",
+    icon: Square,
+    description: "1 seule zone de contenu",
+    regions: (w, h) => [
+      { name: "Contenu principal", x: 0, y: 0, width: w, height: h, z_index: 0 },
+    ],
+  },
+  {
+    id: "split-70-30",
+    name: "Split 70/30",
+    icon: Columns,
+    description: "Zone principale + barre latérale widgets",
+    regions: (w, h) => [
+      { name: "Contenu principal", x: 0, y: 0, width: Math.round(w * 0.7), height: h, z_index: 0 },
+      { name: "Barre latérale", x: Math.round(w * 0.7), y: 0, width: Math.round(w * 0.3), height: Math.round(h * 0.5), z_index: 1 },
+      { name: "Widget", x: Math.round(w * 0.7), y: Math.round(h * 0.5), width: Math.round(w * 0.3), height: Math.round(h * 0.5), z_index: 2, widget_type: "weather", widget_config: { city: "Paris", temperature: 22, condition: "sunny" } },
+    ],
+  },
+  {
+    id: "l-shape",
+    name: "L-Shape",
+    icon: PanelLeft,
+    description: "Zone centrale + latérale + ticker bas",
+    regions: (w, h) => {
+      const tickerH = Math.round(h * 0.1);
+      const sideW = Math.round(w * 0.25);
+      return [
+        { name: "Contenu central", x: 0, y: 0, width: w - sideW, height: h - tickerH, z_index: 0 },
+        { name: "Barre latérale", x: w - sideW, y: 0, width: sideW, height: h - tickerH, z_index: 1 },
+        { name: "Ticker", x: 0, y: h - tickerH, width: w, height: tickerH, z_index: 2, widget_type: "marquee", widget_config: { text: "Bienvenue ! Ceci est un message défilant.", speed: 80, backgroundColor: "#1a1a2e", textColor: "#ffffff", fontSize: 24 } },
+      ];
+    },
+  },
+  {
+    id: "grid-2x2",
+    name: "Grille 2×2",
+    icon: LayoutGrid,
+    description: "4 zones égales en grille",
+    regions: (w, h) => {
+      const hw = Math.round(w / 2);
+      const hh = Math.round(h / 2);
+      return [
+        { name: "Zone 1", x: 0, y: 0, width: hw, height: hh, z_index: 0 },
+        { name: "Zone 2", x: hw, y: 0, width: w - hw, height: hh, z_index: 1 },
+        { name: "Zone 3", x: 0, y: hh, width: hw, height: h - hh, z_index: 2 },
+        { name: "Zone 4", x: hw, y: hh, width: w - hw, height: h - hh, z_index: 3 },
+      ];
+    },
+  },
+];
+
+const DEFAULT_WIDGET_CONFIGS: Record<string, any> = {
+  clock: { format: "24h", showDate: true, showSeconds: true },
+  weather: { city: "Paris", temperature: 22, condition: "sunny" },
+  marquee: { text: "Bienvenue ! Ceci est un message défilant.", speed: 80, backgroundColor: "#1a1a2e", textColor: "#ffffff", fontSize: 24 },
+  fixedtext: { text: "Texte fixe", fontSize: 24, textColor: "#ffffff", backgroundColor: "transparent", textAlign: "center", fontWeight: "bold" },
+  qrcode: { url: "https://example.com", label: "Scannez-moi", bgColor: "#ffffff", fgColor: "#000000" },
+};
 
 export default function LayoutEditor() {
   const { id } = useParams<{ id: string }>();
@@ -42,14 +118,47 @@ export default function LayoutEditor() {
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [layoutName, setLayoutName] = useState("");
-  const [activePanel, setActivePanel] = useState<"properties" | "library" | "widgets">("library");
+  const [activePanel, setActivePanel] = useState<"properties" | "library" | "widgets" | "presets">("presets");
+  const [showPreview, setShowPreview] = useState(false);
+  const [orientation, setOrientation] = useState<"landscape" | "portrait">("landscape");
 
   useEffect(() => {
-    if (layout) setLayoutName(layout.name);
+    if (layout) {
+      setLayoutName(layout.name);
+      setOrientation(layout.width >= layout.height ? "landscape" : "portrait");
+    }
   }, [layout]);
 
-  const CANVAS_MAX_WIDTH = 700;
-  const scale = layout ? Math.min(CANVAS_MAX_WIDTH / layout.width, 1) : 1;
+  const CANVAS_MAX_WIDTH = 650;
+  const CANVAS_MAX_HEIGHT = 500;
+  const canvasW = layout?.width ?? 1920;
+  const canvasH = layout?.height ?? 1080;
+  const scale = Math.min(CANVAS_MAX_WIDTH / canvasW, CANVAS_MAX_HEIGHT / canvasH, 1);
+
+  const handleOrientationChange = (newOrientation: "landscape" | "portrait") => {
+    if (!id || !layout) return;
+    setOrientation(newOrientation);
+    const w = newOrientation === "landscape" ? 1920 : 1080;
+    const h = newOrientation === "landscape" ? 1080 : 1920;
+    updateLayout.mutate({ id, width: w, height: h });
+  };
+
+  const handleApplyPreset = async (preset: PresetTemplate) => {
+    if (!id || !layout) return;
+    // Delete all existing regions
+    for (const r of regions) {
+      await deleteRegion.mutateAsync(r.id);
+    }
+    // Create new regions from preset
+    const w = layout.width;
+    const h = layout.height;
+    const newRegions = preset.regions(w, h);
+    for (const r of newRegions) {
+      await addRegion.mutateAsync({ layout_id: id, ...r } as any);
+    }
+    setSelectedRegionId(null);
+    toast({ title: `Template "${preset.name}" appliqué`, description: `${newRegions.length} zone(s) créée(s).` });
+  };
 
   const handleAddRegion = async () => {
     if (!id) return;
@@ -123,7 +232,7 @@ export default function LayoutEditor() {
 
   const handleAssignMedia = (mediaId: string) => {
     if (!selectedRegionId) {
-      toast({ title: "Sélectionnez une zone", description: "Cliquez sur une zone dans le layout avant d'assigner un média.", variant: "destructive" });
+      toast({ title: "Sélectionnez une zone", variant: "destructive" });
       return;
     }
     updateRegion.mutate({ id: selectedRegionId, media_id: mediaId, widget_type: null, widget_config: null } as any);
@@ -132,15 +241,10 @@ export default function LayoutEditor() {
 
   const handleAssignWidget = (widgetType: string) => {
     if (!selectedRegionId) {
-      toast({ title: "Sélectionnez une zone", description: "Cliquez sur une zone dans le layout avant d'assigner un widget.", variant: "destructive" });
+      toast({ title: "Sélectionnez une zone", variant: "destructive" });
       return;
     }
-    const defaultConfigs: Record<string, any> = {
-      clock: { format: "24h", showDate: true, showSeconds: true },
-      weather: { city: "Paris", temperature: 22, condition: "sunny" },
-      marquee: { text: "Bienvenue ! Ceci est un message défilant.", speed: 80, backgroundColor: "#1a1a2e", textColor: "#ffffff", fontSize: 24 },
-    };
-    updateRegion.mutate({ id: selectedRegionId, media_id: null, widget_type: widgetType, widget_config: defaultConfigs[widgetType] || {} } as any);
+    updateRegion.mutate({ id: selectedRegionId, media_id: null, widget_type: widgetType, widget_config: DEFAULT_WIDGET_CONFIGS[widgetType] || {} } as any);
     toast({ title: `Widget "${WIDGET_TYPES.find(w => w.value === widgetType)?.label}" assigné` });
   };
 
@@ -153,22 +257,80 @@ export default function LayoutEditor() {
   const selectedRegion = regions.find((r) => r.id === selectedRegionId);
 
   const regionColors = [
-    "hsl(var(--primary) / 0.3)",
-    "hsl(210 80% 60% / 0.3)",
-    "hsl(150 60% 50% / 0.3)",
-    "hsl(30 80% 55% / 0.3)",
-    "hsl(280 60% 55% / 0.3)",
-    "hsl(0 70% 55% / 0.3)",
+    "hsl(185 100% 55% / 0.25)",
+    "hsl(210 80% 60% / 0.25)",
+    "hsl(150 60% 50% / 0.25)",
+    "hsl(30 80% 55% / 0.25)",
+    "hsl(280 60% 55% / 0.25)",
+    "hsl(0 70% 55% / 0.25)",
   ];
 
   if (!layout) {
     return <div className="flex items-center justify-center h-64 text-muted-foreground">Chargement du layout...</div>;
   }
 
+  const renderRegionOnCanvas = (region: LayoutRegion, idx: number, isPreview = false) => {
+    const isSelected = !isPreview && region.id === selectedRegionId;
+    const color = regionColors[idx % regionColors.length];
+    const hasWidget = !!(region as any).widget_type;
+    const regionStyle: any = (region as any).widget_config;
+    const bgColor = regionStyle?.zone_bg || "transparent";
+    const borderColor = regionStyle?.zone_border || "transparent";
+
+    return (
+      <div
+        key={region.id}
+        className={`absolute border-2 transition-shadow flex flex-col items-center justify-center overflow-hidden ${
+          isPreview ? "" : "cursor-move"
+        } ${isSelected ? "border-primary shadow-lg shadow-primary/20" : isPreview ? "border-white/10" : "border-white/30"}`}
+        style={{
+          left: region.x * scale,
+          top: region.y * scale,
+          width: region.width * scale,
+          height: region.height * scale,
+          zIndex: region.z_index + 1,
+          backgroundColor: hasWidget || region.media ? bgColor : (bgColor !== "transparent" ? bgColor : color),
+          borderColor: borderColor !== "transparent" ? borderColor : undefined,
+        }}
+        onMouseDown={isPreview ? undefined : (e) => handleMouseDown(e, region, "move")}
+        onClick={isPreview ? undefined : (e) => { e.stopPropagation(); setSelectedRegionId(region.id); setActivePanel("properties"); }}
+      >
+        {hasWidget && (
+          <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            <WidgetRenderer widgetType={(region as any).widget_type} widgetConfig={(region as any).widget_config} />
+          </div>
+        )}
+        {!hasWidget && region.media && region.media.type?.startsWith("image") && (
+          <img src={region.media.url} alt={region.media.name} className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+        )}
+        {!hasWidget && region.media && region.media.type?.startsWith("video") && (
+          <video src={region.media.url} className="absolute inset-0 w-full h-full object-cover pointer-events-none" muted autoPlay loop />
+        )}
+
+        {!isPreview && (
+          <>
+            <span className="text-[10px] font-medium text-white bg-black/60 px-1.5 py-0.5 rounded z-10 pointer-events-none">
+              {region.name}
+              {hasWidget && <span className="ml-1 opacity-70">• {WIDGET_TYPES.find(w => w.value === (region as any).widget_type)?.label}</span>}
+              {region.media && !hasWidget && <span className="ml-1 opacity-70">• {region.media.name}</span>}
+            </span>
+            <Move className="h-3 w-3 text-white/60 mt-1 pointer-events-none" />
+            <div
+              className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize flex items-center justify-center bg-primary/80 rounded-tl"
+              onMouseDown={(e) => handleMouseDown(e, region, "resize")}
+            >
+              <Maximize2 className="h-2.5 w-2.5 text-primary-foreground" />
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <Button variant="ghost" size="icon" onClick={() => navigate("/layouts")}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
@@ -176,11 +338,93 @@ export default function LayoutEditor() {
         <Button size="sm" onClick={handleSaveName}>
           <Save className="h-4 w-4 mr-1" /> Sauvegarder
         </Button>
-        <span className="text-xs text-muted-foreground ml-auto">{layout.width} × {layout.height}px</span>
+
+        {/* Orientation switcher */}
+        <div className="flex items-center gap-1 ml-auto border rounded-md overflow-hidden">
+          <button
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
+              orientation === "landscape" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+            }`}
+            onClick={() => handleOrientationChange("landscape")}
+          >
+            <Monitor className="h-3.5 w-3.5" /> 16:9
+          </button>
+          <button
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors ${
+              orientation === "portrait" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+            }`}
+            onClick={() => handleOrientationChange("portrait")}
+          >
+            <Smartphone className="h-3.5 w-3.5" /> 9:16
+          </button>
+        </div>
+
+        <Button size="sm" variant={showPreview ? "default" : "outline"} onClick={() => setShowPreview(!showPreview)}>
+          <Eye className="h-4 w-4 mr-1" /> Prévisualiser
+        </Button>
+
+        <Badge variant="secondary">{layout.width} × {layout.height}px</Badge>
       </div>
 
+      {/* Preview modal */}
+      {showPreview && (
+        <Card className="border-primary/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Eye className="h-4 w-4 text-primary" /> Prévisualisation Live
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <div
+              className="relative bg-black rounded-lg overflow-hidden border border-border/50"
+              style={{
+                width: canvasW * scale * 0.8,
+                height: canvasH * scale * 0.8,
+              }}
+            >
+              {regions.map((r, idx) => {
+                const previewScale = scale * 0.8;
+                return (
+                  <div
+                    key={r.id}
+                    className="absolute overflow-hidden"
+                    style={{
+                      left: r.x * previewScale,
+                      top: r.y * previewScale,
+                      width: r.width * previewScale,
+                      height: r.height * previewScale,
+                      zIndex: r.z_index + 1,
+                      backgroundColor: (r as any).widget_config?.zone_bg || regionColors[idx % regionColors.length],
+                      borderColor: (r as any).widget_config?.zone_border || "transparent",
+                      borderWidth: (r as any).widget_config?.zone_border ? 2 : 0,
+                    }}
+                  >
+                    {(r as any).widget_type && (
+                      <div className="absolute inset-0">
+                        <WidgetRenderer widgetType={(r as any).widget_type} widgetConfig={(r as any).widget_config} />
+                      </div>
+                    )}
+                    {!(r as any).widget_type && r.media && r.media.type?.startsWith("image") && (
+                      <img src={r.media.url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                    )}
+                    {!(r as any).widget_type && r.media && r.media.type?.startsWith("video") && (
+                      <video src={r.media.url} className="absolute inset-0 w-full h-full object-cover" muted autoPlay loop />
+                    )}
+                    {!(r as any).widget_type && !r.media && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-[8px] text-white/40">{r.name}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex gap-4">
-        {/* Canvas */}
+        {/* Canvas area */}
         <div className="flex-1 min-w-0">
           <div className="flex gap-2 mb-3">
             <Button size="sm" variant="outline" onClick={handleAddRegion}>
@@ -189,63 +433,24 @@ export default function LayoutEditor() {
           </div>
 
           <div
-            className="border border-border rounded-lg overflow-hidden bg-black relative select-none"
-            style={{ width: layout.width * scale, height: layout.height * scale }}
+            className="border border-border rounded-lg overflow-hidden relative select-none mx-auto"
+            style={{
+              width: canvasW * scale,
+              height: canvasH * scale,
+              backgroundColor: layout.background_color || "#000000",
+            }}
             ref={canvasRef}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
-            onClick={() => { setSelectedRegionId(null); }}
+            onClick={() => setSelectedRegionId(null)}
           >
-            {regions.map((region, idx) => {
-              const isSelected = region.id === selectedRegionId;
-              const color = regionColors[idx % regionColors.length];
-              const hasWidget = !!(region as any).widget_type;
-              return (
-                <div
-                  key={region.id}
-                  className={`absolute border-2 transition-shadow cursor-move flex flex-col items-center justify-center ${
-                    isSelected ? "border-primary shadow-lg shadow-primary/20" : "border-white/30"
-                  }`}
-                  style={{
-                    left: region.x * scale,
-                    top: region.y * scale,
-                    width: region.width * scale,
-                    height: region.height * scale,
-                    zIndex: region.z_index + 1,
-                    backgroundColor: hasWidget || region.media ? "transparent" : color,
-                  }}
-                  onMouseDown={(e) => handleMouseDown(e, region, "move")}
-                  onClick={(e) => { e.stopPropagation(); setSelectedRegionId(region.id); setActivePanel("properties"); }}
-                >
-                  {hasWidget && (
-                    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                      <WidgetRenderer widgetType={(region as any).widget_type} widgetConfig={(region as any).widget_config} />
-                    </div>
-                  )}
-                  {!hasWidget && region.media && region.media.type?.startsWith("image") && (
-                    <img src={region.media.url} alt={region.media.name} className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
-                  )}
-                  {!hasWidget && region.media && region.media.type?.startsWith("video") && (
-                    <video src={region.media.url} className="absolute inset-0 w-full h-full object-cover pointer-events-none" muted autoPlay loop />
-                  )}
-
-                  <span className="text-[10px] font-medium text-white bg-black/60 px-1.5 py-0.5 rounded z-10 pointer-events-none">
-                    {region.name}
-                    {hasWidget && <span className="ml-1 opacity-70">• {WIDGET_TYPES.find(w => w.value === (region as any).widget_type)?.label}</span>}
-                    {region.media && !hasWidget && <span className="ml-1 opacity-70">• {region.media.name}</span>}
-                  </span>
-                  <Move className="h-3 w-3 text-white/60 mt-1 pointer-events-none" />
-
-                  <div
-                    className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize flex items-center justify-center bg-primary/80 rounded-tl"
-                    onMouseDown={(e) => handleMouseDown(e, region, "resize")}
-                  >
-                    <Maximize2 className="h-2.5 w-2.5 text-primary-foreground" />
-                  </div>
-                </div>
-              );
-            })}
+            {/* Grid overlay */}
+            <div className="absolute inset-0 pointer-events-none opacity-10" style={{
+              backgroundImage: "linear-gradient(hsl(185 100% 55% / 0.3) 1px, transparent 1px), linear-gradient(90deg, hsl(185 100% 55% / 0.3) 1px, transparent 1px)",
+              backgroundSize: `${(canvasW * scale) / 12}px ${(canvasH * scale) / 12}px`,
+            }} />
+            {regions.map((region, idx) => renderRegionOnCanvas(region, idx))}
           </div>
 
           {/* Region list below canvas */}
@@ -271,20 +476,78 @@ export default function LayoutEditor() {
         </div>
 
         {/* Right panel */}
-        <div className="w-72 shrink-0 space-y-2">
+        <div className="w-80 shrink-0 space-y-2">
           {/* Panel tabs */}
           <div className="flex border rounded-md overflow-hidden">
-            {(["library", "widgets", "properties"] as const).map((tab) => (
+            {(["presets", "library", "widgets", "properties"] as const).map((tab) => (
               <button
                 key={tab}
-                className={`flex-1 text-xs py-1.5 font-medium transition-colors ${activePanel === tab ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"}`}
+                className={`flex-1 text-[10px] sm:text-xs py-1.5 font-medium transition-colors ${activePanel === tab ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"}`}
                 onClick={() => setActivePanel(tab)}
               >
-                {tab === "library" ? "Médias" : tab === "widgets" ? "Widgets" : "Propriétés"}
+                {tab === "presets" ? "Templates" : tab === "library" ? "Médias" : tab === "widgets" ? "Widgets" : "Propriétés"}
               </button>
             ))}
           </div>
 
+          {/* Presets */}
+          {activePanel === "presets" && (
+            <Card className="self-start">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <LayoutGrid className="h-4 w-4 text-primary" /> Layouts prédéfinis
+                </CardTitle>
+                <p className="text-[10px] text-muted-foreground">
+                  Cliquez sur un modèle pour l'appliquer. Les zones existantes seront remplacées.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {PRESETS.map((preset) => {
+                  const Icon = preset.icon;
+                  // Mini preview
+                  const previewW = 120;
+                  const previewH = orientation === "landscape" ? 68 : 120;
+                  const pw = orientation === "landscape" ? 1920 : 1080;
+                  const ph = orientation === "landscape" ? 1080 : 1920;
+                  const ps = Math.min(previewW / pw, previewH / ph);
+                  const previewRegions = preset.regions(pw, ph);
+
+                  return (
+                    <div
+                      key={preset.id}
+                      className="flex items-center gap-3 p-3 rounded-lg border border-border cursor-pointer transition-colors hover:bg-primary/10 hover:border-primary/30"
+                      onClick={() => handleApplyPreset(preset)}
+                    >
+                      <div className="shrink-0 relative bg-black rounded overflow-hidden" style={{ width: pw * ps, height: ph * ps }}>
+                        {previewRegions.map((r, i) => (
+                          <div
+                            key={i}
+                            className="absolute"
+                            style={{
+                              left: r.x * ps,
+                              top: r.y * ps,
+                              width: r.width * ps,
+                              height: r.height * ps,
+                              backgroundColor: regionColors[i % regionColors.length],
+                              border: "1px solid hsl(185 100% 55% / 0.3)",
+                            }}
+                          />
+                        ))}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium flex items-center gap-1.5">
+                          <Icon className="h-3.5 w-3.5 text-primary" /> {preset.name}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">{preset.description}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Library */}
           {activePanel === "library" && (
             <Card className="self-start">
               <CardHeader className="pb-2">
@@ -292,7 +555,7 @@ export default function LayoutEditor() {
                   <Image className="h-4 w-4" /> Médias disponibles
                 </CardTitle>
                 <p className="text-[10px] text-muted-foreground">
-                  {selectedRegionId ? "Cliquez sur un média pour l'assigner à la zone sélectionnée" : "Sélectionnez d'abord une zone dans le layout"}
+                  {selectedRegionId ? "Cliquez pour assigner à la zone sélectionnée" : "Sélectionnez d'abord une zone"}
                 </p>
               </CardHeader>
               <CardContent className="p-0">
@@ -313,11 +576,11 @@ export default function LayoutEditor() {
                             <img src={m.url} alt={m.name} className="h-10 w-10 rounded object-cover shrink-0" />
                           ) : m.type?.startsWith("video") ? (
                             <div className="h-10 w-10 rounded bg-muted flex items-center justify-center shrink-0">
-                              <Video className="h-5 w-5 text-purple-400" />
+                              <Video className="h-5 w-5 text-accent" />
                             </div>
                           ) : (
                             <div className="h-10 w-10 rounded bg-muted flex items-center justify-center shrink-0">
-                              <Globe className="h-5 w-5 text-green-400" />
+                              <Globe className="h-5 w-5 text-primary" />
                             </div>
                           )}
                           <div className="min-w-0">
@@ -333,6 +596,7 @@ export default function LayoutEditor() {
             </Card>
           )}
 
+          {/* Widgets */}
           {activePanel === "widgets" && (
             <Card className="self-start">
               <CardHeader className="pb-2">
@@ -363,6 +627,8 @@ export default function LayoutEditor() {
                           {w.value === "clock" && "Horloge numérique avec date"}
                           {w.value === "weather" && "Météo avec température"}
                           {w.value === "marquee" && "Message défilant personnalisable"}
+                          {w.value === "fixedtext" && "Texte statique personnalisable"}
+                          {w.value === "qrcode" && "QR Code interactif"}
                         </p>
                       </div>
                     </div>
@@ -372,12 +638,15 @@ export default function LayoutEditor() {
             </Card>
           )}
 
+          {/* Properties */}
           {activePanel === "properties" && (
             <Card className="self-start">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm">Propriétés de la zone</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent>
+                <ScrollArea className="h-[500px] pr-3">
+                  <div className="space-y-3">
                 {selectedRegion ? (
                   <>
                     <div>
@@ -407,6 +676,57 @@ export default function LayoutEditor() {
                       </div>
                     </div>
 
+                    {/* Zone colors */}
+                    <div className="space-y-2 border-t border-border pt-3">
+                      <p className="text-xs font-medium flex items-center gap-1.5"><Palette className="h-3.5 w-3.5 text-primary" /> Apparence de la zone</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-muted-foreground">Fond</label>
+                          <div className="flex items-center gap-1 mt-1">
+                            <input
+                              type="color"
+                              value={(selectedRegion as any).widget_config?.zone_bg || "#000000"}
+                              onChange={(e) => updateRegion.mutate({
+                                id: selectedRegion.id,
+                                widget_config: { ...(selectedRegion as any).widget_config, zone_bg: e.target.value },
+                              } as any)}
+                              className="w-8 h-8 rounded border border-border cursor-pointer"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-[10px] h-6 px-1"
+                              onClick={() => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, zone_bg: "transparent" } } as any)}
+                            >
+                              ×
+                            </Button>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Bordure</label>
+                          <div className="flex items-center gap-1 mt-1">
+                            <input
+                              type="color"
+                              value={(selectedRegion as any).widget_config?.zone_border || "#ffffff"}
+                              onChange={(e) => updateRegion.mutate({
+                                id: selectedRegion.id,
+                                widget_config: { ...(selectedRegion as any).widget_config, zone_border: e.target.value },
+                              } as any)}
+                              className="w-8 h-8 rounded border border-border cursor-pointer"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-[10px] h-6 px-1"
+                              onClick={() => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, zone_border: "transparent" } } as any)}
+                            >
+                              ×
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Content type selector */}
                     <div>
                       <label className="text-xs text-muted-foreground">Contenu</label>
@@ -414,20 +734,20 @@ export default function LayoutEditor() {
                         value={(selectedRegion as any).widget_type ? `widget:${(selectedRegion as any).widget_type}` : selectedRegion.media_id ? "media" : "none"}
                         onValueChange={(v) => {
                           if (v === "none") {
-                            updateRegion.mutate({ id: selectedRegion.id, media_id: null, widget_type: null, widget_config: null } as any);
+                            updateRegion.mutate({ id: selectedRegion.id, media_id: null, widget_type: null, widget_config: { ...(selectedRegion as any).widget_config, zone_bg: (selectedRegion as any).widget_config?.zone_bg, zone_border: (selectedRegion as any).widget_config?.zone_border } } as any);
                           } else if (v === "media") {
-                            updateRegion.mutate({ id: selectedRegion.id, widget_type: null, widget_config: null } as any);
+                            updateRegion.mutate({ id: selectedRegion.id, widget_type: null, widget_config: { zone_bg: (selectedRegion as any).widget_config?.zone_bg, zone_border: (selectedRegion as any).widget_config?.zone_border } } as any);
                           } else if (v.startsWith("widget:")) {
-                            handleAssignWidget(v.replace("widget:", ""));
+                            const wType = v.replace("widget:", "");
+                            const zoneProps = { zone_bg: (selectedRegion as any).widget_config?.zone_bg, zone_border: (selectedRegion as any).widget_config?.zone_border };
+                            updateRegion.mutate({ id: selectedRegion.id, media_id: null, widget_type: wType, widget_config: { ...DEFAULT_WIDGET_CONFIGS[wType], ...zoneProps } } as any);
                           }
                         }}
                       >
-                        <SelectTrigger className="h-8 text-sm mt-1">
-                          <SelectValue />
-                        </SelectTrigger>
+                        <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="none">Aucun</SelectItem>
-                          <SelectItem value="media">Média</SelectItem>
+                          <SelectItem value="media">📷 Média</SelectItem>
                           {WIDGET_TYPES.map((w) => (
                             <SelectItem key={w.value} value={`widget:${w.value}`}>🧩 {w.label}</SelectItem>
                           ))}
@@ -435,7 +755,7 @@ export default function LayoutEditor() {
                       </Select>
                     </div>
 
-                    {/* Media selector if media mode */}
+                    {/* Media selector */}
                     {!(selectedRegion as any).widget_type && (
                       <div>
                         <label className="text-xs text-muted-foreground">Média assigné</label>
@@ -443,9 +763,7 @@ export default function LayoutEditor() {
                           value={selectedRegion.media_id || "none"}
                           onValueChange={(v) => updateRegion.mutate({ id: selectedRegion.id, media_id: v === "none" ? null : v })}
                         >
-                          <SelectTrigger className="h-8 text-sm mt-1">
-                            <SelectValue />
-                          </SelectTrigger>
+                          <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="none">Aucun</SelectItem>
                             {media.map((m) => (
@@ -456,45 +774,31 @@ export default function LayoutEditor() {
                       </div>
                     )}
 
-                    {/* Widget config */}
+                    {/* Widget-specific configs */}
                     {(selectedRegion as any).widget_type === "marquee" && (
-                      <div className="space-y-2">
+                      <div className="space-y-2 border-t border-border pt-3">
+                        <p className="text-xs font-medium">Configuration Texte défilant</p>
                         <div>
-                          <label className="text-xs text-muted-foreground">Texte du message</label>
-                          <Input
-                            value={(selectedRegion as any).widget_config?.text || ""}
-                            onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, text: e.target.value } } as any)}
-                            className="h-8 text-sm mt-1"
-                          />
+                          <label className="text-xs text-muted-foreground">Texte</label>
+                          <Input value={(selectedRegion as any).widget_config?.text || ""} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, text: e.target.value } } as any)} className="h-8 text-sm mt-1" />
                         </div>
                         <div>
                           <label className="text-xs text-muted-foreground">Vitesse</label>
-                          <Input
-                            type="number"
-                            value={(selectedRegion as any).widget_config?.speed || 80}
-                            onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, speed: +e.target.value } } as any)}
-                            className="h-8 text-sm mt-1"
-                          />
+                          <Input type="number" value={(selectedRegion as any).widget_config?.speed || 80} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, speed: +e.target.value } } as any)} className="h-8 text-sm mt-1" />
                         </div>
                       </div>
                     )}
 
                     {(selectedRegion as any).widget_type === "weather" && (
-                      <div className="space-y-2">
+                      <div className="space-y-2 border-t border-border pt-3">
+                        <p className="text-xs font-medium">Configuration Météo</p>
                         <div>
                           <label className="text-xs text-muted-foreground">Ville</label>
-                          <Input
-                            value={(selectedRegion as any).widget_config?.city || "Paris"}
-                            onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, city: e.target.value } } as any)}
-                            className="h-8 text-sm mt-1"
-                          />
+                          <Input value={(selectedRegion as any).widget_config?.city || "Paris"} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, city: e.target.value } } as any)} className="h-8 text-sm mt-1" />
                         </div>
                         <div>
                           <label className="text-xs text-muted-foreground">Condition</label>
-                          <Select
-                            value={(selectedRegion as any).widget_config?.condition || "sunny"}
-                            onValueChange={(v) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, condition: v } } as any)}
-                          >
+                          <Select value={(selectedRegion as any).widget_config?.condition || "sunny"} onValueChange={(v) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, condition: v } } as any)}>
                             <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="sunny">Ensoleillé</SelectItem>
@@ -507,6 +811,62 @@ export default function LayoutEditor() {
                       </div>
                     )}
 
+                    {(selectedRegion as any).widget_type === "fixedtext" && (
+                      <div className="space-y-2 border-t border-border pt-3">
+                        <p className="text-xs font-medium">Configuration Texte fixe</p>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Texte</label>
+                          <Input value={(selectedRegion as any).widget_config?.text || ""} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, text: e.target.value } } as any)} className="h-8 text-sm mt-1" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-xs text-muted-foreground">Taille</label>
+                            <Input type="number" value={(selectedRegion as any).widget_config?.fontSize || 24} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, fontSize: +e.target.value } } as any)} className="h-8 text-sm mt-1" />
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground">Couleur</label>
+                            <input type="color" value={(selectedRegion as any).widget_config?.textColor || "#ffffff"} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, textColor: e.target.value } } as any)} className="w-full h-8 mt-1 rounded border border-border cursor-pointer" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Alignement</label>
+                          <Select value={(selectedRegion as any).widget_config?.textAlign || "center"} onValueChange={(v) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, textAlign: v } } as any)}>
+                            <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="left">Gauche</SelectItem>
+                              <SelectItem value="center">Centre</SelectItem>
+                              <SelectItem value="right">Droite</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )}
+
+                    {(selectedRegion as any).widget_type === "qrcode" && (
+                      <div className="space-y-2 border-t border-border pt-3">
+                        <p className="text-xs font-medium">Configuration QR Code</p>
+                        <div>
+                          <label className="text-xs text-muted-foreground">URL</label>
+                          <Input value={(selectedRegion as any).widget_config?.url || ""} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, url: e.target.value } } as any)} className="h-8 text-sm mt-1" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Label</label>
+                          <Input value={(selectedRegion as any).widget_config?.label || ""} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, label: e.target.value } } as any)} className="h-8 text-sm mt-1" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-xs text-muted-foreground">Fond</label>
+                            <input type="color" value={(selectedRegion as any).widget_config?.bgColor || "#ffffff"} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, bgColor: e.target.value } } as any)} className="w-full h-8 mt-1 rounded border border-border cursor-pointer" />
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground">QR</label>
+                            <input type="color" value={(selectedRegion as any).widget_config?.fgColor || "#000000"} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, fgColor: e.target.value } } as any)} className="w-full h-8 mt-1 rounded border border-border cursor-pointer" />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Media preview */}
                     {selectedRegion.media && !(selectedRegion as any).widget_type && (
                       <div className="border rounded-md overflow-hidden">
                         {selectedRegion.media.type?.startsWith("image") ? (
@@ -532,6 +892,8 @@ export default function LayoutEditor() {
                 ) : (
                   <p className="text-xs text-muted-foreground">Sélectionnez une zone pour modifier ses propriétés.</p>
                 )}
+                  </div>
+                </ScrollArea>
               </CardContent>
             </Card>
           )}
