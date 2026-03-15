@@ -122,85 +122,52 @@ Ou répondez à cet email avec "valider" ou "annuler".`;
 
   // Send via raw SMTP
   try {
-    const conn = await Deno.connect({ hostname: smtpHost, port: smtpPort });
-    
+    let finalConn: Deno.Conn;
+
+    if (smtpPort === 465) {
+      // Port 465 = SSL implicite → connectTls directement
+      finalConn = await Deno.connectTls({ hostname: smtpHost, port: smtpPort });
+    } else if (smtpPort === 587) {
+      // Port 587 = STARTTLS → TCP puis upgrade TLS
+      const tcpConn = await Deno.connect({ hostname: smtpHost, port: smtpPort });
+      const tcpRead = async () => {
+        const buf = new Uint8Array(4096);
+        const n = await tcpConn.read(buf);
+        return n ? new TextDecoder().decode(buf.subarray(0, n)) : "";
+      };
+      const tcpWrite = async (cmd: string) => {
+        await tcpConn.write(new TextEncoder().encode(cmd + "\r\n"));
+        return await tcpRead();
+      };
+      await tcpRead(); // greeting
+      await tcpWrite("EHLO localhost");
+      const tlsResp = await tcpWrite("STARTTLS");
+      if (!tlsResp.includes("220")) throw new Error("STARTTLS refused: " + tlsResp);
+      finalConn = await Deno.startTls(tcpConn, { hostname: smtpHost });
+    } else {
+      // Port 25 or other = plain TCP
+      finalConn = await Deno.connect({ hostname: smtpHost, port: smtpPort });
+    }
+
     const read = async () => {
       const buf = new Uint8Array(4096);
-      const n = await conn.read(buf);
+      const n = await finalConn.read(buf);
       return n ? new TextDecoder().decode(buf.subarray(0, n)) : "";
     };
     const write = async (cmd: string) => {
-      await conn.write(new TextEncoder().encode(cmd + "\r\n"));
+      await finalConn.write(new TextEncoder().encode(cmd + "\r\n"));
       return await read();
     };
 
-    // Read greeting
-    await read();
-    
-    // EHLO
-    await write(`EHLO localhost`);
-    
-    // STARTTLS if port 587
-    if (smtpPort === 587) {
-      const tlsResp = await write("STARTTLS");
-      if (tlsResp.includes("220")) {
-        const tlsConn = await Deno.startTls(conn, { hostname: smtpHost });
-        
-        const tlsRead = async () => {
-          const buf = new Uint8Array(4096);
-          const n = await tlsConn.read(buf);
-          return n ? new TextDecoder().decode(buf.subarray(0, n)) : "";
-        };
-        const tlsWrite = async (cmd: string) => {
-          await tlsConn.write(new TextEncoder().encode(cmd + "\r\n"));
-          return await tlsRead();
-        };
+    // Read greeting (for 465 and 25)
+    if (smtpPort !== 587) await read();
 
-        await tlsWrite("EHLO localhost");
+    await write("EHLO localhost");
 
-        // AUTH LOGIN
-        const credentials = btoa(`\0${smtpUser}\0${smtpPass}`);
-        await tlsWrite(`AUTH PLAIN ${credentials}`);
-
-        await tlsWrite(`MAIL FROM:<${fromEmail}>`);
-        await tlsWrite(`RCPT TO:<${content.sender_email}>`);
-        await tlsWrite("DATA");
-
-        const boundary = `boundary_${Date.now()}`;
-        const message = [
-          `From: "${fromName}" <${fromEmail}>`,
-          `To: ${content.sender_email}`,
-          `Subject: ${subject}`,
-          `References: <content-${content.id}@signage>`,
-          `Message-ID: <ack-${content.id}@signage>`,
-          `MIME-Version: 1.0`,
-          `Content-Type: multipart/alternative; boundary="${boundary}"`,
-          ``,
-          `--${boundary}`,
-          `Content-Type: text/plain; charset=utf-8`,
-          ``,
-          textBody,
-          ``,
-          `--${boundary}`,
-          `Content-Type: text/html; charset=utf-8`,
-          ``,
-          htmlBody,
-          ``,
-          `--${boundary}--`,
-          `.`,
-        ].join("\r\n");
-
-        await tlsWrite(message);
-        await tlsWrite("QUIT");
-        tlsConn.close();
-        console.log(`ACK email sent to ${content.sender_email}`);
-        return;
-      }
-    }
-
-    // Plain SMTP (port 25 or 465 with implicit TLS)
+    // AUTH
     const credentials = btoa(`\0${smtpUser}\0${smtpPass}`);
     await write(`AUTH PLAIN ${credentials}`);
+
     await write(`MAIL FROM:<${fromEmail}>`);
     await write(`RCPT TO:<${content.sender_email}>`);
     await write("DATA");
@@ -231,7 +198,7 @@ Ou répondez à cet email avec "valider" ou "annuler".`;
 
     await write(message);
     await write("QUIT");
-    conn.close();
+    finalConn.close();
     console.log(`ACK email sent to ${content.sender_email}`);
   } catch (e) {
     console.error("Failed to send ACK email:", e);
