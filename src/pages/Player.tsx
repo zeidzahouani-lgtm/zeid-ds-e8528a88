@@ -256,6 +256,23 @@ function LicenseScreen({
   );
 }
 
+function ActiveContentCarousel({ contents }: { contents: Array<{ id: string; image_url: string; title: string | null }> }) {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (contents.length <= 1) return;
+    const timer = setInterval(() => {
+      setIndex(prev => (prev + 1) % contents.length);
+    }, 10000); // 10s per image
+    return () => clearInterval(timer);
+  }, [contents.length]);
+
+  const current = contents[Math.min(index, contents.length - 1)];
+  if (!current) return null;
+
+  return <img src={current.image_url} alt={current.title || ""} className="w-full h-full object-cover" />;
+}
+
 export default function Player() {
   const { id } = useParams<{ id: string }>();
   const { screen, media, loading, sessionBlocked, forceTakeover, playlistLength, currentIndex, currentDuration, layoutId } = useScreenRealtime(id);
