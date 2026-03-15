@@ -1004,6 +1004,51 @@ export default function LayoutEditor() {
           )}
         </div>
       </div>
+
+      {/* Background Image Library Modal */}
+      <Dialog open={showBgLibrary} onOpenChange={setShowBgLibrary}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ImageIcon className="h-5 w-5 text-primary" /> Choisir une image de fond
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="h-[400px]">
+            <div className="grid grid-cols-3 gap-3 p-1">
+              {media.filter(m => m.type?.startsWith("image")).length === 0 ? (
+                <p className="col-span-3 text-center text-sm text-muted-foreground py-12">Aucune image dans la bibliothèque.</p>
+              ) : (
+                media.filter(m => m.type?.startsWith("image")).map((m) => {
+                  const isSelected = (layout as any).bg_image_url === m.url;
+                  return (
+                    <div
+                      key={m.id}
+                      className={`relative group rounded-lg overflow-hidden border-2 cursor-pointer transition-all hover:border-primary/60 ${
+                        isSelected ? "border-primary ring-2 ring-primary/30" : "border-border"
+                      }`}
+                      onClick={() => {
+                        updateLayout.mutate({ id: id!, bg_image_url: m.url, bg_type: "image" });
+                        setShowBgLibrary(false);
+                        toast({ title: "Image de fond appliquée" });
+                      }}
+                    >
+                      <img src={m.url} alt={m.name} className="w-full h-28 object-cover" />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                        {isSelected && (
+                          <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
+                            <Check className="h-5 w-5 text-primary-foreground" />
+                          </div>
+                        )}
+                      </div>
+                      <p className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] px-2 py-1 truncate">{m.name}</p>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
