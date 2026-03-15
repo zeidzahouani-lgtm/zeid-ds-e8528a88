@@ -1,17 +1,25 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect } from "react";
+import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 
 export function useScreens() {
   const queryClient = useQueryClient();
+  const { currentEstablishmentId, isGlobalAdmin } = useEstablishmentContext();
 
   const { data: screens = [], isLoading } = useQuery({
-    queryKey: ["screens"],
+    queryKey: ["screens", currentEstablishmentId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("screens")
         .select("*, media:current_media_id(id, name, type, url)")
         .order("created_at", { ascending: false });
+      if (currentEstablishmentId) {
+        query = query.eq("establishment_id", currentEstablishmentId);
+      } else if (!isGlobalAdmin) {
+        return [];
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
@@ -34,7 +42,12 @@ export function useScreens() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
       const slug = name.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-");
-      const { error } = await supabase.from("screens").insert({ name, slug, user_id: user.id } as any);
+      const { error } = await supabase.from("screens").insert({
+        name,
+        slug,
+        user_id: user.id,
+        establishment_id: currentEstablishmentId,
+      } as any);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["screens"] }),

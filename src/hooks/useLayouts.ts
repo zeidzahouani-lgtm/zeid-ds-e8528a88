@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 
 export interface LayoutRegion {
   id: string;
@@ -22,6 +23,7 @@ export interface Layout {
   height: number;
   background_color: string;
   user_id: string;
+  establishment_id?: string | null;
   created_at: string;
   updated_at: string;
   regions?: LayoutRegion[];
@@ -29,14 +31,21 @@ export interface Layout {
 
 export function useLayouts() {
   const queryClient = useQueryClient();
+  const { currentEstablishmentId, isGlobalAdmin } = useEstablishmentContext();
 
   const { data: layouts = [], isLoading } = useQuery({
-    queryKey: ["layouts"],
+    queryKey: ["layouts", currentEstablishmentId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("layouts")
         .select("*")
         .order("created_at", { ascending: false });
+      if (currentEstablishmentId) {
+        query = query.eq("establishment_id", currentEstablishmentId);
+      } else if (!isGlobalAdmin) {
+        return [];
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data as Layout[];
     },
@@ -48,7 +57,13 @@ export function useLayouts() {
       if (!user) throw new Error("Not authenticated");
       const { data, error } = await supabase
         .from("layouts")
-        .insert({ name: params.name, width: params.width || 1920, height: params.height || 1080, user_id: user.id })
+        .insert({
+          name: params.name,
+          width: params.width || 1920,
+          height: params.height || 1080,
+          user_id: user.id,
+          establishment_id: currentEstablishmentId,
+        } as any)
         .select()
         .single();
       if (error) throw error;
