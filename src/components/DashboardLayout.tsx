@@ -2,8 +2,12 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { Outlet } from "react-router-dom";
 import { NotificationBell } from "@/components/NotificationBell";
+import { useEstablishmentBranding } from "@/hooks/useEstablishmentBranding";
 
 export function DashboardLayout() {
+  // Apply establishment-specific branding (colors, font, favicon) dynamically
+  useEstablishmentBranding();
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full">

@@ -28,7 +28,6 @@ function useActiveContents(screenId: string | undefined) {
     };
 
     fetchContents();
-    // Refresh every 30 seconds to check time-based content
     const interval = setInterval(fetchContents, 30000);
 
     const channel = supabase
@@ -60,6 +59,13 @@ interface LayoutData {
   width: number;
   height: number;
   background_color: string;
+}
+
+interface PlayerBranding {
+  logoUrl: string;
+  showLogo: boolean;
+  bgColor: string;
+  watermark: string;
 }
 
 function getOrientationStyle(orientation: string): React.CSSProperties {
@@ -97,12 +103,22 @@ function MediaRenderer({ media, playlistLength }: { media: { id: string; name: s
   return <iframe src={media.url} className="w-full h-full border-0" allowFullScreen title={media.name} />;
 }
 
-function usePlayerLogo(screenId?: string) {
-  const [logoUrl, setLogoUrl] = useState<string>("");
+/**
+ * Fetches player branding: establishment logo, settings (show_logo, bg_color, watermark),
+ * with fallback to global app_settings.
+ */
+function usePlayerBranding(screenId?: string): PlayerBranding {
+  const [branding, setBranding] = useState<PlayerBranding>({
+    logoUrl: "",
+    showLogo: true,
+    bgColor: "#000000",
+    watermark: "",
+  });
+
   useEffect(() => {
     if (!screenId) return;
-    // Try to get establishment logo first
-    const fetchLogo = async () => {
+
+    const fetchBranding = async () => {
       // Get screen's establishment_id
       const { data: screenData } = await supabase
         .from("screens")
@@ -110,34 +126,69 @@ function usePlayerLogo(screenId?: string) {
         .eq("id", screenId)
         .single();
 
+      let logoUrl = "";
+      let showLogo = true;
+      let bgColor = "#000000";
+      let watermark = "";
+
       if (screenData?.establishment_id) {
+        // Get establishment logo
         const { data: estData } = await supabase
           .from("establishments")
           .select("logo_url")
           .eq("id", screenData.establishment_id)
           .single();
-        if (estData?.logo_url) {
-          setLogoUrl(estData.logo_url);
-          return;
+        if (estData?.logo_url) logoUrl = estData.logo_url;
+
+        // Get establishment settings for player branding
+        const { data: estSettings } = await supabase
+          .from("establishment_settings")
+          .select("key, value")
+          .eq("establishment_id", screenData.establishment_id)
+          .in("key", ["brand_show_logo_player", "brand_player_bg_color", "brand_player_watermark", "brand_logo_url"]);
+
+        if (estSettings) {
+          const settingsMap: Record<string, string> = {};
+          estSettings.forEach((s: any) => { if (s.value) settingsMap[s.key] = s.value; });
+
+          if (settingsMap.brand_logo_url && !logoUrl) logoUrl = settingsMap.brand_logo_url;
+          if (settingsMap.brand_show_logo_player === "false") showLogo = false;
+          if (settingsMap.brand_player_bg_color) bgColor = settingsMap.brand_player_bg_color;
+          if (settingsMap.brand_player_watermark) watermark = settingsMap.brand_player_watermark;
         }
       }
 
-      // Fallback to global app logo
-      const { data } = await supabase
-        .from("app_settings")
-        .select("key, value")
-        .eq("key", "logo_url")
-        .single();
-      if (data?.value) setLogoUrl(data.value);
+      // Fallback to global app logo if no establishment logo
+      if (!logoUrl) {
+        const { data } = await supabase
+          .from("app_settings")
+          .select("key, value")
+          .eq("key", "logo_url")
+          .single();
+        if (data?.value) logoUrl = data.value;
+      }
+
+      setBranding({ logoUrl, showLogo, bgColor, watermark });
     };
-    fetchLogo();
+
+    fetchBranding();
   }, [screenId]);
-  return logoUrl;
+
+  return branding;
 }
 
-function CompanyLogo({ logoUrl }: { logoUrl: string }) {
-  if (!logoUrl) return null;
+function CompanyLogo({ logoUrl, show = true }: { logoUrl: string; show?: boolean }) {
+  if (!logoUrl || !show) return null;
   return <img src={logoUrl} alt="Logo" className="h-16 w-auto object-contain mb-4" />;
+}
+
+function Watermark({ text }: { text: string }) {
+  if (!text) return null;
+  return (
+    <div className="absolute bottom-4 right-4 z-50 text-white/20 text-xs font-medium tracking-wider pointer-events-none">
+      {text}
+    </div>
+  );
 }
 
 function LayoutRenderer({ layoutId, screenOrientation }: { layoutId: string; screenOrientation: string }) {
@@ -205,6 +256,7 @@ function LicenseScreen({
   screenId,
   onActivated,
   logoUrl,
+  showLogo,
 }: {
   containerRef: React.RefObject<HTMLDivElement>;
   requestFullscreen: () => void;
@@ -212,6 +264,7 @@ function LicenseScreen({
   screenId: string;
   onActivated: () => void;
   logoUrl: string;
+  showLogo: boolean;
 }) {
   const [key, setKey] = useState("");
   const [error, setError] = useState("");
@@ -234,7 +287,7 @@ function LicenseScreen({
   return (
     <div ref={containerRef} className="fixed inset-0 bg-black flex items-center justify-center" onClick={requestFullscreen}>
       <div className="flex flex-col items-center gap-6 text-center p-8 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
-        {logoUrl && <CompanyLogo logoUrl={logoUrl} />}
+        <CompanyLogo logoUrl={logoUrl} show={showLogo} />
         <div className="h-20 w-20 rounded-2xl bg-destructive/10 flex items-center justify-center">
           <ShieldOff className="h-10 w-10 text-destructive" />
         </div>
@@ -297,7 +350,6 @@ function ActiveContentCarousel({ contents, screenOrientation, onVideoEnd }: { co
 
   useEffect(() => {
     if (contents.length <= 1 && contentType !== "video") return;
-    // Only auto-advance for images; videos advance on ended
     if (contentType === "video") return;
     const timer = setInterval(advance, 10000);
     return () => clearInterval(timer);
@@ -331,13 +383,13 @@ export default function Player() {
   const { id } = useParams<{ id: string }>();
   const { screen, media, loading, sessionBlocked, forceTakeover, playlistLength, currentIndex, currentDuration, layoutId } = useScreenRealtime(id);
   const activeContents = useActiveContents(screen?.id);
-  const logoUrl = usePlayerLogo(screen?.id);
+  const branding = usePlayerBranding(screen?.id);
   const [visible, setVisible] = useState(true);
   const [progress, setProgress] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>();
 
-  // License validation - must wait for screen to be resolved to get the real UUID
+  // License validation
   const [licenseValid, setLicenseValid] = useState<boolean | null>(null);
   const [licenseMessage, setLicenseMessage] = useState("");
 
@@ -353,20 +405,16 @@ export default function Player() {
 
     checkLicense();
 
-    // Re-check every 5 seconds if license is not valid
     const interval = setInterval(() => {
       if (licenseValid !== true) checkLicense();
     }, 5000);
 
-    // Realtime: immediately re-check when any license for this screen changes
     const channel = supabase
       .channel(`license-realtime-${screen.id}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "licenses", filter: `screen_id=eq.${screen.id}` },
-        () => {
-          checkLicense();
-        }
+        () => { checkLicense(); }
       )
       .subscribe();
 
@@ -415,11 +463,13 @@ export default function Player() {
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [media?.id, currentIndex, currentDuration, layoutId]);
 
+  const playerBgStyle = { backgroundColor: branding.bgColor };
+
   if (loading) {
     return (
-      <div className="fixed inset-0 bg-black flex items-center justify-center">
+      <div className="fixed inset-0 flex items-center justify-center" style={playerBgStyle}>
         <div className="animate-pulse flex flex-col items-center gap-3">
-          <CompanyLogo logoUrl={logoUrl} />
+          <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} />
           <MonitorPlay className="h-12 w-12 text-primary" />
           <p className="text-muted-foreground">Connexion à l'écran...</p>
         </div>
@@ -435,12 +485,11 @@ export default function Player() {
     );
   }
 
-  // Session blocked — another device is already playing this screen
   if (sessionBlocked) {
     return (
-      <div ref={containerRef} className="fixed inset-0 bg-black flex items-center justify-center">
+      <div ref={containerRef} className="fixed inset-0 flex items-center justify-center" style={playerBgStyle}>
         <div className="flex flex-col items-center gap-4 text-center p-8">
-          <CompanyLogo logoUrl={logoUrl} />
+          <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} />
           <div className="h-20 w-20 rounded-2xl bg-destructive/10 flex items-center justify-center">
             <MonitorX className="h-10 w-10 text-destructive" />
           </div>
@@ -459,16 +508,16 @@ export default function Player() {
             <span className="inline-block ml-1 h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
           </p>
         </div>
+        <Watermark text={branding.watermark} />
       </div>
     );
   }
 
-  // Still validating license
   if (licenseValid === null) {
     return (
-      <div className="fixed inset-0 bg-black flex items-center justify-center">
+      <div className="fixed inset-0 flex items-center justify-center" style={playerBgStyle}>
         <div className="animate-pulse flex flex-col items-center gap-3">
-          <CompanyLogo logoUrl={logoUrl} />
+          <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} />
           <MonitorPlay className="h-12 w-12 text-primary" />
           <p className="text-muted-foreground">Vérification de la licence...</p>
         </div>
@@ -476,7 +525,6 @@ export default function Player() {
     );
   }
 
-  // LICENSE CHECK - Show black screen with manual entry
   if (licenseValid === false) {
     return (
       <LicenseScreen
@@ -485,15 +533,17 @@ export default function Player() {
         message={licenseMessage}
         screenId={screen.id}
         onActivated={() => setLicenseValid(true)}
-        logoUrl={logoUrl}
+        logoUrl={branding.logoUrl}
+        showLogo={branding.showLogo}
       />
     );
   }
 
   if (layoutId) {
     return (
-      <div ref={containerRef} className="fixed inset-0 bg-black overflow-hidden cursor-none" onClick={requestFullscreen}>
+      <div ref={containerRef} className="fixed inset-0 overflow-hidden cursor-none" style={playerBgStyle} onClick={requestFullscreen}>
         <LayoutRenderer layoutId={layoutId} screenOrientation={screen.orientation} />
+        <Watermark text={branding.watermark} />
       </div>
     );
   }
@@ -501,12 +551,12 @@ export default function Player() {
   const rotationStyle = getOrientationStyle(screen.orientation);
 
   return (
-    <div ref={containerRef} className="fixed inset-0 bg-black overflow-hidden cursor-none" onClick={requestFullscreen}>
+    <div ref={containerRef} className="fixed inset-0 overflow-hidden cursor-none" style={playerBgStyle} onClick={requestFullscreen}>
       <div className="w-full h-full transition-transform duration-700 ease-in-out" style={rotationStyle}>
         <div className="w-full h-full transition-opacity duration-500 ease-in-out" style={{ opacity: visible ? 1 : 0 }}>
           {!media && activeContents.length === 0 ? (
             <div className="w-full h-full flex flex-col items-center justify-center gap-6">
-              <CompanyLogo logoUrl={logoUrl} />
+              <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} />
               <MonitorPlay className="h-16 w-16 text-primary/30" />
               <p className="text-muted-foreground text-lg">{screen.name}</p>
               <p className="text-muted-foreground/50 text-sm">En attente de contenu...</p>
@@ -522,7 +572,6 @@ export default function Player() {
               </div>
             </div>
           ) : activeContents.length > 0 && !media ? (
-            /* Show active automated contents when no playlist media */
             <ActiveContentCarousel contents={activeContents} screenOrientation={screen.orientation} />
           ) : media ? (
             <MediaRenderer media={media} playlistLength={playlistLength} />
@@ -543,6 +592,7 @@ export default function Player() {
           </div>
         )}
       </div>
+      <Watermark text={branding.watermark} />
     </div>
   );
 }
