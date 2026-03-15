@@ -5,9 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import SuggestTab from "@/components/ai/SuggestTab";
 
 function GenerateTab() {
   const [prompt, setPrompt] = useState("");
@@ -204,89 +204,6 @@ function EnhanceTab() {
   );
 }
 
-function SuggestTab() {
-  const [prompt, setPrompt] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ suggestions: any[]; summary: string } | null>(null);
-
-  const presets = [
-    "Suggère-moi une playlist pour un restaurant haut de gamme",
-    "Propose un layout pour un écran d'accueil d'hôtel",
-    "Quels contenus afficher dans une salle d'attente médicale ?",
-    "Idées de playlist pour une boutique de mode",
-  ];
-
-  const handleSuggest = async (text?: string) => {
-    const q = text || prompt;
-    if (!q.trim()) return;
-    setLoading(true);
-    setResult(null);
-    try {
-      const { data, error } = await supabase.functions.invoke("ai-assistant", {
-        body: { action: "suggest", prompt: q },
-      });
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
-      setResult(data);
-    } catch (e: any) {
-      toast.error(e.message || "Erreur");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const typeColors: Record<string, string> = {
-    playlist: "bg-primary/10 text-primary border-primary/20",
-    layout: "bg-accent/10 text-accent border-accent/20",
-    tip: "bg-muted text-muted-foreground border-border",
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-foreground">Décrivez votre besoin</label>
-        <Textarea
-          placeholder="Ex: Je gère 3 écrans dans un restaurant, que me suggères-tu ?"
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          rows={2}
-        />
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {presets.map((p) => (
-          <Button key={p} variant="outline" size="sm" className="text-xs" onClick={() => { setPrompt(p); handleSuggest(p); }}>
-            {p}
-          </Button>
-        ))}
-      </div>
-      <Button onClick={() => handleSuggest()} disabled={loading || !prompt.trim()} className="gap-2">
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4" />}
-        {loading ? "Réflexion en cours..." : "Obtenir des suggestions"}
-      </Button>
-      {result && (
-        <div className="space-y-3">
-          {result.summary && (
-            <p className="text-sm text-foreground bg-muted/50 p-3 rounded-lg">{result.summary}</p>
-          )}
-          <div className="grid gap-3 sm:grid-cols-2">
-            {result.suggestions.map((s: any, i: number) => (
-              <Card key={i} className="p-4 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className={typeColors[s.type] || ""}>
-                    {s.type === "playlist" ? "Playlist" : s.type === "layout" ? "Layout" : "Conseil"}
-                  </Badge>
-                  <h4 className="font-medium text-sm text-foreground">{s.title}</h4>
-                </div>
-                <p className="text-sm text-muted-foreground">{s.description}</p>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function AIAssistant() {
   return (
     <div>
@@ -295,7 +212,7 @@ export default function AIAssistant() {
         <h1 className="text-2xl font-bold tracking-tight">Assistant IA</h1>
       </div>
       <p className="text-muted-foreground text-sm mb-6">
-        Générez des images, améliorez leur qualité et obtenez des suggestions de playlists et layouts
+        Générez des images, améliorez leur qualité et obtenez des suggestions de playlists et layouts prêts à l'emploi
       </p>
       <Tabs defaultValue="generate">
         <TabsList>
