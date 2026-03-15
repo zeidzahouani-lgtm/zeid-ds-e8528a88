@@ -1,4 +1,4 @@
-import { Tv, Image, ListMusic, Clock, LayoutDashboard, LogOut, User, LayoutGrid, Users, Building2, Settings, Palette, Key, Sparkles, Mail } from "lucide-react";
+import { Tv, Image, ListMusic, Clock, LayoutDashboard, LogOut, User, LayoutGrid, Users, Building2, Settings, Palette, Key, Sparkles, Mail, AtSign } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -36,6 +36,7 @@ const adminItems = [
   { title: "Établissements", url: "/admin/establishments", icon: Building2 },
   { title: "Personnalisation", url: "/admin/customization", icon: Palette },
   { title: "Licences", url: "/admin/licenses", icon: Key },
+  { title: "Email", url: "/admin/email", icon: AtSign },
 ];
 
 export function AppSidebar() {
