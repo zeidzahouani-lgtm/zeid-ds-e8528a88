@@ -226,24 +226,39 @@ export type Database = {
           address: string | null
           created_at: string
           created_by: string
+          description: string | null
+          email: string | null
           id: string
+          logo_url: string | null
+          max_screens: number
           name: string
+          phone: string | null
           updated_at: string
         }
         Insert: {
           address?: string | null
           created_at?: string
           created_by: string
+          description?: string | null
+          email?: string | null
           id?: string
+          logo_url?: string | null
+          max_screens?: number
           name: string
+          phone?: string | null
           updated_at?: string
         }
         Update: {
           address?: string | null
           created_at?: string
           created_by?: string
+          description?: string | null
+          email?: string | null
           id?: string
+          logo_url?: string | null
+          max_screens?: number
           name?: string
+          phone?: string | null
           updated_at?: string
         }
         Relationships: []
