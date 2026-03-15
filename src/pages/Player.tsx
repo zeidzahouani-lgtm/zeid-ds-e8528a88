@@ -256,27 +256,44 @@ function LicenseScreen({
   );
 }
 
-function ActiveContentCarousel({ contents, screenOrientation }: { contents: Array<{ id: string; image_url: string; title: string | null; metadata: Record<string, any> | null }>; screenOrientation: string }) {
+function ActiveContentCarousel({ contents, screenOrientation, onVideoEnd }: { contents: Array<{ id: string; image_url: string; title: string | null; metadata: Record<string, any> | null }>; screenOrientation: string; onVideoEnd?: () => void }) {
   const [index, setIndex] = useState(0);
+  const current = contents[Math.min(index, contents.length - 1)];
+  const contentType = (current?.metadata as any)?.type || "image";
 
-  useEffect(() => {
+  const advance = useCallback(() => {
     if (contents.length <= 1) return;
-    const timer = setInterval(() => {
-      setIndex(prev => (prev + 1) % contents.length);
-    }, 10000); // 10s per image
-    return () => clearInterval(timer);
+    setIndex(prev => (prev + 1) % contents.length);
   }, [contents.length]);
 
-  const current = contents[Math.min(index, contents.length - 1)];
+  useEffect(() => {
+    if (contents.length <= 1 && contentType !== "video") return;
+    // Only auto-advance for images; videos advance on ended
+    if (contentType === "video") return;
+    const timer = setInterval(advance, 10000);
+    return () => clearInterval(timer);
+  }, [contents.length, contentType, advance]);
+
   if (!current) return null;
 
-  // Use content-specific orientation from metadata, fallback to screen orientation
   const contentOrientation = (current.metadata as any)?.orientation || screenOrientation;
   const rotationStyle = getOrientationStyle(contentOrientation);
 
   return (
     <div className="w-full h-full" style={rotationStyle}>
-      <img src={current.image_url} alt={current.title || ""} className="w-full h-full object-cover" />
+      {contentType === "video" ? (
+        <video
+          key={current.id}
+          src={current.image_url}
+          className="w-full h-full object-cover"
+          autoPlay
+          playsInline
+          onEnded={contents.length > 1 ? advance : undefined}
+          loop={contents.length <= 1}
+        />
+      ) : (
+        <img src={current.image_url} alt={current.title || ""} className="w-full h-full object-cover" />
+      )}
     </div>
   );
 }
