@@ -28,6 +28,7 @@ const AdminCustomization = lazy(() => import("./pages/AdminCustomization"));
 const AdminLicenses = lazy(() => import("./pages/AdminLicenses"));
 const AIAssistant = lazy(() => import("./pages/AIAssistant"));
 const AutoFlow = lazy(() => import("./pages/AutoFlow"));
+const AdminEmail = lazy(() => import("./pages/AdminEmail"));
 
 const queryClient = new QueryClient();
 
