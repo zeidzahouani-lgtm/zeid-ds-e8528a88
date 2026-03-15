@@ -7,6 +7,41 @@ import WidgetRenderer from "@/components/widgets/WidgetRenderer";
 import { validateLicense, activateLicenseByKey } from "@/hooks/useLicenses";
 import { QRCodeSVG } from "qrcode.react";
 
+// Hook to fetch active contents for a screen filtered by current time
+function useActiveContents(screenId: string | undefined) {
+  const [contents, setContents] = useState<Array<{ id: string; image_url: string; title: string | null }>>([]);
+
+  useEffect(() => {
+    if (!screenId) return;
+
+    const fetchContents = async () => {
+      const now = new Date().toISOString();
+      const { data } = await supabase
+        .from("contents" as any)
+        .select("id, image_url, title")
+        .eq("screen_id", screenId)
+        .eq("status", "active")
+        .or(`start_time.is.null,start_time.lte.${now}`)
+        .or(`end_time.is.null,end_time.gte.${now}`)
+        .order("created_at", { ascending: false }) as any;
+      setContents(data || []);
+    };
+
+    fetchContents();
+    // Refresh every 30 seconds to check time-based content
+    const interval = setInterval(fetchContents, 30000);
+
+    const channel = supabase
+      .channel(`contents-player-${screenId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "contents", filter: `screen_id=eq.${screenId}` }, () => fetchContents())
+      .subscribe();
+
+    return () => { clearInterval(interval); supabase.removeChannel(channel); };
+  }, [screenId]);
+
+  return contents;
+}
+
 interface LayoutRegionData {
   id: string;
   x: number;
