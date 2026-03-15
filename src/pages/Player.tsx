@@ -9,7 +9,7 @@ import { QRCodeSVG } from "qrcode.react";
 
 // Hook to fetch active contents for a screen filtered by current time
 function useActiveContents(screenId: string | undefined) {
-  const [contents, setContents] = useState<Array<{ id: string; image_url: string; title: string | null }>>([]);
+  const [contents, setContents] = useState<Array<{ id: string; image_url: string; title: string | null; metadata: Record<string, any> | null }>>([]);
 
   useEffect(() => {
     if (!screenId) return;
@@ -18,7 +18,7 @@ function useActiveContents(screenId: string | undefined) {
       const now = new Date().toISOString();
       const { data } = await supabase
         .from("contents" as any)
-        .select("id, image_url, title")
+        .select("id, image_url, title, metadata")
         .eq("screen_id", screenId)
         .eq("status", "active")
         .or(`start_time.is.null,start_time.lte.${now}`)
