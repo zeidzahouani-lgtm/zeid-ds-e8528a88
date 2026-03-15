@@ -91,14 +91,17 @@ export default function AutoFlow() {
     if (!newCode.trim() || !newUserName.trim()) return;
     setAddingCode(true);
     try {
-      const { error } = await (supabase.from("access_codes") as any).insert({
+      const insertData: any = {
         code: newCode.trim().toUpperCase(),
         user_name: newUserName.trim(),
-      });
+      };
+      if (newUserId) insertData.user_id = newUserId;
+      const { error } = await (supabase.from("access_codes") as any).insert(insertData);
       if (error) throw error;
       toast.success("Code d'accès créé");
       setNewCode("");
       setNewUserName("");
+      setNewUserId("");
       loadAccessCodes();
     } catch (e: any) {
       toast.error(e.message || "Erreur");
