@@ -98,7 +98,7 @@ export default function UploadPage() {
     if (!file || !screenId) return;
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop() || "jpg";
+      const ext = file.name.split(".").pop() || (isVideo ? "mp4" : "jpg");
       const filePath = `screen-${screenId}/${Date.now()}_${userName.replace(/\s+/g, "_")}.${ext}`;
 
       const { error: uploadError } = await supabase.storage
