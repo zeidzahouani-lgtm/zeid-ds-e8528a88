@@ -2,11 +2,29 @@ import { Tv, Image, ListMusic, Clock, Wifi, WifiOff } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useScreens } from "@/hooks/useScreens";
 import { useMedia } from "@/hooks/useMedia";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
+import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
+import { EstablishmentDashboard } from "@/components/establishments/EstablishmentDashboard";
 
 export default function DashboardHome() {
   const { screens } = useScreens();
   const { media } = useMedia();
+  const { isGlobalAdmin, currentEstablishmentId, memberships, isLoading } = useEstablishmentContext();
+
+  // Non-global-admin with an establishment: show establishment dashboard
+  if (!isLoading && !isGlobalAdmin && currentEstablishmentId) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-widest neon-glow-cyan text-primary">Tableau de bord</h1>
+          <p className="text-muted-foreground text-sm mt-1 normal-case tracking-normal">
+            {memberships.find(m => m.establishment_id === currentEstablishmentId)?.establishment?.name || "Mon établissement"}
+          </p>
+        </div>
+        <EstablishmentDashboard establishmentId={currentEstablishmentId} />
+      </div>
+    );
+  }
 
   const online = screens.filter((s: any) => s.status === "online").length;
   const offline = screens.length - online;

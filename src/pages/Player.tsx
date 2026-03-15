@@ -97,12 +97,41 @@ function MediaRenderer({ media, playlistLength }: { media: { id: string; name: s
   return <iframe src={media.url} className="w-full h-full border-0" allowFullScreen title={media.name} />;
 }
 
-function usePlayerLogo() {
+function usePlayerLogo(screenId?: string) {
   const [logoUrl, setLogoUrl] = useState<string>("");
   useEffect(() => {
-    supabase.from("app_settings").select("key, value").eq("key", "logo_url").single()
-      .then(({ data }) => { if (data?.value) setLogoUrl(data.value); });
-  }, []);
+    if (!screenId) return;
+    // Try to get establishment logo first
+    const fetchLogo = async () => {
+      // Get screen's establishment_id
+      const { data: screenData } = await supabase
+        .from("screens")
+        .select("establishment_id")
+        .eq("id", screenId)
+        .single();
+
+      if (screenData?.establishment_id) {
+        const { data: estData } = await supabase
+          .from("establishments")
+          .select("logo_url")
+          .eq("id", screenData.establishment_id)
+          .single();
+        if (estData?.logo_url) {
+          setLogoUrl(estData.logo_url);
+          return;
+        }
+      }
+
+      // Fallback to global app logo
+      const { data } = await supabase
+        .from("app_settings")
+        .select("key, value")
+        .eq("key", "logo_url")
+        .single();
+      if (data?.value) setLogoUrl(data.value);
+    };
+    fetchLogo();
+  }, [screenId]);
   return logoUrl;
 }
 
@@ -302,7 +331,7 @@ export default function Player() {
   const { id } = useParams<{ id: string }>();
   const { screen, media, loading, sessionBlocked, forceTakeover, playlistLength, currentIndex, currentDuration, layoutId } = useScreenRealtime(id);
   const activeContents = useActiveContents(screen?.id);
-  const logoUrl = usePlayerLogo();
+  const logoUrl = usePlayerLogo(screen?.id);
   const [visible, setVisible] = useState(true);
   const [progress, setProgress] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
