@@ -84,7 +84,7 @@ export function useLayouts() {
   });
 
   const updateLayout = useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string; name?: string; width?: number; height?: number; background_color?: string }) => {
+    mutationFn: async ({ id, ...updates }: { id: string; name?: string; width?: number; height?: number; background_color?: string; bg_type?: string; bg_image_url?: string | null; bg_image_fit?: string }) => {
       const { error } = await supabase.from("layouts").update(updates).eq("id", id);
       if (error) throw error;
     },
