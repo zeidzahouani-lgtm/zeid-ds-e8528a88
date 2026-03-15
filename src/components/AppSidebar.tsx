@@ -3,6 +3,8 @@ import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useAppSettings } from "@/hooks/useAppSettings";
+import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
+import { EstablishmentSwitcher } from "@/components/EstablishmentSwitcher";
 import {
   Sidebar,
   SidebarContent,
@@ -31,12 +33,16 @@ const mainItems = [
   { title: "Flux Automatique", url: "/auto-flow", icon: Mail },
 ];
 
-const adminItems = [
+const establishmentAdminItems = [
   { title: "Utilisateurs", url: "/admin/users", icon: Users },
-  { title: "Établissements", url: "/admin/establishments", icon: Building2 },
   { title: "Personnalisation", url: "/admin/customization", icon: Palette },
-  { title: "Licences", url: "/admin/licenses", icon: Key },
   { title: "Email", url: "/admin/email", icon: AtSign },
+  { title: "Config. Établissement", url: "/admin/establishment-settings", icon: Settings },
+];
+
+const globalAdminItems = [
+  { title: "Établissements", url: "/admin/establishments", icon: Building2 },
+  { title: "Licences", url: "/admin/licenses", icon: Key },
 ];
 
 export function AppSidebar() {
@@ -45,6 +51,9 @@ export function AppSidebar() {
   const location = useLocation();
   const { user, signOut } = useAuth();
   const { settings } = useAppSettings();
+  const { isGlobalAdmin, isEstablishmentAdmin } = useEstablishmentContext();
+
+  const showAdminSection = isGlobalAdmin || isEstablishmentAdmin;
 
   return (
     <Sidebar collapsible="icon" className="glass-sidebar">
@@ -66,6 +75,8 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
 
+      {!collapsed && <EstablishmentSwitcher />}
+
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel className="text-muted-foreground/60 uppercase tracking-widest text-[10px]">Navigation</SidebarGroupLabel>
@@ -84,23 +95,38 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-muted-foreground/60 uppercase tracking-widest text-[10px]">Administration</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {adminItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={location.pathname === item.url}>
-                    <NavLink to={item.url} end className="hover:bg-accent/5 transition-all duration-200 group" activeClassName="bg-accent/10 text-accent font-medium border-l-2 border-accent">
-                      <item.icon className="mr-2 h-4 w-4 group-hover:text-accent transition-colors" />
-                      {!collapsed && <span className="normal-case tracking-normal">{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+
+        {showAdminSection && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-muted-foreground/60 uppercase tracking-widest text-[10px]">Administration</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {/* Establishment admin items: visible to establishment admins & global admins */}
+                {(isEstablishmentAdmin || isGlobalAdmin) && establishmentAdminItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild isActive={location.pathname === item.url}>
+                      <NavLink to={item.url} end className="hover:bg-accent/5 transition-all duration-200 group" activeClassName="bg-accent/10 text-accent font-medium border-l-2 border-accent">
+                        <item.icon className="mr-2 h-4 w-4 group-hover:text-accent transition-colors" />
+                        {!collapsed && <span className="normal-case tracking-normal">{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+                {/* Global admin only items */}
+                {isGlobalAdmin && globalAdminItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton asChild isActive={location.pathname === item.url}>
+                      <NavLink to={item.url} end className="hover:bg-accent/5 transition-all duration-200 group" activeClassName="bg-accent/10 text-accent font-medium border-l-2 border-accent">
+                        <item.icon className="mr-2 h-4 w-4 group-hover:text-accent transition-colors" />
+                        {!collapsed && <span className="normal-case tracking-normal">{item.title}</span>}
+                      </NavLink>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="p-3">

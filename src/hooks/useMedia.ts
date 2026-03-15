@@ -1,14 +1,23 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { uploadMediaFile, getMediaType } from "@/lib/supabase-helpers";
+import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 
 export function useMedia() {
   const queryClient = useQueryClient();
+  const { currentEstablishmentId, isGlobalAdmin } = useEstablishmentContext();
 
   const { data: media = [], isLoading } = useQuery({
-    queryKey: ["media"],
+    queryKey: ["media", currentEstablishmentId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("media").select("*").order("created_at", { ascending: false });
+      let query = supabase.from("media").select("*").order("created_at", { ascending: false });
+      if (currentEstablishmentId) {
+        query = query.eq("establishment_id", currentEstablishmentId);
+      } else if (!isGlobalAdmin) {
+        // Non-admin without establishment sees nothing
+        return [];
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     },
@@ -26,6 +35,7 @@ export function useMedia() {
         url,
         duration: type === 'image' ? 10 : 30,
         user_id: user.id,
+        establishment_id: currentEstablishmentId,
       } as any);
       if (error) throw error;
     },
@@ -42,6 +52,7 @@ export function useMedia() {
         url,
         duration: 30,
         user_id: user.id,
+        establishment_id: currentEstablishmentId,
       } as any);
       if (error) throw error;
     },

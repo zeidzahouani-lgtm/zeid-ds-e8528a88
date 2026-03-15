@@ -7,6 +7,7 @@ import { lazy, Suspense } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { useAppSettings } from "@/hooks/useAppSettings";
+import { EstablishmentProvider } from "@/contexts/EstablishmentContext";
 import NotFound from "./pages/NotFound";
 
 const Player = lazy(() => import("./pages/Player"));
@@ -30,6 +31,7 @@ const AIAssistant = lazy(() => import("./pages/AIAssistant"));
 const AutoFlow = lazy(() => import("./pages/AutoFlow"));
 const AdminEmail = lazy(() => import("./pages/AdminEmail"));
 const UploadPage = lazy(() => import("./pages/UploadPage"));
+const EstablishmentSettings = lazy(() => import("./pages/EstablishmentSettings"));
 
 const queryClient = new QueryClient();
 
@@ -48,7 +50,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 function AppSettingsProvider({ children }: { children: React.ReactNode }) {
-  useAppSettings(); // Applies CSS variables, page title, favicon
+  useAppSettings();
   return <>{children}</>;
 }
 
@@ -68,7 +70,7 @@ const App = () => (
               <Route path="/player/:id" element={<Player />} />
               <Route path="/upload/:id" element={<UploadPage />} />
 
-              <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
+              <Route element={<ProtectedRoute><EstablishmentProvider><DashboardLayout /></EstablishmentProvider></ProtectedRoute>}>
                 <Route path="/" element={<DashboardHome />} />
                 <Route path="/displays" element={<Displays />} />
                 <Route path="/library" element={<Library />} />
@@ -81,6 +83,7 @@ const App = () => (
                 <Route path="/admin/customization" element={<AdminCustomization />} />
                 <Route path="/admin/licenses" element={<AdminLicenses />} />
                 <Route path="/admin/email" element={<AdminEmail />} />
+                <Route path="/admin/establishment-settings" element={<EstablishmentSettings />} />
                 <Route path="/setup" element={<ScreenSetup />} />
                 <Route path="/ai-assistant" element={<AIAssistant />} />
                 <Route path="/auto-flow" element={<AutoFlow />} />

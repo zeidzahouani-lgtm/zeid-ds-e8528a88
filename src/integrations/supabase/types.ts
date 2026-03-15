@@ -186,6 +186,41 @@ export type Database = {
           },
         ]
       }
+      establishment_settings: {
+        Row: {
+          establishment_id: string
+          id: string
+          key: string
+          updated_at: string
+          updated_by: string | null
+          value: string | null
+        }
+        Insert: {
+          establishment_id: string
+          id?: string
+          key: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: string | null
+        }
+        Update: {
+          establishment_id?: string
+          id?: string
+          key?: string
+          updated_at?: string
+          updated_by?: string | null
+          value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "establishment_settings_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       establishments: {
         Row: {
           address: string | null
@@ -333,6 +368,7 @@ export type Database = {
         Row: {
           background_color: string
           created_at: string
+          establishment_id: string | null
           height: number
           id: string
           name: string
@@ -343,6 +379,7 @@ export type Database = {
         Insert: {
           background_color?: string
           created_at?: string
+          establishment_id?: string | null
           height?: number
           id?: string
           name: string
@@ -353,6 +390,7 @@ export type Database = {
         Update: {
           background_color?: string
           created_at?: string
+          establishment_id?: string | null
           height?: number
           id?: string
           name?: string
@@ -360,7 +398,15 @@ export type Database = {
           user_id?: string
           width?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "layouts_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       licenses: {
         Row: {
@@ -410,6 +456,7 @@ export type Database = {
         Row: {
           created_at: string
           duration: number
+          establishment_id: string | null
           id: string
           name: string
           type: string
@@ -419,6 +466,7 @@ export type Database = {
         Insert: {
           created_at?: string
           duration?: number
+          establishment_id?: string | null
           id?: string
           name: string
           type: string
@@ -428,13 +476,22 @@ export type Database = {
         Update: {
           created_at?: string
           duration?: number
+          establishment_id?: string | null
           id?: string
           name?: string
           type?: string
           url?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "media_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       playlist_items: {
         Row: {
@@ -628,18 +685,21 @@ export type Database = {
           created_at: string
           establishment_id: string
           id: string
+          role: string
           user_id: string
         }
         Insert: {
           created_at?: string
           establishment_id: string
           id?: string
+          role?: string
           user_id: string
         }
         Update: {
           created_at?: string
           establishment_id?: string
           id?: string
+          role?: string
           user_id?: string
         }
         Relationships: [
@@ -675,11 +735,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      establishment_role: {
+        Args: { _establishment_id: string; _user_id: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_member_of: {
+        Args: { _establishment_id: string; _user_id: string }
         Returns: boolean
       }
     }
