@@ -57,29 +57,63 @@ export function AppSidebar() {
 
   const showAdminSection = isGlobalAdmin || isEstablishmentAdmin;
 
-  // Establishment branding for sidebar
   const estLogoUrl = !isGlobalAdmin && currentEstablishmentId ? getSetting("brand_logo_url") : null;
   const estName = !isGlobalAdmin && currentEstablishmentId ? getSetting("brand_name") : null;
-  // Fallback to establishment table logo
   const currentEst = memberships.find(m => m.establishment_id === currentEstablishmentId);
   const displayLogo = estLogoUrl || (!isGlobalAdmin && currentEst?.establishment ? (currentEst.establishment as any).logo_url : null) || settings.logo_url;
   const displayName = estName || settings.app_name;
+
+  const renderNavItem = (item: typeof mainItems[0], isAdmin = false) => {
+    const isActive = location.pathname === item.url;
+    return (
+      <SidebarMenuItem key={item.title}>
+        <SidebarMenuButton asChild isActive={isActive}>
+          <NavLink
+            to={item.url}
+            end
+            className={`group relative rounded-xl transition-all duration-200 ${
+              isActive
+                ? ""
+                : "hover:bg-secondary/60"
+            }`}
+            activeClassName="bg-primary/10 text-primary font-medium"
+          >
+            <item.icon className={`mr-2.5 h-4 w-4 transition-colors duration-200 ${
+              isActive
+                ? "text-primary"
+                : "text-muted-foreground group-hover:text-foreground"
+            }`} />
+            {!collapsed && (
+              <span className={`text-[13px] tracking-normal ${
+                isActive ? "text-primary" : "text-sidebar-foreground group-hover:text-foreground"
+              }`}>
+                {item.title}
+              </span>
+            )}
+            {isActive && (
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full gradient-primary" />
+            )}
+          </NavLink>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    );
+  };
 
   return (
     <Sidebar collapsible="icon" className="glass-sidebar">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
           {displayLogo ? (
-            <img src={displayLogo} alt={displayName} className="h-9 w-9 rounded-lg object-contain shrink-0" />
+            <img src={displayLogo} alt={displayName} className="h-9 w-9 rounded-xl object-contain shrink-0" />
           ) : (
-            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 shadow-neon-cyan">
-              <MonitorPlay className="h-5 w-5 text-primary icon-neon" />
+            <div className="h-9 w-9 rounded-xl gradient-primary flex items-center justify-center shrink-0 shadow-glow-blue">
+              <MonitorPlay className="h-5 w-5 text-white" />
             </div>
           )}
           {!collapsed && (
             <div>
-              <h1 className="text-base font-bold tracking-widest neon-glow-cyan normal-case">{displayName}</h1>
-              <p className="text-[10px] text-muted-foreground tracking-wider uppercase">{settings.app_tagline}</p>
+              <h1 className="text-base font-bold tracking-tight gradient-primary-text normal-case">{displayName}</h1>
+              <p className="text-[10px] text-muted-foreground tracking-wide">{settings.app_tagline}</p>
             </div>
           )}
         </div>
@@ -89,50 +123,21 @@ export function AppSidebar() {
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-muted-foreground/60 uppercase tracking-widest text-[10px]">Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-muted-foreground/50 uppercase tracking-widest text-[10px] font-medium">Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {mainItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={location.pathname === item.url}>
-                    <NavLink to={item.url} end className="hover:bg-primary/5 transition-all duration-200 group" activeClassName="bg-primary/10 text-primary font-medium border-l-2 border-primary">
-                      <item.icon className="mr-2 h-4 w-4 group-hover:text-primary transition-colors" />
-                      {!collapsed && <span className="normal-case tracking-normal">{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+            <SidebarMenu className="space-y-0.5">
+              {mainItems.map((item) => renderNavItem(item))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
         {showAdminSection && (
           <SidebarGroup>
-            <SidebarGroupLabel className="text-muted-foreground/60 uppercase tracking-widest text-[10px]">Administration</SidebarGroupLabel>
+            <SidebarGroupLabel className="text-muted-foreground/50 uppercase tracking-widest text-[10px] font-medium">Administration</SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu>
-                {/* Establishment admin items: visible to establishment admins & global admins */}
-                {(isEstablishmentAdmin || isGlobalAdmin) && establishmentAdminItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={location.pathname === item.url}>
-                      <NavLink to={item.url} end className="hover:bg-accent/5 transition-all duration-200 group" activeClassName="bg-accent/10 text-accent font-medium border-l-2 border-accent">
-                        <item.icon className="mr-2 h-4 w-4 group-hover:text-accent transition-colors" />
-                        {!collapsed && <span className="normal-case tracking-normal">{item.title}</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-                {/* Global admin only items */}
-                {isGlobalAdmin && globalAdminItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={location.pathname === item.url}>
-                      <NavLink to={item.url} end className="hover:bg-accent/5 transition-all duration-200 group" activeClassName="bg-accent/10 text-accent font-medium border-l-2 border-accent">
-                        <item.icon className="mr-2 h-4 w-4 group-hover:text-accent transition-colors" />
-                        {!collapsed && <span className="normal-case tracking-normal">{item.title}</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+              <SidebarMenu className="space-y-0.5">
+                {(isEstablishmentAdmin || isGlobalAdmin) && establishmentAdminItems.map((item) => renderNavItem(item, true))}
+                {isGlobalAdmin && globalAdminItems.map((item) => renderNavItem(item, true))}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -141,12 +146,14 @@ export function AppSidebar() {
 
       <SidebarFooter className="p-3">
         {!collapsed && user && (
-          <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground truncate mb-2">
-            <User className="h-3.5 w-3.5 shrink-0 text-primary/50" />
-            <span className="truncate">{user.email}</span>
+          <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground truncate mb-2 rounded-lg bg-secondary/30">
+            <div className="h-6 w-6 rounded-full gradient-primary flex items-center justify-center shrink-0">
+              <User className="h-3 w-3 text-white" />
+            </div>
+            <span className="truncate text-[11px]">{user.email}</span>
           </div>
         )}
-        <Button variant="ghost" size={collapsed ? "icon" : "sm"} onClick={signOut} className="w-full justify-start gap-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+        <Button variant="ghost" size={collapsed ? "icon" : "sm"} onClick={signOut} className="w-full justify-start gap-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl">
           <LogOut className="h-4 w-4" />
           {!collapsed && "Déconnexion"}
         </Button>
