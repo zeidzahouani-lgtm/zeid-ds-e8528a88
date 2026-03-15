@@ -21,16 +21,18 @@ async function getProvider(): Promise<AIProvider> {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  // Check for custom OpenAI key in app_settings
   const { data } = await supabase
     .from("app_settings")
     .select("key, value")
-    .in("key", ["openai_api_key", "ai_provider"]);
+    .in("key", ["openai_api_key", "gemini_api_key", "ai_provider"]);
 
   const settings: Record<string, string> = {};
   (data || []).forEach((r: any) => { if (r.value) settings[r.key] = r.value; });
 
-  if (settings.openai_api_key) {
+  const selectedProvider = settings.ai_provider || "auto";
+
+  // OpenAI provider
+  if ((selectedProvider === "openai" || selectedProvider === "auto") && settings.openai_api_key) {
     return {
       name: "openai",
       baseUrl: "https://api.openai.com/v1/chat/completions",
@@ -41,9 +43,21 @@ async function getProvider(): Promise<AIProvider> {
     };
   }
 
+  // Google Gemini provider (OpenAI-compatible endpoint)
+  if ((selectedProvider === "gemini" || selectedProvider === "auto") && settings.gemini_api_key) {
+    return {
+      name: "gemini",
+      baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      apiKey: settings.gemini_api_key,
+      defaultModel: "gemini-2.5-flash",
+      imageModel: "gemini-2.5-flash",
+      supportsModalities: false,
+    };
+  }
+
   // Fallback to Lovable AI
   const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-  if (!lovableKey) throw { status: 500, message: "Aucune clé API IA configurée. Ajoutez votre clé OpenAI dans Administration > Personnalisation." };
+  if (!lovableKey) throw { status: 500, message: "Aucune clé API IA configurée. Ajoutez votre clé dans Administration > Personnalisation." };
 
   return {
     name: "lovable",
@@ -116,22 +130,93 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    const provider = await getProvider();
     const { action, prompt, imageUrl } = await req.json();
+
+    // ── Actions that don't need AI provider ──
+    if (action === "stats" || action === "daily_stats") {
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader || "" } } }
+      );
+
+      if (action === "stats") {
+        // Also get provider info
+        let providerName = "lovable";
+        try { const p = await getProvider(); providerName = p.name; } catch {}
+
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+
+        const [monthRes, dayRes, totalRes] = await Promise.all([
+          supabase.from("ai_requests").select("id", { count: "exact", head: true }).gte("created_at", startOfMonth),
+          supabase.from("ai_requests").select("id", { count: "exact", head: true }).gte("created_at", startOfDay),
+          supabase.from("ai_requests").select("id", { count: "exact", head: true }),
+        ]);
+
+        return jsonResponse({
+          today: dayRes.count || 0,
+          this_month: monthRes.count || 0,
+          total: totalRes.count || 0,
+          provider: providerName,
+        });
+      }
+
+      if (action === "daily_stats") {
+        const now = new Date();
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+        const { data: rows } = await supabase
+          .from("ai_requests")
+          .select("created_at")
+          .gte("created_at", thirtyDaysAgo)
+          .order("created_at", { ascending: true });
+
+        const dayCounts: Record<string, number> = {};
+        for (let i = 29; i >= 0; i--) {
+          const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+          dayCounts[d.toISOString().slice(0, 10)] = 0;
+        }
+        (rows || []).forEach((r: any) => {
+          const day = r.created_at.slice(0, 10);
+          if (day in dayCounts) dayCounts[day]++;
+        });
+
+        const daily = Object.entries(dayCounts).map(([date, count]) => ({ date, count }));
+        return jsonResponse({ daily });
+      }
+    }
+
+    // ── Actions that need AI provider ──
+    const provider = await getProvider();
+
+    // ── Test API ──
+    if (action === "test") {
+      const data = await callAI(provider, {
+        model: provider.defaultModel,
+        messages: [
+          { role: "user", content: "Réponds uniquement 'OK' si tu fonctionnes." },
+        ],
+        max_tokens: 10,
+      });
+      const content = data.choices?.[0]?.message?.content || "";
+      return jsonResponse({ success: true, response: content.trim(), provider: provider.name, model: provider.defaultModel });
+    }
 
     // ── Generate Image ──
     if (action === "generate_image") {
       let data;
-      if (provider.name === "openai") {
+      if (provider.supportsModalities) {
         data = await callAI(provider, {
           model: provider.imageModel,
           messages: [{ role: "user", content: `Generate a high-quality, professional image for digital signage display: ${prompt}` }],
+          modalities: ["image", "text"],
         });
       } else {
         data = await callAI(provider, {
           model: provider.imageModel,
           messages: [{ role: "user", content: `Generate a high-quality, professional image for digital signage display: ${prompt}` }],
-          modalities: ["image", "text"],
         });
       }
       const msg = data.choices?.[0]?.message;
@@ -202,77 +287,6 @@ serve(async (req) => {
         return jsonResponse({ suggestions: [], summary: content, provider: provider.name });
       }
       return jsonResponse({ suggestions: suggestions.slice(0, 6), summary: "", provider: provider.name });
-    }
-
-    // ── Test API ──
-    if (action === "test") {
-      const data = await callAI(provider, {
-        model: provider.defaultModel,
-        messages: [
-          { role: "user", content: "Réponds uniquement 'OK' si tu fonctionnes." },
-        ],
-        max_tokens: 10,
-      });
-      const content = data.choices?.[0]?.message?.content || "";
-      return jsonResponse({ success: true, response: content.trim(), provider: provider.name });
-    }
-
-    // ── Stats ──
-    if (action === "stats") {
-      const supabase = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_ANON_KEY")!,
-        { global: { headers: { Authorization: authHeader || "" } } }
-      );
-
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-
-      const [monthRes, dayRes, totalRes] = await Promise.all([
-        supabase.from("ai_requests").select("id", { count: "exact", head: true }).gte("created_at", startOfMonth),
-        supabase.from("ai_requests").select("id", { count: "exact", head: true }).gte("created_at", startOfDay),
-        supabase.from("ai_requests").select("id", { count: "exact", head: true }),
-      ]);
-
-      return jsonResponse({
-        today: dayRes.count || 0,
-        this_month: monthRes.count || 0,
-        total: totalRes.count || 0,
-        provider: provider.name,
-      });
-    }
-
-    // ── Daily Stats (last 30 days) ──
-    if (action === "daily_stats") {
-      const supabase = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_ANON_KEY")!,
-        { global: { headers: { Authorization: authHeader || "" } } }
-      );
-
-      const now = new Date();
-      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
-
-      const { data: rows } = await supabase
-        .from("ai_requests")
-        .select("created_at")
-        .gte("created_at", thirtyDaysAgo)
-        .order("created_at", { ascending: true });
-
-      // Aggregate by day
-      const dayCounts: Record<string, number> = {};
-      for (let i = 29; i >= 0; i--) {
-        const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-        dayCounts[d.toISOString().slice(0, 10)] = 0;
-      }
-      (rows || []).forEach((r: any) => {
-        const day = r.created_at.slice(0, 10);
-        if (day in dayCounts) dayCounts[day]++;
-      });
-
-      const daily = Object.entries(dayCounts).map(([date, count]) => ({ date, count }));
-      return jsonResponse({ daily });
     }
 
     return jsonResponse({ error: "Action inconnue" }, 400);
