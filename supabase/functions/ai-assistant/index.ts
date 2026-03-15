@@ -55,9 +55,24 @@ async function getProvider(): Promise<AIProvider> {
     };
   }
 
-  // Fallback to Lovable AI
+  // Fallback to Lovable AI (always available for image generation)
   const lovableKey = Deno.env.get("LOVABLE_API_KEY");
   if (!lovableKey) throw { status: 500, message: "Aucune clé API IA configurée. Ajoutez votre clé dans Administration > Personnalisation." };
+
+  return {
+    name: "lovable",
+    baseUrl: "https://ai.gateway.lovable.dev/v1/chat/completions",
+    apiKey: lovableKey,
+    defaultModel: "google/gemini-2.5-flash",
+    imageModel: "google/gemini-3.1-flash-image-preview",
+    supportsModalities: true,
+  };
+}
+
+// Get provider specifically for image generation (always Lovable gateway)
+async function getImageProvider(): Promise<AIProvider> {
+  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!lovableKey) throw { status: 500, message: "Aucune clé API IA configurée pour la génération d'images." };
 
   return {
     name: "lovable",
