@@ -2,11 +2,18 @@ import { useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Upload, Lock, CheckCircle, Loader2, Image as ImageIcon } from "lucide-react";
+import { Upload, Lock, CheckCircle, Loader2, Image as ImageIcon, Clock, CalendarDays, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+function toLocalDatetime(date: Date): string {
+  const offset = date.getTimezoneOffset();
+  const local = new Date(date.getTime() - offset * 60000);
+  return local.toISOString().slice(0, 16);
+}
 
 export default function UploadPage() {
   const { id: screenId } = useParams<{ id: string }>();
@@ -18,6 +25,15 @@ export default function UploadPage() {
   const [preview, setPreview] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Schedule & orientation state
+  const now = new Date();
+  const defaultStart = toLocalDatetime(now);
+  const defaultEnd = toLocalDatetime(new Date(now.getTime() + 60 * 60 * 1000));
+  const [startTime, setStartTime] = useState(defaultStart);
+  const [endTime, setEndTime] = useState(defaultEnd);
+  const [duration, setDuration] = useState("60"); // minutes shortcut
+  const [orientation, setOrientation] = useState("landscape");
 
   const handleCodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +70,26 @@ export default function UploadPage() {
     setPreview(URL.createObjectURL(f));
   };
 
+  const handleDurationChange = (val: string) => {
+    setDuration(val);
+    if (val !== "custom") {
+      const mins = parseInt(val);
+      const start = new Date(startTime);
+      const end = new Date(start.getTime() + mins * 60 * 1000);
+      setEndTime(toLocalDatetime(end));
+    }
+  };
+
+  const handleStartChange = (val: string) => {
+    setStartTime(val);
+    if (duration !== "custom") {
+      const mins = parseInt(duration);
+      const start = new Date(val);
+      const end = new Date(start.getTime() + mins * 60 * 1000);
+      setEndTime(toLocalDatetime(end));
+    }
+  };
+
   const handleUpload = async () => {
     if (!file || !screenId) return;
     setUploading(true);
@@ -71,9 +107,14 @@ export default function UploadPage() {
       const publicUrl = urlData?.publicUrl;
       if (!publicUrl) throw new Error("URL introuvable");
 
-      // Create content with 10 min duration
-      const now = new Date();
-      const endTime = new Date(now.getTime() + 10 * 60 * 1000);
+      const start = new Date(startTime);
+      const end = new Date(endTime);
+
+      if (end <= start) {
+        toast.error("La date de fin doit être après la date de début");
+        setUploading(false);
+        return;
+      }
 
       const { error: contentError } = await (supabase.from("contents") as any).insert({
         image_url: publicUrl,
@@ -81,15 +122,20 @@ export default function UploadPage() {
         status: "active",
         source: "qr_upload",
         screen_id: screenId,
-        start_time: now.toISOString(),
-        end_time: endTime.toISOString(),
+        start_time: start.toISOString(),
+        end_time: end.toISOString(),
         sender_email: null,
+        metadata: { orientation },
       });
 
       if (contentError) throw contentError;
 
+      const diffMs = end.getTime() - start.getTime();
+      const diffMins = Math.round(diffMs / 60000);
+      const label = diffMins >= 60 ? `${Math.round(diffMins / 60)}h${diffMins % 60 > 0 ? diffMins % 60 + "min" : ""}` : `${diffMins} minutes`;
+
       setStep("done");
-      toast.success("Image envoyée ! Elle sera diffusée pendant 10 minutes.");
+      toast.success(`Image envoyée ! Elle sera diffusée pendant ${label}.`);
     } catch (err: any) {
       toast.error("Erreur: " + (err.message || "Upload échoué"));
     } finally {
@@ -138,24 +184,14 @@ export default function UploadPage() {
                 <Upload className="h-8 w-8 text-primary" />
               </div>
               <CardTitle className="text-xl">Envoyer une image</CardTitle>
-              <CardDescription>Bonjour {userName} ! Sélectionnez une image à diffuser.</CardDescription>
+              <CardDescription>Bonjour {userName} ! Configurez et envoyez votre contenu.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-
+              {/* Image picker */}
+              <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
               {preview ? (
                 <div className="relative group">
-                  <img
-                    src={preview}
-                    alt="Preview"
-                    className="w-full h-48 object-cover rounded-lg border border-border"
-                  />
+                  <img src={preview} alt="Preview" className="w-full h-40 object-cover rounded-lg border border-border" />
                   <button
                     onClick={() => fileRef.current?.click()}
                     className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center"
@@ -166,22 +202,70 @@ export default function UploadPage() {
               ) : (
                 <button
                   onClick={() => fileRef.current?.click()}
-                  className="w-full h-48 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-3 hover:border-primary/50 hover:bg-primary/5 transition-colors"
+                  className="w-full h-40 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-3 hover:border-primary/50 hover:bg-primary/5 transition-colors"
                 >
                   <ImageIcon className="h-10 w-10 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">Cliquez pour sélectionner une image</span>
                 </button>
               )}
 
-              <p className="text-xs text-muted-foreground text-center">
-                L'image sera diffusée pendant 10 minutes sur cet écran.
-              </p>
+              {/* Orientation */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5 text-sm">
+                  <RotateCw className="h-3.5 w-3.5" /> Orientation
+                </Label>
+                <Select value={orientation} onValueChange={setOrientation}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="landscape">Paysage (0°)</SelectItem>
+                    <SelectItem value="portrait">Portrait (90°)</SelectItem>
+                    <SelectItem value="landscape-flipped">Paysage inversé (180°)</SelectItem>
+                    <SelectItem value="portrait-flipped">Portrait inversé (270°)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-              <Button
-                onClick={handleUpload}
-                className="w-full gap-2"
-                disabled={!file || uploading}
-              >
+              {/* Duration shortcut */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5 text-sm">
+                  <CalendarDays className="h-3.5 w-3.5" /> Durée de diffusion
+                </Label>
+                <Select value={duration} onValueChange={handleDurationChange}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10 minutes</SelectItem>
+                    <SelectItem value="30">30 minutes</SelectItem>
+                    <SelectItem value="60">1 heure</SelectItem>
+                    <SelectItem value="120">2 heures</SelectItem>
+                    <SelectItem value="480">8 heures (journée)</SelectItem>
+                    <SelectItem value="1440">24 heures</SelectItem>
+                    <SelectItem value="custom">Personnalisé</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Start / End times */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5 text-xs">
+                    <Clock className="h-3 w-3" /> Début
+                  </Label>
+                  <Input type="datetime-local" value={startTime} onChange={e => handleStartChange(e.target.value)} className="text-xs" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5 text-xs">
+                    <Clock className="h-3 w-3" /> Fin
+                  </Label>
+                  <Input
+                    type="datetime-local"
+                    value={endTime}
+                    onChange={e => { setEndTime(e.target.value); setDuration("custom"); }}
+                    className="text-xs"
+                  />
+                </div>
+              </div>
+
+              <Button onClick={handleUpload} className="w-full gap-2" disabled={!file || uploading}>
                 {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                 {uploading ? "Envoi en cours..." : "Diffuser l'image"}
               </Button>
@@ -196,7 +280,7 @@ export default function UploadPage() {
                 <CheckCircle className="h-8 w-8 text-green-500" />
               </div>
               <CardTitle className="text-xl">Image envoyée !</CardTitle>
-              <CardDescription>Votre image sera diffusée pendant 10 minutes sur cet écran.</CardDescription>
+              <CardDescription>Votre image sera diffusée sur cet écran selon vos paramètres.</CardDescription>
             </CardHeader>
             <CardContent className="text-center">
               {preview && (
@@ -204,11 +288,7 @@ export default function UploadPage() {
               )}
               <Button
                 variant="outline"
-                onClick={() => {
-                  setStep("upload");
-                  setFile(null);
-                  setPreview(null);
-                }}
+                onClick={() => { setStep("upload"); setFile(null); setPreview(null); }}
                 className="gap-2"
               >
                 <Upload className="h-4 w-4" />
