@@ -129,7 +129,7 @@ export default function UploadPage() {
         start_time: start.toISOString(),
         end_time: end.toISOString(),
         sender_email: null,
-        metadata: { orientation },
+        metadata: { orientation, type: isVideo ? "video" : "image" },
       });
 
       if (contentError) throw contentError;
