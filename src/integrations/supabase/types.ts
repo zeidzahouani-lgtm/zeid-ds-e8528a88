@@ -151,6 +151,62 @@ export type Database = {
         }
         Relationships: []
       }
+      inbox_emails: {
+        Row: {
+          attachment_count: number | null
+          attachment_urls: string[] | null
+          body_preview: string | null
+          content_id: string | null
+          created_at: string
+          from_email: string
+          from_name: string | null
+          has_attachments: boolean | null
+          id: string
+          is_processed: boolean | null
+          message_id: string | null
+          raw_date: string | null
+          subject: string | null
+        }
+        Insert: {
+          attachment_count?: number | null
+          attachment_urls?: string[] | null
+          body_preview?: string | null
+          content_id?: string | null
+          created_at?: string
+          from_email: string
+          from_name?: string | null
+          has_attachments?: boolean | null
+          id?: string
+          is_processed?: boolean | null
+          message_id?: string | null
+          raw_date?: string | null
+          subject?: string | null
+        }
+        Update: {
+          attachment_count?: number | null
+          attachment_urls?: string[] | null
+          body_preview?: string | null
+          content_id?: string | null
+          created_at?: string
+          from_email?: string
+          from_name?: string | null
+          has_attachments?: boolean | null
+          id?: string
+          is_processed?: boolean | null
+          message_id?: string | null
+          raw_date?: string | null
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inbox_emails_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "contents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       layout_regions: {
         Row: {
           created_at: string
