@@ -147,16 +147,31 @@
     border-color: hsla(185, 100%, 55%, 0.08);
   }
 
+  .light .glass-panel {
+    background: hsla(0, 0%, 100%, 0.7);
+    border-color: hsla(220, 10%, 85%, 0.6);
+  }
+
   .glass-sidebar {
     @apply backdrop-blur-2xl;
     background: hsla(0, 0%, 4%, 0.75);
     border-right: 1px solid hsla(185, 100%, 55%, 0.06);
   }
 
+  .light .glass-sidebar {
+    background: hsla(0, 0%, 100%, 0.85);
+    border-right: 1px solid hsla(220, 10%, 85%, 0.5);
+  }
+
   .glass-header {
     @apply backdrop-blur-2xl;
     background: hsla(0, 0%, 4%, 0.6);
     border-bottom: 1px solid hsla(185, 100%, 55%, 0.06);
+  }
+
+  .light .glass-header {
+    background: hsla(0, 0%, 100%, 0.75);
+    border-bottom: 1px solid hsla(220, 10%, 85%, 0.5);
   }
 
   /* Neon glow effects */
