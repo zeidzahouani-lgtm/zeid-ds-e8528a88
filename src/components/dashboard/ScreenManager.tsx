@@ -90,8 +90,8 @@ export function ScreenManager() {
       await addScreen.mutateAsync(newName);
       toast.success("Écran ajouté");
       setNewName("");
-    } catch {
-      toast.error("Erreur");
+    } catch (err: any) {
+      toast.error(err?.message || "Erreur lors de l'ajout");
     }
   };
 
