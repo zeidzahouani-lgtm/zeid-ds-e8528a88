@@ -7,13 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Plus, Tv, Users, Trash2, MapPin, UserPlus, X } from "lucide-react";
+import { Building2, Plus, Tv, Users, Trash2, MapPin, X, Shield, Key } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useEstablishments } from "@/hooks/useEstablishments";
+import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 
 export default function Establishments() {
   const { user } = useAuth();
+  const { isGlobalAdmin } = useEstablishmentContext();
   const queryClient = useQueryClient();
   const {
     establishments, isLoading,
@@ -28,21 +30,10 @@ export default function Establishments() {
   const [newAddress, setNewAddress] = useState("");
   const [selectedEstablishment, setSelectedEstablishment] = useState<string | null>(null);
 
-  // Check admin
-  const { data: currentUserRoles = [] } = useQuery({
-    queryKey: ["my_roles"],
-    queryFn: async () => {
-      const { data } = await supabase.from("user_roles").select("role").eq("user_id", user?.id || "");
-      return data?.map((r) => r.role) || [];
-    },
-    enabled: !!user,
-  });
-  const isAdmin = currentUserRoles.includes("admin");
-
   // All screens (admin)
   const { data: allScreens = [] } = useQuery({
     queryKey: ["admin_all_screens"],
-    enabled: isAdmin,
+    enabled: isGlobalAdmin,
     queryFn: async () => {
       const { data, error } = await supabase.from("screens").select("*").order("name");
       if (error) throw error;
@@ -53,7 +44,7 @@ export default function Establishments() {
   // All users (admin)
   const { data: allUsers = [] } = useQuery({
     queryKey: ["admin_users_list"],
-    enabled: isAdmin,
+    enabled: isGlobalAdmin,
     queryFn: async () => {
       const { data, error } = await supabase.from("profiles").select("*").order("display_name");
       if (error) throw error;
@@ -61,10 +52,10 @@ export default function Establishments() {
     },
   });
 
-  // User-establishment assignments
+  // User-establishment assignments with role
   const { data: userEstablishments = [] } = useQuery({
     queryKey: ["user_establishments"],
-    enabled: isAdmin,
+    enabled: isGlobalAdmin,
     queryFn: async () => {
       const { data, error } = await supabase.from("user_establishments").select("*");
       if (error) throw error;
@@ -72,7 +63,25 @@ export default function Establishments() {
     },
   });
 
-  if (!isAdmin) {
+  // License counts per establishment
+  const { data: licenseCounts = {} } = useQuery({
+    queryKey: ["license_counts_by_establishment"],
+    enabled: isGlobalAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("licenses").select("screen_id, is_active, screens!inner(establishment_id)");
+      if (error) return {};
+      const counts: Record<string, number> = {};
+      (data || []).forEach((l: any) => {
+        const estId = l.screens?.establishment_id;
+        if (estId && l.is_active) {
+          counts[estId] = (counts[estId] || 0) + 1;
+        }
+      });
+      return counts;
+    },
+  });
+
+  if (!isGlobalAdmin) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
         <Building2 className="h-12 w-12 mb-3 opacity-30" />
@@ -104,11 +113,25 @@ export default function Establishments() {
     }
   };
 
+  const handleSetUserRole = async (userId: string, establishmentId: string, role: string) => {
+    try {
+      const { error } = await supabase
+        .from("user_establishments")
+        .update({ role } as any)
+        .eq("user_id", userId)
+        .eq("establishment_id", establishmentId);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["user_establishments"] });
+      toast({ title: `Rôle mis à jour: ${role === 'admin' ? 'Administrateur' : 'Membre'}` });
+    } catch {
+      toast({ title: "Erreur", variant: "destructive" });
+    }
+  };
+
   const selected = establishments.find((e: any) => e.id === selectedEstablishment);
   const selectedScreens = allScreens.filter((s: any) => s.establishment_id === selectedEstablishment);
-  const selectedUserIds = userEstablishments
-    .filter((ue: any) => ue.establishment_id === selectedEstablishment)
-    .map((ue: any) => ue.user_id);
+  const selectedUserAssignments = userEstablishments.filter((ue: any) => ue.establishment_id === selectedEstablishment);
+  const selectedUserIds = selectedUserAssignments.map((ue: any) => ue.user_id);
   const selectedUsers = allUsers.filter((u: any) => selectedUserIds.includes(u.id));
   const availableScreens = allScreens.filter((s: any) => s.establishment_id !== selectedEstablishment);
   const availableUsers = allUsers.filter((u: any) => !selectedUserIds.includes(u.id));
@@ -120,7 +143,7 @@ export default function Establishments() {
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             <Building2 className="h-6 w-6 text-primary" /> Établissements
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">Gérez vos établissements, écrans et accès utilisateurs</p>
+          <p className="text-muted-foreground text-sm mt-1">Gérez vos établissements, écrans, utilisateurs et configurations</p>
         </div>
         <div className="flex gap-2">
           <Badge variant="secondary">{establishments.length} établissement(s)</Badge>
@@ -137,6 +160,7 @@ export default function Establishments() {
           {establishments.map((est: any) => {
             const screenCount = allScreens.filter((s: any) => s.establishment_id === est.id).length;
             const userCount = userEstablishments.filter((ue: any) => ue.establishment_id === est.id).length;
+            const licenseCount = (licenseCounts as any)[est.id] || 0;
             return (
               <Card
                 key={est.id}
@@ -159,13 +183,16 @@ export default function Establishments() {
                     <Badge variant="outline" className="text-[10px] gap-1">
                       <Users className="h-3 w-3" /> {userCount}
                     </Badge>
+                    <Badge variant="outline" className="text-[10px] gap-1">
+                      <Key className="h-3 w-3" /> {licenseCount}
+                    </Badge>
                   </div>
                 </CardContent>
               </Card>
             );
           })}
           {!isLoading && establishments.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-8">Aucun établissement. Cliquez sur "Ajouter" pour commencer.</p>
+            <p className="text-sm text-muted-foreground text-center py-8">Aucun établissement.</p>
           )}
         </div>
 
@@ -174,7 +201,7 @@ export default function Establishments() {
           {!selected ? (
             <Card>
               <CardContent className="py-12 text-center text-muted-foreground text-sm">
-                Sélectionnez un établissement pour gérer ses écrans et utilisateurs
+                Sélectionnez un établissement pour gérer ses détails
               </CardContent>
             </Card>
           ) : (
@@ -202,6 +229,11 @@ export default function Establishments() {
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <Tv className="h-4 w-4" /> Écrans ({selectedScreens.length})
+                    {(licenseCounts as any)[selectedEstablishment!] > 0 && (
+                      <Badge variant="outline" className="text-[10px] gap-1 ml-2">
+                        <Key className="h-3 w-3" /> {(licenseCounts as any)[selectedEstablishment!]} licence(s) active(s)
+                      </Badge>
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
@@ -214,25 +246,12 @@ export default function Establishments() {
                           {s.status}
                         </Badge>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          assignScreenToEstablishment.mutate({ screenId: s.id, establishmentId: null });
-                        }}
-                      >
+                      <Button variant="ghost" size="sm" onClick={() => assignScreenToEstablishment.mutate({ screenId: s.id, establishmentId: null })}>
                         <X className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   ))}
-                  <Select
-                    onValueChange={(screenId) => {
-                      assignScreenToEstablishment.mutate({
-                        screenId,
-                        establishmentId: selectedEstablishment!,
-                      });
-                    }}
-                  >
+                  <Select onValueChange={(screenId) => assignScreenToEstablishment.mutate({ screenId, establishmentId: selectedEstablishment! })}>
                     <SelectTrigger className="mt-2">
                       <SelectValue placeholder="Ajouter un écran..." />
                     </SelectTrigger>
@@ -247,7 +266,7 @@ export default function Establishments() {
                 </CardContent>
               </Card>
 
-              {/* Users */}
+              {/* Users with roles */}
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
@@ -255,34 +274,47 @@ export default function Establishments() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  {selectedUsers.map((u: any) => (
-                    <div key={u.id} className="flex items-center justify-between border rounded-md p-2">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">{u.display_name || u.email}</span>
-                        <span className="text-xs text-muted-foreground">{u.email}</span>
+                  {selectedUsers.map((u: any) => {
+                    const assignment = selectedUserAssignments.find((ue: any) => ue.user_id === u.id);
+                    const userRole = assignment?.role || 'member';
+                    return (
+                      <div key={u.id} className="flex items-center justify-between border rounded-md p-2">
+                        <div className="flex items-center gap-2">
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">{u.display_name || u.email}</span>
+                          <span className="text-xs text-muted-foreground">{u.email}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Select
+                            value={userRole}
+                            onValueChange={(role) => handleSetUserRole(u.id, selectedEstablishment!, role)}
+                          >
+                            <SelectTrigger className="h-7 w-[130px] text-xs">
+                              <Shield className="h-3 w-3 mr-1" />
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="admin">Administrateur</SelectItem>
+                              <SelectItem value="member">Membre</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              removeUserFromEstablishment.mutate({ userId: u.id, establishmentId: selectedEstablishment! });
+                              queryClient.invalidateQueries({ queryKey: ["user_establishments"] });
+                            }}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          removeUserFromEstablishment.mutate({
-                            userId: u.id,
-                            establishmentId: selectedEstablishment!,
-                          });
-                          queryClient.invalidateQueries({ queryKey: ["user_establishments"] });
-                        }}
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  ))}
+                    );
+                  })}
                   <Select
                     onValueChange={(userId) => {
-                      assignUserToEstablishment.mutate({
-                        userId,
-                        establishmentId: selectedEstablishment!,
-                      });
+                      assignUserToEstablishment.mutate({ userId, establishmentId: selectedEstablishment! });
                       queryClient.invalidateQueries({ queryKey: ["user_establishments"] });
                     }}
                   >
