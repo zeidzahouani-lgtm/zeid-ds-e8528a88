@@ -486,13 +486,13 @@ export default function LayoutEditor() {
         <div className="w-80 shrink-0 space-y-2">
           {/* Panel tabs */}
           <div className="flex border rounded-md overflow-hidden">
-            {(["presets", "library", "widgets", "properties"] as const).map((tab) => (
+            {(["presets", "background", "library", "widgets", "properties"] as const).map((tab) => (
               <button
                 key={tab}
                 className={`flex-1 text-[10px] sm:text-xs py-1.5 font-medium transition-colors ${activePanel === tab ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"}`}
                 onClick={() => setActivePanel(tab)}
               >
-                {tab === "presets" ? "Templates" : tab === "library" ? "Médias" : tab === "widgets" ? "Widgets" : "Propriétés"}
+                {tab === "presets" ? "Templates" : tab === "background" ? "Fond" : tab === "library" ? "Médias" : tab === "widgets" ? "Widgets" : "Propriétés"}
               </button>
             ))}
           </div>
