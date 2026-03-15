@@ -219,32 +219,26 @@ serve(async (req) => {
       return jsonResponse({ success: true, response: content.trim(), provider: provider.name, model: provider.defaultModel });
     }
 
-    // ── Generate Image ──
+    // ── Generate Image (always uses Lovable gateway for reliable image output) ──
     if (action === "generate_image") {
-      let data;
-      if (provider.supportsModalities) {
-        data = await callAI(provider, {
-          model: provider.imageModel,
-          messages: [{ role: "user", content: `Generate a high-quality, professional image for digital signage display: ${prompt}` }],
-          modalities: ["image", "text"],
-        });
-      } else {
-        data = await callAI(provider, {
-          model: provider.imageModel,
-          messages: [{ role: "user", content: `Generate a high-quality, professional image for digital signage display: ${prompt}` }],
-        });
-      }
+      const imgProvider = await getImageProvider();
+      const data = await callAI(imgProvider, {
+        model: imgProvider.imageModel,
+        messages: [{ role: "user", content: `Generate a high-quality, professional image for digital signage display: ${prompt}` }],
+        modalities: ["image", "text"],
+      });
       const msg = data.choices?.[0]?.message;
       const tokens = data.usage?.total_tokens || 0;
-      await logRequest(authHeader, "generate_image", provider.imageModel, tokens);
+      await logRequest(authHeader, "generate_image", imgProvider.imageModel, tokens);
 
       const image = msg?.images?.[0]?.image_url?.url || null;
       return jsonResponse({ image, text: msg?.content || "", provider: provider.name });
     }
 
-    // ── Enhance Image ──
+    // ── Enhance Image (always uses Lovable gateway) ──
     if (action === "enhance_image") {
       if (!imageUrl) throw { status: 400, message: "imageUrl requis" };
+      const imgProvider = await getImageProvider();
       const messages: any[] = [{
         role: "user",
         content: [
@@ -252,17 +246,15 @@ serve(async (req) => {
           { type: "image_url", image_url: { url: imageUrl } },
         ],
       }];
-      
-      const body: Record<string, unknown> = {
-        model: provider.imageModel,
-        messages,
-      };
-      if (provider.supportsModalities) body.modalities = ["image", "text"];
 
-      const data = await callAI(provider, body);
+      const data = await callAI(imgProvider, {
+        model: imgProvider.imageModel,
+        messages,
+        modalities: ["image", "text"],
+      });
       const msg = data.choices?.[0]?.message;
       const tokens = data.usage?.total_tokens || 0;
-      await logRequest(authHeader, "enhance_image", provider.imageModel, tokens);
+      await logRequest(authHeader, "enhance_image", imgProvider.imageModel, tokens);
 
       const image = msg?.images?.[0]?.image_url?.url || null;
       return jsonResponse({ image, text: msg?.content || "", provider: provider.name });
