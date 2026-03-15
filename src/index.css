@@ -64,6 +64,56 @@
 
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
+
+  .light {
+    --background: 210 20% 97%;
+    --foreground: 220 15% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 15%;
+
+    --primary: 185 80% 40%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 15% 93%;
+    --secondary-foreground: 220 15% 25%;
+
+    --muted: 210 15% 93%;
+    --muted-foreground: 220 10% 45%;
+
+    --accent: 270 60% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 10% 88%;
+    --input: 220 10% 88%;
+    --ring: 185 80% 40%;
+
+    --neon-cyan: 185 80% 40%;
+    --neon-violet: 270 60% 55%;
+    --neon-pink: 330 70% 55%;
+    --neon-cyan-glow: 185 80% 40%;
+    --neon-violet-glow: 270 60% 55%;
+    --neon-pink-glow: 330 70% 55%;
+
+    --sidebar-background: 210 20% 98%;
+    --sidebar-foreground: 220 15% 25%;
+    --sidebar-primary: 185 80% 40%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 270 60% 55%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 220 10% 90%;
+    --sidebar-ring: 185 80% 40%;
+
+    --status-online: 160 80% 40%;
+    --status-offline: 0 0% 60%;
+    --surface-elevated: 0 0% 100%;
+  }
 }
 
 @layer base {
