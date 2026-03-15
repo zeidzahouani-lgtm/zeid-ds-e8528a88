@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Mail, Server, Save, Loader2, CheckCircle, XCircle, Zap, Eye, EyeOff, Shield } from "lucide-react";
+import { Mail, Server, Save, Loader2, CheckCircle, XCircle, Zap, Eye, EyeOff, Shield, Inbox, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface EmailConfig {
@@ -37,6 +37,8 @@ export default function AdminEmail() {
   const [testing, setTesting] = useState<"imap" | "smtp" | null>(null);
   const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string }>>({});
   const [showPasswords, setShowPasswords] = useState({ imap: false, smtp: false });
+  const [checkingReplies, setCheckingReplies] = useState(false);
+  const [repliesResult, setRepliesResult] = useState<{ processed: number; results: any[] } | null>(null);
 
   useEffect(() => {
     loadConfig();
@@ -269,10 +271,69 @@ export default function AdminEmail() {
         </Card>
       </div>
 
-      <Button onClick={handleSave} disabled={saving} className="gap-2">
-        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-        {saving ? "Sauvegarde..." : "Sauvegarder la configuration"}
-      </Button>
+      <div className="flex gap-3 flex-wrap">
+        <Button onClick={handleSave} disabled={saving} className="gap-2">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          {saving ? "Sauvegarde..." : "Sauvegarder la configuration"}
+        </Button>
+        <Button
+          variant="outline"
+          disabled={checkingReplies}
+          className="gap-2"
+          onClick={async () => {
+            setCheckingReplies(true);
+            setRepliesResult(null);
+            try {
+              const { data, error } = await supabase.functions.invoke("check-email-replies");
+              if (error) throw error;
+              setRepliesResult(data);
+              if (data?.processed > 0) {
+                toast.success(`${data.processed} réponse(s) email traitée(s)`);
+              } else {
+                toast.info("Aucune nouvelle réponse email");
+              }
+            } catch (e: any) {
+              toast.error("Erreur: " + (e.message || "Impossible de vérifier"));
+            } finally {
+              setCheckingReplies(false);
+            }
+          }}
+        >
+          {checkingReplies ? <Loader2 className="h-4 w-4 animate-spin" /> : <Inbox className="h-4 w-4" />}
+          Vérifier les réponses maintenant
+        </Button>
+      </div>
+
+      {repliesResult && (
+        <Card className="p-4 mt-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Inbox className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-medium">Résultat de la vérification</h3>
+          </div>
+          {repliesResult.processed === 0 ? (
+            <p className="text-sm text-muted-foreground">Aucune nouvelle réponse à traiter.</p>
+          ) : (
+            <div className="space-y-2">
+              {repliesResult.results?.map((r: any, i: number) => (
+                <div key={i} className={`flex items-center gap-2 text-sm p-2 rounded-lg ${r.action === "validate" ? "bg-green-500/10 text-green-400" : "bg-destructive/10 text-destructive"}`}>
+                  {r.action === "validate" ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                  <span>"{r.title}" → {r.action === "validate" ? "Validé" : "Annulé"}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
+
+      <Card className="p-4 mt-4 bg-muted/30">
+        <div className="flex items-center gap-2">
+          <Clock className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-medium">Vérification automatique</h3>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          Les réponses email sont vérifiées automatiquement toutes les minutes via un cron job. Les réponses contenant "valider" ou "annuler" sont traitées automatiquement.
+        </p>
+      </Card>
     </div>
   );
 }
