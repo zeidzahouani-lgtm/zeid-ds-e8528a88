@@ -256,7 +256,7 @@ function LicenseScreen({
   );
 }
 
-function ActiveContentCarousel({ contents }: { contents: Array<{ id: string; image_url: string; title: string | null }> }) {
+function ActiveContentCarousel({ contents, screenOrientation }: { contents: Array<{ id: string; image_url: string; title: string | null; metadata: Record<string, any> | null }>; screenOrientation: string }) {
   const [index, setIndex] = useState(0);
 
   useEffect(() => {
@@ -270,7 +270,15 @@ function ActiveContentCarousel({ contents }: { contents: Array<{ id: string; ima
   const current = contents[Math.min(index, contents.length - 1)];
   if (!current) return null;
 
-  return <img src={current.image_url} alt={current.title || ""} className="w-full h-full object-cover" />;
+  // Use content-specific orientation from metadata, fallback to screen orientation
+  const contentOrientation = (current.metadata as any)?.orientation || screenOrientation;
+  const rotationStyle = getOrientationStyle(contentOrientation);
+
+  return (
+    <div className="w-full h-full" style={rotationStyle}>
+      <img src={current.image_url} alt={current.title || ""} className="w-full h-full object-cover" />
+    </div>
+  );
 }
 
 export default function Player() {
