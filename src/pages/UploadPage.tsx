@@ -296,9 +296,24 @@ export default function UploadPage() {
                 </div>
               </div>
 
+              {uploading && (
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Upload en cours…</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
               <Button onClick={handleUpload} className="w-full gap-2" disabled={!file || uploading}>
                 {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                {uploading ? "Envoi en cours..." : `Diffuser ${isVideo ? "la vidéo" : "l'image"}`}
+                {uploading ? `Envoi ${uploadProgress}%` : `Diffuser ${isVideo ? "la vidéo" : "l'image"}`}
               </Button>
             </CardContent>
           </>
