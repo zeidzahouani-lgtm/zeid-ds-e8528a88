@@ -84,6 +84,22 @@ export function ScreenManager() {
   const { screens, isLoading, addScreen, updateScreen, deleteScreen } = useScreens();
   const { media } = useMedia();
   const { layouts } = useLayouts();
+  const { currentEstablishmentId } = useEstablishmentContext();
+
+  const { data: maxScreens } = useQuery({
+    queryKey: ["establishment-max-screens", currentEstablishmentId],
+    enabled: !!currentEstablishmentId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("establishments")
+        .select("max_screens")
+        .eq("id", currentEstablishmentId!)
+        .single();
+      return data?.max_screens ?? 0;
+    },
+  });
+
+  const quotaReached = maxScreens != null && maxScreens > 0 && screens.length >= maxScreens;
   const [newName, setNewName] = useState("");
   const [playlistScreenId, setPlaylistScreenId] = useState<string | null>(null);
 
