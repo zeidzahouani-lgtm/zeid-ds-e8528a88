@@ -24,6 +24,7 @@ export default function UploadPage() {
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Schedule & orientation state
@@ -97,15 +98,34 @@ export default function UploadPage() {
   const handleUpload = async () => {
     if (!file || !screenId) return;
     setUploading(true);
+    setUploadProgress(0);
     try {
       const ext = file.name.split(".").pop() || (isVideo ? "mp4" : "jpg");
       const filePath = `screen-${screenId}/${Date.now()}_${userName.replace(/\s+/g, "_")}.${ext}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from("uploads")
-        .upload(filePath, file, { contentType: file.type, upsert: true });
+      const bucketUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/uploads/${filePath}`;
+      const apiKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-      if (uploadError) throw uploadError;
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", bucketUrl, true);
+        xhr.setRequestHeader("apikey", apiKey);
+        xhr.setRequestHeader("Authorization", `Bearer ${apiKey}`);
+        xhr.setRequestHeader("x-upsert", "true");
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            setUploadProgress(Math.round((e.loaded / e.total) * 100));
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve();
+          else reject(new Error(`Upload failed: ${xhr.status}`));
+        };
+        xhr.onerror = () => reject(new Error("Upload failed"));
+        xhr.send(file);
+      });
 
       const { data: urlData } = supabase.storage.from("uploads").getPublicUrl(filePath);
       const publicUrl = urlData?.publicUrl;
@@ -276,9 +296,24 @@ export default function UploadPage() {
                 </div>
               </div>
 
+              {uploading && (
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Upload en cours…</span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
               <Button onClick={handleUpload} className="w-full gap-2" disabled={!file || uploading}>
                 {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                {uploading ? "Envoi en cours..." : `Diffuser ${isVideo ? "la vidéo" : "l'image"}`}
+                {uploading ? `Envoi ${uploadProgress}%` : `Diffuser ${isVideo ? "la vidéo" : "l'image"}`}
               </Button>
             </CardContent>
           </>
