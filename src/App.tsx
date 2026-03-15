@@ -57,6 +57,7 @@ function AppSettingsProvider({ children }: { children: React.ReactNode }) {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
+    <ThemeProvider>
     <TooltipProvider>
       <AppSettingsProvider>
         <Toaster />
