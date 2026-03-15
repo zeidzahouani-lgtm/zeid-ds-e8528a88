@@ -290,12 +290,16 @@ export default function UploadPage() {
               <div className="mx-auto h-16 w-16 rounded-2xl bg-green-500/10 flex items-center justify-center mb-3">
                 <CheckCircle className="h-8 w-8 text-green-500" />
               </div>
-              <CardTitle className="text-xl">Image envoyée !</CardTitle>
-              <CardDescription>Votre image sera diffusée sur cet écran selon vos paramètres.</CardDescription>
+              <CardTitle className="text-xl">Contenu envoyé !</CardTitle>
+              <CardDescription>Votre contenu sera diffusé sur cet écran selon vos paramètres.</CardDescription>
             </CardHeader>
             <CardContent className="text-center">
               {preview && (
-                <img src={preview} alt="Uploaded" className="w-full h-40 object-cover rounded-lg border border-border mb-4" />
+                isVideo ? (
+                  <video src={preview} className="w-full h-40 object-cover rounded-lg border border-border mb-4" muted playsInline />
+                ) : (
+                  <img src={preview} alt="Uploaded" className="w-full h-40 object-cover rounded-lg border border-border mb-4" />
+                )
               )}
               <Button
                 variant="outline"
