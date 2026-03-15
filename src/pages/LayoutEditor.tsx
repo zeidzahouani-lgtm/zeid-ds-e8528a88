@@ -441,6 +441,10 @@ export default function LayoutEditor() {
               width: canvasW * scale,
               height: canvasH * scale,
               backgroundColor: layout.background_color || "#000000",
+              backgroundImage: (layout as any).bg_type === "image" && (layout as any).bg_image_url ? `url(${(layout as any).bg_image_url})` : undefined,
+              backgroundSize: (layout as any).bg_image_fit === "contain" ? "contain" : (layout as any).bg_image_fit === "repeat" ? "auto" : "cover",
+              backgroundRepeat: (layout as any).bg_image_fit === "repeat" ? "repeat" : "no-repeat",
+              backgroundPosition: "center",
             }}
             ref={canvasRef}
             onMouseMove={handleMouseMove}
