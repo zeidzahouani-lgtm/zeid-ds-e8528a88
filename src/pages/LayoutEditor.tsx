@@ -554,7 +554,105 @@ export default function LayoutEditor() {
             </Card>
           )}
 
-          {/* Library */}
+          {/* Background */}
+          {activePanel === "background" && (
+            <Card className="self-start">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Palette className="h-4 w-4 text-primary" /> Fond d'écran
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Type toggle */}
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1.5 block">Type de fond</label>
+                  <div className="flex border rounded-md overflow-hidden">
+                    <button
+                      className={`flex-1 text-xs py-2 font-medium transition-colors ${
+                        (layout as any).bg_type !== "image" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                      }`}
+                      onClick={() => updateLayout.mutate({ id: id!, bg_type: "color" })}
+                    >
+                      🎨 Couleur Unie
+                    </button>
+                    <button
+                      className={`flex-1 text-xs py-2 font-medium transition-colors ${
+                        (layout as any).bg_type === "image" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                      }`}
+                      onClick={() => updateLayout.mutate({ id: id!, bg_type: "image" })}
+                    >
+                      🖼️ Image
+                    </button>
+                  </div>
+                </div>
+
+                {/* Color picker (always shown as base layer) */}
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Couleur de fond</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={layout.background_color || "#000000"}
+                      onChange={(e) => updateLayout.mutate({ id: id!, background_color: e.target.value })}
+                      className="w-10 h-10 rounded-lg border border-border cursor-pointer"
+                    />
+                    <Input
+                      value={layout.background_color || "#000000"}
+                      onChange={(e) => updateLayout.mutate({ id: id!, background_color: e.target.value })}
+                      className="h-8 text-sm font-mono flex-1"
+                      placeholder="#000000"
+                    />
+                  </div>
+                </div>
+
+                {/* Image options */}
+                {(layout as any).bg_type === "image" && (
+                  <div className="space-y-3 border-t border-border pt-3">
+                    {(layout as any).bg_image_url && (
+                      <div className="relative rounded-lg overflow-hidden border border-border">
+                        <img src={(layout as any).bg_image_url} alt="Fond" className="w-full h-32 object-cover" />
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="absolute top-2 right-2 h-6 text-[10px]"
+                          onClick={() => updateLayout.mutate({ id: id!, bg_image_url: null })}
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" /> Retirer
+                        </Button>
+                      </div>
+                    )}
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => setShowBgLibrary(true)}
+                    >
+                      <ImageIcon className="h-4 w-4 mr-2" /> Choisir depuis la bibliothèque
+                    </Button>
+
+                    {/* Fit mode */}
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1 block">Ajustement</label>
+                      <Select
+                        value={(layout as any).bg_image_fit || "cover"}
+                        onValueChange={(v) => updateLayout.mutate({ id: id!, bg_image_fit: v })}
+                      >
+                        <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cover">Remplir (Cover)</SelectItem>
+                          <SelectItem value="contain">Ajuster (Contain)</SelectItem>
+                          <SelectItem value="repeat">Mosaïque (Repeat)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+
           {activePanel === "library" && (
             <Card className="self-start">
               <CardHeader className="pb-2">
