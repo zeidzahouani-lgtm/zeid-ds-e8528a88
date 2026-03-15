@@ -65,6 +65,59 @@ export type Database = {
         }
         Relationships: []
       }
+      contents: {
+        Row: {
+          created_at: string
+          end_time: string | null
+          id: string
+          image_url: string
+          metadata: Json | null
+          screen_id: string | null
+          source: string | null
+          start_time: string | null
+          status: Database["public"]["Enums"]["content_status"]
+          title: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          image_url: string
+          metadata?: Json | null
+          screen_id?: string | null
+          source?: string | null
+          start_time?: string | null
+          status?: Database["public"]["Enums"]["content_status"]
+          title?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          end_time?: string | null
+          id?: string
+          image_url?: string
+          metadata?: Json | null
+          screen_id?: string | null
+          source?: string | null
+          start_time?: string | null
+          status?: Database["public"]["Enums"]["content_status"]
+          title?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contents_screen_id_fkey"
+            columns: ["screen_id"]
+            isOneToOne: false
+            referencedRelation: "screens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       establishments: {
         Row: {
           address: string | null
@@ -508,6 +561,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      content_status: "pending" | "scheduled" | "active" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -636,6 +690,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      content_status: ["pending", "scheduled", "active", "rejected"],
     },
   },
 } as const
