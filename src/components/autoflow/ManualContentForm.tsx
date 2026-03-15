@@ -120,6 +120,11 @@ export function ManualContentForm({ screens }: ManualContentFormProps) {
               </Select>
             </div>
           </div>
+          <div className="space-y-2">
+            <Label>Email de notification (optionnel)</Label>
+            <Input type="email" value={form.sender_email} onChange={e => setForm({ ...form, sender_email: e.target.value })} placeholder="destinataire@email.com" />
+            <p className="text-[10px] text-muted-foreground">Un accusé de réception sera envoyé à cette adresse</p>
+          </div>
           <Button onClick={handleSubmit} disabled={submitting} className="w-full gap-2">
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
             {submitting ? "Ajout en cours..." : "Ajouter le contenu"}
