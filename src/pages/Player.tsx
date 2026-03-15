@@ -60,6 +60,9 @@ interface LayoutData {
   width: number;
   height: number;
   background_color: string;
+  bg_type?: string;
+  bg_image_url?: string | null;
+  bg_image_fit?: string;
 }
 
 interface PlayerBranding {
