@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useScreens } from "@/hooks/useScreens";
+import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 
 interface LayoutRegion {
   name: string;
@@ -240,6 +241,7 @@ export default function SuggestTab() {
   const [result, setResult] = useState<SuggestResult | null>(null);
   const [creatingId, setCreatingId] = useState<string | null>(null);
   const { screens } = useScreens();
+  const { currentEstablishmentId } = useEstablishmentContext();
 
   const handleSuggest = async (text?: string) => {
     const q = text || prompt;
@@ -265,7 +267,7 @@ export default function SuggestTab() {
     setCreatingId(item.title);
     try {
       const { data, error } = await supabase.functions.invoke("ai-assistant", {
-        body: { action: "create_layout", layout: item.layout, title: item.title },
+        body: { action: "create_layout", layout: item.layout, title: item.title, establishmentId: currentEstablishmentId },
       });
       if (error) throw error;
       if (data.error) throw new Error(data.error);
@@ -282,7 +284,7 @@ export default function SuggestTab() {
     setCreatingId(item.title);
     try {
       const { data, error } = await supabase.functions.invoke("ai-assistant", {
-        body: { action: "create_playlist", playlist: item.playlist, title: item.title, screenId },
+        body: { action: "create_playlist", playlist: item.playlist, title: item.title, screenId, establishmentId: currentEstablishmentId },
       });
       if (error) throw error;
       if (data.error) throw new Error(data.error);

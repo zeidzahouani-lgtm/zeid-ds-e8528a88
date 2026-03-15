@@ -63,7 +63,6 @@ function jsonResponse(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 }
 
-// Tool schema for structured suggestions
 const suggestTools = [{
   type: "function",
   function: {
@@ -95,8 +94,8 @@ const suggestTools = [{
                         width: { type: "number" }, height: { type: "number" }, z_index: { type: "number" },
                         widget_type: { type: "string", enum: ["clock", "weather", "marquee", "iframe", "none"] },
                         widget_config: { type: "object" },
-                        generate_image_prompt: { type: "string", description: "If set, AI will generate an image for this zone" },
-                        is_placeholder: { type: "boolean", description: "True if user should add their own content here" }
+                        generate_image_prompt: { type: "string" },
+                        is_placeholder: { type: "boolean" }
                       },
                       required: ["name", "x", "y", "width", "height"]
                     }
@@ -138,7 +137,7 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     const reqBody = await req.json();
-    const { action, prompt, imageUrl, layout, title, playlist, screenId } = reqBody;
+    const { action, prompt, imageUrl, layout, title, playlist, screenId, establishmentId } = reqBody;
 
     // ── Stats (no AI provider needed) ──
     if (action === "stats" || action === "daily_stats") {
@@ -236,14 +235,16 @@ Réponds en français. Propose 2-4 suggestions concrètes et variées.` },
       const layoutSpec = reqBody.layout;
       const layoutTitle = reqBody.title || "Layout IA";
 
-      const { data: newLayout, error: layoutErr } = await supabase.from("layouts").insert({
+      const layoutInsert: Record<string, any> = {
         name: layoutTitle, user_id: user.id,
         width: layoutSpec.width || 1920, height: layoutSpec.height || 1080,
         background_color: layoutSpec.background_color || "#1a1a2e",
-      }).select().single();
+      };
+      if (establishmentId) layoutInsert.establishment_id = establishmentId;
+
+      const { data: newLayout, error: layoutErr } = await supabase.from("layouts").insert(layoutInsert).select().single();
       if (layoutErr) throw { status: 500, message: layoutErr.message };
 
-      // Generate images for regions that have generate_image_prompt
       const regions = layoutSpec.regions || [];
       const regionInserts = [];
 
@@ -260,16 +261,18 @@ Réponds en français. Propose 2-4 suggestions concrètes et variées.` },
             });
             const imgUrl = imgData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
             if (imgUrl) {
-              // Convert base64 to blob and upload
               const base64Data = imgUrl.replace(/^data:image\/\w+;base64,/, "");
               const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
               const fileName = `ai-layout-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
               await supabase.storage.from("media").upload(fileName, binaryData, { contentType: "image/png" });
               const { data: urlData } = supabase.storage.from("media").getPublicUrl(fileName);
 
-              const { data: mediaRow } = await supabase.from("media").insert({
+              const mediaInsert: Record<string, any> = {
                 name: region.name || "Image IA", type: "image", url: urlData.publicUrl, duration: 10, user_id: user.id,
-              }).select().single();
+              };
+              if (establishmentId) mediaInsert.establishment_id = establishmentId;
+
+              const { data: mediaRow } = await supabase.from("media").insert(mediaInsert).select().single();
               if (mediaRow) mediaId = mediaRow.id;
               await logRequest(authHeader, "generate_image", imgProvider.imageModel, imgData.usage?.total_tokens || 0);
             }
@@ -328,9 +331,12 @@ Réponds en français. Propose 2-4 suggestions concrètes et variées.` },
               await supabase.storage.from("media").upload(fileName, binaryData, { contentType: "image/png" });
               const { data: urlData } = supabase.storage.from("media").getPublicUrl(fileName);
 
-              const { data: mediaRow } = await supabase.from("media").insert({
+              const mediaInsert: Record<string, any> = {
                 name: item.name || "Image IA", type: "image", url: urlData.publicUrl, duration: item.duration || 10, user_id: user.id,
-              }).select().single();
+              };
+              if (establishmentId) mediaInsert.establishment_id = establishmentId;
+
+              const { data: mediaRow } = await supabase.from("media").insert(mediaInsert).select().single();
               if (mediaRow) mediaId = mediaRow.id;
               await logRequest(authHeader, "generate_image", imgProvider.imageModel, imgData.usage?.total_tokens || 0);
             }
