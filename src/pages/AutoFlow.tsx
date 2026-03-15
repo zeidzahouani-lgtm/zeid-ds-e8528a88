@@ -463,6 +463,73 @@ export default function AutoFlow() {
             </div>
           )}
         </TabsContent>
+
+        {/* ===== TAB: CODES D'ACCÈS ===== */}
+        <TabsContent value="codes">
+          <Card className="p-4 mb-4 bg-muted/30">
+            <div className="flex items-start gap-3">
+              <KeyRound className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+              <div>
+                <h3 className="text-sm font-medium mb-1">Codes d'accès QR Upload</h3>
+                <p className="text-xs text-muted-foreground">
+                  Ces codes permettent aux utilisateurs d'envoyer du contenu via le QR Code affiché sur les écrans en veille.
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          <div className="flex gap-2 mb-4 items-end flex-wrap">
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground uppercase tracking-wider">Code</label>
+              <Input
+                value={newCode}
+                onChange={(e) => setNewCode(e.target.value.toUpperCase())}
+                placeholder="EX: DEMO2026"
+                className="w-40 font-mono"
+                maxLength={20}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground uppercase tracking-wider">Nom utilisateur</label>
+              <Input
+                value={newUserName}
+                onChange={(e) => setNewUserName(e.target.value)}
+                placeholder="Jean Dupont"
+                className="w-48"
+              />
+            </div>
+            <Button onClick={handleAddCode} disabled={addingCode || !newCode.trim() || !newUserName.trim()} className="gap-1.5">
+              {addingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Ajouter
+            </Button>
+          </div>
+
+          {accessCodes.length === 0 ? (
+            <Card className="p-8 text-center">
+              <KeyRound className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+              <p className="text-muted-foreground">Aucun code d'accès</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">Créez un code pour permettre l'upload via QR Code</p>
+            </Card>
+          ) : (
+            <div className="grid gap-2">
+              {accessCodes.map((ac) => (
+                <Card key={ac.id} className="p-3 flex items-center gap-3">
+                  <code className="text-sm font-mono bg-muted px-2 py-1 rounded tracking-wider">{ac.code}</code>
+                  <span className="text-sm flex-1">{ac.user_name}</span>
+                  <Badge variant="outline" className={ac.is_active ? "bg-green-500/10 text-green-600 border-green-500/20" : "bg-muted text-muted-foreground"}>
+                    {ac.is_active ? "Actif" : "Désactivé"}
+                  </Badge>
+                  <Button variant="ghost" size="sm" onClick={() => toggleCode(ac.id, ac.is_active)}>
+                    {ac.is_active ? "Désactiver" : "Activer"}
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteCode(ac.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
 
       {/* Preview Content Dialog */}
