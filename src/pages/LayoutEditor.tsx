@@ -390,6 +390,13 @@ export default function LayoutEditor() {
                 backgroundPosition: "center",
               }}
             >
+              {/* Preview overlay */}
+              {(layout as any).bg_type === "image" && (layout as any).bg_image_url && ((layout as any).bg_overlay_darken > 0 || (layout as any).bg_overlay_blur > 0) && (
+                <div className="absolute inset-0 pointer-events-none z-[0]" style={{
+                  backgroundColor: `rgba(0,0,0,${((layout as any).bg_overlay_darken || 0) / 100})`,
+                  backdropFilter: (layout as any).bg_overlay_blur > 0 ? `blur(${(layout as any).bg_overlay_blur}px)` : undefined,
+                }} />
+              )}
               {regions.map((r, idx) => {
                 const previewScale = scale * 0.8;
                 return (
