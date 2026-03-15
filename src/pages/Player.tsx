@@ -386,6 +386,7 @@ export default function Player() {
   const activeContents = useActiveContents(screen?.id);
   const branding = usePlayerBranding(screen?.id);
   const [visible, setVisible] = useState(true);
+  const [hasContent, setHasContent] = useState(false);
   const [progress, setProgress] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>();
