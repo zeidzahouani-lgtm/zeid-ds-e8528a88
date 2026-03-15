@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { EstablishmentProvider } from "@/contexts/EstablishmentContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import NotFound from "./pages/NotFound";
 
 const Player = lazy(() => import("./pages/Player"));
