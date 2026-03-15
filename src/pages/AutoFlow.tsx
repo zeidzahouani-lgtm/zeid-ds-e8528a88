@@ -70,8 +70,45 @@ export default function AutoFlow() {
   useEffect(() => {
     const unsub1 = subscribeRealtime();
     const unsub2 = subscribeInbox();
+    loadAccessCodes();
     return () => { unsub1(); unsub2(); };
   }, []);
+
+  const loadAccessCodes = async () => {
+    const { data } = await (supabase.from("access_codes") as any).select("*").order("created_at", { ascending: false });
+    setAccessCodes(data || []);
+  };
+
+  const handleAddCode = async () => {
+    if (!newCode.trim() || !newUserName.trim()) return;
+    setAddingCode(true);
+    try {
+      const { error } = await (supabase.from("access_codes") as any).insert({
+        code: newCode.trim().toUpperCase(),
+        user_name: newUserName.trim(),
+      });
+      if (error) throw error;
+      toast.success("Code d'accès créé");
+      setNewCode("");
+      setNewUserName("");
+      loadAccessCodes();
+    } catch (e: any) {
+      toast.error(e.message || "Erreur");
+    } finally {
+      setAddingCode(false);
+    }
+  };
+
+  const toggleCode = async (id: string, isActive: boolean) => {
+    await (supabase.from("access_codes") as any).update({ is_active: !isActive }).eq("id", id);
+    loadAccessCodes();
+  };
+
+  const deleteCode = async (id: string) => {
+    await (supabase.from("access_codes") as any).delete().eq("id", id);
+    loadAccessCodes();
+    toast.success("Code supprimé");
+  };
 
   const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/content-webhook`;
 
