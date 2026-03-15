@@ -139,7 +139,7 @@ export default function UploadPage() {
       const label = diffMins >= 60 ? `${Math.round(diffMins / 60)}h${diffMins % 60 > 0 ? diffMins % 60 + "min" : ""}` : `${diffMins} minutes`;
 
       setStep("done");
-      toast.success(`Image envoyée ! Elle sera diffusée pendant ${label}.`);
+      toast.success(`${isVideo ? "Vidéo" : "Image"} envoyée ! Elle sera diffusée pendant ${label}.`);
     } catch (err: any) {
       toast.error("Erreur: " + (err.message || "Upload échoué"));
     } finally {
