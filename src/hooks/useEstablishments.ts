@@ -9,6 +9,7 @@ interface EstablishmentForm {
   phone?: string;
   email?: string;
   max_screens?: number;
+  logo_url?: string | null;
 }
 
 export function useEstablishments() {
