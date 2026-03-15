@@ -278,7 +278,7 @@ export default function UploadPage() {
 
               <Button onClick={handleUpload} className="w-full gap-2" disabled={!file || uploading}>
                 {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                {uploading ? "Envoi en cours..." : "Diffuser l'image"}
+                {uploading ? "Envoi en cours..." : `Diffuser ${isVideo ? "la vidéo" : "l'image"}`}
               </Button>
             </CardContent>
           </>
