@@ -42,6 +42,25 @@ export default function AutoFlow() {
   const [checkingInbox, setCheckingInbox] = useState(false);
   const [previewEmail, setPreviewEmail] = useState<InboxEmail | null>(null);
   const [activeTab, setActiveTab] = useState("contents");
+  const [resendingAck, setResendingAck] = useState<string | null>(null);
+
+  const handleResendAck = async (c: Content) => {
+    setResendingAck(c.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("resend-ack", {
+        body: { content_id: c.id },
+      });
+      if (error || data?.error) {
+        toast.error(data?.error || error?.message || "Erreur lors du renvoi");
+      } else {
+        toast.success(data?.message || "Accusé de réception renvoyé");
+      }
+    } catch (e: any) {
+      toast.error("Erreur: " + (e.message || "Impossible de renvoyer"));
+    } finally {
+      setResendingAck(null);
+    }
+  };
 
   useEffect(() => {
     const unsub1 = subscribeRealtime();
