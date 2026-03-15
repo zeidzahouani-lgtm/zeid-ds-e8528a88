@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Upload, Lock, CheckCircle, Loader2, Image as ImageIcon, Clock, CalendarDays, RotateCw } from "lucide-react";
+import { Upload, Lock, CheckCircle, Loader2, Image as ImageIcon, Clock, CalendarDays, RotateCw, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -62,13 +62,17 @@ export default function UploadPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    if (!f.type.startsWith("image/")) {
-      toast.error("Seules les images sont acceptées");
+    const isImage = f.type.startsWith("image/");
+    const isVideo = f.type.startsWith("video/");
+    if (!isImage && !isVideo) {
+      toast.error("Seules les images et vidéos sont acceptées");
       return;
     }
     setFile(f);
     setPreview(URL.createObjectURL(f));
   };
+
+  const isVideo = file?.type.startsWith("video/") ?? false;
 
   const handleDurationChange = (val: string) => {
     setDuration(val);
@@ -94,7 +98,7 @@ export default function UploadPage() {
     if (!file || !screenId) return;
     setUploading(true);
     try {
-      const ext = file.name.split(".").pop() || "jpg";
+      const ext = file.name.split(".").pop() || (isVideo ? "mp4" : "jpg");
       const filePath = `screen-${screenId}/${Date.now()}_${userName.replace(/\s+/g, "_")}.${ext}`;
 
       const { error: uploadError } = await supabase.storage
@@ -125,7 +129,7 @@ export default function UploadPage() {
         start_time: start.toISOString(),
         end_time: end.toISOString(),
         sender_email: null,
-        metadata: { orientation },
+        metadata: { orientation, type: isVideo ? "video" : "image" },
       });
 
       if (contentError) throw contentError;
@@ -135,7 +139,7 @@ export default function UploadPage() {
       const label = diffMins >= 60 ? `${Math.round(diffMins / 60)}h${diffMins % 60 > 0 ? diffMins % 60 + "min" : ""}` : `${diffMins} minutes`;
 
       setStep("done");
-      toast.success(`Image envoyée ! Elle sera diffusée pendant ${label}.`);
+      toast.success(`${isVideo ? "Vidéo" : "Image"} envoyée ! Elle sera diffusée pendant ${label}.`);
     } catch (err: any) {
       toast.error("Erreur: " + (err.message || "Upload échoué"));
     } finally {
@@ -183,20 +187,24 @@ export default function UploadPage() {
               <div className="mx-auto h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-3">
                 <Upload className="h-8 w-8 text-primary" />
               </div>
-              <CardTitle className="text-xl">Envoyer une image</CardTitle>
-              <CardDescription>Bonjour {userName} ! Configurez et envoyez votre contenu.</CardDescription>
+              <CardTitle className="text-xl">Envoyer du contenu</CardTitle>
+              <CardDescription>Bonjour {userName} ! Envoyez une image ou une vidéo.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Image picker */}
-              <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+              <input ref={fileRef} type="file" accept="image/*,video/*" onChange={handleFileChange} className="hidden" />
               {preview ? (
                 <div className="relative group">
-                  <img src={preview} alt="Preview" className="w-full h-40 object-cover rounded-lg border border-border" />
+                  {isVideo ? (
+                    <video src={preview} className="w-full h-40 object-cover rounded-lg border border-border" muted playsInline />
+                  ) : (
+                    <img src={preview} alt="Preview" className="w-full h-40 object-cover rounded-lg border border-border" />
+                  )}
                   <button
                     onClick={() => fileRef.current?.click()}
                     className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center"
                   >
-                    <span className="text-white text-sm font-medium">Changer l'image</span>
+                    <span className="text-white text-sm font-medium">Changer le fichier</span>
                   </button>
                 </div>
               ) : (
@@ -204,8 +212,11 @@ export default function UploadPage() {
                   onClick={() => fileRef.current?.click()}
                   className="w-full h-40 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-3 hover:border-primary/50 hover:bg-primary/5 transition-colors"
                 >
-                  <ImageIcon className="h-10 w-10 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Cliquez pour sélectionner une image</span>
+                  <div className="flex gap-2">
+                    <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                    <Video className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <span className="text-sm text-muted-foreground">Cliquez pour sélectionner une image ou vidéo</span>
                 </button>
               )}
 
@@ -267,7 +278,7 @@ export default function UploadPage() {
 
               <Button onClick={handleUpload} className="w-full gap-2" disabled={!file || uploading}>
                 {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-                {uploading ? "Envoi en cours..." : "Diffuser l'image"}
+                {uploading ? "Envoi en cours..." : `Diffuser ${isVideo ? "la vidéo" : "l'image"}`}
               </Button>
             </CardContent>
           </>
@@ -279,12 +290,16 @@ export default function UploadPage() {
               <div className="mx-auto h-16 w-16 rounded-2xl bg-green-500/10 flex items-center justify-center mb-3">
                 <CheckCircle className="h-8 w-8 text-green-500" />
               </div>
-              <CardTitle className="text-xl">Image envoyée !</CardTitle>
-              <CardDescription>Votre image sera diffusée sur cet écran selon vos paramètres.</CardDescription>
+              <CardTitle className="text-xl">Contenu envoyé !</CardTitle>
+              <CardDescription>Votre contenu sera diffusé sur cet écran selon vos paramètres.</CardDescription>
             </CardHeader>
             <CardContent className="text-center">
               {preview && (
-                <img src={preview} alt="Uploaded" className="w-full h-40 object-cover rounded-lg border border-border mb-4" />
+                isVideo ? (
+                  <video src={preview} className="w-full h-40 object-cover rounded-lg border border-border mb-4" muted playsInline />
+                ) : (
+                  <img src={preview} alt="Uploaded" className="w-full h-40 object-cover rounded-lg border border-border mb-4" />
+                )
               )}
               <Button
                 variant="outline"
@@ -292,7 +307,7 @@ export default function UploadPage() {
                 className="gap-2"
               >
                 <Upload className="h-4 w-4" />
-                Envoyer une autre image
+                Envoyer un autre contenu
               </Button>
             </CardContent>
           </>
