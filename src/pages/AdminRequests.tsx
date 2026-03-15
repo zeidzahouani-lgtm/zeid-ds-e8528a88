@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { ClipboardList, KeyRound, Shield, Check, X, RefreshCw, Copy, Eye, EyeOff, UserPlus, Building2, Monitor } from "lucide-react";
+import { ClipboardList, KeyRound, Shield, Check, X, RefreshCw, Copy, Eye, EyeOff, UserPlus, Building2, Monitor, Mail } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -120,12 +121,14 @@ export default function AdminRequests() {
   const [resetDialog, setResetDialog] = useState<PasswordResetRequest | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [sendResetEmail, setSendResetEmail] = useState(true);
 
   // State for registration review dialog
   const [regDialog, setRegDialog] = useState<RegistrationRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [regPassword, setRegPassword] = useState("");
   const [showRegPassword, setShowRegPassword] = useState(false);
+  const [sendRegEmail, setSendRegEmail] = useState(true);
 
   const openResetDialog = (req: PasswordResetRequest) => {
     setNewPassword(generatePassword());
@@ -144,18 +147,24 @@ export default function AdminRequests() {
   const handleResetPassword = useMutation({
     mutationFn: async () => {
       if (!resetDialog) return;
-      // Find the user profile by email
-      const { data: profiles } = await supabase.from("profiles").select("id").eq("email", resetDialog.email).limit(1);
+      const { data: profiles } = await supabase.from("profiles").select("id, display_name").eq("email", resetDialog.email).limit(1);
       if (!profiles || profiles.length === 0) throw new Error("Utilisateur introuvable avec cet email");
 
-      // Use the invite-user edge function with the service role to update password
       const res = await supabase.functions.invoke("invite-user", {
         body: { email: resetDialog.email, password: newPassword, display_name: null, update_password: true },
       });
       if (res.error) throw res.error;
       if (res.data?.error) throw new Error(res.data.error);
 
-      // Mark request as handled
+      // Send email if checked
+      if (sendResetEmail) {
+        const emailRes = await supabase.functions.invoke("send-credentials", {
+          body: { to_email: resetDialog.email, to_name: profiles[0].display_name, password: newPassword, type: "reset" },
+        });
+        if (emailRes.error) throw emailRes.error;
+        if (emailRes.data?.error) throw new Error(emailRes.data.error);
+      }
+
       await supabase
         .from("password_reset_requests" as any)
         .update({ status: "handled", handled_by: user?.id, handled_at: new Date().toISOString() } as any)
@@ -163,7 +172,7 @@ export default function AdminRequests() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["password_reset_requests"] });
-      toast({ title: "Mot de passe mis à jour", description: `Nouveau mot de passe attribué pour ${resetDialog?.email}` });
+      toast({ title: "Mot de passe mis à jour", description: sendResetEmail ? `Nouveau mot de passe envoyé par email à ${resetDialog?.email}` : `Nouveau mot de passe attribué pour ${resetDialog?.email}` });
       setResetDialog(null);
     },
     onError: (e) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
@@ -199,6 +208,15 @@ export default function AdminRequests() {
         });
       }
 
+      // Send email if checked
+      if (sendRegEmail) {
+        const emailRes = await supabase.functions.invoke("send-credentials", {
+          body: { to_email: regDialog.email, to_name: regDialog.display_name, password: regPassword, type: "registration" },
+        });
+        if (emailRes.error) throw emailRes.error;
+        if (emailRes.data?.error) throw new Error(emailRes.data.error);
+      }
+
       // Update request status
       await supabase
         .from("registration_requests" as any)
@@ -207,7 +225,7 @@ export default function AdminRequests() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["registration_requests"] });
-      toast({ title: "Inscription approuvée", description: `Compte et établissement créés pour ${regDialog?.email}` });
+      toast({ title: "Inscription approuvée", description: sendRegEmail ? `Identifiants envoyés par email à ${regDialog?.email}` : `Compte créé pour ${regDialog?.email}` });
       setRegDialog(null);
     },
     onError: (e) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
@@ -377,6 +395,12 @@ export default function AdminRequests() {
                 </Button>
               </div>
             </div>
+            <div className="flex items-center gap-2 mt-3">
+              <Checkbox id="send-reset-email" checked={sendResetEmail} onCheckedChange={(v) => setSendResetEmail(!!v)} />
+              <label htmlFor="send-reset-email" className="text-sm flex items-center gap-1.5 cursor-pointer">
+                <Mail className="h-3.5 w-3.5 text-primary" /> Envoyer le mot de passe par email
+              </label>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setResetDialog(null)}>Annuler</Button>
@@ -458,6 +482,12 @@ export default function AdminRequests() {
                   <Button variant="outline" size="icon" onClick={() => copyToClipboard(regPassword)}>
                     <Copy className="h-4 w-4" />
                   </Button>
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <Checkbox id="send-reg-email" checked={sendRegEmail} onCheckedChange={(v) => setSendRegEmail(!!v)} />
+                  <label htmlFor="send-reg-email" className="text-sm flex items-center gap-1.5 cursor-pointer">
+                    <Mail className="h-3.5 w-3.5 text-primary" /> Envoyer les identifiants par email
+                  </label>
                 </div>
               </div>
 
