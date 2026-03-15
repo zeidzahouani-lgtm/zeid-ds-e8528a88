@@ -89,7 +89,10 @@ export default function AutoFlow() {
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-medium mb-1">URL du Webhook</h3>
             <p className="text-xs text-muted-foreground mb-2">
-              Envoyez un POST avec <code className="bg-muted px-1 rounded">{"{ action, image_url, schedule_start, schedule_end, screen_id }"}</code>
+              Envoyez un POST avec <code className="bg-muted px-1 rounded">{"{ action, image_url, schedule_start, schedule_end, screen_id, sender_email }"}</code>
+            </p>
+            <p className="text-xs text-muted-foreground mb-2">
+              Ajoutez <code className="bg-muted px-1 rounded">sender_email</code> pour recevoir un accusé de réception avec boutons valider/annuler
             </p>
             <div className="flex gap-2 items-center">
               <code className="text-xs bg-background px-2 py-1 rounded border border-border truncate flex-1">{webhookUrl}</code>
