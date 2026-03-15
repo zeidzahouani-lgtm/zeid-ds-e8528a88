@@ -35,6 +35,10 @@ export default function AutoFlow() {
   const { screens } = useScreens();
   const { emails, isLoading: inboxLoading, subscribeRealtime: subscribeInbox } = useInboxEmails();
   const queryClient = useQueryClient();
+  const [accessCodes, setAccessCodes] = useState<any[]>([]);
+  const [newCode, setNewCode] = useState("");
+  const [newUserName, setNewUserName] = useState("");
+  const [addingCode, setAddingCode] = useState(false);
   const [preview, setPreview] = useState<Content | null>(null);
   const [editContent, setEditContent] = useState<Content | null>(null);
   const [filter, setFilter] = useState<string>("all");
