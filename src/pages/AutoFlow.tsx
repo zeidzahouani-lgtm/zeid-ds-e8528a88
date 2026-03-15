@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  Mail, CheckCircle2, XCircle, Clock, Play, Trash2, Eye, Loader2, Copy, ExternalLink, RefreshCw
+  Mail, CheckCircle2, XCircle, Clock, Play, Trash2, Eye, Loader2, Copy, ExternalLink, RefreshCw, Pencil
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -9,7 +9,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useContents, Content } from "@/hooks/useContents";
 import { useScreens } from "@/hooks/useScreens";
+import { ManualContentForm } from "@/components/autoflow/ManualContentForm";
+import { EditContentDialog } from "@/components/autoflow/EditContentDialog";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 const statusConfig: Record<string, { label: string; color: string; icon: typeof Clock }> = {
   pending: { label: "En attente", color: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20", icon: Clock },
@@ -26,7 +29,9 @@ function formatDate(d: string | null) {
 export default function AutoFlow() {
   const { contents, isLoading, updateStatus, deleteContent, subscribeRealtime } = useContents();
   const { screens } = useScreens();
+  const queryClient = useQueryClient();
   const [preview, setPreview] = useState<Content | null>(null);
+  const [editContent, setEditContent] = useState<Content | null>(null);
   const [filter, setFilter] = useState<string>("all");
   const [webhookCopied, setWebhookCopied] = useState(false);
 
@@ -47,27 +52,16 @@ export default function AutoFlow() {
   const filtered = filter === "all" ? contents : contents.filter(c => c.status === filter);
 
   const handleApprove = (c: Content) => {
-    updateStatus.mutate({ id: c.id, status: "active" }, {
-      onSuccess: () => toast.success("Contenu approuvé et activé"),
-    });
+    updateStatus.mutate({ id: c.id, status: "active" }, { onSuccess: () => toast.success("Contenu approuvé et activé") });
   };
-
   const handleReject = (c: Content) => {
-    updateStatus.mutate({ id: c.id, status: "rejected" }, {
-      onSuccess: () => toast.success("Contenu rejeté"),
-    });
+    updateStatus.mutate({ id: c.id, status: "rejected" }, { onSuccess: () => toast.success("Contenu rejeté") });
   };
-
   const handleSchedule = (c: Content) => {
-    updateStatus.mutate({ id: c.id, status: "scheduled" }, {
-      onSuccess: () => toast.success("Contenu programmé"),
-    });
+    updateStatus.mutate({ id: c.id, status: "scheduled" }, { onSuccess: () => toast.success("Contenu programmé") });
   };
-
   const handleDelete = (c: Content) => {
-    deleteContent.mutate(c.id, {
-      onSuccess: () => toast.success("Contenu supprimé"),
-    });
+    deleteContent.mutate(c.id, { onSuccess: () => toast.success("Contenu supprimé") });
   };
 
   const getScreenName = (screenId: string | null) => {
@@ -106,8 +100,8 @@ export default function AutoFlow() {
         </div>
       </Card>
 
-      {/* Filters */}
-      <div className="flex items-center gap-3 mb-4">
+      {/* Filters + Add button */}
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
         <Select value={filter} onValueChange={setFilter}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Filtrer par statut" />
@@ -121,6 +115,9 @@ export default function AutoFlow() {
           </SelectContent>
         </Select>
         <Badge variant="outline">{filtered.length} élément{filtered.length > 1 ? "s" : ""}</Badge>
+        <div className="ml-auto">
+          <ManualContentForm screens={screens || []} />
+        </div>
       </div>
 
       {/* Content list */}
@@ -132,7 +129,7 @@ export default function AutoFlow() {
         <Card className="p-8 text-center">
           <Mail className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
           <p className="text-muted-foreground">Aucun contenu reçu</p>
-          <p className="text-xs text-muted-foreground/60 mt-1">Utilisez le webhook pour envoyer des contenus</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">Utilisez le webhook ou le bouton "Ajouter" pour envoyer des contenus</p>
         </Card>
       ) : (
         <div className="grid gap-3">
@@ -142,15 +139,9 @@ export default function AutoFlow() {
             return (
               <Card key={c.id} className="p-4">
                 <div className="flex gap-4">
-                  {/* Thumbnail */}
-                  <div
-                    className="w-24 h-16 rounded-md border border-border bg-muted/30 overflow-hidden cursor-pointer shrink-0"
-                    onClick={() => setPreview(c)}
-                  >
+                  <div className="w-24 h-16 rounded-md border border-border bg-muted/30 overflow-hidden cursor-pointer shrink-0" onClick={() => setPreview(c)}>
                     <img src={c.image_url} alt={c.title || ""} className="w-full h-full object-cover" />
                   </div>
-
-                  {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <h4 className="text-sm font-medium truncate">{c.title || "Sans titre"}</h4>
@@ -167,11 +158,12 @@ export default function AutoFlow() {
                       {c.source && <span>Source: {c.source}</span>}
                     </div>
                   </div>
-
-                  {/* Actions */}
                   <div className="flex gap-1.5 shrink-0">
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPreview(c)} title="Aperçu">
                       <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={() => setEditContent(c)} title="Modifier">
+                      <Pencil className="h-4 w-4" />
                     </Button>
                     {c.status === "pending" && (
                       <>
@@ -224,23 +216,37 @@ export default function AutoFlow() {
                 <div><span className="text-muted-foreground">Écran:</span> {getScreenName(preview.screen_id)}</div>
                 <div><span className="text-muted-foreground">Reçu:</span> {formatDate(preview.created_at)}</div>
               </div>
-              {preview.status === "pending" && (
-                <div className="flex gap-2 pt-2">
-                  <Button className="gap-2" onClick={() => { handleApprove(preview); setPreview(null); }}>
-                    <CheckCircle2 className="h-4 w-4" /> Approuver
-                  </Button>
-                  <Button variant="outline" className="gap-2" onClick={() => { handleSchedule(preview); setPreview(null); }}>
-                    <Clock className="h-4 w-4" /> Programmer
-                  </Button>
-                  <Button variant="destructive" className="gap-2" onClick={() => { handleReject(preview); setPreview(null); }}>
-                    <XCircle className="h-4 w-4" /> Rejeter
-                  </Button>
-                </div>
-              )}
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" className="gap-2" onClick={() => { setPreview(null); setEditContent(preview); }}>
+                  <Pencil className="h-4 w-4" /> Modifier
+                </Button>
+                {preview.status === "pending" && (
+                  <>
+                    <Button className="gap-2" onClick={() => { handleApprove(preview); setPreview(null); }}>
+                      <CheckCircle2 className="h-4 w-4" /> Approuver
+                    </Button>
+                    <Button variant="outline" className="gap-2" onClick={() => { handleSchedule(preview); setPreview(null); }}>
+                      <Clock className="h-4 w-4" /> Programmer
+                    </Button>
+                    <Button variant="destructive" className="gap-2" onClick={() => { handleReject(preview); setPreview(null); }}>
+                      <XCircle className="h-4 w-4" /> Rejeter
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Edit Dialog */}
+      <EditContentDialog
+        content={editContent}
+        screens={screens || []}
+        open={!!editContent}
+        onOpenChange={(open) => { if (!open) setEditContent(null); }}
+        onSaved={() => queryClient.invalidateQueries({ queryKey: ["contents"] })}
+      />
     </div>
   );
 }

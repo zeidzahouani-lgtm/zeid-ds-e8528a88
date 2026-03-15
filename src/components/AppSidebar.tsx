@@ -36,6 +36,7 @@ const adminItems = [
   { title: "Établissements", url: "/admin/establishments", icon: Building2 },
   { title: "Personnalisation", url: "/admin/customization", icon: Palette },
   { title: "Licences", url: "/admin/licenses", icon: Key },
+  { title: "Email", url: "/admin/email", icon: AtSign },
 ];
 
 export function AppSidebar() {
