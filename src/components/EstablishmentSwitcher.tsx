@@ -1,11 +1,18 @@
-import { Building2, ChevronDown } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
+import { useEstablishments } from "@/hooks/useEstablishments";
 
 export function EstablishmentSwitcher() {
   const { memberships, currentEstablishmentId, setCurrentEstablishmentId, isGlobalAdmin } = useEstablishmentContext();
+  const { establishments } = useEstablishments();
 
-  if (memberships.length <= 1 && !isGlobalAdmin) return null;
+  // Global admin sees all establishments, others see only their memberships
+  const items = isGlobalAdmin
+    ? establishments.map((e: any) => ({ id: e.id, name: e.name }))
+    : memberships.map((m) => ({ id: m.establishment_id, name: m.establishment.name }));
+
+  if (items.length === 0 && !isGlobalAdmin) return null;
 
   return (
     <div className="px-3 pb-2">
@@ -16,9 +23,9 @@ export function EstablishmentSwitcher() {
         </SelectTrigger>
         <SelectContent>
           {isGlobalAdmin && <SelectItem value="all">Tous les établissements</SelectItem>}
-          {memberships.map((m) => (
-            <SelectItem key={m.establishment_id} value={m.establishment_id}>
-              {m.establishment.name}
+          {items.map((item) => (
+            <SelectItem key={item.id} value={item.id}>
+              {item.name}
             </SelectItem>
           ))}
         </SelectContent>

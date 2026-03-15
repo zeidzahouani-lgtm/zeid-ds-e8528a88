@@ -2,6 +2,15 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
+interface EstablishmentForm {
+  name: string;
+  address?: string;
+  description?: string;
+  phone?: string;
+  email?: string;
+  max_screens?: number;
+}
+
 export function useEstablishments() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -20,20 +29,20 @@ export function useEstablishments() {
   });
 
   const addEstablishment = useMutation({
-    mutationFn: async ({ name, address }: { name: string; address?: string }) => {
+    mutationFn: async (form: EstablishmentForm) => {
       const { error } = await supabase
         .from("establishments")
-        .insert({ name, address, created_by: user!.id } as any);
+        .insert({ ...form, created_by: user!.id } as any);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["establishments"] }),
   });
 
   const updateEstablishment = useMutation({
-    mutationFn: async ({ id, name, address }: { id: string; name: string; address?: string }) => {
+    mutationFn: async ({ id, ...form }: EstablishmentForm & { id: string }) => {
       const { error } = await supabase
         .from("establishments")
-        .update({ name, address } as any)
+        .update(form as any)
         .eq("id", id);
       if (error) throw error;
     },
