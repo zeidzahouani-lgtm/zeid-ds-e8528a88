@@ -457,8 +457,15 @@ export default function LayoutEditor() {
             onMouseLeave={handleMouseUp}
             onClick={() => setSelectedRegionId(null)}
           >
+            {/* Background overlay (darken + blur) */}
+            {(layout as any).bg_type === "image" && (layout as any).bg_image_url && ((layout as any).bg_overlay_darken > 0 || (layout as any).bg_overlay_blur > 0) && (
+              <div className="absolute inset-0 pointer-events-none z-[0]" style={{
+                backgroundColor: `rgba(0,0,0,${((layout as any).bg_overlay_darken || 0) / 100})`,
+                backdropFilter: (layout as any).bg_overlay_blur > 0 ? `blur(${(layout as any).bg_overlay_blur}px)` : undefined,
+              }} />
+            )}
             {/* Grid overlay */}
-            <div className="absolute inset-0 pointer-events-none opacity-10" style={{
+            <div className="absolute inset-0 pointer-events-none opacity-10 z-[0]" style={{
               backgroundImage: "linear-gradient(hsl(185 100% 55% / 0.3) 1px, transparent 1px), linear-gradient(90deg, hsl(185 100% 55% / 0.3) 1px, transparent 1px)",
               backgroundSize: `${(canvasW * scale) / 12}px ${(canvasH * scale) / 12}px`,
             }} />
