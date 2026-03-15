@@ -50,8 +50,8 @@ async function getProvider(): Promise<AIProvider> {
       baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
       apiKey: settings.gemini_api_key,
       defaultModel: "gemini-2.5-flash",
-      imageModel: "gemini-2.5-flash",
-      supportsModalities: false,
+      imageModel: "gemini-2.0-flash-exp-image-generation",
+      supportsModalities: true,
     };
   }
 
