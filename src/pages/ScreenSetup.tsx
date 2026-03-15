@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Monitor, Smartphone, Tv, Copy, CheckCheck, ExternalLink, Pencil, Check, X } from "lucide-react";
+import { useState, useRef, useCallback } from "react";
+import { Monitor, Smartphone, Tv, Copy, CheckCheck, ExternalLink, Pencil, Check, X, Bot, Send, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useScreens } from "@/hooks/useScreens";
+import ReactMarkdown from "react-markdown";
 
 const playerUrl = window.location.origin + "/player/";
 
@@ -103,6 +104,140 @@ function ScreenRow({ screen, updateScreen }: { screen: any; updateScreen: any })
   );
 }
 
+function AIGuideTab() {
+  const [model, setModel] = useState("");
+  const [guide, setGuide] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const handleGenerate = useCallback(async () => {
+    if (!model.trim() || isLoading) return;
+    setGuide("");
+    setIsLoading(true);
+
+    try {
+      const resp = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/screen-setup-guide`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ model: model.trim() }),
+        }
+      );
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: "Erreur inconnue" }));
+        toast.error(err.error || "Erreur lors de la génération du guide");
+        setIsLoading(false);
+        return;
+      }
+
+      const reader = resp.body?.getReader();
+      if (!reader) { setIsLoading(false); return; }
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let accumulated = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        let newlineIndex: number;
+        while ((newlineIndex = buffer.indexOf("\n")) !== -1) {
+          let line = buffer.slice(0, newlineIndex);
+          buffer = buffer.slice(newlineIndex + 1);
+          if (line.endsWith("\r")) line = line.slice(0, -1);
+          if (line.startsWith(":") || line.trim() === "") continue;
+          if (!line.startsWith("data: ")) continue;
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === "[DONE]") break;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              accumulated += content;
+              setGuide(accumulated);
+              if (contentRef.current) {
+                contentRef.current.scrollTop = contentRef.current.scrollHeight;
+              }
+            }
+          } catch {
+            buffer = line + "\n" + buffer;
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Erreur de connexion au service IA");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [model, isLoading]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Bot className="h-5 w-5 text-primary" />
+            Assistant IA de configuration
+          </CardTitle>
+          <Badge variant="secondary">IA</Badge>
+        </div>
+        <CardDescription>
+          Entrez le modèle exact de votre écran et l'IA générera un guide de configuration personnalisé
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex gap-2">
+          <Input
+            placeholder="Ex: Samsung QM55R, LG 55UH5F, Philips 55BDL4050D..."
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleGenerate()}
+            disabled={isLoading}
+            className="flex-1"
+          />
+          <Button onClick={handleGenerate} disabled={!model.trim() || isLoading} className="gap-1.5">
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            {isLoading ? "Génération..." : "Générer"}
+          </Button>
+        </div>
+
+        {(guide || isLoading) && (
+          <div
+            ref={contentRef}
+            className="border border-border rounded-lg p-4 max-h-[500px] overflow-y-auto bg-muted/30"
+          >
+            {guide ? (
+              <div className="prose prose-sm dark:prose-invert max-w-none">
+                <ReactMarkdown>{guide}</ReactMarkdown>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Recherche des informations pour votre écran...
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="p-3 bg-muted/50 rounded-lg border border-border">
+          <p className="text-xs text-muted-foreground">
+            <strong>Exemples de modèles :</strong> Samsung QBR, Samsung QM55R, LG 55SM5KE, LG 55UH5F-H, 
+            Philips 55BDL4050D, Sony FW-55BZ35F, NEC MultiSync, BenQ ST550K, Fire TV Stick 4K, Raspberry Pi 4
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function ScreenSetup() {
   const { screens, updateScreen } = useScreens();
 
@@ -135,13 +270,18 @@ export default function ScreenSetup() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="samsung" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs defaultValue="ai" className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="ai" className="gap-1.5"><Bot className="h-4 w-4" /> Assistant IA</TabsTrigger>
           <TabsTrigger value="samsung" className="gap-1.5"><Tv className="h-4 w-4" /> Samsung</TabsTrigger>
           <TabsTrigger value="lg" className="gap-1.5"><Tv className="h-4 w-4" /> LG</TabsTrigger>
           <TabsTrigger value="philips" className="gap-1.5"><Monitor className="h-4 w-4" /> Philips</TabsTrigger>
           <TabsTrigger value="android" className="gap-1.5"><Smartphone className="h-4 w-4" /> Android</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="ai">
+          <AIGuideTab />
+        </TabsContent>
 
         <TabsContent value="samsung">
           <Card>
