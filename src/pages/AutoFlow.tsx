@@ -1,0 +1,246 @@
+import { useEffect, useState } from "react";
+import {
+  Mail, CheckCircle2, XCircle, Clock, Play, Trash2, Eye, Loader2, Copy, ExternalLink, RefreshCw
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useContents, Content } from "@/hooks/useContents";
+import { useScreens } from "@/hooks/useScreens";
+import { toast } from "sonner";
+
+const statusConfig: Record<string, { label: string; color: string; icon: typeof Clock }> = {
+  pending: { label: "En attente", color: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20", icon: Clock },
+  scheduled: { label: "Programmé", color: "bg-blue-500/10 text-blue-600 border-blue-500/20", icon: Clock },
+  active: { label: "Actif", color: "bg-green-500/10 text-green-600 border-green-500/20", icon: Play },
+  rejected: { label: "Rejeté", color: "bg-red-500/10 text-red-600 border-red-500/20", icon: XCircle },
+};
+
+function formatDate(d: string | null) {
+  if (!d) return "—";
+  return new Date(d).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+export default function AutoFlow() {
+  const { contents, isLoading, updateStatus, deleteContent, subscribeRealtime } = useContents();
+  const { screens } = useScreens();
+  const [preview, setPreview] = useState<Content | null>(null);
+  const [filter, setFilter] = useState<string>("all");
+  const [webhookCopied, setWebhookCopied] = useState(false);
+
+  useEffect(() => {
+    const unsub = subscribeRealtime();
+    return unsub;
+  }, []);
+
+  const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/content-webhook`;
+
+  const copyWebhook = () => {
+    navigator.clipboard.writeText(webhookUrl);
+    setWebhookCopied(true);
+    toast.success("URL du webhook copiée !");
+    setTimeout(() => setWebhookCopied(false), 2000);
+  };
+
+  const filtered = filter === "all" ? contents : contents.filter(c => c.status === filter);
+
+  const handleApprove = (c: Content) => {
+    updateStatus.mutate({ id: c.id, status: "active" }, {
+      onSuccess: () => toast.success("Contenu approuvé et activé"),
+    });
+  };
+
+  const handleReject = (c: Content) => {
+    updateStatus.mutate({ id: c.id, status: "rejected" }, {
+      onSuccess: () => toast.success("Contenu rejeté"),
+    });
+  };
+
+  const handleSchedule = (c: Content) => {
+    updateStatus.mutate({ id: c.id, status: "scheduled" }, {
+      onSuccess: () => toast.success("Contenu programmé"),
+    });
+  };
+
+  const handleDelete = (c: Content) => {
+    deleteContent.mutate(c.id, {
+      onSuccess: () => toast.success("Contenu supprimé"),
+    });
+  };
+
+  const getScreenName = (screenId: string | null) => {
+    if (!screenId) return "Aucun";
+    const s = screens?.find((s: any) => s.id === screenId);
+    return s?.name || screenId.slice(0, 8);
+  };
+
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-1">
+        <Mail className="h-6 w-6 text-primary" />
+        <h1 className="text-2xl font-bold tracking-tight">Flux Automatique</h1>
+      </div>
+      <p className="text-muted-foreground text-sm mb-6">
+        Recevez et gérez les contenus envoyés par email ou webhook
+      </p>
+
+      {/* Webhook URL */}
+      <Card className="p-4 mb-6 bg-muted/30">
+        <div className="flex items-start gap-3">
+          <ExternalLink className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-medium mb-1">URL du Webhook</h3>
+            <p className="text-xs text-muted-foreground mb-2">
+              Envoyez un POST avec <code className="bg-muted px-1 rounded">{"{ action, image_url, schedule_start, schedule_end, screen_id }"}</code>
+            </p>
+            <div className="flex gap-2 items-center">
+              <code className="text-xs bg-background px-2 py-1 rounded border border-border truncate flex-1">{webhookUrl}</code>
+              <Button variant="outline" size="sm" onClick={copyWebhook} className="gap-1.5 shrink-0">
+                {webhookCopied ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                {webhookCopied ? "Copié" : "Copier"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Filters */}
+      <div className="flex items-center gap-3 mb-4">
+        <Select value={filter} onValueChange={setFilter}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Filtrer par statut" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les statuts</SelectItem>
+            <SelectItem value="pending">En attente</SelectItem>
+            <SelectItem value="scheduled">Programmés</SelectItem>
+            <SelectItem value="active">Actifs</SelectItem>
+            <SelectItem value="rejected">Rejetés</SelectItem>
+          </SelectContent>
+        </Select>
+        <Badge variant="outline">{filtered.length} élément{filtered.length > 1 ? "s" : ""}</Badge>
+      </div>
+
+      {/* Content list */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <Card className="p-8 text-center">
+          <Mail className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+          <p className="text-muted-foreground">Aucun contenu reçu</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">Utilisez le webhook pour envoyer des contenus</p>
+        </Card>
+      ) : (
+        <div className="grid gap-3">
+          {filtered.map((c) => {
+            const cfg = statusConfig[c.status] || statusConfig.pending;
+            const StatusIcon = cfg.icon;
+            return (
+              <Card key={c.id} className="p-4">
+                <div className="flex gap-4">
+                  {/* Thumbnail */}
+                  <div
+                    className="w-24 h-16 rounded-md border border-border bg-muted/30 overflow-hidden cursor-pointer shrink-0"
+                    onClick={() => setPreview(c)}
+                  >
+                    <img src={c.image_url} alt={c.title || ""} className="w-full h-full object-cover" />
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="text-sm font-medium truncate">{c.title || "Sans titre"}</h4>
+                      <Badge variant="outline" className={`${cfg.color} text-[10px] shrink-0`}>
+                        <StatusIcon className="h-3 w-3 mr-1" />
+                        {cfg.label}
+                      </Badge>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                      <span>Reçu: {formatDate(c.created_at)}</span>
+                      {c.start_time && <span>Début: {formatDate(c.start_time)}</span>}
+                      {c.end_time && <span>Fin: {formatDate(c.end_time)}</span>}
+                      <span>Écran: {getScreenName(c.screen_id)}</span>
+                      {c.source && <span>Source: {c.source}</span>}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-1.5 shrink-0">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPreview(c)} title="Aperçu">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    {c.status === "pending" && (
+                      <>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:text-green-700" onClick={() => handleApprove(c)} title="Approuver">
+                          <CheckCircle2 className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:text-blue-700" onClick={() => handleSchedule(c)} title="Programmer">
+                          <Clock className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:text-red-700" onClick={() => handleReject(c)} title="Rejeter">
+                          <XCircle className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                    {c.status === "rejected" && (
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" onClick={() => handleApprove(c)} title="Réactiver">
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {c.status === "active" && (
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={() => handleReject(c)} title="Désactiver">
+                        <XCircle className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(c)} title="Supprimer">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Preview Dialog */}
+      <Dialog open={!!preview} onOpenChange={() => setPreview(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{preview?.title || "Aperçu du contenu"}</DialogTitle>
+          </DialogHeader>
+          {preview && (
+            <div className="space-y-3">
+              <img src={preview.image_url} alt={preview.title || ""} className="w-full rounded-lg border border-border" />
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div><span className="text-muted-foreground">Statut:</span> {statusConfig[preview.status]?.label}</div>
+                <div><span className="text-muted-foreground">Source:</span> {preview.source || "—"}</div>
+                <div><span className="text-muted-foreground">Début:</span> {formatDate(preview.start_time)}</div>
+                <div><span className="text-muted-foreground">Fin:</span> {formatDate(preview.end_time)}</div>
+                <div><span className="text-muted-foreground">Écran:</span> {getScreenName(preview.screen_id)}</div>
+                <div><span className="text-muted-foreground">Reçu:</span> {formatDate(preview.created_at)}</div>
+              </div>
+              {preview.status === "pending" && (
+                <div className="flex gap-2 pt-2">
+                  <Button className="gap-2" onClick={() => { handleApprove(preview); setPreview(null); }}>
+                    <CheckCircle2 className="h-4 w-4" /> Approuver
+                  </Button>
+                  <Button variant="outline" className="gap-2" onClick={() => { handleSchedule(preview); setPreview(null); }}>
+                    <Clock className="h-4 w-4" /> Programmer
+                  </Button>
+                  <Button variant="destructive" className="gap-2" onClick={() => { handleReject(preview); setPreview(null); }}>
+                    <XCircle className="h-4 w-4" /> Rejeter
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
