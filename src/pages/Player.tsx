@@ -477,7 +477,7 @@ export default function Player() {
             </div>
           ) : activeContents.length > 0 && !media ? (
             /* Show active automated contents when no playlist media */
-            <ActiveContentCarousel contents={activeContents} />
+            <ActiveContentCarousel contents={activeContents} screenOrientation={screen.orientation} />
           ) : media ? (
             <MediaRenderer media={media} playlistLength={playlistLength} />
           ) : null}
