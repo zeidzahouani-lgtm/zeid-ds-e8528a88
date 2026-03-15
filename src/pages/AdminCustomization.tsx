@@ -7,14 +7,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Palette, Type, Image, Globe, Save, RotateCcw, Upload, Bot, Eye, EyeOff, BarChart3 } from "lucide-react";
+import { Palette, Type, Image, Globe, Save, RotateCcw, Upload, Bot, Eye, EyeOff, BarChart3, Zap, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 
 interface AIStats {
   today: number;
   this_month: number;
   total: number;
   provider: string;
+}
+
+interface DailyData {
+  date: string;
+  count: number;
 }
 
 export default function AdminCustomization() {
@@ -28,12 +35,15 @@ export default function AdminCustomization() {
   const [savingKey, setSavingKey] = useState(false);
   const [aiStats, setAiStats] = useState<AIStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
+  const [dailyData, setDailyData] = useState<DailyData[]>([]);
+  const [loadingDaily, setLoadingDaily] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
     setForm(settings);
   }, [settings]);
 
-  // Load OpenAI key from app_settings
   useEffect(() => {
     supabase
       .from("app_settings" as any)
@@ -45,9 +55,9 @@ export default function AdminCustomization() {
       });
   }, []);
 
-  // Load AI stats
   useEffect(() => {
     loadAIStats();
+    loadDailyStats();
   }, []);
 
   const loadAIStats = async () => {
@@ -56,14 +66,38 @@ export default function AdminCustomization() {
       const { data, error } = await supabase.functions.invoke("ai-assistant", {
         body: { action: "stats" },
       });
-      if (!error && data && !data.error) {
-        setAiStats(data);
+      if (!error && data && !data.error) setAiStats(data);
+    } catch {} finally { setLoadingStats(false); }
+  };
+
+  const loadDailyStats = async () => {
+    setLoadingDaily(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-assistant", {
+        body: { action: "daily_stats" },
+      });
+      if (!error && data?.daily) setDailyData(data.daily);
+    } catch {} finally { setLoadingDaily(false); }
+  };
+
+  const handleTestAPI = async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-assistant", {
+        body: { action: "test" },
+      });
+      if (error || data?.error) {
+        setTestResult({ success: false, message: data?.error || "Erreur de connexion" });
+        toast.error("Test échoué : " + (data?.error || "Erreur"));
+      } else {
+        setTestResult({ success: true, message: `Réponse: "${data.response}" — Provider: ${data.provider}` });
+        toast.success("API IA fonctionnelle !");
       }
-    } catch {
-      // Stats loading failed silently
-    } finally {
-      setLoadingStats(false);
-    }
+    } catch (e: any) {
+      setTestResult({ success: false, message: e.message || "Erreur réseau" });
+      toast.error("Test échoué");
+    } finally { setTesting(false); }
   };
 
   const handleSave = async () => {
@@ -76,52 +110,32 @@ export default function AdminCustomization() {
         }
       }
       toast.success("Personnalisation sauvegardée");
-    } catch {
-      toast.error("Erreur lors de la sauvegarde");
-    } finally {
-      setSaving(false);
-    }
+    } catch { toast.error("Erreur lors de la sauvegarde"); } finally { setSaving(false); }
   };
 
-  const handleReset = () => {
-    setForm(settings);
-  };
+  const handleReset = () => setForm(settings);
 
   const handleSaveOpenAIKey = async () => {
     setSavingKey(true);
     try {
-      // Upsert the key in app_settings
       const { data: existing } = await supabase
-        .from("app_settings" as any)
-        .select("id")
-        .eq("key", "openai_api_key")
-        .single();
-
+        .from("app_settings" as any).select("id").eq("key", "openai_api_key").single();
       if (existing) {
-        await supabase
-          .from("app_settings" as any)
+        await supabase.from("app_settings" as any)
           .update({ value: openaiKey, updated_at: new Date().toISOString() } as any)
           .eq("key", "openai_api_key" as any);
       } else {
-        await supabase
-          .from("app_settings" as any)
+        await supabase.from("app_settings" as any)
           .insert({ key: "openai_api_key", value: openaiKey } as any);
       }
       toast.success(openaiKey ? "Clé OpenAI sauvegardée" : "Clé OpenAI supprimée, retour au service par défaut");
-    } catch {
-      toast.error("Erreur lors de la sauvegarde de la clé");
-    } finally {
-      setSavingKey(false);
-    }
+    } catch { toast.error("Erreur lors de la sauvegarde de la clé"); } finally { setSavingKey(false); }
   };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Veuillez sélectionner une image");
-      return;
-    }
+    if (!file.type.startsWith("image/")) { toast.error("Veuillez sélectionner une image"); return; }
     setUploading(true);
     try {
       const ext = file.name.split(".").pop();
@@ -131,15 +145,20 @@ export default function AdminCustomization() {
       const { data } = supabase.storage.from("media").getPublicUrl(fileName);
       setForm({ ...form, logo_url: data.publicUrl });
       toast.success("Logo uploadé avec succès");
-    } catch {
-      toast.error("Erreur lors de l'upload du logo");
-    } finally {
+    } catch { toast.error("Erreur lors de l'upload du logo"); } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  const maskedKey = openaiKey ? `sk-...${openaiKey.slice(-6)}` : "";
+  const chartConfig = {
+    count: { label: "Requêtes", color: "hsl(var(--primary))" },
+  };
+
+  const formattedDaily = dailyData.map(d => ({
+    ...d,
+    label: new Date(d.date).toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }),
+  }));
 
   return (
     <div className="space-y-6 animate-cyber-in">
@@ -315,6 +334,27 @@ export default function AdminCustomization() {
                     Obtenez votre clé sur <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" className="text-primary hover:underline">platform.openai.com/api-keys</a>
                   </p>
                 </div>
+
+                {/* Test Button */}
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleTestAPI}
+                    disabled={testing}
+                    className="gap-2"
+                  >
+                    {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+                    {testing ? "Test en cours..." : "Tester la connexion IA"}
+                  </Button>
+                  {testResult && (
+                    <div className={`flex items-center gap-1.5 text-xs ${testResult.success ? "text-green-500" : "text-destructive"}`}>
+                      {testResult.success ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                      <span className="normal-case">{testResult.message}</span>
+                    </div>
+                  )}
+                </div>
+
                 {openaiKey && (
                   <Button
                     variant="outline"
@@ -335,7 +375,7 @@ export default function AdminCustomization() {
                 <div className="flex items-center gap-2 mb-2">
                   <BarChart3 className="h-4 w-4 text-muted-foreground" />
                   <Label className="text-xs uppercase tracking-wider text-muted-foreground">Compteur de requêtes IA</Label>
-                  <Button variant="ghost" size="sm" onClick={loadAIStats} disabled={loadingStats} className="ml-auto text-xs h-7">
+                  <Button variant="ghost" size="sm" onClick={() => { loadAIStats(); loadDailyStats(); }} disabled={loadingStats} className="ml-auto text-xs h-7">
                     {loadingStats ? "..." : "Actualiser"}
                   </Button>
                 </div>
@@ -361,6 +401,39 @@ export default function AdminCustomization() {
                 )}
               </div>
             </div>
+
+            {/* Daily Chart */}
+            {formattedDaily.length > 0 && (
+              <div className="mt-6 pt-6 border-t border-border">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground mb-4 block">
+                  Évolution des requêtes IA (30 derniers jours)
+                </Label>
+                <ChartContainer config={chartConfig} className="h-[200px] w-full">
+                  <BarChart data={formattedDaily}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border/30" />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 10 }}
+                      interval={Math.floor(formattedDaily.length / 8)}
+                      className="fill-muted-foreground"
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      tick={{ fontSize: 10 }}
+                      className="fill-muted-foreground"
+                      width={30}
+                    />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="count" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+                  </BarChart>
+                </ChartContainer>
+              </div>
+            )}
+            {loadingDaily && (
+              <div className="mt-6 pt-6 border-t border-border text-center">
+                <p className="text-sm text-muted-foreground">Chargement du graphique...</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
