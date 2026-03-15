@@ -301,6 +301,16 @@ export default function AutoFlow() {
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(c)} title="Supprimer">
                           <Trash2 className="h-4 w-4" />
                         </Button>
+                        {c.sender_email && (
+                          <Button
+                            variant="ghost" size="icon" className="h-8 w-8 text-primary"
+                            onClick={() => handleResendAck(c)}
+                            disabled={resendingAck === c.id}
+                            title="Renvoyer l'accusé de réception"
+                          >
+                            {resendingAck === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </Card>
