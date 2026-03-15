@@ -448,6 +448,12 @@ export default function Player() {
     return () => clearTimeout(timer);
   }, [media?.id, currentIndex, layoutId]);
 
+  // Track whether we have content (for fade transition)
+  useEffect(() => {
+    const nowHasContent = !!(media || activeContents.length > 0);
+    setHasContent(nowHasContent);
+  }, [media, activeContents]);
+
   useEffect(() => {
     if (!currentDuration || currentDuration <= 0 || layoutId) {
       setProgress(0);
