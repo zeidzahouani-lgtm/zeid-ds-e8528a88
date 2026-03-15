@@ -11,6 +11,13 @@ import { Palette, Type, Image, Globe, Save, RotateCcw, Upload, Bot, Eye, EyeOff,
 import { supabase } from "@/integrations/supabase/client";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface AIStats {
   today: number;
@@ -24,15 +31,35 @@ interface DailyData {
   count: number;
 }
 
+type AIProviderType = "auto" | "openai" | "gemini" | "lovable";
+
+const providerLabels: Record<AIProviderType, string> = {
+  auto: "Automatique (utilise la première clé configurée)",
+  openai: "OpenAI (ChatGPT)",
+  gemini: "Google Gemini",
+  lovable: "Service par défaut",
+};
+
+const providerDisplayNames: Record<string, string> = {
+  openai: "OpenAI (ChatGPT)",
+  gemini: "Google Gemini",
+  lovable: "Service par défaut",
+};
+
 export default function AdminCustomization() {
   const { settings, updateSetting } = useAppSettings();
   const [form, setForm] = useState(settings);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // AI config state
+  const [selectedProvider, setSelectedProvider] = useState<AIProviderType>("auto");
   const [openaiKey, setOpenaiKey] = useState("");
-  const [showKey, setShowKey] = useState(false);
-  const [savingKey, setSavingKey] = useState(false);
+  const [geminiKey, setGeminiKey] = useState("");
+  const [showOpenaiKey, setShowOpenaiKey] = useState(false);
+  const [showGeminiKey, setShowGeminiKey] = useState(false);
+  const [savingAI, setSavingAI] = useState(false);
   const [aiStats, setAiStats] = useState<AIStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
   const [dailyData, setDailyData] = useState<DailyData[]>([]);
@@ -40,32 +67,29 @@ export default function AdminCustomization() {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
-  useEffect(() => {
-    setForm(settings);
-  }, [settings]);
+  useEffect(() => { setForm(settings); }, [settings]);
 
+  // Load AI keys
   useEffect(() => {
     supabase
       .from("app_settings" as any)
-      .select("value")
-      .eq("key", "openai_api_key")
-      .single()
+      .select("key, value")
+      .in("key", ["openai_api_key", "gemini_api_key", "ai_provider"] as any)
       .then(({ data }: any) => {
-        if (data?.value) setOpenaiKey(data.value);
+        (data || []).forEach((r: any) => {
+          if (r.key === "openai_api_key" && r.value) setOpenaiKey(r.value);
+          if (r.key === "gemini_api_key" && r.value) setGeminiKey(r.value);
+          if (r.key === "ai_provider" && r.value) setSelectedProvider(r.value as AIProviderType);
+        });
       });
   }, []);
 
-  useEffect(() => {
-    loadAIStats();
-    loadDailyStats();
-  }, []);
+  useEffect(() => { loadAIStats(); loadDailyStats(); }, []);
 
   const loadAIStats = async () => {
     setLoadingStats(true);
     try {
-      const { data, error } = await supabase.functions.invoke("ai-assistant", {
-        body: { action: "stats" },
-      });
+      const { data, error } = await supabase.functions.invoke("ai-assistant", { body: { action: "stats" } });
       if (!error && data && !data.error) setAiStats(data);
     } catch {} finally { setLoadingStats(false); }
   };
@@ -73,9 +97,7 @@ export default function AdminCustomization() {
   const loadDailyStats = async () => {
     setLoadingDaily(true);
     try {
-      const { data, error } = await supabase.functions.invoke("ai-assistant", {
-        body: { action: "daily_stats" },
-      });
+      const { data, error } = await supabase.functions.invoke("ai-assistant", { body: { action: "daily_stats" } });
       if (!error && data?.daily) setDailyData(data.daily);
     } catch {} finally { setLoadingDaily(false); }
   };
@@ -84,20 +106,49 @@ export default function AdminCustomization() {
     setTesting(true);
     setTestResult(null);
     try {
-      const { data, error } = await supabase.functions.invoke("ai-assistant", {
-        body: { action: "test" },
-      });
+      const { data, error } = await supabase.functions.invoke("ai-assistant", { body: { action: "test" } });
       if (error || data?.error) {
         setTestResult({ success: false, message: data?.error || "Erreur de connexion" });
         toast.error("Test échoué : " + (data?.error || "Erreur"));
       } else {
-        setTestResult({ success: true, message: `Réponse: "${data.response}" — Provider: ${data.provider}` });
+        setTestResult({
+          success: true,
+          message: `✓ Provider: ${providerDisplayNames[data.provider] || data.provider} | Modèle: ${data.model || "?"} | Réponse: "${data.response}"`,
+        });
         toast.success("API IA fonctionnelle !");
       }
     } catch (e: any) {
       setTestResult({ success: false, message: e.message || "Erreur réseau" });
       toast.error("Test échoué");
     } finally { setTesting(false); }
+  };
+
+  const upsertSetting = async (key: string, value: string) => {
+    const { data: existing } = await supabase
+      .from("app_settings" as any).select("id").eq("key", key).single();
+    if (existing) {
+      await supabase.from("app_settings" as any)
+        .update({ value, updated_at: new Date().toISOString() } as any)
+        .eq("key", key as any);
+    } else {
+      await supabase.from("app_settings" as any)
+        .insert({ key, value } as any);
+    }
+  };
+
+  const handleSaveAIConfig = async () => {
+    setSavingAI(true);
+    try {
+      await Promise.all([
+        upsertSetting("ai_provider", selectedProvider),
+        upsertSetting("openai_api_key", openaiKey),
+        upsertSetting("gemini_api_key", geminiKey),
+      ]);
+      toast.success("Configuration IA sauvegardée");
+      loadAIStats();
+    } catch {
+      toast.error("Erreur lors de la sauvegarde");
+    } finally { setSavingAI(false); }
   };
 
   const handleSave = async () => {
@@ -114,23 +165,6 @@ export default function AdminCustomization() {
   };
 
   const handleReset = () => setForm(settings);
-
-  const handleSaveOpenAIKey = async () => {
-    setSavingKey(true);
-    try {
-      const { data: existing } = await supabase
-        .from("app_settings" as any).select("id").eq("key", "openai_api_key").single();
-      if (existing) {
-        await supabase.from("app_settings" as any)
-          .update({ value: openaiKey, updated_at: new Date().toISOString() } as any)
-          .eq("key", "openai_api_key" as any);
-      } else {
-        await supabase.from("app_settings" as any)
-          .insert({ key: "openai_api_key", value: openaiKey } as any);
-      }
-      toast.success(openaiKey ? "Clé OpenAI sauvegardée" : "Clé OpenAI supprimée, retour au service par défaut");
-    } catch { toast.error("Erreur lors de la sauvegarde de la clé"); } finally { setSavingKey(false); }
-  };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -194,7 +228,7 @@ export default function AdminCustomization() {
           </CardContent>
         </Card>
 
-        {/* Visual - Logo Upload */}
+        {/* Visual */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm">
@@ -288,7 +322,7 @@ export default function AdminCustomization() {
           </CardContent>
         </Card>
 
-        {/* AI Configuration */}
+        {/* AI Configuration - Full Width */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm">
@@ -296,21 +330,64 @@ export default function AdminCustomization() {
               Configuration IA
               {aiStats && (
                 <Badge variant="outline" className="ml-auto text-xs">
-                  {aiStats.provider === "openai" ? "OpenAI (ChatGPT Pro)" : "Service par défaut"}
+                  {providerDisplayNames[aiStats.provider] || aiStats.provider}
                 </Badge>
               )}
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* API Key */}
-              <div className="space-y-4">
+          <CardContent className="space-y-6">
+            {/* Provider selector */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-4 md:col-span-2">
                 <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Fournisseur IA</Label>
+                  <Select value={selectedProvider} onValueChange={(v) => setSelectedProvider(v as AIProviderType)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="openai">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-green-500" />
+                          OpenAI (ChatGPT)
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="gemini">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-blue-500" />
+                          Google Gemini
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="lovable">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-muted-foreground" />
+                          Service par défaut (gratuit)
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="auto">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-yellow-500" />
+                          Automatique
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground normal-case">
+                    {selectedProvider === "auto"
+                      ? "Utilise la première clé API configurée (OpenAI → Gemini → Service par défaut)"
+                      : selectedProvider === "lovable"
+                      ? "Utilise le service IA intégré, aucune clé requise"
+                      : `Utilise votre clé ${selectedProvider === "openai" ? "OpenAI" : "Google Gemini"}`}
+                  </p>
+                </div>
+
+                {/* OpenAI Key */}
+                <div className={`space-y-2 transition-opacity ${selectedProvider === "lovable" ? "opacity-50" : ""}`}>
                   <Label className="text-xs uppercase tracking-wider text-muted-foreground">Clé API OpenAI</Label>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
                       <Input
-                        type={showKey ? "text" : "password"}
+                        type={showOpenaiKey ? "text" : "password"}
                         value={openaiKey}
                         onChange={(e) => setOpenaiKey(e.target.value)}
                         placeholder="sk-..."
@@ -318,55 +395,61 @@ export default function AdminCustomization() {
                       />
                       <button
                         type="button"
-                        onClick={() => setShowKey(!showKey)}
+                        onClick={() => setShowOpenaiKey(!showOpenaiKey)}
                         className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
-                        {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        {showOpenaiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
-                    <Button onClick={handleSaveOpenAIKey} disabled={savingKey} size="sm" className="gap-1.5">
-                      <Save className="h-3.5 w-3.5" />
-                      {savingKey ? "..." : "Sauver"}
-                    </Button>
                   </div>
                   <p className="text-[10px] text-muted-foreground normal-case">
-                    Connectez votre compte ChatGPT Pro / OpenAI. Laissez vide pour utiliser le service IA par défaut.
-                    Obtenez votre clé sur <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" className="text-primary hover:underline">platform.openai.com/api-keys</a>
+                    <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" className="text-primary hover:underline">platform.openai.com/api-keys</a>
                   </p>
                 </div>
 
-                {/* Test Button */}
-                <div className="flex items-center gap-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleTestAPI}
-                    disabled={testing}
-                    className="gap-2"
-                  >
-                    {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-                    {testing ? "Test en cours..." : "Tester la connexion IA"}
-                  </Button>
-                  {testResult && (
-                    <div className={`flex items-center gap-1.5 text-xs ${testResult.success ? "text-green-500" : "text-destructive"}`}>
-                      {testResult.success ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-                      <span className="normal-case">{testResult.message}</span>
+                {/* Gemini Key */}
+                <div className={`space-y-2 transition-opacity ${selectedProvider === "lovable" ? "opacity-50" : ""}`}>
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Clé API Google Gemini</Label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Input
+                        type={showGeminiKey ? "text" : "password"}
+                        value={geminiKey}
+                        onChange={(e) => setGeminiKey(e.target.value)}
+                        placeholder="AIza..."
+                        className="pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowGeminiKey(!showGeminiKey)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showGeminiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
                     </div>
-                  )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground normal-case">
+                    <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" className="text-primary hover:underline">aistudio.google.com/apikey</a>
+                  </p>
                 </div>
 
-                {openaiKey && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => {
-                      setOpenaiKey("");
-                      handleSaveOpenAIKey();
-                    }}
-                  >
-                    Supprimer la clé et revenir au service par défaut
+                {/* Save + Test */}
+                <div className="flex items-center gap-3 flex-wrap">
+                  <Button onClick={handleSaveAIConfig} disabled={savingAI} size="sm" className="gap-1.5">
+                    <Save className="h-3.5 w-3.5" />
+                    {savingAI ? "..." : "Sauvegarder la config IA"}
                   </Button>
+                  <Button variant="outline" size="sm" onClick={handleTestAPI} disabled={testing} className="gap-2">
+                    {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+                    {testing ? "Test en cours..." : "Tester la connexion"}
+                  </Button>
+                </div>
+
+                {testResult && (
+                  <div className={`flex items-start gap-2 text-xs p-3 rounded-lg ${testResult.success ? "bg-green-500/10 text-green-400 border border-green-500/20" : "bg-destructive/10 text-destructive border border-destructive/20"}`}>
+                    {testResult.success ? <CheckCircle className="h-4 w-4 mt-0.5 shrink-0" /> : <XCircle className="h-4 w-4 mt-0.5 shrink-0" />}
+                    <span className="normal-case">{testResult.message}</span>
+                  </div>
                 )}
               </div>
 
@@ -374,13 +457,13 @@ export default function AdminCustomization() {
               <div className="space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                   <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Compteur de requêtes IA</Label>
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Requêtes IA</Label>
                   <Button variant="ghost" size="sm" onClick={() => { loadAIStats(); loadDailyStats(); }} disabled={loadingStats} className="ml-auto text-xs h-7">
-                    {loadingStats ? "..." : "Actualiser"}
+                    {loadingStats ? "..." : "↻"}
                   </Button>
                 </div>
                 {aiStats ? (
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 gap-3">
                     <div className="rounded-lg bg-secondary/50 p-3 text-center">
                       <p className="text-2xl font-bold text-foreground">{aiStats.today}</p>
                       <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Aujourd'hui</p>
@@ -396,7 +479,7 @@ export default function AdminCustomization() {
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    {loadingStats ? "Chargement..." : "Aucune statistique disponible"}
+                    {loadingStats ? "Chargement..." : "—"}
                   </p>
                 )}
               </div>
@@ -404,7 +487,7 @@ export default function AdminCustomization() {
 
             {/* Daily Chart */}
             {formattedDaily.length > 0 && (
-              <div className="mt-6 pt-6 border-t border-border">
+              <div className="pt-6 border-t border-border">
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground mb-4 block">
                   Évolution des requêtes IA (30 derniers jours)
                 </Label>
@@ -429,8 +512,8 @@ export default function AdminCustomization() {
                 </ChartContainer>
               </div>
             )}
-            {loadingDaily && (
-              <div className="mt-6 pt-6 border-t border-border text-center">
+            {loadingDaily && !formattedDaily.length && (
+              <div className="pt-6 border-t border-border text-center">
                 <p className="text-sm text-muted-foreground">Chargement du graphique...</p>
               </div>
             )}
