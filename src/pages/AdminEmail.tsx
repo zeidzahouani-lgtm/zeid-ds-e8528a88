@@ -157,6 +157,7 @@ export default function AdminEmail() {
     if (type === "validation") return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">✅ Validation</Badge>;
     if (type === "annulation") return <Badge className="bg-destructive/20 text-destructive border-destructive/30">❌ Annulation</Badge>;
     if (type === "réception") return <Badge className="bg-primary/20 text-primary border-primary/30">📩 Réception</Badge>;
+    if (type === "renvoi_accusé") return <Badge className="bg-accent/20 text-accent border-accent/30">🔄 Renvoi accusé</Badge>;
     return <Badge variant="outline">{type}</Badge>;
   };
 
