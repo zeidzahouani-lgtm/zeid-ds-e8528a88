@@ -95,7 +95,7 @@ export default function AutoFlow() {
         code: newCode.trim().toUpperCase(),
         user_name: newUserName.trim(),
       };
-      if (newUserId) insertData.user_id = newUserId;
+      if (newUserId && newUserId !== "none") insertData.user_id = newUserId;
       const { error } = await (supabase.from("access_codes") as any).insert(insertData);
       if (error) throw error;
       toast.success("Code d'accès créé");
