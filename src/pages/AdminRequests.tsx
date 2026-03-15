@@ -208,6 +208,15 @@ export default function AdminRequests() {
         });
       }
 
+      // Send email if checked
+      if (sendRegEmail) {
+        const emailRes = await supabase.functions.invoke("send-credentials", {
+          body: { to_email: regDialog.email, to_name: regDialog.display_name, password: regPassword, type: "registration" },
+        });
+        if (emailRes.error) throw emailRes.error;
+        if (emailRes.data?.error) throw new Error(emailRes.data.error);
+      }
+
       // Update request status
       await supabase
         .from("registration_requests" as any)
@@ -216,7 +225,7 @@ export default function AdminRequests() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["registration_requests"] });
-      toast({ title: "Inscription approuvée", description: `Compte et établissement créés pour ${regDialog?.email}` });
+      toast({ title: "Inscription approuvée", description: sendRegEmail ? `Identifiants envoyés par email à ${regDialog?.email}` : `Compte créé pour ${regDialog?.email}` });
       setRegDialog(null);
     },
     onError: (e) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
