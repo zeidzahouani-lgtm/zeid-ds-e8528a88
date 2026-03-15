@@ -10,6 +10,7 @@ export interface Content {
   status: "pending" | "scheduled" | "active" | "rejected";
   title: string | null;
   source: string | null;
+  sender_email: string | null;
   metadata: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;

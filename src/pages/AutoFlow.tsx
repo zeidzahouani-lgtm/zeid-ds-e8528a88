@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  Mail, CheckCircle2, XCircle, Clock, Play, Trash2, Eye, Loader2, Copy, ExternalLink, RefreshCw, Pencil, Inbox, Paperclip, ArrowRight, Image as ImageIcon
+  Mail, CheckCircle2, XCircle, Clock, Play, Trash2, Eye, Loader2, Copy, ExternalLink, RefreshCw, Pencil, Inbox, Paperclip, ArrowRight, Image as ImageIcon, Send
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -42,6 +42,25 @@ export default function AutoFlow() {
   const [checkingInbox, setCheckingInbox] = useState(false);
   const [previewEmail, setPreviewEmail] = useState<InboxEmail | null>(null);
   const [activeTab, setActiveTab] = useState("contents");
+  const [resendingAck, setResendingAck] = useState<string | null>(null);
+
+  const handleResendAck = async (c: Content) => {
+    setResendingAck(c.id);
+    try {
+      const { data, error } = await supabase.functions.invoke("resend-ack", {
+        body: { content_id: c.id },
+      });
+      if (error || data?.error) {
+        toast.error(data?.error || error?.message || "Erreur lors du renvoi");
+      } else {
+        toast.success(data?.message || "Accusé de réception renvoyé");
+      }
+    } catch (e: any) {
+      toast.error("Erreur: " + (e.message || "Impossible de renvoyer"));
+    } finally {
+      setResendingAck(null);
+    }
+  };
 
   useEffect(() => {
     const unsub1 = subscribeRealtime();
@@ -282,6 +301,16 @@ export default function AutoFlow() {
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(c)} title="Supprimer">
                           <Trash2 className="h-4 w-4" />
                         </Button>
+                        {c.sender_email && (
+                          <Button
+                            variant="ghost" size="icon" className="h-8 w-8 text-primary"
+                            onClick={() => handleResendAck(c)}
+                            disabled={resendingAck === c.id}
+                            title="Renvoyer l'accusé de réception"
+                          >
+                            {resendingAck === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </Card>
