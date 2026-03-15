@@ -23,6 +23,7 @@ export function ManualContentForm({ screens }: ManualContentFormProps) {
     start_time: "",
     end_time: "",
     status: "pending" as string,
+    sender_email: "",
   });
 
   const handleSubmit = async () => {
