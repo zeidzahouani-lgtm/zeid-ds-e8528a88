@@ -383,6 +383,11 @@ export default function LayoutEditor() {
               style={{
                 width: canvasW * scale * 0.8,
                 height: canvasH * scale * 0.8,
+                backgroundColor: layout.background_color || "#000000",
+                backgroundImage: (layout as any).bg_type === "image" && (layout as any).bg_image_url ? `url(${(layout as any).bg_image_url})` : undefined,
+                backgroundSize: (layout as any).bg_image_fit === "contain" ? "contain" : (layout as any).bg_image_fit === "repeat" ? "auto" : "cover",
+                backgroundRepeat: (layout as any).bg_image_fit === "repeat" ? "repeat" : "no-repeat",
+                backgroundPosition: "center",
               }}
             >
               {regions.map((r, idx) => {
