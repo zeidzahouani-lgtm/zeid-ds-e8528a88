@@ -508,6 +508,54 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string
+          establishment_id: string
+          id: string
+          is_read: boolean
+          message: string | null
+          screen_id: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          establishment_id: string
+          id?: string
+          is_read?: boolean
+          message?: string | null
+          screen_id?: string | null
+          title: string
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          establishment_id?: string
+          id?: string
+          is_read?: boolean
+          message?: string | null
+          screen_id?: string | null
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_screen_id_fkey"
+            columns: ["screen_id"]
+            isOneToOne: false
+            referencedRelation: "screens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       playlist_items: {
         Row: {
           created_at: string
