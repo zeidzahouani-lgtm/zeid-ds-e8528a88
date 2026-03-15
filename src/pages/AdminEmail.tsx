@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Mail, Server, Save, Loader2, CheckCircle, XCircle, Zap, Eye, EyeOff, Shield } from "lucide-react";
+import { Mail, Server, Save, Loader2, CheckCircle, XCircle, Zap, Eye, EyeOff, Shield, Inbox, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface EmailConfig {
