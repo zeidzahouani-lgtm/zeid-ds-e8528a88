@@ -84,8 +84,8 @@ export function useLayouts() {
   });
 
   const updateLayout = useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string; name?: string; width?: number; height?: number; background_color?: string; bg_type?: string; bg_image_url?: string | null; bg_image_fit?: string }) => {
-      const { error } = await supabase.from("layouts").update(updates).eq("id", id);
+    mutationFn: async ({ id, ...updates }: { id: string; name?: string; width?: number; height?: number; background_color?: string; bg_type?: string; bg_image_url?: string | null; bg_image_fit?: string; bg_overlay_darken?: number; bg_overlay_blur?: number }) => {
+      const { error } = await supabase.from("layouts").update(updates as any).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["layouts"] }),
