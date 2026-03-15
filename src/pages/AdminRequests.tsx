@@ -483,6 +483,12 @@ export default function AdminRequests() {
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <Checkbox id="send-reg-email" checked={sendRegEmail} onCheckedChange={(v) => setSendRegEmail(!!v)} />
+                  <label htmlFor="send-reg-email" className="text-sm flex items-center gap-1.5 cursor-pointer">
+                    <Mail className="h-3.5 w-3.5 text-primary" /> Envoyer les identifiants par email
+                  </label>
+                </div>
               </div>
 
               <div className="space-y-2">
