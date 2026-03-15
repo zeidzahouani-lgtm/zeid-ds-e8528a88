@@ -204,7 +204,7 @@ function LayoutRenderer({ layoutId, screenOrientation }: { layoutId: string; scr
   useEffect(() => {
     const fetchLayout = async () => {
       const [layoutRes, regionsRes] = await Promise.all([
-        supabase.from("layouts").select("id, width, height, background_color, bg_type, bg_image_url, bg_image_fit").eq("id", layoutId).single(),
+        supabase.from("layouts").select("id, width, height, background_color, bg_type, bg_image_url, bg_image_fit, bg_overlay_darken, bg_overlay_blur").eq("id", layoutId).single(),
         supabase.from("layout_regions").select("*, media:media_id(id, name, type, url)").eq("layout_id", layoutId).order("z_index", { ascending: true }),
       ]);
       if (layoutRes.data) setLayout(layoutRes.data as LayoutData);
