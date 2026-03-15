@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Upload, Lock, CheckCircle, Loader2, Image as ImageIcon, Clock, CalendarDays, RotateCw } from "lucide-react";
+import { Upload, Lock, CheckCircle, Loader2, Image as ImageIcon, Clock, CalendarDays, RotateCw, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
