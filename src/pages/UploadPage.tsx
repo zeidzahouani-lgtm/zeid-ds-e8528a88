@@ -192,15 +192,19 @@ export default function UploadPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Image picker */}
-              <input ref={fileRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+              <input ref={fileRef} type="file" accept="image/*,video/*" onChange={handleFileChange} className="hidden" />
               {preview ? (
                 <div className="relative group">
-                  <img src={preview} alt="Preview" className="w-full h-40 object-cover rounded-lg border border-border" />
+                  {isVideo ? (
+                    <video src={preview} className="w-full h-40 object-cover rounded-lg border border-border" muted playsInline />
+                  ) : (
+                    <img src={preview} alt="Preview" className="w-full h-40 object-cover rounded-lg border border-border" />
+                  )}
                   <button
                     onClick={() => fileRef.current?.click()}
                     className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center"
                   >
-                    <span className="text-white text-sm font-medium">Changer l'image</span>
+                    <span className="text-white text-sm font-medium">Changer le fichier</span>
                   </button>
                 </div>
               ) : (
@@ -208,8 +212,11 @@ export default function UploadPage() {
                   onClick={() => fileRef.current?.click()}
                   className="w-full h-40 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-3 hover:border-primary/50 hover:bg-primary/5 transition-colors"
                 >
-                  <ImageIcon className="h-10 w-10 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Cliquez pour sélectionner une image</span>
+                  <div className="flex gap-2">
+                    <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                    <Video className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <span className="text-sm text-muted-foreground">Cliquez pour sélectionner une image ou vidéo</span>
                 </button>
               )}
 
