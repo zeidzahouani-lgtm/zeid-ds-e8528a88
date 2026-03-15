@@ -395,6 +395,12 @@ export default function AdminRequests() {
                 </Button>
               </div>
             </div>
+            <div className="flex items-center gap-2 mt-3">
+              <Checkbox id="send-reset-email" checked={sendResetEmail} onCheckedChange={(v) => setSendResetEmail(!!v)} />
+              <label htmlFor="send-reset-email" className="text-sm flex items-center gap-1.5 cursor-pointer">
+                <Mail className="h-3.5 w-3.5 text-primary" /> Envoyer le mot de passe par email
+              </label>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setResetDialog(null)}>Annuler</Button>
