@@ -433,16 +433,19 @@ export default function Player() {
     <div ref={containerRef} className="fixed inset-0 bg-black overflow-hidden cursor-none" onClick={requestFullscreen}>
       <div className="w-full h-full transition-transform duration-700 ease-in-out" style={rotationStyle}>
         <div className="w-full h-full transition-opacity duration-500 ease-in-out" style={{ opacity: visible ? 1 : 0 }}>
-          {!media ? (
+          {!media && activeContents.length === 0 ? (
             <div className="w-full h-full flex flex-col items-center justify-center gap-4">
               <CompanyLogo logoUrl={logoUrl} />
               <MonitorPlay className="h-16 w-16 text-primary/30" />
               <p className="text-muted-foreground text-lg">{screen.name}</p>
               <p className="text-muted-foreground/50 text-sm">En attente de contenu...</p>
             </div>
-          ) : (
+          ) : activeContents.length > 0 && !media ? (
+            /* Show active automated contents when no playlist media */
+            <ActiveContentCarousel contents={activeContents} />
+          ) : media ? (
             <MediaRenderer media={media} playlistLength={playlistLength} />
-          )}
+          ) : null}
         </div>
 
         {playlistLength > 1 && currentDuration > 0 && (
