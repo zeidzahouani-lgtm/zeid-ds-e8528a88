@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  Mail, CheckCircle2, XCircle, Clock, Play, Trash2, Eye, Loader2, Copy, ExternalLink, RefreshCw, Pencil
+  Mail, CheckCircle2, XCircle, Clock, Play, Trash2, Eye, Loader2, Copy, ExternalLink, RefreshCw, Pencil, Inbox
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
