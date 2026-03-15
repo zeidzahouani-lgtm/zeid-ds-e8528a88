@@ -14,8 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
-        mono: ["Geist Mono", "monospace"],
+        sans: ["Plus Jakarta Sans", "system-ui", "-apple-system", "sans-serif"],
+        mono: ["JetBrains Mono", "monospace"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -69,15 +69,17 @@ export default {
           elevated: "hsl(var(--surface-elevated))",
         },
         neon: {
-          cyan: "hsl(var(--neon-cyan))",
-          violet: "hsl(var(--neon-violet))",
-          pink: "hsl(var(--neon-pink))",
+          cyan: "hsl(var(--accent))",
+          violet: "hsl(var(--primary))",
+          pink: "hsl(var(--accent))",
         },
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        xl: "calc(var(--radius) + 4px)",
+        "2xl": "calc(var(--radius) + 8px)",
       },
       keyframes: {
         "accordion-down": {
@@ -100,6 +102,10 @@ export default {
           "0%, 100%": { opacity: "0.6" },
           "50%": { opacity: "1" },
         },
+        "shimmer": {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -107,11 +113,16 @@ export default {
         "fade-in": "fade-in 0.3s ease-out",
         "scale-in": "scale-in 0.2s ease-out",
         "glow-pulse": "glow-pulse 2s ease-in-out infinite",
+        "shimmer": "shimmer 2s linear infinite",
       },
       boxShadow: {
-        "neon-cyan": "0 0 15px hsl(185 100% 55% / 0.25), 0 0 30px hsl(185 100% 55% / 0.1)",
-        "neon-violet": "0 0 15px hsl(270 80% 60% / 0.25), 0 0 30px hsl(270 80% 60% / 0.1)",
-        "neon-pink": "0 0 15px hsl(330 90% 60% / 0.25), 0 0 30px hsl(330 90% 60% / 0.1)",
+        "neon-cyan": "0 0 16px hsl(192 95% 55% / 0.2), 0 0 32px hsl(192 95% 55% / 0.08)",
+        "neon-violet": "0 0 16px hsl(210 100% 56% / 0.2), 0 0 32px hsl(210 100% 56% / 0.08)",
+        "neon-pink": "0 0 16px hsl(192 95% 55% / 0.2), 0 0 32px hsl(192 95% 55% / 0.08)",
+        "glass": "0 8px 32px hsl(222 47% 5% / 0.3), inset 0 1px 0 hsl(213 20% 90% / 0.04)",
+        "glass-lg": "0 16px 48px hsl(222 47% 5% / 0.4), inset 0 1px 0 hsl(213 20% 90% / 0.05)",
+        "glow-blue": "0 0 20px hsl(210 100% 56% / 0.25), 0 0 40px hsl(210 100% 56% / 0.1)",
+        "glow-cyan": "0 0 20px hsl(192 95% 55% / 0.25), 0 0 40px hsl(192 95% 55% / 0.1)",
       },
     },
   },
