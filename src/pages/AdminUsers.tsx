@@ -7,10 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Users, Shield, ShieldCheck, Plus, Tv, UserPlus, Building2 } from "lucide-react";
+import { Users, Shield, ShieldCheck, UserPlus, Building2, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { useScreens } from "@/hooks/useScreens";
 import { useEstablishments } from "@/hooks/useEstablishments";
 
 interface UserProfile {
@@ -19,20 +18,19 @@ interface UserProfile {
   display_name: string | null;
   created_at: string;
   roles: string[];
-  screenCount: number;
+  establishments: { id: string; name: string; role: string }[];
 }
 
 export default function AdminUsers() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { screens } = useScreens();
-  const { establishments, assignUserToEstablishment } = useEstablishments();
+  const { establishments, assignUserToEstablishment, removeUserFromEstablishment } = useEstablishments();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
   const [newEstablishmentId, setNewEstablishmentId] = useState("");
-  const [showScreenDialog, setShowScreenDialog] = useState<string | null>(null);
+  const [showEstDialog, setShowEstDialog] = useState<string | null>(null);
 
   const { data: currentUserRoles = [] } = useQuery({
     queryKey: ["my_roles"],
@@ -45,16 +43,6 @@ export default function AdminUsers() {
 
   const isAdmin = currentUserRoles.includes("admin");
 
-  const { data: allScreens = [] } = useQuery({
-    queryKey: ["admin_all_screens"],
-    enabled: isAdmin,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("screens").select("*").order("name");
-      if (error) throw error;
-      return data;
-    },
-  });
-
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin_users"],
     enabled: isAdmin,
@@ -62,12 +50,18 @@ export default function AdminUsers() {
       const { data: profiles, error } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
       if (error) throw error;
       const { data: roles } = await supabase.from("user_roles").select("*");
-      const { data: screenData } = await supabase.from("screens").select("id, user_id");
+      const { data: userEsts } = await supabase.from("user_establishments").select("user_id, establishment_id, role, establishment:establishments(id, name)");
 
       return (profiles || []).map((p) => ({
         ...p,
         roles: (roles || []).filter((r) => r.user_id === p.id).map((r) => r.role),
-        screenCount: (screenData || []).filter((s) => s.user_id === p.id).length,
+        establishments: (userEsts || [])
+          .filter((ue: any) => ue.user_id === p.id)
+          .map((ue: any) => ({
+            id: ue.establishment_id,
+            name: ue.establishment?.name || "—",
+            role: ue.role,
+          })),
       })) as UserProfile[];
     },
   });
@@ -87,7 +81,6 @@ export default function AdminUsers() {
 
   const inviteUser = useMutation({
     mutationFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
       const res = await supabase.functions.invoke("invite-user", {
         body: { email: newEmail, password: newPassword, display_name: newDisplayName },
       });
@@ -96,7 +89,6 @@ export default function AdminUsers() {
       return res.data;
     },
     onSuccess: async (data) => {
-      // If an establishment was selected, assign the new user
       if (newEstablishmentId && data?.user?.id) {
         try {
           await assignUserToEstablishment.mutateAsync({
@@ -117,19 +109,25 @@ export default function AdminUsers() {
     onError: (e) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
 
-  const assignScreen = useMutation({
-    mutationFn: async ({ screenId, userId }: { screenId: string; userId: string }) => {
-      const { error } = await supabase.from("screens").update({ user_id: userId }).eq("id", screenId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
+  const handleAssignEstablishment = async (userId: string, establishmentId: string) => {
+    try {
+      await assignUserToEstablishment.mutateAsync({ userId, establishmentId });
       queryClient.invalidateQueries({ queryKey: ["admin_users"] });
-      queryClient.invalidateQueries({ queryKey: ["admin_all_screens"] });
-      queryClient.invalidateQueries({ queryKey: ["screens"] });
-      toast({ title: "Écran assigné" });
-    },
-    onError: () => toast({ title: "Erreur", variant: "destructive" }),
-  });
+      toast({ title: "Établissement assigné" });
+    } catch {
+      toast({ title: "Erreur", variant: "destructive" });
+    }
+  };
+
+  const handleRemoveEstablishment = async (userId: string, establishmentId: string) => {
+    try {
+      await removeUserFromEstablishment.mutateAsync({ userId, establishmentId });
+      queryClient.invalidateQueries({ queryKey: ["admin_users"] });
+      toast({ title: "Établissement retiré" });
+    } catch {
+      toast({ title: "Erreur", variant: "destructive" });
+    }
+  };
 
   if (!isAdmin) {
     return (
@@ -141,9 +139,11 @@ export default function AdminUsers() {
     );
   }
 
-  const selectedUserScreens = showScreenDialog
-    ? allScreens.filter((s) => s.user_id === showScreenDialog)
-    : [];
+  const selectedUser = showEstDialog ? users.find((u) => u.id === showEstDialog) : null;
+  const selectedUserEsts = selectedUser?.establishments || [];
+  const availableEstablishments = establishments.filter(
+    (e: any) => !selectedUserEsts.some((ue) => ue.id === e.id)
+  );
 
   return (
     <div className="space-y-6">
@@ -152,7 +152,7 @@ export default function AdminUsers() {
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
             <Users className="h-6 w-6 text-primary" /> Administration des utilisateurs
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">Gérez les utilisateurs, rôles et écrans</p>
+          <p className="text-muted-foreground text-sm mt-1">Gérez les utilisateurs, rôles et établissements</p>
         </div>
         <div className="flex gap-2">
           <Badge variant="secondary">{users.length} utilisateur(s)</Badge>
@@ -187,10 +187,10 @@ export default function AdminUsers() {
                     variant="outline"
                     size="sm"
                     className="gap-1.5 text-xs"
-                    onClick={() => setShowScreenDialog(u.id)}
+                    onClick={() => setShowEstDialog(u.id)}
                   >
-                    <Tv className="h-3.5 w-3.5" />
-                    {u.screenCount} écran(s)
+                    <Building2 className="h-3.5 w-3.5" />
+                    {u.establishments.length} établissement(s)
                   </Button>
                   <span className="text-xs text-muted-foreground">
                     {new Date(u.created_at).toLocaleDateString("fr-FR")}
@@ -258,50 +258,54 @@ export default function AdminUsers() {
         </DialogContent>
       </Dialog>
 
-      {/* Screen assignment dialog */}
-      <Dialog open={!!showScreenDialog} onOpenChange={() => setShowScreenDialog(null)}>
+      {/* Establishment assignment dialog */}
+      <Dialog open={!!showEstDialog} onOpenChange={() => setShowEstDialog(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Écrans assignés</DialogTitle>
+            <DialogTitle>Établissements assignés</DialogTitle>
             <DialogDescription>
-              {users.find((u) => u.id === showScreenDialog)?.display_name || "Utilisateur"}
+              {selectedUser?.display_name || "Utilisateur"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            {selectedUserScreens.length === 0 && (
-              <p className="text-sm text-muted-foreground">Aucun écran assigné à cet utilisateur.</p>
+            {selectedUserEsts.length === 0 && (
+              <p className="text-sm text-muted-foreground">Aucun établissement assigné à cet utilisateur.</p>
             )}
-            {selectedUserScreens.map((s) => (
-              <div key={s.id} className="flex items-center justify-between border rounded-md p-2">
+            {selectedUserEsts.map((est) => (
+              <div key={est.id} className="flex items-center justify-between border border-border rounded-md p-2">
                 <div className="flex items-center gap-2">
-                  <Tv className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{s.name}</span>
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">{est.name}</span>
+                  <Badge variant="secondary" className="text-[10px]">{est.role}</Badge>
                 </div>
-                <Badge variant={s.status === "online" ? "default" : "secondary"} className="text-[10px]">
-                  {s.status}
-                </Badge>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7"
+                  onClick={() => showEstDialog && handleRemoveEstablishment(showEstDialog, est.id)}
+                >
+                  <X className="h-3.5 w-3.5 text-destructive" />
+                </Button>
               </div>
             ))}
 
-            <div className="border-t pt-3">
-              <label className="text-sm font-medium">Assigner un écran existant</label>
-              <Select onValueChange={(screenId) => {
-                if (showScreenDialog) assignScreen.mutate({ screenId, userId: showScreenDialog });
-              }}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Choisir un écran..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {allScreens
-                    .filter((s) => s.user_id !== showScreenDialog)
-                    .map((s) => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name} {s.user_id ? `(${users.find((u) => u.id === s.user_id)?.display_name || "autre"})` : "(non assigné)"}
-                      </SelectItem>
+            {availableEstablishments.length > 0 && (
+              <div className="border-t border-border pt-3">
+                <label className="text-sm font-medium">Assigner un établissement</label>
+                <Select onValueChange={(estId) => {
+                  if (showEstDialog) handleAssignEstablishment(showEstDialog, estId);
+                }}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Choisir un établissement..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableEstablishments.map((est: any) => (
+                      <SelectItem key={est.id} value={est.id}>{est.name}</SelectItem>
                     ))}
-                </SelectContent>
-              </Select>
-            </div>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
