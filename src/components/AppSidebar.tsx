@@ -4,6 +4,7 @@ import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
+import { useEstablishmentSettings } from "@/hooks/useEstablishmentSettings";
 import { EstablishmentSwitcher } from "@/components/EstablishmentSwitcher";
 import {
   Sidebar,
@@ -51,7 +52,18 @@ export function AppSidebar() {
   const location = useLocation();
   const { user, signOut } = useAuth();
   const { settings } = useAppSettings();
-  const { isGlobalAdmin, isEstablishmentAdmin } = useEstablishmentContext();
+  const { isGlobalAdmin, isEstablishmentAdmin, currentEstablishmentId, memberships } = useEstablishmentContext();
+  const { getSetting } = useEstablishmentSettings(currentEstablishmentId);
+
+  const showAdminSection = isGlobalAdmin || isEstablishmentAdmin;
+
+  // Establishment branding for sidebar
+  const estLogoUrl = !isGlobalAdmin && currentEstablishmentId ? getSetting("brand_logo_url") : null;
+  const estName = !isGlobalAdmin && currentEstablishmentId ? getSetting("brand_name") : null;
+  // Fallback to establishment table logo
+  const currentEst = memberships.find(m => m.establishment_id === currentEstablishmentId);
+  const displayLogo = estLogoUrl || (!isGlobalAdmin && currentEst?.establishment ? (currentEst.establishment as any).logo_url : null) || settings.logo_url;
+  const displayName = estName || settings.app_name;
 
   const showAdminSection = isGlobalAdmin || isEstablishmentAdmin;
 
