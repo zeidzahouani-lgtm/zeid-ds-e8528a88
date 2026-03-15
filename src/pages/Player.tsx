@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import WidgetRenderer from "@/components/widgets/WidgetRenderer";
 import { validateLicense, activateLicenseByKey } from "@/hooks/useLicenses";
 import { QRCodeSVG } from "qrcode.react";
+import FallbackScreen from "@/components/player/FallbackScreen";
 
 // Hook to fetch active contents for a screen filtered by current time
 function useActiveContents(screenId: string | undefined) {
@@ -385,6 +386,7 @@ export default function Player() {
   const activeContents = useActiveContents(screen?.id);
   const branding = usePlayerBranding(screen?.id);
   const [visible, setVisible] = useState(true);
+  const [hasContent, setHasContent] = useState(false);
   const [progress, setProgress] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>();
@@ -445,6 +447,12 @@ export default function Player() {
     const timer = setTimeout(() => setVisible(true), 300);
     return () => clearTimeout(timer);
   }, [media?.id, currentIndex, layoutId]);
+
+  // Track whether we have content (for fade transition)
+  useEffect(() => {
+    const nowHasContent = !!(media || activeContents.length > 0);
+    setHasContent(nowHasContent);
+  }, [media, activeContents]);
 
   useEffect(() => {
     if (!currentDuration || currentDuration <= 0 || layoutId) {
@@ -554,28 +562,26 @@ export default function Player() {
     <div ref={containerRef} className="fixed inset-0 overflow-hidden cursor-none" style={playerBgStyle} onClick={requestFullscreen}>
       <div className="w-full h-full transition-transform duration-700 ease-in-out" style={rotationStyle}>
         <div className="w-full h-full transition-opacity duration-500 ease-in-out" style={{ opacity: visible ? 1 : 0 }}>
-          {!media && activeContents.length === 0 ? (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-6">
-              <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} />
-              <MonitorPlay className="h-16 w-16 text-primary/30" />
-              <p className="text-muted-foreground text-lg">{screen.name}</p>
-              <p className="text-muted-foreground/50 text-sm">En attente de contenu...</p>
-              <div className="mt-4 flex flex-col items-center gap-3">
-                <p className="text-xs text-muted-foreground/60 uppercase tracking-wider">Scannez pour diffuser du contenu</p>
-                <div className="bg-white p-4 rounded-2xl shadow-lg">
-                  <QRCodeSVG
-                    value={`${window.location.origin}/upload/${screen.id}`}
-                    size={180}
-                    level="M"
-                  />
-                </div>
-              </div>
-            </div>
-          ) : activeContents.length > 0 && !media ? (
-            <ActiveContentCarousel contents={activeContents} screenOrientation={screen.orientation} />
-          ) : media ? (
-            <MediaRenderer media={media} playlistLength={playlistLength} />
-          ) : null}
+          {/* Fallback screen - always rendered, fades out when content arrives */}
+          <div className="absolute inset-0 transition-opacity duration-1000 ease-in-out"
+            style={{ opacity: hasContent ? 0 : 1, pointerEvents: hasContent ? "none" : "auto" }}>
+            <FallbackScreen
+              screenName={screen.name}
+              screenId={screen.id}
+              logoUrl={branding.logoUrl}
+              showLogo={branding.showLogo}
+            />
+          </div>
+
+          {/* Actual content - fades in */}
+          <div className="absolute inset-0 transition-opacity duration-1000 ease-in-out"
+            style={{ opacity: hasContent ? 1 : 0, pointerEvents: hasContent ? "auto" : "none" }}>
+            {activeContents.length > 0 && !media ? (
+              <ActiveContentCarousel contents={activeContents} screenOrientation={screen.orientation} />
+            ) : media ? (
+              <MediaRenderer media={media} playlistLength={playlistLength} />
+            ) : null}
+          </div>
         </div>
 
         {playlistLength > 1 && currentDuration > 0 && (
