@@ -120,6 +120,32 @@ export default function AutoFlow() {
           </SelectContent>
         </Select>
         <Badge variant="outline">{filtered.length} élément{filtered.length > 1 ? "s" : ""}</Badge>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          disabled={checkingReplies}
+          onClick={async () => {
+            setCheckingReplies(true);
+            try {
+              const { data, error } = await supabase.functions.invoke("check-email-replies");
+              if (error) throw error;
+              if (data?.processed > 0) {
+                toast.success(`${data.processed} réponse(s) email traitée(s)`);
+                queryClient.invalidateQueries({ queryKey: ["contents"] });
+              } else {
+                toast.info("Aucune nouvelle réponse email");
+              }
+            } catch (e: any) {
+              toast.error("Erreur: " + (e.message || "Impossible de vérifier les emails"));
+            } finally {
+              setCheckingReplies(false);
+            }
+          }}
+        >
+          {checkingReplies ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Inbox className="h-3.5 w-3.5" />}
+          Vérifier les réponses
+        </Button>
         <div className="ml-auto">
           <ManualContentForm screens={screens || []} />
         </div>
