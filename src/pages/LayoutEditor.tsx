@@ -8,9 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   ArrowLeft, Plus, Trash2, Save, Move, Maximize2, Image, Video, Globe, Clock, Cloud, Type,
   Monitor, Smartphone, LayoutGrid, Columns, PanelLeft, Square, Eye, QrCode, Palette, AlignLeft,
+  ImageIcon, Check,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import WidgetRenderer from "@/components/widgets/WidgetRenderer";
@@ -118,8 +120,9 @@ export default function LayoutEditor() {
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [layoutName, setLayoutName] = useState("");
-  const [activePanel, setActivePanel] = useState<"properties" | "library" | "widgets" | "presets">("presets");
+  const [activePanel, setActivePanel] = useState<"properties" | "library" | "widgets" | "presets" | "background">("presets");
   const [showPreview, setShowPreview] = useState(false);
+  const [showBgLibrary, setShowBgLibrary] = useState(false);
   const [orientation, setOrientation] = useState<"landscape" | "portrait">("landscape");
 
   useEffect(() => {
@@ -380,6 +383,11 @@ export default function LayoutEditor() {
               style={{
                 width: canvasW * scale * 0.8,
                 height: canvasH * scale * 0.8,
+                backgroundColor: layout.background_color || "#000000",
+                backgroundImage: (layout as any).bg_type === "image" && (layout as any).bg_image_url ? `url(${(layout as any).bg_image_url})` : undefined,
+                backgroundSize: (layout as any).bg_image_fit === "contain" ? "contain" : (layout as any).bg_image_fit === "repeat" ? "auto" : "cover",
+                backgroundRepeat: (layout as any).bg_image_fit === "repeat" ? "repeat" : "no-repeat",
+                backgroundPosition: "center",
               }}
             >
               {regions.map((r, idx) => {
@@ -438,6 +446,10 @@ export default function LayoutEditor() {
               width: canvasW * scale,
               height: canvasH * scale,
               backgroundColor: layout.background_color || "#000000",
+              backgroundImage: (layout as any).bg_type === "image" && (layout as any).bg_image_url ? `url(${(layout as any).bg_image_url})` : undefined,
+              backgroundSize: (layout as any).bg_image_fit === "contain" ? "contain" : (layout as any).bg_image_fit === "repeat" ? "auto" : "cover",
+              backgroundRepeat: (layout as any).bg_image_fit === "repeat" ? "repeat" : "no-repeat",
+              backgroundPosition: "center",
             }}
             ref={canvasRef}
             onMouseMove={handleMouseMove}
@@ -479,13 +491,13 @@ export default function LayoutEditor() {
         <div className="w-80 shrink-0 space-y-2">
           {/* Panel tabs */}
           <div className="flex border rounded-md overflow-hidden">
-            {(["presets", "library", "widgets", "properties"] as const).map((tab) => (
+            {(["presets", "background", "library", "widgets", "properties"] as const).map((tab) => (
               <button
                 key={tab}
                 className={`flex-1 text-[10px] sm:text-xs py-1.5 font-medium transition-colors ${activePanel === tab ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"}`}
                 onClick={() => setActivePanel(tab)}
               >
-                {tab === "presets" ? "Templates" : tab === "library" ? "Médias" : tab === "widgets" ? "Widgets" : "Propriétés"}
+                {tab === "presets" ? "Templates" : tab === "background" ? "Fond" : tab === "library" ? "Médias" : tab === "widgets" ? "Widgets" : "Propriétés"}
               </button>
             ))}
           </div>
@@ -547,7 +559,105 @@ export default function LayoutEditor() {
             </Card>
           )}
 
-          {/* Library */}
+          {/* Background */}
+          {activePanel === "background" && (
+            <Card className="self-start">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Palette className="h-4 w-4 text-primary" /> Fond d'écran
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Type toggle */}
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1.5 block">Type de fond</label>
+                  <div className="flex border rounded-md overflow-hidden">
+                    <button
+                      className={`flex-1 text-xs py-2 font-medium transition-colors ${
+                        (layout as any).bg_type !== "image" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                      }`}
+                      onClick={() => updateLayout.mutate({ id: id!, bg_type: "color" })}
+                    >
+                      🎨 Couleur Unie
+                    </button>
+                    <button
+                      className={`flex-1 text-xs py-2 font-medium transition-colors ${
+                        (layout as any).bg_type === "image" ? "bg-primary text-primary-foreground" : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                      }`}
+                      onClick={() => updateLayout.mutate({ id: id!, bg_type: "image" })}
+                    >
+                      🖼️ Image
+                    </button>
+                  </div>
+                </div>
+
+                {/* Color picker (always shown as base layer) */}
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">Couleur de fond</label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={layout.background_color || "#000000"}
+                      onChange={(e) => updateLayout.mutate({ id: id!, background_color: e.target.value })}
+                      className="w-10 h-10 rounded-lg border border-border cursor-pointer"
+                    />
+                    <Input
+                      value={layout.background_color || "#000000"}
+                      onChange={(e) => updateLayout.mutate({ id: id!, background_color: e.target.value })}
+                      className="h-8 text-sm font-mono flex-1"
+                      placeholder="#000000"
+                    />
+                  </div>
+                </div>
+
+                {/* Image options */}
+                {(layout as any).bg_type === "image" && (
+                  <div className="space-y-3 border-t border-border pt-3">
+                    {(layout as any).bg_image_url && (
+                      <div className="relative rounded-lg overflow-hidden border border-border">
+                        <img src={(layout as any).bg_image_url} alt="Fond" className="w-full h-32 object-cover" />
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="absolute top-2 right-2 h-6 text-[10px]"
+                          onClick={() => updateLayout.mutate({ id: id!, bg_image_url: null })}
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" /> Retirer
+                        </Button>
+                      </div>
+                    )}
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => setShowBgLibrary(true)}
+                    >
+                      <ImageIcon className="h-4 w-4 mr-2" /> Choisir depuis la bibliothèque
+                    </Button>
+
+                    {/* Fit mode */}
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1 block">Ajustement</label>
+                      <Select
+                        value={(layout as any).bg_image_fit || "cover"}
+                        onValueChange={(v) => updateLayout.mutate({ id: id!, bg_image_fit: v })}
+                      >
+                        <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cover">Remplir (Cover)</SelectItem>
+                          <SelectItem value="contain">Ajuster (Contain)</SelectItem>
+                          <SelectItem value="repeat">Mosaïque (Repeat)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+
           {activePanel === "library" && (
             <Card className="self-start">
               <CardHeader className="pb-2">
@@ -899,6 +1009,51 @@ export default function LayoutEditor() {
           )}
         </div>
       </div>
+
+      {/* Background Image Library Modal */}
+      <Dialog open={showBgLibrary} onOpenChange={setShowBgLibrary}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ImageIcon className="h-5 w-5 text-primary" /> Choisir une image de fond
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="h-[400px]">
+            <div className="grid grid-cols-3 gap-3 p-1">
+              {media.filter(m => m.type?.startsWith("image")).length === 0 ? (
+                <p className="col-span-3 text-center text-sm text-muted-foreground py-12">Aucune image dans la bibliothèque.</p>
+              ) : (
+                media.filter(m => m.type?.startsWith("image")).map((m) => {
+                  const isSelected = (layout as any).bg_image_url === m.url;
+                  return (
+                    <div
+                      key={m.id}
+                      className={`relative group rounded-lg overflow-hidden border-2 cursor-pointer transition-all hover:border-primary/60 ${
+                        isSelected ? "border-primary ring-2 ring-primary/30" : "border-border"
+                      }`}
+                      onClick={() => {
+                        updateLayout.mutate({ id: id!, bg_image_url: m.url, bg_type: "image" });
+                        setShowBgLibrary(false);
+                        toast({ title: "Image de fond appliquée" });
+                      }}
+                    >
+                      <img src={m.url} alt={m.name} className="w-full h-28 object-cover" />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                        {isSelected && (
+                          <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
+                            <Check className="h-5 w-5 text-primary-foreground" />
+                          </div>
+                        )}
+                      </div>
+                      <p className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] px-2 py-1 truncate">{m.name}</p>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -60,6 +60,9 @@ interface LayoutData {
   width: number;
   height: number;
   background_color: string;
+  bg_type?: string;
+  bg_image_url?: string | null;
+  bg_image_fit?: string;
 }
 
 interface PlayerBranding {
@@ -199,7 +202,7 @@ function LayoutRenderer({ layoutId, screenOrientation }: { layoutId: string; scr
   useEffect(() => {
     const fetchLayout = async () => {
       const [layoutRes, regionsRes] = await Promise.all([
-        supabase.from("layouts").select("id, width, height, background_color").eq("id", layoutId).single(),
+        supabase.from("layouts").select("id, width, height, background_color, bg_type, bg_image_url, bg_image_fit").eq("id", layoutId).single(),
         supabase.from("layout_regions").select("*, media:media_id(id, name, type, url)").eq("layout_id", layoutId).order("z_index", { ascending: true }),
       ]);
       if (layoutRes.data) setLayout(layoutRes.data as LayoutData);
@@ -224,6 +227,10 @@ function LayoutRenderer({ layoutId, screenOrientation }: { layoutId: string; scr
   return (
     <div className="w-full h-full relative" style={{
       backgroundColor: layout.background_color,
+      backgroundImage: layout.bg_type === "image" && layout.bg_image_url ? `url(${layout.bg_image_url})` : undefined,
+      backgroundSize: layout.bg_image_fit === "contain" ? "contain" : layout.bg_image_fit === "repeat" ? "auto" : "cover",
+      backgroundRepeat: layout.bg_image_fit === "repeat" ? "repeat" : "no-repeat",
+      backgroundPosition: "center",
       ...rotationStyle,
     }}>
       {regions.map((region) => {
