@@ -41,6 +41,26 @@ export function useScreens() {
     mutationFn: async (name: string) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
+
+      // Check screen quota if linked to an establishment
+      if (currentEstablishmentId) {
+        const { data: establishment } = await supabase
+          .from("establishments")
+          .select("max_screens")
+          .eq("id", currentEstablishmentId)
+          .single();
+
+        const { count } = await supabase
+          .from("screens")
+          .select("id", { count: "exact", head: true })
+          .eq("establishment_id", currentEstablishmentId);
+
+        const maxScreens = establishment?.max_screens ?? 0;
+        if (maxScreens > 0 && (count ?? 0) >= maxScreens) {
+          throw new Error(`Quota atteint : cet établissement est limité à ${maxScreens} écran(s).`);
+        }
+      }
+
       const slug = name.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-");
       const { error } = await supabase.from("screens").insert({
         name,
