@@ -146,18 +146,24 @@ export default function AdminRequests() {
   const handleResetPassword = useMutation({
     mutationFn: async () => {
       if (!resetDialog) return;
-      // Find the user profile by email
-      const { data: profiles } = await supabase.from("profiles").select("id").eq("email", resetDialog.email).limit(1);
+      const { data: profiles } = await supabase.from("profiles").select("id, display_name").eq("email", resetDialog.email).limit(1);
       if (!profiles || profiles.length === 0) throw new Error("Utilisateur introuvable avec cet email");
 
-      // Use the invite-user edge function with the service role to update password
       const res = await supabase.functions.invoke("invite-user", {
         body: { email: resetDialog.email, password: newPassword, display_name: null, update_password: true },
       });
       if (res.error) throw res.error;
       if (res.data?.error) throw new Error(res.data.error);
 
-      // Mark request as handled
+      // Send email if checked
+      if (sendResetEmail) {
+        const emailRes = await supabase.functions.invoke("send-credentials", {
+          body: { to_email: resetDialog.email, to_name: profiles[0].display_name, password: newPassword, type: "reset" },
+        });
+        if (emailRes.error) throw emailRes.error;
+        if (emailRes.data?.error) throw new Error(emailRes.data.error);
+      }
+
       await supabase
         .from("password_reset_requests" as any)
         .update({ status: "handled", handled_by: user?.id, handled_at: new Date().toISOString() } as any)
@@ -165,7 +171,7 @@ export default function AdminRequests() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["password_reset_requests"] });
-      toast({ title: "Mot de passe mis à jour", description: `Nouveau mot de passe attribué pour ${resetDialog?.email}` });
+      toast({ title: "Mot de passe mis à jour", description: sendResetEmail ? `Nouveau mot de passe envoyé par email à ${resetDialog?.email}` : `Nouveau mot de passe attribué pour ${resetDialog?.email}` });
       setResetDialog(null);
     },
     onError: (e) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
