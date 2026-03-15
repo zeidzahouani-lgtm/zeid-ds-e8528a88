@@ -35,6 +35,7 @@ export default function AutoFlow() {
   const [editContent, setEditContent] = useState<Content | null>(null);
   const [filter, setFilter] = useState<string>("all");
   const [webhookCopied, setWebhookCopied] = useState(false);
+  const [checkingReplies, setCheckingReplies] = useState(false);
 
   useEffect(() => {
     const unsub = subscribeRealtime();
