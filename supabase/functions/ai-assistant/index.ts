@@ -204,6 +204,19 @@ serve(async (req) => {
       return jsonResponse({ suggestions: suggestions.slice(0, 6), summary: "", provider: provider.name });
     }
 
+    // ── Test API ──
+    if (action === "test") {
+      const data = await callAI(provider, {
+        model: provider.defaultModel,
+        messages: [
+          { role: "user", content: "Réponds uniquement 'OK' si tu fonctionnes." },
+        ],
+        max_tokens: 10,
+      });
+      const content = data.choices?.[0]?.message?.content || "";
+      return jsonResponse({ success: true, response: content.trim(), provider: provider.name });
+    }
+
     // ── Stats ──
     if (action === "stats") {
       const supabase = createClient(
@@ -228,6 +241,38 @@ serve(async (req) => {
         total: totalRes.count || 0,
         provider: provider.name,
       });
+    }
+
+    // ── Daily Stats (last 30 days) ──
+    if (action === "daily_stats") {
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader || "" } } }
+      );
+
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      const { data: rows } = await supabase
+        .from("ai_requests")
+        .select("created_at")
+        .gte("created_at", thirtyDaysAgo)
+        .order("created_at", { ascending: true });
+
+      // Aggregate by day
+      const dayCounts: Record<string, number> = {};
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+        dayCounts[d.toISOString().slice(0, 10)] = 0;
+      }
+      (rows || []).forEach((r: any) => {
+        const day = r.created_at.slice(0, 10);
+        if (day in dayCounts) dayCounts[day]++;
+      });
+
+      const daily = Object.entries(dayCounts).map(([date, count]) => ({ date, count }));
+      return jsonResponse({ daily });
     }
 
     return jsonResponse({ error: "Action inconnue" }, 400);
