@@ -72,6 +72,14 @@ serve(async (req) => {
       });
     }
 
+    // Log the action
+    await supabase.from("email_actions").insert({
+      content_id: content.id,
+      action_type: action === "validate" ? "validation" : "annulation",
+      actor_email: content.sender_email || null,
+      details: `Action "${action}" via lien email pour "${content.title || "Sans titre"}"`,
+    });
+
     if (action === "validate") {
       return new Response(generateHtml(
         "✅ Contenu validé !",
