@@ -174,17 +174,26 @@
     border-bottom: 1px solid hsla(220, 10%, 85%, 0.5);
   }
 
-  /* Neon glow effects */
+  /* Neon glow effects - muted in light mode */
   .neon-glow-cyan {
     text-shadow: 0 0 7px hsl(185 100% 55% / 0.6), 0 0 20px hsl(185 100% 55% / 0.3);
+  }
+  .light .neon-glow-cyan {
+    text-shadow: none;
   }
 
   .neon-glow-violet {
     text-shadow: 0 0 7px hsl(270 80% 60% / 0.6), 0 0 20px hsl(270 80% 60% / 0.3);
   }
+  .light .neon-glow-violet {
+    text-shadow: none;
+  }
 
   .neon-glow-pink {
     text-shadow: 0 0 7px hsl(330 90% 60% / 0.6), 0 0 20px hsl(330 90% 60% / 0.3);
+  }
+  .light .neon-glow-pink {
+    text-shadow: none;
   }
 
   /* Neon border glow */
