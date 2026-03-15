@@ -6,8 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Mail, Server, Save, Loader2, CheckCircle, XCircle, Zap, Eye, EyeOff, Shield, Inbox, Clock } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Mail, Server, Save, Loader2, CheckCircle, XCircle, Zap, Eye, EyeOff, Shield, Inbox, Clock, History } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 interface EmailConfig {
   imap_host: string;
@@ -31,6 +33,15 @@ const defaultConfig: EmailConfig = {
   from_name: "", from_email: "", auto_import: false,
 };
 
+interface EmailAction {
+  id: string;
+  content_id: string | null;
+  action_type: string;
+  actor_email: string | null;
+  details: string | null;
+  created_at: string;
+}
+
 export default function AdminEmail() {
   const [config, setConfig] = useState<EmailConfig>(defaultConfig);
   const [saving, setSaving] = useState(false);
@@ -40,8 +51,27 @@ export default function AdminEmail() {
   const [checkingReplies, setCheckingReplies] = useState(false);
   const [repliesResult, setRepliesResult] = useState<{ processed: number; results: any[] } | null>(null);
 
+  const { data: actions = [], refetch: refetchActions } = useQuery({
+    queryKey: ["email_actions"],
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("email_actions") as any)
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data as EmailAction[];
+    },
+  });
+
   useEffect(() => {
     loadConfig();
+    const channel = supabase
+      .channel("email-actions-rt")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "email_actions" }, () => {
+        refetchActions();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const loadConfig = async () => {
@@ -121,6 +151,13 @@ export default function AdminEmail() {
         <span className="normal-case">{result.message}</span>
       </div>
     );
+  };
+
+  const actionBadge = (type: string) => {
+    if (type === "validation") return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">✅ Validation</Badge>;
+    if (type === "annulation") return <Badge className="bg-destructive/20 text-destructive border-destructive/30">❌ Annulation</Badge>;
+    if (type === "réception") return <Badge className="bg-primary/20 text-primary border-primary/30">📩 Réception</Badge>;
+    return <Badge variant="outline">{type}</Badge>;
   };
 
   return (
@@ -324,6 +361,47 @@ export default function AdminEmail() {
           )}
         </Card>
       )}
+
+      {/* Email Action History */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <History className="h-4 w-4 text-primary icon-neon" />
+            Historique des actions email
+            <Badge variant="outline" className="ml-auto text-[10px]">{actions.length} action(s)</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {actions.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">Aucune action enregistrée pour le moment.</p>
+          ) : (
+            <div className="overflow-auto max-h-[400px]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">Date</TableHead>
+                    <TableHead className="text-xs">Action</TableHead>
+                    <TableHead className="text-xs">Email</TableHead>
+                    <TableHead className="text-xs">Détails</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {actions.map((a) => (
+                    <TableRow key={a.id}>
+                      <TableCell className="text-xs whitespace-nowrap">
+                        {new Date(a.created_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "medium" })}
+                      </TableCell>
+                      <TableCell>{actionBadge(a.action_type)}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{a.actor_email || "—"}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[300px] truncate">{a.details || "—"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="p-4 mt-4 bg-muted/30">
         <div className="flex items-center gap-2">

@@ -124,6 +124,41 @@ export type Database = {
           },
         ]
       }
+      email_actions: {
+        Row: {
+          action_type: string
+          actor_email: string | null
+          content_id: string | null
+          created_at: string
+          details: string | null
+          id: string
+        }
+        Insert: {
+          action_type: string
+          actor_email?: string | null
+          content_id?: string | null
+          created_at?: string
+          details?: string | null
+          id?: string
+        }
+        Update: {
+          action_type?: string
+          actor_email?: string | null
+          content_id?: string | null
+          created_at?: string
+          details?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_actions_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "contents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       establishments: {
         Row: {
           address: string | null

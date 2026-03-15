@@ -36,14 +36,13 @@ serve(async (req) => {
       });
     }
 
-    // Connect to IMAP via TCP
+    // Connect to IMAP
     let conn: Deno.Conn;
     try {
-      const tcpConn = await Deno.connect({ hostname: imapHost, port: imapPort });
       if (imapPort === 993) {
-        conn = await Deno.startTls(tcpConn, { hostname: imapHost });
+        conn = await Deno.connectTls({ hostname: imapHost, port: imapPort });
       } else {
-        conn = tcpConn;
+        conn = await Deno.connect({ hostname: imapHost, port: imapPort });
       }
     } catch (e: any) {
       return new Response(JSON.stringify({ error: `IMAP connection failed: ${e.message}` }), {
@@ -148,6 +147,14 @@ serve(async (req) => {
         if (content.status !== newStatus) {
           await supabase.from("contents").update({ status: newStatus }).eq("id", content.id);
           
+          // Log the action
+          await supabase.from("email_actions").insert({
+            content_id: content.id,
+            action_type: action === "validate" ? "validation" : "annulation",
+            actor_email: fromEmail || null,
+            details: `Action "${action}" via réponse email pour "${content.title || "Sans titre"}"`,
+          });
+
           results.push({
             content_id: content.id,
             title: content.title,
