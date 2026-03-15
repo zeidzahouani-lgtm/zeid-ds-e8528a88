@@ -62,13 +62,17 @@ export default function UploadPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    if (!f.type.startsWith("image/")) {
-      toast.error("Seules les images sont acceptées");
+    const isImage = f.type.startsWith("image/");
+    const isVideo = f.type.startsWith("video/");
+    if (!isImage && !isVideo) {
+      toast.error("Seules les images et vidéos sont acceptées");
       return;
     }
     setFile(f);
     setPreview(URL.createObjectURL(f));
   };
+
+  const isVideo = file?.type.startsWith("video/") ?? false;
 
   const handleDurationChange = (val: string) => {
     setDuration(val);
