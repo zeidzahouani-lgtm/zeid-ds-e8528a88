@@ -39,9 +39,10 @@ export function ManualContentForm({ screens }: ManualContentFormProps) {
         source: "manual",
         status: form.status,
       };
-      if (form.screen_id) insertData.screen_id = form.screen_id;
+      if (form.screen_id && form.screen_id !== "none") insertData.screen_id = form.screen_id;
       if (form.start_time) insertData.start_time = new Date(form.start_time).toISOString();
       if (form.end_time) insertData.end_time = new Date(form.end_time).toISOString();
+      if (form.sender_email) insertData.sender_email = form.sender_email;
 
       const { error } = await (supabase.from("contents") as any).insert(insertData);
       if (error) throw error;
