@@ -29,6 +29,7 @@ const AdminLicenses = lazy(() => import("./pages/AdminLicenses"));
 const AIAssistant = lazy(() => import("./pages/AIAssistant"));
 const AutoFlow = lazy(() => import("./pages/AutoFlow"));
 const AdminEmail = lazy(() => import("./pages/AdminEmail"));
+const UploadPage = lazy(() => import("./pages/UploadPage"));
 
 const queryClient = new QueryClient();
 
