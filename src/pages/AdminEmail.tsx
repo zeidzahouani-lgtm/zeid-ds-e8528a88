@@ -37,6 +37,8 @@ export default function AdminEmail() {
   const [testing, setTesting] = useState<"imap" | "smtp" | null>(null);
   const [testResults, setTestResults] = useState<Record<string, { success: boolean; message: string }>>({});
   const [showPasswords, setShowPasswords] = useState({ imap: false, smtp: false });
+  const [checkingReplies, setCheckingReplies] = useState(false);
+  const [repliesResult, setRepliesResult] = useState<{ processed: number; results: any[] } | null>(null);
 
   useEffect(() => {
     loadConfig();
