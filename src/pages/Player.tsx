@@ -331,7 +331,7 @@ export default function Player() {
   const { id } = useParams<{ id: string }>();
   const { screen, media, loading, sessionBlocked, forceTakeover, playlistLength, currentIndex, currentDuration, layoutId } = useScreenRealtime(id);
   const activeContents = useActiveContents(screen?.id);
-  const logoUrl = usePlayerLogo();
+  const logoUrl = usePlayerLogo(screen?.id);
   const [visible, setVisible] = useState(true);
   const [progress, setProgress] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
