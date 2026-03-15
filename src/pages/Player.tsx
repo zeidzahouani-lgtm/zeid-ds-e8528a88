@@ -227,6 +227,10 @@ function LayoutRenderer({ layoutId, screenOrientation }: { layoutId: string; scr
   return (
     <div className="w-full h-full relative" style={{
       backgroundColor: layout.background_color,
+      backgroundImage: layout.bg_type === "image" && layout.bg_image_url ? `url(${layout.bg_image_url})` : undefined,
+      backgroundSize: layout.bg_image_fit === "contain" ? "contain" : layout.bg_image_fit === "repeat" ? "auto" : "cover",
+      backgroundRepeat: layout.bg_image_fit === "repeat" ? "repeat" : "no-repeat",
+      backgroundPosition: "center",
       ...rotationStyle,
     }}>
       {regions.map((region) => {
