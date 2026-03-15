@@ -8,12 +8,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import SuggestTab from "@/components/ai/SuggestTab";
+import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 
 function GenerateTab() {
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ image?: string; text?: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  const { currentEstablishmentId } = useEstablishmentContext();
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
@@ -46,13 +48,17 @@ function GenerateTab() {
       const { data: urlData } = supabase.storage.from("media").getPublicUrl(fileName);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non authentifié");
-      const { error: dbError } = await supabase.from("media").insert({
+      const insertData: any = {
         name: prompt.slice(0, 50) || "Image IA",
         type: "image",
         url: urlData.publicUrl,
         duration: 10,
         user_id: user.id,
-      } as any);
+      };
+      if (currentEstablishmentId) {
+        insertData.establishment_id = currentEstablishmentId;
+      }
+      const { error: dbError } = await supabase.from("media").insert(insertData);
       if (dbError) throw dbError;
       toast.success("Image sauvegardée dans la bibliothèque !");
     } catch (e: any) {
@@ -102,6 +108,7 @@ function EnhanceTab() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ image?: string; text?: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  const { currentEstablishmentId } = useEstablishmentContext();
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -142,13 +149,17 @@ function EnhanceTab() {
       const { data: urlData } = supabase.storage.from("media").getPublicUrl(fileName);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non authentifié");
-      const { error: dbError } = await supabase.from("media").insert({
+      const insertData: any = {
         name: `Image améliorée ${new Date().toLocaleDateString("fr")}`,
         type: "image",
         url: urlData.publicUrl,
         duration: 10,
         user_id: user.id,
-      } as any);
+      };
+      if (currentEstablishmentId) {
+        insertData.establishment_id = currentEstablishmentId;
+      }
+      const { error: dbError } = await supabase.from("media").insert(insertData);
       if (dbError) throw dbError;
       toast.success("Image sauvegardée !");
     } catch (e: any) {
