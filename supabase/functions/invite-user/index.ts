@@ -11,7 +11,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Verify the caller is authenticated and admin
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Missing authorization");
 
@@ -19,22 +18,40 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Verify caller is admin using their token
+    // Verify caller is admin
     const callerClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user: caller } } = await callerClient.auth.getUser();
     if (!caller) throw new Error("Not authenticated");
 
-    // Check admin role
     const { data: roleData } = await callerClient.from("user_roles").select("role").eq("user_id", caller.id).eq("role", "admin");
     if (!roleData || roleData.length === 0) throw new Error("Not admin");
 
-    const { email, password, display_name } = await req.json();
+    const { email, password, display_name, update_password } = await req.json();
     if (!email || !password) throw new Error("Email and password required");
 
-    // Create user with service role
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
+
+    if (update_password) {
+      // Find user by email and update their password
+      const { data: { users }, error: listError } = await adminClient.auth.admin.listUsers();
+      if (listError) throw listError;
+
+      const targetUser = users.find((u: any) => u.email === email);
+      if (!targetUser) throw new Error("Utilisateur introuvable");
+
+      const { error: updateError } = await adminClient.auth.admin.updateUserById(targetUser.id, {
+        password,
+      });
+      if (updateError) throw updateError;
+
+      return new Response(JSON.stringify({ success: true, user: targetUser }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Create new user
     const { data, error } = await adminClient.auth.admin.createUser({
       email,
       password,

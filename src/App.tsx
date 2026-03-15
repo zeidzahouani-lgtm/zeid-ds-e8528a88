@@ -31,6 +31,7 @@ const AdminLicenses = lazy(() => import("./pages/AdminLicenses"));
 const AIAssistant = lazy(() => import("./pages/AIAssistant"));
 const AutoFlow = lazy(() => import("./pages/AutoFlow"));
 const AdminEmail = lazy(() => import("./pages/AdminEmail"));
+const AdminRequests = lazy(() => import("./pages/AdminRequests"));
 const UploadPage = lazy(() => import("./pages/UploadPage"));
 const EstablishmentSettings = lazy(() => import("./pages/EstablishmentSettings"));
 
@@ -85,6 +86,7 @@ const App = () => (
                 <Route path="/admin/customization" element={<AdminCustomization />} />
                 <Route path="/admin/licenses" element={<AdminLicenses />} />
                 <Route path="/admin/email" element={<AdminEmail />} />
+                <Route path="/admin/requests" element={<AdminRequests />} />
                 <Route path="/admin/establishment-settings" element={<EstablishmentSettings />} />
                 <Route path="/setup" element={<ScreenSetup />} />
                 <Route path="/ai-assistant" element={<AIAssistant />} />

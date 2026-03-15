@@ -571,6 +571,33 @@ export type Database = {
           },
         ]
       }
+      password_reset_requests: {
+        Row: {
+          created_at: string
+          email: string
+          handled_at: string | null
+          handled_by: string | null
+          id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          status?: string
+        }
+        Relationships: []
+      }
       playlist_items: {
         Row: {
           created_at: string
@@ -634,6 +661,54 @@ export type Database = {
           email?: string | null
           id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      registration_requests: {
+        Row: {
+          address: string | null
+          created_at: string
+          display_name: string
+          email: string
+          establishment_name: string
+          id: string
+          message: string | null
+          num_screens: number
+          phone: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          display_name: string
+          email: string
+          establishment_name: string
+          id?: string
+          message?: string | null
+          num_screens?: number
+          phone?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          display_name?: string
+          email?: string
+          establishment_name?: string
+          id?: string
+          message?: string | null
+          num_screens?: number
+          phone?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
         }
         Relationships: []
       }
