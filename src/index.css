@@ -64,6 +64,56 @@
 
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
+
+  .light {
+    --background: 210 20% 97%;
+    --foreground: 220 15% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 15%;
+
+    --primary: 185 80% 40%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 15% 93%;
+    --secondary-foreground: 220 15% 25%;
+
+    --muted: 210 15% 93%;
+    --muted-foreground: 220 10% 45%;
+
+    --accent: 270 60% 55%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 10% 88%;
+    --input: 220 10% 88%;
+    --ring: 185 80% 40%;
+
+    --neon-cyan: 185 80% 40%;
+    --neon-violet: 270 60% 55%;
+    --neon-pink: 330 70% 55%;
+    --neon-cyan-glow: 185 80% 40%;
+    --neon-violet-glow: 270 60% 55%;
+    --neon-pink-glow: 330 70% 55%;
+
+    --sidebar-background: 210 20% 98%;
+    --sidebar-foreground: 220 15% 25%;
+    --sidebar-primary: 185 80% 40%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 270 60% 55%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 220 10% 90%;
+    --sidebar-ring: 185 80% 40%;
+
+    --status-online: 160 80% 40%;
+    --status-offline: 0 0% 60%;
+    --surface-elevated: 0 0% 100%;
+  }
 }
 
 @layer base {
@@ -73,8 +123,15 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    background: radial-gradient(ellipse at 50% 0%, hsl(0 0% 7%) 0%, hsl(0 0% 2%) 70%);
     min-height: 100vh;
+  }
+
+  .dark body, body:has(.dark) {
+    background: radial-gradient(ellipse at 50% 0%, hsl(0 0% 7%) 0%, hsl(0 0% 2%) 70%);
+  }
+
+  .light body, body:has(.light) {
+    background: hsl(210 20% 97%);
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -90,10 +147,20 @@
     border-color: hsla(185, 100%, 55%, 0.08);
   }
 
+  .light .glass-panel {
+    background: hsla(0, 0%, 100%, 0.7);
+    border-color: hsla(220, 10%, 85%, 0.6);
+  }
+
   .glass-sidebar {
     @apply backdrop-blur-2xl;
     background: hsla(0, 0%, 4%, 0.75);
     border-right: 1px solid hsla(185, 100%, 55%, 0.06);
+  }
+
+  .light .glass-sidebar {
+    background: hsla(0, 0%, 100%, 0.85);
+    border-right: 1px solid hsla(220, 10%, 85%, 0.5);
   }
 
   .glass-header {
@@ -102,17 +169,31 @@
     border-bottom: 1px solid hsla(185, 100%, 55%, 0.06);
   }
 
-  /* Neon glow effects */
+  .light .glass-header {
+    background: hsla(0, 0%, 100%, 0.75);
+    border-bottom: 1px solid hsla(220, 10%, 85%, 0.5);
+  }
+
+  /* Neon glow effects - muted in light mode */
   .neon-glow-cyan {
     text-shadow: 0 0 7px hsl(185 100% 55% / 0.6), 0 0 20px hsl(185 100% 55% / 0.3);
+  }
+  .light .neon-glow-cyan {
+    text-shadow: none;
   }
 
   .neon-glow-violet {
     text-shadow: 0 0 7px hsl(270 80% 60% / 0.6), 0 0 20px hsl(270 80% 60% / 0.3);
   }
+  .light .neon-glow-violet {
+    text-shadow: none;
+  }
 
   .neon-glow-pink {
     text-shadow: 0 0 7px hsl(330 90% 60% / 0.6), 0 0 20px hsl(330 90% 60% / 0.3);
+  }
+  .light .neon-glow-pink {
+    text-shadow: none;
   }
 
   /* Neon border glow */
@@ -135,6 +216,10 @@
     pointer-events: none;
   }
 
+  .light .neon-border::before {
+    background: linear-gradient(135deg, hsl(185 80% 40% / 0.15), hsl(270 60% 55% / 0.08), hsl(330 70% 55% / 0.05));
+  }
+
   /* Card hover glow */
   .card-neon-hover {
     transition: box-shadow 0.3s ease, border-color 0.3s ease;
@@ -145,6 +230,11 @@
     border-color: hsl(185 100% 55% / 0.15);
   }
 
+  .light .card-neon-hover:hover {
+    box-shadow: 0 2px 12px hsl(220 10% 50% / 0.1);
+    border-color: hsl(185 80% 40% / 0.25);
+  }
+
   /* Button glow hover */
   .btn-neon-glow {
     transition: box-shadow 0.25s ease, transform 0.15s ease;
@@ -152,6 +242,10 @@
 
   .btn-neon-glow:hover {
     box-shadow: 0 0 15px hsl(185 100% 55% / 0.35), 0 0 30px hsl(185 100% 55% / 0.15);
+  }
+
+  .light .btn-neon-glow:hover {
+    box-shadow: 0 2px 8px hsl(185 80% 40% / 0.2);
   }
 
   .btn-neon-glow:active {
