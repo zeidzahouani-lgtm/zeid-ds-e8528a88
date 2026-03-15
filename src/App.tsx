@@ -29,6 +29,7 @@ const AdminLicenses = lazy(() => import("./pages/AdminLicenses"));
 const AIAssistant = lazy(() => import("./pages/AIAssistant"));
 const AutoFlow = lazy(() => import("./pages/AutoFlow"));
 const AdminEmail = lazy(() => import("./pages/AdminEmail"));
+const UploadPage = lazy(() => import("./pages/UploadPage"));
 
 const queryClient = new QueryClient();
 
@@ -65,6 +66,7 @@ const App = () => (
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/player/:id" element={<Player />} />
+              <Route path="/upload/:id" element={<UploadPage />} />
 
               <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
                 <Route path="/" element={<DashboardHome />} />

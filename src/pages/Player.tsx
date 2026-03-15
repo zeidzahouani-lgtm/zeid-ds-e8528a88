@@ -451,11 +451,21 @@ export default function Player() {
       <div className="w-full h-full transition-transform duration-700 ease-in-out" style={rotationStyle}>
         <div className="w-full h-full transition-opacity duration-500 ease-in-out" style={{ opacity: visible ? 1 : 0 }}>
           {!media && activeContents.length === 0 ? (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-4">
+            <div className="w-full h-full flex flex-col items-center justify-center gap-6">
               <CompanyLogo logoUrl={logoUrl} />
               <MonitorPlay className="h-16 w-16 text-primary/30" />
               <p className="text-muted-foreground text-lg">{screen.name}</p>
               <p className="text-muted-foreground/50 text-sm">En attente de contenu...</p>
+              <div className="mt-4 flex flex-col items-center gap-3">
+                <p className="text-xs text-muted-foreground/60 uppercase tracking-wider">Scannez pour diffuser du contenu</p>
+                <div className="bg-white p-4 rounded-2xl shadow-lg">
+                  <QRCodeSVG
+                    value={`${window.location.origin}/upload/${screen.id}`}
+                    size={180}
+                    level="M"
+                  />
+                </div>
+              </div>
             </div>
           ) : activeContents.length > 0 && !media ? (
             /* Show active automated contents when no playlist media */
