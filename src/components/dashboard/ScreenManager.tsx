@@ -129,9 +129,14 @@ export function ScreenManager() {
           onKeyDown={(e) => e.key === "Enter" && handleAdd()}
           className="max-w-xs"
         />
-        <Button onClick={handleAdd} className="gap-2">
+        <Button onClick={handleAdd} disabled={quotaReached} className="gap-2">
           <Plus className="h-4 w-4" /> Ajouter
         </Button>
+        {maxScreens != null && maxScreens > 0 && (
+          <Badge variant={quotaReached ? "destructive" : "secondary"} className="text-sm px-3 py-1">
+            {screens.length}/{maxScreens} écrans
+          </Badge>
+        )}
       </div>
 
       {isLoading ? (
