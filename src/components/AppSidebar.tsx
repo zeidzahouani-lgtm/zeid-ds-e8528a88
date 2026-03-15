@@ -28,6 +28,7 @@ const mainItems = [
   { title: "Programmation", url: "/schedules", icon: Clock },
   { title: "Config. Écrans", url: "/setup", icon: Settings },
   { title: "Assistant IA", url: "/ai-assistant", icon: Sparkles },
+  { title: "Flux Automatique", url: "/auto-flow", icon: Mail },
 ];
 
 const adminItems = [

@@ -79,6 +79,7 @@ const App = () => (
                 <Route path="/admin/licenses" element={<AdminLicenses />} />
                 <Route path="/setup" element={<ScreenSetup />} />
                 <Route path="/ai-assistant" element={<AIAssistant />} />
+                <Route path="/auto-flow" element={<AutoFlow />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
