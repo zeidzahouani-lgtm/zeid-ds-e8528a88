@@ -259,6 +259,7 @@ function LicenseScreen({
 export default function Player() {
   const { id } = useParams<{ id: string }>();
   const { screen, media, loading, sessionBlocked, forceTakeover, playlistLength, currentIndex, currentDuration, layoutId } = useScreenRealtime(id);
+  const activeContents = useActiveContents(screen?.id);
   const logoUrl = usePlayerLogo();
   const [visible, setVisible] = useState(true);
   const [progress, setProgress] = useState(0);
