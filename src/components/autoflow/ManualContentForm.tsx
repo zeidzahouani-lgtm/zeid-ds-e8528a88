@@ -23,6 +23,7 @@ export function ManualContentForm({ screens }: ManualContentFormProps) {
     start_time: "",
     end_time: "",
     status: "pending" as string,
+    sender_email: "",
   });
 
   const handleSubmit = async () => {
@@ -38,15 +39,16 @@ export function ManualContentForm({ screens }: ManualContentFormProps) {
         source: "manual",
         status: form.status,
       };
-      if (form.screen_id) insertData.screen_id = form.screen_id;
+      if (form.screen_id && form.screen_id !== "none") insertData.screen_id = form.screen_id;
       if (form.start_time) insertData.start_time = new Date(form.start_time).toISOString();
       if (form.end_time) insertData.end_time = new Date(form.end_time).toISOString();
+      if (form.sender_email) insertData.sender_email = form.sender_email;
 
       const { error } = await (supabase.from("contents") as any).insert(insertData);
       if (error) throw error;
 
       toast.success("Contenu ajouté avec succès");
-      setForm({ title: "", image_url: "", screen_id: "", start_time: "", end_time: "", status: "pending" });
+      setForm({ title: "", image_url: "", screen_id: "", start_time: "", end_time: "", status: "pending", sender_email: "" });
       setOpen(false);
     } catch (e: any) {
       toast.error("Erreur: " + (e.message || "Erreur inconnue"));
@@ -117,6 +119,11 @@ export function ManualContentForm({ screens }: ManualContentFormProps) {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Email de notification (optionnel)</Label>
+            <Input type="email" value={form.sender_email} onChange={e => setForm({ ...form, sender_email: e.target.value })} placeholder="destinataire@email.com" />
+            <p className="text-[10px] text-muted-foreground">Un accusé de réception sera envoyé à cette adresse</p>
           </div>
           <Button onClick={handleSubmit} disabled={submitting} className="w-full gap-2">
             {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}

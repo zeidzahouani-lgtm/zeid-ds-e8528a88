@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  Mail, CheckCircle2, XCircle, Clock, Play, Trash2, Eye, Loader2, Copy, ExternalLink, RefreshCw, Pencil
+  Mail, CheckCircle2, XCircle, Clock, Play, Trash2, Eye, Loader2, Copy, ExternalLink, RefreshCw, Pencil, Inbox
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import { ManualContentForm } from "@/components/autoflow/ManualContentForm";
 import { EditContentDialog } from "@/components/autoflow/EditContentDialog";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const statusConfig: Record<string, { label: string; color: string; icon: typeof Clock }> = {
   pending: { label: "En attente", color: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20", icon: Clock },
@@ -34,6 +35,7 @@ export default function AutoFlow() {
   const [editContent, setEditContent] = useState<Content | null>(null);
   const [filter, setFilter] = useState<string>("all");
   const [webhookCopied, setWebhookCopied] = useState(false);
+  const [checkingReplies, setCheckingReplies] = useState(false);
 
   useEffect(() => {
     const unsub = subscribeRealtime();
@@ -87,7 +89,10 @@ export default function AutoFlow() {
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-medium mb-1">URL du Webhook</h3>
             <p className="text-xs text-muted-foreground mb-2">
-              Envoyez un POST avec <code className="bg-muted px-1 rounded">{"{ action, image_url, schedule_start, schedule_end, screen_id }"}</code>
+              Envoyez un POST avec <code className="bg-muted px-1 rounded">{"{ action, image_url, schedule_start, schedule_end, screen_id, sender_email }"}</code>
+            </p>
+            <p className="text-xs text-muted-foreground mb-2">
+              Ajoutez <code className="bg-muted px-1 rounded">sender_email</code> pour recevoir un accusé de réception avec boutons valider/annuler
             </p>
             <div className="flex gap-2 items-center">
               <code className="text-xs bg-background px-2 py-1 rounded border border-border truncate flex-1">{webhookUrl}</code>
@@ -115,6 +120,32 @@ export default function AutoFlow() {
           </SelectContent>
         </Select>
         <Badge variant="outline">{filtered.length} élément{filtered.length > 1 ? "s" : ""}</Badge>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          disabled={checkingReplies}
+          onClick={async () => {
+            setCheckingReplies(true);
+            try {
+              const { data, error } = await supabase.functions.invoke("check-email-replies");
+              if (error) throw error;
+              if (data?.processed > 0) {
+                toast.success(`${data.processed} réponse(s) email traitée(s)`);
+                queryClient.invalidateQueries({ queryKey: ["contents"] });
+              } else {
+                toast.info("Aucune nouvelle réponse email");
+              }
+            } catch (e: any) {
+              toast.error("Erreur: " + (e.message || "Impossible de vérifier les emails"));
+            } finally {
+              setCheckingReplies(false);
+            }
+          }}
+        >
+          {checkingReplies ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Inbox className="h-3.5 w-3.5" />}
+          Vérifier les réponses
+        </Button>
         <div className="ml-auto">
           <ManualContentForm screens={screens || []} />
         </div>
