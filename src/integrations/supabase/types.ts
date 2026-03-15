@@ -67,12 +67,14 @@ export type Database = {
       }
       contents: {
         Row: {
+          confirmation_token: string | null
           created_at: string
           end_time: string | null
           id: string
           image_url: string
           metadata: Json | null
           screen_id: string | null
+          sender_email: string | null
           source: string | null
           start_time: string | null
           status: Database["public"]["Enums"]["content_status"]
@@ -81,12 +83,14 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          confirmation_token?: string | null
           created_at?: string
           end_time?: string | null
           id?: string
           image_url: string
           metadata?: Json | null
           screen_id?: string | null
+          sender_email?: string | null
           source?: string | null
           start_time?: string | null
           status?: Database["public"]["Enums"]["content_status"]
@@ -95,12 +99,14 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          confirmation_token?: string | null
           created_at?: string
           end_time?: string | null
           id?: string
           image_url?: string
           metadata?: Json | null
           screen_id?: string | null
+          sender_email?: string | null
           source?: string | null
           start_time?: string | null
           status?: Database["public"]["Enums"]["content_status"]
