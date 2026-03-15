@@ -384,6 +384,8 @@ export type Database = {
           background_color: string
           bg_image_fit: string
           bg_image_url: string | null
+          bg_overlay_blur: number
+          bg_overlay_darken: number
           bg_type: string
           created_at: string
           establishment_id: string | null
@@ -398,6 +400,8 @@ export type Database = {
           background_color?: string
           bg_image_fit?: string
           bg_image_url?: string | null
+          bg_overlay_blur?: number
+          bg_overlay_darken?: number
           bg_type?: string
           created_at?: string
           establishment_id?: string | null
@@ -412,6 +416,8 @@ export type Database = {
           background_color?: string
           bg_image_fit?: string
           bg_image_url?: string | null
+          bg_overlay_blur?: number
+          bg_overlay_darken?: number
           bg_type?: string
           created_at?: string
           establishment_id?: string | null

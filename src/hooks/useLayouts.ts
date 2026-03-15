@@ -25,6 +25,8 @@ export interface Layout {
   bg_type: string;
   bg_image_url: string | null;
   bg_image_fit: string;
+  bg_overlay_darken: number;
+  bg_overlay_blur: number;
   user_id: string;
   establishment_id?: string | null;
   created_at: string;
