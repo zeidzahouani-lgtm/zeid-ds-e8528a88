@@ -204,6 +204,10 @@ export default function AutoFlow() {
             <Inbox className="h-4 w-4" />
             Boîte de réception ({emails.length})
           </TabsTrigger>
+          <TabsTrigger value="codes" className="gap-2">
+            <KeyRound className="h-4 w-4" />
+            Codes d'accès ({accessCodes.length})
+          </TabsTrigger>
         </TabsList>
 
         {/* ===== TAB: CONTENUS ===== */}
