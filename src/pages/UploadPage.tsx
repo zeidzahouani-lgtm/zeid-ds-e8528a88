@@ -187,8 +187,8 @@ export default function UploadPage() {
               <div className="mx-auto h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-3">
                 <Upload className="h-8 w-8 text-primary" />
               </div>
-              <CardTitle className="text-xl">Envoyer une image</CardTitle>
-              <CardDescription>Bonjour {userName} ! Configurez et envoyez votre contenu.</CardDescription>
+              <CardTitle className="text-xl">Envoyer du contenu</CardTitle>
+              <CardDescription>Bonjour {userName} ! Envoyez une image ou une vidéo.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Image picker */}
