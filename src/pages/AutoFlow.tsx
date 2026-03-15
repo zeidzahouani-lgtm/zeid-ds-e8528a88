@@ -69,10 +69,16 @@ export default function AutoFlow() {
     }
   };
 
+  const loadProfiles = async () => {
+    const { data } = await supabase.from("profiles").select("id, email, display_name").order("email");
+    setProfiles(data || []);
+  };
+
   useEffect(() => {
     const unsub1 = subscribeRealtime();
     const unsub2 = subscribeInbox();
     loadAccessCodes();
+    loadProfiles();
     return () => { unsub1(); unsub2(); };
   }, []);
 
