@@ -509,6 +509,22 @@ export default function AutoFlow() {
                 className="w-48"
               />
             </div>
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground uppercase tracking-wider">Utilisateur lié</label>
+              <Select value={newUserId} onValueChange={setNewUserId}>
+                <SelectTrigger className="w-52">
+                  <SelectValue placeholder="Aucun (optionnel)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucun</SelectItem>
+                  {profiles.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.display_name || p.email || p.id.slice(0, 8)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <Button onClick={handleAddCode} disabled={addingCode || !newCode.trim() || !newUserName.trim()} className="gap-1.5">
               {addingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               Ajouter
@@ -523,21 +539,29 @@ export default function AutoFlow() {
             </Card>
           ) : (
             <div className="grid gap-2">
-              {accessCodes.map((ac) => (
-                <Card key={ac.id} className="p-3 flex items-center gap-3">
-                  <code className="text-sm font-mono bg-muted px-2 py-1 rounded tracking-wider">{ac.code}</code>
-                  <span className="text-sm flex-1">{ac.user_name}</span>
-                  <Badge variant="outline" className={ac.is_active ? "bg-green-500/10 text-green-600 border-green-500/20" : "bg-muted text-muted-foreground"}>
-                    {ac.is_active ? "Actif" : "Désactivé"}
-                  </Badge>
-                  <Button variant="ghost" size="sm" onClick={() => toggleCode(ac.id, ac.is_active)}>
-                    {ac.is_active ? "Désactiver" : "Activer"}
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteCode(ac.id)}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </Card>
-              ))}
+              {accessCodes.map((ac) => {
+                const linkedProfile = profiles.find((p) => p.id === ac.user_id);
+                return (
+                  <Card key={ac.id} className="p-3 flex items-center gap-3">
+                    <code className="text-sm font-mono bg-muted px-2 py-1 rounded tracking-wider">{ac.code}</code>
+                    <span className="text-sm flex-1">{ac.user_name}</span>
+                    {linkedProfile && (
+                      <Badge variant="secondary" className="text-xs">
+                        {linkedProfile.display_name || linkedProfile.email}
+                      </Badge>
+                    )}
+                    <Badge variant="outline" className={ac.is_active ? "bg-green-500/10 text-green-600 border-green-500/20" : "bg-muted text-muted-foreground"}>
+                      {ac.is_active ? "Actif" : "Désactivé"}
+                    </Badge>
+                    <Button variant="ghost" size="sm" onClick={() => toggleCode(ac.id, ac.is_active)}>
+                      {ac.is_active ? "Désactiver" : "Activer"}
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteCode(ac.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </TabsContent>
