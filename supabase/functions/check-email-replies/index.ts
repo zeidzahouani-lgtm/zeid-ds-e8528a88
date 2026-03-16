@@ -36,6 +36,8 @@ serve(async (req) => {
       });
     }
 
+    console.log(`📬 Connecting to IMAP ${imapHost}:${imapPort}...`);
+
     // Connect to IMAP
     let conn: Deno.Conn;
     try {
@@ -63,7 +65,7 @@ serve(async (req) => {
       await conn.write(new TextEncoder().encode(`${tag} ${command}\r\n`));
       let response = "";
       let attempts = 0;
-      while (attempts < 20) {
+      while (attempts < 30) {
         const chunk = await read();
         response += chunk;
         if (response.includes(`${tag} OK`) || response.includes(`${tag} NO`) || response.includes(`${tag} BAD`)) break;
@@ -84,6 +86,7 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    console.log("✅ IMAP login successful");
 
     // Select INBOX
     await cmd("SELECT INBOX");
@@ -100,53 +103,109 @@ serve(async (req) => {
       });
     }
 
-    const uids = uidMatch[1].trim().split(/\s+/).slice(-20); // Last 20 unread
+    const uids = uidMatch[1].trim().split(/\s+/).slice(-20);
     let processed = 0;
     const results: any[] = [];
+    const skipped: string[] = [];
 
     for (const uid of uids) {
       try {
-        // Fetch email body
-        const fetchResp = await cmd(`FETCH ${uid} (BODY[TEXT] BODY[HEADER.FIELDS (FROM SUBJECT IN-REPLY-TO REFERENCES)])`);
+        // Fetch email headers and body
+        const fetchResp = await cmd(`FETCH ${uid} (BODY[HEADER.FIELDS (FROM SUBJECT IN-REPLY-TO REFERENCES)] BODY[TEXT])`);
         
-        const bodyText = fetchResp.toLowerCase();
+        console.log(`📧 Processing UID ${uid}, response length: ${fetchResp.length}`);
+
+        // Extract From email
+        const fromMatch = fetchResp.match(/From:\s*(?:.*<)?([^\s<>]+@[^\s<>]+)>?/i);
+        const fromEmail = fromMatch ? fromMatch[1] : null;
+
+        // Extract Subject
+        const subjectMatch = fetchResp.match(/Subject:\s*(.+?)(?:\r?\n(?!\s)|\r?\n\r?\n)/is);
+        const subject = subjectMatch ? subjectMatch[1].replace(/\r?\n\s+/g, ' ').trim() : "";
+
+        console.log(`  From: ${fromEmail}, Subject: ${subject}`);
+
+        // Method 1: Check References/In-Reply-To headers for our Message-ID pattern
+        const refMatch = fetchResp.match(/(?:ack|content)-([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})@signage/i);
         
-        // Check if this is a reply to our ACK email
-        const isReplyToAck = fetchResp.includes("content-") && fetchResp.includes("@signage");
-        
-        if (!isReplyToAck) continue;
+        // Method 2: Check Subject for our reference pattern (Re: [Accusé...] Réf: XXXXXXXX)
+        const subjectRefMatch = subject.match(/R[ée]f[.:]\s*([A-F0-9]{8})/i);
 
-        // Extract content reference from References/In-Reply-To header
-        const refMatch = fetchResp.match(/ack-([a-f0-9-]+)@signage/i) || fetchResp.match(/content-([a-f0-9-]+)@signage/i);
-        if (!refMatch) continue;
+        let contentId: string | null = null;
 
-        const contentId = refMatch[1];
+        if (refMatch) {
+          contentId = refMatch[1];
+          console.log(`  Found content ID via References header: ${contentId}`);
+        } else if (subjectRefMatch) {
+          // Search by ID prefix from subject
+          const prefix = subjectRefMatch[1].toLowerCase();
+          console.log(`  Found Ref in subject: ${prefix}, searching...`);
+          const { data: matchedContents } = await supabase
+            .from("contents")
+            .select("id")
+            .ilike("id", `${prefix}%`)
+            .limit(1);
+          if (matchedContents?.length) {
+            contentId = matchedContents[0].id;
+            console.log(`  Resolved content ID: ${contentId}`);
+          }
+        }
 
-        // Determine action from body
+        if (!contentId) {
+          skipped.push(`UID ${uid}: no content reference found`);
+          continue;
+        }
+
+        // Determine action from body text (case-insensitive)
+        const bodyLower = fetchResp.toLowerCase();
         let action: "validate" | "cancel" | null = null;
-        if (bodyText.includes("valider") || bodyText.includes("approuver") || bodyText.includes("accepter") || bodyText.includes("oui")) {
+
+        if (bodyLower.includes("valider") || bodyLower.includes("approuver") || bodyLower.includes("accepter") || bodyLower.includes("oui")) {
           action = "validate";
-        } else if (bodyText.includes("annuler") || bodyText.includes("rejeter") || bodyText.includes("refuser") || bodyText.includes("non")) {
+        } else if (bodyLower.includes("annuler") || bodyLower.includes("rejeter") || bodyLower.includes("refuser") || bodyLower.includes("non")) {
           action = "cancel";
         }
 
-        if (!action) continue;
+        console.log(`  Detected action: ${action}`);
 
-        // Find content by ID prefix
+        if (!action) {
+          skipped.push(`UID ${uid}: no action keyword found in body`);
+          continue;
+        }
+
+        // Find content
         const { data: contents } = await supabase
           .from("contents")
           .select("id, status, title")
-          .like("id", `${contentId}%`)
+          .eq("id", contentId)
           .limit(1);
 
-        if (!contents?.length) continue;
+        // Fallback: search by prefix if exact match fails
+        let content = contents?.[0];
+        if (!content) {
+          const { data: prefixContents } = await supabase
+            .from("contents")
+            .select("id, status, title")
+            .ilike("id", `${contentId}%`)
+            .limit(1);
+          content = prefixContents?.[0];
+        }
 
-        const content = contents[0];
+        if (!content) {
+          skipped.push(`UID ${uid}: content ${contentId} not found in DB`);
+          continue;
+        }
+
         const newStatus = action === "validate" ? "active" : "rejected";
 
         if (content.status !== newStatus) {
-          await supabase.from("contents").update({ status: newStatus }).eq("id", content.id);
+          const { error: updateError } = await supabase.from("contents").update({ status: newStatus }).eq("id", content.id);
           
+          if (updateError) {
+            console.error(`  Failed to update content ${content.id}:`, updateError);
+            continue;
+          }
+
           // Log the action
           await supabase.from("email_actions").insert({
             content_id: content.id,
@@ -162,6 +221,9 @@ serve(async (req) => {
             new_status: newStatus,
           });
           processed++;
+          console.log(`  ✅ Content "${content.title}" updated to ${newStatus}`);
+        } else {
+          console.log(`  Content already has status ${newStatus}, skipping`);
         }
 
         // Mark as seen
@@ -174,10 +236,15 @@ serve(async (req) => {
     await cmd("LOGOUT");
     conn.close();
 
+    console.log(`📊 Processed: ${processed}, Skipped: ${skipped.length}`);
+    if (skipped.length > 0) console.log(`Skipped details: ${skipped.join("; ")}`);
+
     return new Response(JSON.stringify({ 
       message: `Processed ${processed} email replies`, 
       processed, 
-      results 
+      results,
+      skipped,
+      total_checked: uids.length,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
