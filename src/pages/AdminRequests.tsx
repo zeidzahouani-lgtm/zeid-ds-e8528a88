@@ -100,17 +100,44 @@ export default function AdminRequests() {
     },
   });
 
-  // Realtime
+  // Play notification sound
+  const playNotificationSound = () => {
+    try {
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      osc.type = "sine";
+      gain.gain.value = 0.3;
+      osc.start();
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      osc.stop(ctx.currentTime + 0.5);
+    } catch {}
+  };
+
+  // Realtime with notifications
   useEffect(() => {
     const ch1 = supabase
       .channel("reset-requests-rt")
-      .on("postgres_changes", { event: "*", schema: "public", table: "password_reset_requests" }, () => {
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "password_reset_requests" }, (payload) => {
+        queryClient.invalidateQueries({ queryKey: ["password_reset_requests"] });
+        playNotificationSound();
+        toast({ title: "🔑 Nouvelle demande de réinitialisation", description: (payload.new as any)?.email || "Un utilisateur demande un nouveau mot de passe" });
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "password_reset_requests" }, () => {
         queryClient.invalidateQueries({ queryKey: ["password_reset_requests"] });
       })
       .subscribe();
     const ch2 = supabase
       .channel("reg-requests-rt")
-      .on("postgres_changes", { event: "*", schema: "public", table: "registration_requests" }, () => {
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "registration_requests" }, (payload) => {
+        queryClient.invalidateQueries({ queryKey: ["registration_requests"] });
+        playNotificationSound();
+        toast({ title: "📋 Nouvelle demande d'inscription", description: (payload.new as any)?.display_name || "Un nouvel utilisateur souhaite s'inscrire" });
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "registration_requests" }, () => {
         queryClient.invalidateQueries({ queryKey: ["registration_requests"] });
       })
       .subscribe();
@@ -119,6 +146,7 @@ export default function AdminRequests() {
 
   // State for password reset dialog
   const [resetDialog, setResetDialog] = useState<PasswordResetRequest | null>(null);
+  const [resetDialogMode, setResetDialogMode] = useState<"handle" | "resend">("handle");
   const [newPassword, setNewPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [sendResetEmail, setSendResetEmail] = useState(true);
@@ -130,9 +158,11 @@ export default function AdminRequests() {
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [sendRegEmail, setSendRegEmail] = useState(true);
 
-  const openResetDialog = (req: PasswordResetRequest) => {
+  const openResetDialog = (req: PasswordResetRequest, mode: "handle" | "resend" = "handle") => {
     setNewPassword(generatePassword());
     setShowPassword(false);
+    setSendResetEmail(true);
+    setResetDialogMode(mode);
     setResetDialog(req);
   };
 
@@ -353,6 +383,11 @@ export default function AdminRequests() {
                   {req.status === "pending" && (
                     <Button size="sm" onClick={() => openResetDialog(req)}>Traiter</Button>
                   )}
+                  {req.status === "handled" && (
+                    <Button size="sm" variant="outline" onClick={() => openResetDialog(req, "resend")} className="gap-1.5">
+                      <RefreshCw className="h-3.5 w-3.5" /> Renvoyer
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -364,7 +399,7 @@ export default function AdminRequests() {
       <Dialog open={!!resetDialog} onOpenChange={() => setResetDialog(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Réinitialiser le mot de passe</DialogTitle>
+            <DialogTitle>{resetDialogMode === "resend" ? "Renvoyer un mot de passe" : "Réinitialiser le mot de passe"}</DialogTitle>
             <DialogDescription>{resetDialog?.email}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">

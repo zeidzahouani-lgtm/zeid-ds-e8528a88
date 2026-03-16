@@ -5,6 +5,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import { useEstablishmentSettings } from "@/hooks/useEstablishmentSettings";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/badge";
 import { EstablishmentSwitcher } from "@/components/EstablishmentSwitcher";
 import {
   Sidebar,
@@ -57,6 +60,20 @@ export function AppSidebar() {
   const { getSetting } = useEstablishmentSettings(currentEstablishmentId);
 
   const showAdminSection = isGlobalAdmin || isEstablishmentAdmin;
+
+  // Pending requests count for badge
+  const { data: pendingRequestsCount = 0 } = useQuery({
+    queryKey: ["pending_requests_count"],
+    enabled: isGlobalAdmin,
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const [{ count: resets }, { count: regs }] = await Promise.all([
+        supabase.from("password_reset_requests" as any).select("*", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("registration_requests" as any).select("*", { count: "exact", head: true }).eq("status", "pending"),
+      ]);
+      return (resets || 0) + (regs || 0);
+    },
+  });
 
   const estLogoUrl = !isGlobalAdmin && currentEstablishmentId ? getSetting("brand_logo_url") : null;
   const estName = !isGlobalAdmin && currentEstablishmentId ? getSetting("brand_name") : null;
@@ -138,7 +155,23 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu className="space-y-0.5">
                 {(isEstablishmentAdmin || isGlobalAdmin) && establishmentAdminItems.map((item) => renderNavItem(item, true))}
-                {isGlobalAdmin && globalAdminItems.map((item) => renderNavItem(item, true))}
+                {isGlobalAdmin && globalAdminItems.map((item) => {
+                  if (item.url === "/admin/requests" && pendingRequestsCount > 0) {
+                    return (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton asChild isActive={location.pathname === item.url}>
+                          <NavLink to={item.url} end className={`group relative rounded-xl transition-all duration-200 ${location.pathname === item.url ? "" : "hover:bg-secondary/60"}`} activeClassName="bg-primary/10 text-primary font-medium">
+                            <item.icon className={`mr-2.5 h-4 w-4 transition-colors duration-200 ${location.pathname === item.url ? "text-primary" : "text-muted-foreground group-hover:text-foreground"}`} />
+                            {!collapsed && <span className={`text-[13px] tracking-normal ${location.pathname === item.url ? "text-primary" : "text-sidebar-foreground group-hover:text-foreground"}`}>{item.title}</span>}
+                            {!collapsed && <Badge className="ml-auto h-5 min-w-5 px-1 flex items-center justify-center text-[10px]">{pendingRequestsCount}</Badge>}
+                            {collapsed && <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-destructive" />}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  }
+                  return renderNavItem(item, true);
+                })}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
