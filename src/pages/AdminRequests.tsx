@@ -439,6 +439,37 @@ export default function AdminRequests() {
             </Card>
           ))}
         </TabsContent>
+
+        {/* History */}
+        <TabsContent value="history" className="space-y-3 mt-4">
+          {historyItems.length === 0 && <p className="text-muted-foreground text-sm">Aucune action enregistrée.</p>}
+          {historyItems.map((item) => (
+            <Card key={`${item.type}-${item.id}`}>
+              <CardContent className="flex items-center justify-between py-4">
+                <div className="flex items-center gap-3">
+                  <div className={`h-9 w-9 rounded-full flex items-center justify-center ${item.type === "reset" ? "bg-primary/10" : item.status === "approved" ? "bg-primary/10" : "bg-destructive/10"}`}>
+                    {item.type === "reset" ? <KeyRound className="h-4 w-4 text-primary" /> : item.status === "approved" ? <Check className="h-4 w-4 text-primary" /> : <X className="h-4 w-4 text-destructive" />}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{item.label}</p>
+                    <p className="text-xs text-muted-foreground">{item.email}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 text-right">
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      Par <span className="font-medium text-foreground">{getAdminName(item.admin_id)}</span>
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/60">
+                      {new Date(item.date).toLocaleString("fr-FR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
+                  {statusBadge(item.status)}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </TabsContent>
       </Tabs>
 
       {/* Password reset dialog */}
