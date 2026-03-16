@@ -399,7 +399,7 @@ export default function AdminRequests() {
       <Dialog open={!!resetDialog} onOpenChange={() => setResetDialog(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Réinitialiser le mot de passe</DialogTitle>
+            <DialogTitle>{resetDialogMode === "resend" ? "Renvoyer un mot de passe" : "Réinitialiser le mot de passe"}</DialogTitle>
             <DialogDescription>{resetDialog?.email}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">

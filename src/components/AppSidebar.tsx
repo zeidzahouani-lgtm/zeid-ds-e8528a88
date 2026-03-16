@@ -155,7 +155,23 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu className="space-y-0.5">
                 {(isEstablishmentAdmin || isGlobalAdmin) && establishmentAdminItems.map((item) => renderNavItem(item, true))}
-                {isGlobalAdmin && globalAdminItems.map((item) => renderNavItem(item, true))}
+                {isGlobalAdmin && globalAdminItems.map((item) => {
+                  if (item.url === "/admin/requests" && pendingRequestsCount > 0) {
+                    return (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton asChild isActive={location.pathname === item.url}>
+                          <NavLink to={item.url} end className={`group relative rounded-xl transition-all duration-200 ${location.pathname === item.url ? "" : "hover:bg-secondary/60"}`} activeClassName="bg-primary/10 text-primary font-medium">
+                            <item.icon className={`mr-2.5 h-4 w-4 transition-colors duration-200 ${location.pathname === item.url ? "text-primary" : "text-muted-foreground group-hover:text-foreground"}`} />
+                            {!collapsed && <span className={`text-[13px] tracking-normal ${location.pathname === item.url ? "text-primary" : "text-sidebar-foreground group-hover:text-foreground"}`}>{item.title}</span>}
+                            {!collapsed && <Badge className="ml-auto h-5 min-w-5 px-1 flex items-center justify-center text-[10px]">{pendingRequestsCount}</Badge>}
+                            {collapsed && <span className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-destructive" />}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  }
+                  return renderNavItem(item, true);
+                })}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
