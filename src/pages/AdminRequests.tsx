@@ -158,9 +158,11 @@ export default function AdminRequests() {
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [sendRegEmail, setSendRegEmail] = useState(true);
 
-  const openResetDialog = (req: PasswordResetRequest) => {
+  const openResetDialog = (req: PasswordResetRequest, mode: "handle" | "resend" = "handle") => {
     setNewPassword(generatePassword());
     setShowPassword(false);
+    setSendResetEmail(true);
+    setResetDialogMode(mode);
     setResetDialog(req);
   };
 
