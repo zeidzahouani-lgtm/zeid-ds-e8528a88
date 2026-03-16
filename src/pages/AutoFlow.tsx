@@ -476,6 +476,23 @@ export default function AutoFlow() {
                           <ArrowRight className="h-4 w-4" />
                         </Button>
                       )}
+                      <Button
+                        variant="ghost" size="icon"
+                        className="h-8 w-8 text-destructive"
+                        onClick={async () => {
+                          try {
+                            const { error } = await supabase.from("inbox_emails").delete().eq("id", email.id);
+                            if (error) throw error;
+                            toast.success("Email supprimé");
+                            queryClient.invalidateQueries({ queryKey: ["inbox_emails"] });
+                          } catch (e: any) {
+                            toast.error("Erreur: " + e.message);
+                          }
+                        }}
+                        title="Supprimer"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 </Card>
