@@ -321,8 +321,17 @@ export default function AutoFlow() {
                           <span>Reçu: {formatDate(c.created_at)}</span>
                           {c.start_time && <span>Début: {formatDate(c.start_time)}</span>}
                           {c.end_time && <span>Fin: {formatDate(c.end_time)}</span>}
-                          <span>Écran: {getScreenName(c.screen_id)}</span>
+                          <span className={`inline-flex items-center gap-1 ${c.screen_id ? "text-primary font-medium" : ""}`}>
+                            <Monitor className="h-3 w-3" />
+                            Écran: {getScreenName(c.screen_id)}
+                          </span>
                           {c.source && <span>Source: {c.source}</span>}
+                          {c.source === "email" && c.screen_id && (
+                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-[10px]">
+                              <Monitor className="h-3 w-3 mr-0.5" />
+                              Auto-assigné
+                            </Badge>
+                          )}
                         </div>
                       </div>
                       <div className="flex gap-1.5 shrink-0">
