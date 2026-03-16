@@ -300,12 +300,26 @@ function parseMimeParts(body: string, boundary: string): { text: string; attachm
 }
 
 /**
- * Parse screen name from email subject. Formats:
- * [ecran:nom_ecran] or [screen:nom_ecran] or [écran:nom_ecran]
+ * Parse screen name from text. Supported formats:
+ * [ecran:nom], [écran:nom], [screen:nom], ecran: nom, écran=nom, screen:nom
  */
-function parseScreenFromSubject(subject: string): string | null {
-  const match = subject.match(/\[(?:ecran|écran|screen)\s*:\s*(.+?)\]/i);
-  return match ? match[1].trim() : null;
+function parseScreenFromText(input: string): string | null {
+  if (!input) return null;
+
+  const text = input.replace(/\r?\n/g, " ").trim();
+  const patterns = [
+    /\[(?:ecran|écran|screen)\s*[:=]\s*([^\]\r\n]+)\]/i,
+    /(?:^|\s)(?:ecran|écran|screen)\s*[:=]\s*([^,;\r\n]+)/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match?.[1]) {
+      return match[1].trim().replace(/^['"\s]+|['"\s]+$/g, "");
+    }
+  }
+
+  return null;
 }
 
 async function resolveScreenId(supabase: any, screenName: string): Promise<string | null> {
@@ -475,13 +489,7 @@ serve(async (req) => {
           }
         }
 
-        // Parse screen from subject
-        const requestedScreenName = parseScreenFromSubject(subject || "");
         let screenId: string | null = null;
-        if (requestedScreenName) {
-          screenId = await resolveScreenId(supabase, requestedScreenName);
-          console.log(`🖥️ Screen from subject: "${requestedScreenName}" → ${screenId || "NOT FOUND"}`);
-        }
 
         // Parse MIME for attachments
         const boundaryMatch = fetchResp.match(/boundary="?([^";\s\r\n]+)"?/i);
@@ -499,6 +507,15 @@ serve(async (req) => {
         }
 
         console.log(`📎 Found ${attachments.length} attachment(s) in email from ${fromEmail}`);
+
+        // Parse screen from subject first, then fallback to email body
+        const requestedScreenName = parseScreenFromText(subject || "") || parseScreenFromText(bodyText || "");
+        if (requestedScreenName) {
+          screenId = await resolveScreenId(supabase, requestedScreenName);
+          console.log(`🖥️ Screen requested: "${requestedScreenName}" → ${screenId || "NOT FOUND"}`);
+        } else {
+          console.log("🖥️ No screen directive detected in subject/body");
+        }
 
         // Upload attachments to storage
         const attachmentUrls: string[] = [];
@@ -558,7 +575,10 @@ serve(async (req) => {
         let contentId: string | null = null;
         if (attachmentUrls.length > 0) {
           // Clean title (remove screen tag from subject)
-          let cleanTitle = (subject || `Email de ${fromName || fromEmail}`).replace(/\[(?:ecran|écran|screen)\s*:[^\]]+\]/gi, "").trim();
+           let cleanTitle = (subject || `Email de ${fromName || fromEmail}`)
+             .replace(/\[(?:ecran|écran|screen)\s*[:=][^\]]+\]/gi, "")
+             .replace(/(?:^|\s)(?:ecran|écran|screen)\s*[:=]\s*[^,;\r\n]+/gi, "")
+             .trim();
           if (!cleanTitle) cleanTitle = `Email de ${fromName || fromEmail}`;
 
           const insertData: Record<string, unknown> = {
