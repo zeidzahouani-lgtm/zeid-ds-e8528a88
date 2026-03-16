@@ -26,10 +26,15 @@ Deno.serve(async (req) => {
       const callerClient = createClient(supabaseUrl, anonKey, {
         global: { headers: { Authorization: authHeader } },
       });
-      const { data: { user: caller }, error: authError } = await callerClient.auth.getUser(token);
-      if (authError || !caller) throw new Error("Not authenticated");
+      
+      // Use getClaims for ES256 token validation
+      const { data: claimsData, error: claimsError } = await callerClient.auth.getClaims(token);
+      if (claimsError || !claimsData?.claims) throw new Error("Not authenticated");
+      
+      const userId = claimsData.claims.sub;
 
-      const { data: roleData } = await callerClient.from("user_roles").select("role").eq("user_id", caller.id).eq("role", "admin");
+      const adminClient = createClient(supabaseUrl, serviceRoleKey);
+      const { data: roleData } = await adminClient.from("user_roles").select("role").eq("user_id", userId).eq("role", "admin");
       if (!roleData || roleData.length === 0) throw new Error("Not admin");
     }
 
@@ -39,7 +44,6 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
     if (update_password) {
-      // Find user by email and update their password
       const { data: { users }, error: listError } = await adminClient.auth.admin.listUsers();
       if (listError) throw listError;
 

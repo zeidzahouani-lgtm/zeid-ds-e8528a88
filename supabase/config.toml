@@ -1,1 +1,7 @@
 project_id = "dovvbtzpawheafcqmdbt"
+
+[functions.invite-user]
+verify_jwt = false
+
+[functions.send-credentials]
+verify_jwt = false

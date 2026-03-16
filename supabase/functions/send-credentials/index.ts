@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -6,11 +5,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    // Verify admin
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Non autorisé");
 
@@ -22,10 +20,15 @@ serve(async (req) => {
     const callerClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user: caller }, error: authError } = await callerClient.auth.getUser(token);
-    if (authError || !caller) throw new Error("Non authentifié");
+    
+    // Use getClaims for ES256 token validation
+    const { data: claimsData, error: claimsError } = await callerClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) throw new Error("Non authentifié");
+    
+    const userId = claimsData.claims.sub;
 
-    const { data: roleData } = await callerClient.from("user_roles").select("role").eq("user_id", caller.id).eq("role", "admin");
+    const adminClient = createClient(supabaseUrl, serviceKey);
+    const { data: roleData } = await adminClient.from("user_roles").select("role").eq("user_id", userId).eq("role", "admin");
     if (!roleData || roleData.length === 0) throw new Error("Non admin");
 
     const { to_email, to_name, password, type } = await req.json();
@@ -37,7 +40,6 @@ serve(async (req) => {
     const cfg: Record<string, string> = {};
     (settings || []).forEach((r: any) => { cfg[r.key] = r.value || ""; });
 
-    // Also load app name
     const { data: appSettings } = await supabase.from("app_settings").select("key, value").in("key", ["app_name", "logo_url"]);
     const appCfg: Record<string, string> = {};
     (appSettings || []).forEach((r: any) => { appCfg[r.key] = r.value || ""; });
@@ -76,17 +78,11 @@ serve(async (req) => {
 <body style="margin:0;padding:0;background:#0a0a0f;font-family:'Segoe UI',Arial,sans-serif;">
 <div style="max-width:600px;margin:0 auto;padding:40px 20px;">
   <div style="background:linear-gradient(135deg,#111118 0%,#1a1a2e 100%);border-radius:16px;overflow:hidden;border:1px solid rgba(255,255,255,0.06);box-shadow:0 8px 32px rgba(0,0,0,0.4);">
-    
-    <!-- Header -->
     <div style="background:linear-gradient(135deg,#0ea5e9,#6366f1);padding:32px;text-align:center;">
       <h1 style="color:#fff;margin:0;font-size:22px;font-weight:700;letter-spacing:0.5px;">${heading}</h1>
     </div>
-    
-    <!-- Body -->
     <div style="padding:32px;">
       <p style="color:#cbd5e1;font-size:14px;line-height:1.7;margin:0 0 24px;">${intro}</p>
-      
-      <!-- Credentials card -->
       <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:24px;margin:0 0 24px;">
         <table style="width:100%;border-collapse:collapse;">
           <tr>
@@ -101,17 +97,13 @@ serve(async (req) => {
           </tr>
         </table>
       </div>
-      
       <p style="color:#f59e0b;font-size:13px;line-height:1.6;margin:0 0 24px;padding:12px 16px;background:rgba(245,158,11,0.08);border-radius:8px;border-left:3px solid #f59e0b;">
         ⚠️ Pour votre sécurité, nous vous recommandons de changer votre mot de passe après votre première connexion.
       </p>
-      
       <p style="color:#94a3b8;font-size:13px;line-height:1.6;margin:0;">
         Si vous n'êtes pas à l'origine de cette demande, veuillez contacter votre administrateur.
       </p>
     </div>
-    
-    <!-- Footer -->
     <div style="padding:20px 32px;border-top:1px solid rgba(255,255,255,0.06);text-align:center;">
       <p style="color:#475569;font-size:11px;margin:0;">${appName} — Système d'affichage dynamique</p>
     </div>
@@ -124,7 +116,6 @@ serve(async (req) => {
       ? `Bienvenue sur ${appName}!\n\nVotre inscription a été approuvée.\nEmail: ${to_email}\nMot de passe: ${password}\n\nChangez votre mot de passe après connexion.`
       : `Votre mot de passe ${appName} a été réinitialisé.\nEmail: ${to_email}\nNouveau mot de passe: ${password}\n\nChangez votre mot de passe après connexion.`;
 
-    // Send via SMTP
     let finalConn: Deno.Conn;
     if (smtpPort === 465) {
       finalConn = await Deno.connectTls({ hostname: smtpHost, port: smtpPort });
