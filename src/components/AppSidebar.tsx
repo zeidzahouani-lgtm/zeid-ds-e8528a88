@@ -5,6 +5,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import { useEstablishmentSettings } from "@/hooks/useEstablishmentSettings";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/badge";
 import { EstablishmentSwitcher } from "@/components/EstablishmentSwitcher";
 import {
   Sidebar,
