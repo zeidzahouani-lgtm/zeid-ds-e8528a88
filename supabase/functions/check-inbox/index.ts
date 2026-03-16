@@ -575,7 +575,10 @@ serve(async (req) => {
         let contentId: string | null = null;
         if (attachmentUrls.length > 0) {
           // Clean title (remove screen tag from subject)
-          let cleanTitle = (subject || `Email de ${fromName || fromEmail}`).replace(/\[(?:ecran|écran|screen)\s*:[^\]]+\]/gi, "").trim();
+           let cleanTitle = (subject || `Email de ${fromName || fromEmail}`)
+             .replace(/\[(?:ecran|écran|screen)\s*[:=][^\]]+\]/gi, "")
+             .replace(/(?:^|\s)(?:ecran|écran|screen)\s*[:=]\s*[^,;\r\n]+/gi, "")
+             .trim();
           if (!cleanTitle) cleanTitle = `Email de ${fromName || fromEmail}`;
 
           const insertData: Record<string, unknown> = {
