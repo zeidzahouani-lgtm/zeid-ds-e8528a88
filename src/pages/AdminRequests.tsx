@@ -100,6 +100,49 @@ export default function AdminRequests() {
     },
   });
 
+  // Admin profiles for history display
+  const { data: profiles = [] } = useQuery({
+    queryKey: ["admin_profiles"],
+    enabled: isAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("profiles").select("id, display_name, email");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const getAdminName = (adminId: string | null) => {
+    if (!adminId) return "Inconnu";
+    const p = profiles.find((pr) => pr.id === adminId);
+    return p?.display_name || p?.email || "Admin";
+  };
+
+  // Build history from handled requests
+  const historyItems = [
+    ...resetRequests
+      .filter((r) => r.status !== "pending")
+      .map((r) => ({
+        id: r.id,
+        type: "reset" as const,
+        email: r.email,
+        status: r.status,
+        date: r.handled_at || r.created_at,
+        admin_id: r.handled_by,
+        label: "Réinitialisation de mot de passe",
+      })),
+    ...regRequests
+      .filter((r) => r.status !== "pending")
+      .map((r) => ({
+        id: r.id,
+        type: "registration" as const,
+        email: r.email,
+        status: r.status,
+        date: r.reviewed_at || r.created_at,
+        admin_id: r.reviewed_by,
+        label: `Inscription — ${r.establishment_name}`,
+      })),
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
   // Play notification sound
   const playNotificationSound = () => {
     try {
