@@ -146,6 +146,7 @@ export default function AdminRequests() {
 
   // State for password reset dialog
   const [resetDialog, setResetDialog] = useState<PasswordResetRequest | null>(null);
+  const [resetDialogMode, setResetDialogMode] = useState<"handle" | "resend">("handle");
   const [newPassword, setNewPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [sendResetEmail, setSendResetEmail] = useState(true);
