@@ -34,9 +34,84 @@ async function sendAckEmail(supabase: any, content: any, baseUrl: string) {
     if (screenData) screenLabel = screenData.name;
   }
 
-  const subject = `[Accusé de réception] Contenu "${content.title || "Sans titre"}" — Réf: ${content.id.slice(0, 8).toUpperCase()}`;
-  const textBody = `Accusé de réception — "${content.title || "Sans titre"}"\n\nÉcran: ${screenLabel}\n\nPour valider: ${validateUrl}\nPour annuler: ${cancelUrl}\n\nOu répondez avec "valider" ou "annuler".`;
-  const htmlBody = `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f4f4f7;padding:20px;"><div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);"><div style="background:linear-gradient(135deg,#0ea5e9,#6366f1);padding:30px;text-align:center;"><h1 style="color:#fff;margin:0;font-size:20px;">📩 Accusé de réception</h1><p style="color:rgba(255,255,255,0.85);margin:8px 0 0;font-size:13px;">Votre contenu a été reçu</p></div><div style="padding:30px;"><h2 style="font-size:16px;margin:0 0 15px;">${content.title || "Sans titre"}</h2><p style="font-size:14px;color:#475569;">Réf: ${content.id.slice(0, 8).toUpperCase()} | Statut: En attente | Écran: ${screenLabel}</p>${content.image_url ? `<img src="${content.image_url}" style="max-width:100%;max-height:200px;border-radius:8px;margin:15px 0;" />` : ""}<div style="text-align:center;margin:25px 0;"><a href="${validateUrl}" style="display:inline-block;background:#22c55e;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;margin:0 8px;">✅ Valider</a><a href="${cancelUrl}" style="display:inline-block;background:#ef4444;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;margin:0 8px;">❌ Annuler</a></div><p style="font-size:12px;color:#94a3b8;text-align:center;">Ou répondez à cet email avec "valider" ou "annuler".</p></div></div></body></html>`;
+  const statusLabel = content.status === "scheduled" ? "Programmé" : content.status === "active" ? "Activé immédiatement" : "En attente de validation";
+  const startStr = content.start_time ? new Date(content.start_time).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" }) : "Non défini";
+  const endStr = content.end_time ? new Date(content.end_time).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" }) : "Non défini";
+  const createdStr = new Date(content.created_at).toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short" });
+  const refCode = content.id.slice(0, 8).toUpperCase();
+
+  const subject = `[Accusé de réception] Contenu "${content.title || "Sans titre"}" — Réf: ${refCode}`;
+
+  const textBody = `Accusé de réception — Contenu "${content.title || "Sans titre"}"
+
+Référence: ${refCode}
+Statut: ${statusLabel}
+Écran cible: ${screenLabel}
+Source: email
+Reçu le: ${createdStr}
+Début de diffusion: ${startStr}
+Fin de diffusion: ${endStr}
+
+Actions prévues:
+- Le contenu sera soumis à validation manuelle avant diffusion
+- L'image sera optimisée pour l'affichage sur écran
+${content.screen_id ? `- Le contenu sera affiché sur l'écran "${screenLabel}"` : "- Le contenu pourra être assigné à un écran depuis le tableau de bord"}
+${content.start_time && content.end_time ? "- La diffusion sera activée/désactivée selon le créneau défini" : "- Aucun créneau horaire — diffusion en continu une fois validé"}
+
+Pour valider: ${validateUrl}
+Pour annuler: ${cancelUrl}
+
+Ou répondez à cet email avec "valider" ou "annuler".`;
+
+  const htmlBody = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background:#f4f4f7;color:#333;">
+  <div style="max-width:600px;margin:30px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+    <div style="background:linear-gradient(135deg,#0ea5e9,#6366f1);padding:30px;text-align:center;">
+      <h1 style="color:#fff;margin:0;font-size:22px;">📩 Accusé de réception</h1>
+      <p style="color:rgba(255,255,255,0.85);margin:8px 0 0;font-size:14px;">Votre contenu a été reçu et enregistré</p>
+    </div>
+    <div style="padding:30px;">
+      <h2 style="color:#1e293b;font-size:18px;margin:0 0 20px;">Détails du contenu</h2>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        <tr><td style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;width:140px;">Titre</td><td style="padding:10px 12px;border:1px solid #e2e8f0;">${content.title || "Sans titre"}</td></tr>
+        <tr><td style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;">Référence</td><td style="padding:10px 12px;border:1px solid #e2e8f0;font-family:monospace;">${refCode}</td></tr>
+        <tr><td style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;">Statut</td><td style="padding:10px 12px;border:1px solid #e2e8f0;">${statusLabel}</td></tr>
+        <tr><td style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;">Écran cible</td><td style="padding:10px 12px;border:1px solid #e2e8f0;">${screenLabel}</td></tr>
+        <tr><td style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;">Début de diffusion</td><td style="padding:10px 12px;border:1px solid #e2e8f0;">${startStr}</td></tr>
+        <tr><td style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;">Fin de diffusion</td><td style="padding:10px 12px;border:1px solid #e2e8f0;">${endStr}</td></tr>
+        <tr><td style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;">Source</td><td style="padding:10px 12px;border:1px solid #e2e8f0;">Email</td></tr>
+        <tr><td style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;font-weight:600;">Reçu le</td><td style="padding:10px 12px;border:1px solid #e2e8f0;">${createdStr}</td></tr>
+      </table>
+      ${content.image_url ? `
+      <div style="margin:20px 0;text-align:center;">
+        <p style="font-size:13px;color:#64748b;margin:0 0 8px;">Aperçu du contenu :</p>
+        <img src="${content.image_url}" alt="Aperçu" style="max-width:100%;max-height:300px;border-radius:8px;border:1px solid #e2e8f0;" />
+      </div>` : ""}
+      <h3 style="color:#1e293b;font-size:16px;margin:25px 0 15px;">🔧 Actions prévues</h3>
+      <ul style="font-size:14px;line-height:1.8;color:#475569;padding-left:20px;">
+        <li>Le contenu sera ${content.status === "active" ? "diffusé immédiatement" : content.status === "scheduled" ? "diffusé automatiquement selon le créneau programmé" : "soumis à validation manuelle avant diffusion"}</li>
+        <li>L'image sera redimensionnée et optimisée pour l'affichage sur écran</li>
+        ${content.screen_id ? `<li>Le contenu sera affiché sur l'écran <strong>"${screenLabel}"</strong></li>` : "<li>Le contenu pourra être assigné à un écran spécifique depuis le tableau de bord</li>"}
+        ${content.start_time && content.end_time ? "<li>La diffusion sera automatiquement activée et désactivée selon le créneau horaire défini</li>" : "<li>Aucun créneau horaire n'a été défini — le contenu sera diffusé en continu une fois validé</li>"}
+      </ul>
+      <div style="margin:30px 0;text-align:center;">
+        <p style="font-size:14px;color:#475569;margin-bottom:15px;">Vous pouvez gérer ce contenu directement :</p>
+        <a href="${validateUrl}" style="display:inline-block;background:#22c55e;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;margin:0 8px;">✅ Valider</a>
+        <a href="${cancelUrl}" style="display:inline-block;background:#ef4444;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;margin:0 8px;">❌ Annuler</a>
+      </div>
+      <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:16px;margin:20px 0;">
+        <p style="font-size:13px;color:#0369a1;margin:0;line-height:1.6;">
+          💡 <strong>Astuce :</strong> Vous pouvez aussi répondre directement à cet email avec le mot <strong>"valider"</strong> pour approuver ou <strong>"annuler"</strong> pour rejeter ce contenu.
+        </p>
+      </div>
+    </div>
+    <div style="background:#f8fafc;padding:20px;text-align:center;border-top:1px solid #e2e8f0;">
+      <p style="font-size:12px;color:#94a3b8;margin:0;">Cet email a été envoyé automatiquement par votre système d'affichage dynamique.</p>
+      <p style="font-size:11px;color:#cbd5e1;margin:8px 0 0;">Réf: ${content.id} | Token: ${token?.slice(0, 8)}...</p>
+    </div>
+  </div>
+</body></html>`;
 
   try {
     let finalConn: Deno.Conn;
