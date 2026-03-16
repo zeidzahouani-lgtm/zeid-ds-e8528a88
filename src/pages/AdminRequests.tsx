@@ -383,6 +383,11 @@ export default function AdminRequests() {
                   {req.status === "pending" && (
                     <Button size="sm" onClick={() => openResetDialog(req)}>Traiter</Button>
                   )}
+                  {req.status === "handled" && (
+                    <Button size="sm" variant="outline" onClick={() => openResetDialog(req, "resend")} className="gap-1.5">
+                      <RefreshCw className="h-3.5 w-3.5" /> Renvoyer
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
