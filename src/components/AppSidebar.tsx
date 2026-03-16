@@ -61,6 +61,20 @@ export function AppSidebar() {
 
   const showAdminSection = isGlobalAdmin || isEstablishmentAdmin;
 
+  // Pending requests count for badge
+  const { data: pendingRequestsCount = 0 } = useQuery({
+    queryKey: ["pending_requests_count"],
+    enabled: isGlobalAdmin,
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const [{ count: resets }, { count: regs }] = await Promise.all([
+        supabase.from("password_reset_requests" as any).select("*", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("registration_requests" as any).select("*", { count: "exact", head: true }).eq("status", "pending"),
+      ]);
+      return (resets || 0) + (regs || 0);
+    },
+  });
+
   const estLogoUrl = !isGlobalAdmin && currentEstablishmentId ? getSetting("brand_logo_url") : null;
   const estName = !isGlobalAdmin && currentEstablishmentId ? getSetting("brand_name") : null;
   const currentEst = memberships.find(m => m.establishment_id === currentEstablishmentId);
