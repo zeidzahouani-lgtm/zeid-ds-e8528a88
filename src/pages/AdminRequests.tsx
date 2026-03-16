@@ -369,6 +369,9 @@ export default function AdminRequests() {
             <KeyRound className="h-4 w-4" /> Mots de passe
             {pendingResets > 0 && <Badge className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px]">{pendingResets}</Badge>}
           </TabsTrigger>
+          <TabsTrigger value="history" className="gap-1.5">
+            <History className="h-4 w-4" /> Historique
+          </TabsTrigger>
         </TabsList>
 
         {/* Registration requests */}
