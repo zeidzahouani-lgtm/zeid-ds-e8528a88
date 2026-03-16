@@ -508,6 +508,15 @@ serve(async (req) => {
 
         console.log(`📎 Found ${attachments.length} attachment(s) in email from ${fromEmail}`);
 
+        // Parse screen from subject first, then fallback to email body
+        const requestedScreenName = parseScreenFromText(subject || "") || parseScreenFromText(bodyText || "");
+        if (requestedScreenName) {
+          screenId = await resolveScreenId(supabase, requestedScreenName);
+          console.log(`🖥️ Screen requested: "${requestedScreenName}" → ${screenId || "NOT FOUND"}`);
+        } else {
+          console.log("🖥️ No screen directive detected in subject/body");
+        }
+
         // Upload attachments to storage
         const attachmentUrls: string[] = [];
         for (const att of attachments) {
