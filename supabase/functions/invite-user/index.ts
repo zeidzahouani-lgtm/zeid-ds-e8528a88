@@ -22,12 +22,12 @@ Deno.serve(async (req) => {
     const isServiceRole = authHeader === `Bearer ${serviceRoleKey}`;
 
     if (!isServiceRole) {
-      // Verify caller is admin
+      const token = authHeader.replace("Bearer ", "");
       const callerClient = createClient(supabaseUrl, anonKey, {
         global: { headers: { Authorization: authHeader } },
       });
-      const { data: { user: caller } } = await callerClient.auth.getUser();
-      if (!caller) throw new Error("Not authenticated");
+      const { data: { user: caller }, error: authError } = await callerClient.auth.getUser(token);
+      if (authError || !caller) throw new Error("Not authenticated");
 
       const { data: roleData } = await callerClient.from("user_roles").select("role").eq("user_id", caller.id).eq("role", "admin");
       if (!roleData || roleData.length === 0) throw new Error("Not admin");
