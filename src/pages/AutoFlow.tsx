@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  Mail, CheckCircle2, XCircle, Clock, Play, Trash2, Eye, Loader2, Copy, ExternalLink, RefreshCw, Pencil, Inbox, Paperclip, ArrowRight, Image as ImageIcon, Send, KeyRound, Plus
+  Mail, CheckCircle2, XCircle, Clock, Play, Trash2, Eye, Loader2, Copy, ExternalLink, RefreshCw, Pencil, Inbox, Paperclip, ArrowRight, Image as ImageIcon, Send, KeyRound, Plus, Monitor
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -321,8 +321,17 @@ export default function AutoFlow() {
                           <span>Reçu: {formatDate(c.created_at)}</span>
                           {c.start_time && <span>Début: {formatDate(c.start_time)}</span>}
                           {c.end_time && <span>Fin: {formatDate(c.end_time)}</span>}
-                          <span>Écran: {getScreenName(c.screen_id)}</span>
+                          <span className={`inline-flex items-center gap-1 ${c.screen_id ? "text-primary font-medium" : ""}`}>
+                            <Monitor className="h-3 w-3" />
+                            Écran: {getScreenName(c.screen_id)}
+                          </span>
                           {c.source && <span>Source: {c.source}</span>}
+                          {c.source === "email" && c.screen_id && (
+                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-[10px]">
+                              <Monitor className="h-3 w-3 mr-0.5" />
+                              Auto-assigné
+                            </Badge>
+                          )}
                         </div>
                       </div>
                       <div className="flex gap-1.5 shrink-0">
@@ -467,6 +476,23 @@ export default function AutoFlow() {
                           <ArrowRight className="h-4 w-4" />
                         </Button>
                       )}
+                      <Button
+                        variant="ghost" size="icon"
+                        className="h-8 w-8 text-destructive"
+                        onClick={async () => {
+                          try {
+                            const { error } = await supabase.from("inbox_emails").delete().eq("id", email.id);
+                            if (error) throw error;
+                            toast.success("Email supprimé");
+                            queryClient.invalidateQueries({ queryKey: ["inbox_emails"] });
+                          } catch (e: any) {
+                            toast.error("Erreur: " + e.message);
+                          }
+                        }}
+                        title="Supprimer"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 </Card>
