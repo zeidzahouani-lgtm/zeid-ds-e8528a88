@@ -100,17 +100,44 @@ export default function AdminRequests() {
     },
   });
 
-  // Realtime
+  // Play notification sound
+  const playNotificationSound = () => {
+    try {
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      osc.type = "sine";
+      gain.gain.value = 0.3;
+      osc.start();
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      osc.stop(ctx.currentTime + 0.5);
+    } catch {}
+  };
+
+  // Realtime with notifications
   useEffect(() => {
     const ch1 = supabase
       .channel("reset-requests-rt")
-      .on("postgres_changes", { event: "*", schema: "public", table: "password_reset_requests" }, () => {
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "password_reset_requests" }, (payload) => {
+        queryClient.invalidateQueries({ queryKey: ["password_reset_requests"] });
+        playNotificationSound();
+        toast({ title: "🔑 Nouvelle demande de réinitialisation", description: (payload.new as any)?.email || "Un utilisateur demande un nouveau mot de passe" });
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "password_reset_requests" }, () => {
         queryClient.invalidateQueries({ queryKey: ["password_reset_requests"] });
       })
       .subscribe();
     const ch2 = supabase
       .channel("reg-requests-rt")
-      .on("postgres_changes", { event: "*", schema: "public", table: "registration_requests" }, () => {
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "registration_requests" }, (payload) => {
+        queryClient.invalidateQueries({ queryKey: ["registration_requests"] });
+        playNotificationSound();
+        toast({ title: "📋 Nouvelle demande d'inscription", description: (payload.new as any)?.display_name || "Un nouvel utilisateur souhaite s'inscrire" });
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "registration_requests" }, () => {
         queryClient.invalidateQueries({ queryKey: ["registration_requests"] });
       })
       .subscribe();
