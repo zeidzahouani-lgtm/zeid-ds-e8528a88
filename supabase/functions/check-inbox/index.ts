@@ -300,12 +300,26 @@ function parseMimeParts(body: string, boundary: string): { text: string; attachm
 }
 
 /**
- * Parse screen name from email subject. Formats:
- * [ecran:nom_ecran] or [screen:nom_ecran] or [écran:nom_ecran]
+ * Parse screen name from text. Supported formats:
+ * [ecran:nom], [écran:nom], [screen:nom], ecran: nom, écran=nom, screen:nom
  */
-function parseScreenFromSubject(subject: string): string | null {
-  const match = subject.match(/\[(?:ecran|écran|screen)\s*:\s*(.+?)\]/i);
-  return match ? match[1].trim() : null;
+function parseScreenFromText(input: string): string | null {
+  if (!input) return null;
+
+  const text = input.replace(/\r?\n/g, " ").trim();
+  const patterns = [
+    /\[(?:ecran|écran|screen)\s*[:=]\s*([^\]\r\n]+)\]/i,
+    /(?:^|\s)(?:ecran|écran|screen)\s*[:=]\s*([^,;\r\n]+)/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match?.[1]) {
+      return match[1].trim().replace(/^['"\s]+|['"\s]+$/g, "");
+    }
+  }
+
+  return null;
 }
 
 async function resolveScreenId(supabase: any, screenName: string): Promise<string | null> {
