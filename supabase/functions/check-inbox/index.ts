@@ -161,10 +161,32 @@ function decodeQuotedPrintable(str: string): string {
     .replace(/=([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
 }
 
+function decodeMimeEncodedWords(str: string): string {
+  // Decode =?charset?encoding?encoded_text?= patterns
+  return str.replace(/=\?([^?]+)\?([BbQq])\?([^?]*)\?=/g, (_, charset, encoding, text) => {
+    try {
+      if (encoding.toUpperCase() === "B") {
+        const bytes = decodeBase64(text);
+        return new TextDecoder(charset).decode(bytes);
+      } else if (encoding.toUpperCase() === "Q") {
+        const decoded = text
+          .replace(/_/g, " ")
+          .replace(/=([0-9A-Fa-f]{2})/g, (_: string, hex: string) => String.fromCharCode(parseInt(hex, 16)));
+        return decoded;
+      }
+    } catch (e) {
+      console.error("MIME decode error:", e);
+    }
+    return text;
+  });
+}
+
 function parseHeader(raw: string, name: string): string {
   const re = new RegExp(`^${name}:\\s*(.+?)(?=\\r?\\n[^\\s]|$)`, "ims");
   const m = raw.match(re);
-  return m ? m[1].replace(/\r?\n\s+/g, " ").trim() : "";
+  if (!m) return "";
+  const raw_value = m[1].replace(/\r?\n\s+/g, " ").trim();
+  return decodeMimeEncodedWords(raw_value);
 }
 
 function extractFromAddress(from: string): { name: string; email: string } {
