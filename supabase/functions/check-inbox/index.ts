@@ -489,13 +489,7 @@ serve(async (req) => {
           }
         }
 
-        // Parse screen from subject
-        const requestedScreenName = parseScreenFromSubject(subject || "");
         let screenId: string | null = null;
-        if (requestedScreenName) {
-          screenId = await resolveScreenId(supabase, requestedScreenName);
-          console.log(`🖥️ Screen from subject: "${requestedScreenName}" → ${screenId || "NOT FOUND"}`);
-        }
 
         // Parse MIME for attachments
         const boundaryMatch = fetchResp.match(/boundary="?([^";\s\r\n]+)"?/i);
