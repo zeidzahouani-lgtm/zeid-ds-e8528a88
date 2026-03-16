@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -22,12 +22,12 @@ Deno.serve(async (req) => {
     const isServiceRole = authHeader === `Bearer ${serviceRoleKey}`;
 
     if (!isServiceRole) {
-      // Verify caller is admin
+      const token = authHeader.replace("Bearer ", "");
       const callerClient = createClient(supabaseUrl, anonKey, {
         global: { headers: { Authorization: authHeader } },
       });
-      const { data: { user: caller } } = await callerClient.auth.getUser();
-      if (!caller) throw new Error("Not authenticated");
+      const { data: { user: caller }, error: authError } = await callerClient.auth.getUser(token);
+      if (authError || !caller) throw new Error("Not authenticated");
 
       const { data: roleData } = await callerClient.from("user_roles").select("role").eq("user_id", caller.id).eq("role", "admin");
       if (!roleData || roleData.length === 0) throw new Error("Not admin");
