@@ -18,11 +18,12 @@ serve(async (req) => {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+    const token = authHeader.replace("Bearer ", "");
     const callerClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
-    const { data: { user: caller } } = await callerClient.auth.getUser();
-    if (!caller) throw new Error("Non authentifié");
+    const { data: { user: caller }, error: authError } = await callerClient.auth.getUser(token);
+    if (authError || !caller) throw new Error("Non authentifié");
 
     const { data: roleData } = await callerClient.from("user_roles").select("role").eq("user_id", caller.id).eq("role", "admin");
     if (!roleData || roleData.length === 0) throw new Error("Non admin");
