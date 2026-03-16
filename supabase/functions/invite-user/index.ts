@@ -18,15 +18,20 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Verify caller is admin
-    const callerClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user: caller } } = await callerClient.auth.getUser();
-    if (!caller) throw new Error("Not authenticated");
+    // Allow service role to bypass admin check
+    const isServiceRole = authHeader === `Bearer ${serviceRoleKey}`;
 
-    const { data: roleData } = await callerClient.from("user_roles").select("role").eq("user_id", caller.id).eq("role", "admin");
-    if (!roleData || roleData.length === 0) throw new Error("Not admin");
+    if (!isServiceRole) {
+      // Verify caller is admin
+      const callerClient = createClient(supabaseUrl, anonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: { user: caller } } = await callerClient.auth.getUser();
+      if (!caller) throw new Error("Not authenticated");
+
+      const { data: roleData } = await callerClient.from("user_roles").select("role").eq("user_id", caller.id).eq("role", "admin");
+      if (!roleData || roleData.length === 0) throw new Error("Not admin");
+    }
 
     const { email, password, display_name, update_password } = await req.json();
     if (!email || !password) throw new Error("Email and password required");

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { ClipboardList, KeyRound, Shield, Check, X, RefreshCw, Copy, Eye, EyeOff, UserPlus, Building2, Monitor, Mail } from "lucide-react";
+import { ClipboardList, KeyRound, Shield, Check, X, RefreshCw, Copy, Eye, EyeOff, UserPlus, Building2, Monitor, Mail, History } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -99,6 +99,49 @@ export default function AdminRequests() {
       return (data || []) as unknown as RegistrationRequest[];
     },
   });
+
+  // Admin profiles for history display
+  const { data: profiles = [] } = useQuery({
+    queryKey: ["admin_profiles"],
+    enabled: isAdmin,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("profiles").select("id, display_name, email");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const getAdminName = (adminId: string | null) => {
+    if (!adminId) return "Inconnu";
+    const p = profiles.find((pr) => pr.id === adminId);
+    return p?.display_name || p?.email || "Admin";
+  };
+
+  // Build history from handled requests
+  const historyItems = [
+    ...resetRequests
+      .filter((r) => r.status !== "pending")
+      .map((r) => ({
+        id: r.id,
+        type: "reset" as const,
+        email: r.email,
+        status: r.status,
+        date: r.handled_at || r.created_at,
+        admin_id: r.handled_by,
+        label: "Réinitialisation de mot de passe",
+      })),
+    ...regRequests
+      .filter((r) => r.status !== "pending")
+      .map((r) => ({
+        id: r.id,
+        type: "registration" as const,
+        email: r.email,
+        status: r.status,
+        date: r.reviewed_at || r.created_at,
+        admin_id: r.reviewed_by,
+        label: `Inscription — ${r.establishment_name}`,
+      })),
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   // Play notification sound
   const playNotificationSound = () => {
@@ -326,6 +369,9 @@ export default function AdminRequests() {
             <KeyRound className="h-4 w-4" /> Mots de passe
             {pendingResets > 0 && <Badge className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px]">{pendingResets}</Badge>}
           </TabsTrigger>
+          <TabsTrigger value="history" className="gap-1.5">
+            <History className="h-4 w-4" /> Historique
+          </TabsTrigger>
         </TabsList>
 
         {/* Registration requests */}
@@ -388,6 +434,37 @@ export default function AdminRequests() {
                       <RefreshCw className="h-3.5 w-3.5" /> Renvoyer
                     </Button>
                   )}
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </TabsContent>
+
+        {/* History */}
+        <TabsContent value="history" className="space-y-3 mt-4">
+          {historyItems.length === 0 && <p className="text-muted-foreground text-sm">Aucune action enregistrée.</p>}
+          {historyItems.map((item) => (
+            <Card key={`${item.type}-${item.id}`}>
+              <CardContent className="flex items-center justify-between py-4">
+                <div className="flex items-center gap-3">
+                  <div className={`h-9 w-9 rounded-full flex items-center justify-center ${item.type === "reset" ? "bg-primary/10" : item.status === "approved" ? "bg-primary/10" : "bg-destructive/10"}`}>
+                    {item.type === "reset" ? <KeyRound className="h-4 w-4 text-primary" /> : item.status === "approved" ? <Check className="h-4 w-4 text-primary" /> : <X className="h-4 w-4 text-destructive" />}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{item.label}</p>
+                    <p className="text-xs text-muted-foreground">{item.email}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 text-right">
+                  <div>
+                    <p className="text-xs text-muted-foreground">
+                      Par <span className="font-medium text-foreground">{getAdminName(item.admin_id)}</span>
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/60">
+                      {new Date(item.date).toLocaleString("fr-FR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
+                  {statusBadge(item.status)}
                 </div>
               </CardContent>
             </Card>
