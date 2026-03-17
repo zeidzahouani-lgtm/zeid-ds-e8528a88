@@ -1,18 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-export function usePlaylistItems(screenId?: string) {
+export function usePlaylistItems(playlistId?: string) {
   const queryClient = useQueryClient();
-  const queryKey = ["playlist_items", screenId];
+  const queryKey = ["playlist_items", playlistId];
 
   const { data: items = [], isLoading } = useQuery({
     queryKey,
-    enabled: !!screenId,
+    enabled: !!playlistId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("playlist_items")
         .select("*, media:media_id(id, name, type, url, duration)")
-        .eq("screen_id", screenId!)
+        .eq("playlist_id", playlistId!)
         .order("position", { ascending: true });
       if (error) throw error;
       return data;
@@ -23,7 +23,7 @@ export function usePlaylistItems(screenId?: string) {
     mutationFn: async ({ mediaId, position }: { mediaId: string; position: number }) => {
       const { error } = await supabase
         .from("playlist_items")
-        .insert({ screen_id: screenId!, media_id: mediaId, position });
+        .insert({ playlist_id: playlistId!, media_id: mediaId, position });
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
