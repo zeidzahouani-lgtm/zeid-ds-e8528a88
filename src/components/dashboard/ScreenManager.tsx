@@ -203,6 +203,16 @@ export function ScreenManager() {
                           <WifiOff className="h-3 w-3" /> Hors ligne
                         </Badge>
                       )}
+                      {assignedPlaylist && (
+                        <Badge variant="outline" className="text-primary border-primary/30 gap-1 text-xs">
+                          <ListMusic className="h-3 w-3" /> {assignedPlaylist.name}
+                        </Badge>
+                      )}
+                      {assignedProgram && (
+                        <Badge variant="outline" className="text-accent-foreground border-accent/30 gap-1 text-xs">
+                          <CalendarClock className="h-3 w-3" /> {assignedProgram.name}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </div>
