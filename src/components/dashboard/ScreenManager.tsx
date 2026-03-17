@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet } from "lucide-react";
+import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -10,6 +10,8 @@ import { useScreens } from "@/hooks/useScreens";
 import { useMedia } from "@/hooks/useMedia";
 import { useLayouts } from "@/hooks/useLayouts";
 import { usePlaylistItems } from "@/hooks/usePlaylistItems";
+import { usePlaylists } from "@/hooks/usePlaylists";
+import { usePrograms } from "@/hooks/usePrograms";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -84,6 +86,8 @@ export function ScreenManager() {
   const { screens, isLoading, addScreen, updateScreen, deleteScreen } = useScreens();
   const { media } = useMedia();
   const { layouts } = useLayouts();
+  const { playlists } = usePlaylists();
+  const { programs } = usePrograms();
   const { currentEstablishmentId } = useEstablishmentContext();
 
   const { data: maxScreens } = useQuery({
@@ -146,6 +150,8 @@ export function ScreenManager() {
           {screens.map((screen) => {
             const assignedMedia = media.find((m) => m.id === screen.current_media_id);
             const assignedLayout = layouts.find((l) => l.id === (screen as any).layout_id);
+            const assignedPlaylist = playlists.find((p) => p.id === (screen as any).playlist_id);
+            const assignedProgram = programs.find((p) => p.id === (screen as any).program_id);
             const orientationPreview = getOrientationPreview(screen.orientation);
 
             return (
@@ -195,6 +201,16 @@ export function ScreenManager() {
                       ) : (
                         <Badge variant="outline" className="text-status-offline border-status-offline/30 gap-1 text-xs">
                           <WifiOff className="h-3 w-3" /> Hors ligne
+                        </Badge>
+                      )}
+                      {assignedPlaylist && (
+                        <Badge variant="outline" className="text-primary border-primary/30 gap-1 text-xs">
+                          <ListMusic className="h-3 w-3" /> {assignedPlaylist.name}
+                        </Badge>
+                      )}
+                      {assignedProgram && (
+                        <Badge variant="outline" className="text-accent-foreground border-accent/30 gap-1 text-xs">
+                          <CalendarClock className="h-3 w-3" /> {assignedProgram.name}
                         </Badge>
                       )}
                     </div>
