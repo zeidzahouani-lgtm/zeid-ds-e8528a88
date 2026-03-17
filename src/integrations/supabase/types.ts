@@ -603,22 +603,25 @@ export type Database = {
           created_at: string
           id: string
           media_id: string
+          playlist_id: string | null
           position: number
-          screen_id: string
+          screen_id: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           media_id: string
+          playlist_id?: string | null
           position?: number
-          screen_id: string
+          screen_id?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           media_id?: string
+          playlist_id?: string | null
           position?: number
-          screen_id?: string
+          screen_id?: string | null
         }
         Relationships: [
           {
@@ -629,10 +632,49 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "playlist_items_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "playlist_items_screen_id_fkey"
             columns: ["screen_id"]
             isOneToOne: false
             referencedRelation: "screens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      playlists: {
+        Row: {
+          created_at: string
+          establishment_id: string | null
+          id: string
+          name: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          establishment_id?: string | null
+          id?: string
+          name: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          establishment_id?: string | null
+          id?: string
+          name?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "playlists_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
             referencedColumns: ["id"]
           },
         ]
@@ -663,6 +705,38 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      programs: {
+        Row: {
+          created_at: string
+          establishment_id: string | null
+          id: string
+          name: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          establishment_id?: string | null
+          id?: string
+          name: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          establishment_id?: string | null
+          id?: string
+          name?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "programs_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       registration_requests: {
         Row: {
@@ -720,7 +794,8 @@ export type Database = {
           end_time: string
           id: string
           media_id: string | null
-          screen_id: string
+          program_id: string | null
+          screen_id: string | null
           start_time: string
         }
         Insert: {
@@ -730,7 +805,8 @@ export type Database = {
           end_time?: string
           id?: string
           media_id?: string | null
-          screen_id: string
+          program_id?: string | null
+          screen_id?: string | null
           start_time?: string
         }
         Update: {
@@ -740,7 +816,8 @@ export type Database = {
           end_time?: string
           id?: string
           media_id?: string | null
-          screen_id?: string
+          program_id?: string | null
+          screen_id?: string | null
           start_time?: string
         }
         Relationships: [
@@ -749,6 +826,13 @@ export type Database = {
             columns: ["media_id"]
             isOneToOne: false
             referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedules_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
             referencedColumns: ["id"]
           },
           {
@@ -772,6 +856,8 @@ export type Database = {
           player_heartbeat_at: string | null
           player_session_id: string | null
           player_user_agent: string | null
+          playlist_id: string | null
+          program_id: string | null
           slug: string | null
           status: string
           updated_at: string
@@ -788,6 +874,8 @@ export type Database = {
           player_heartbeat_at?: string | null
           player_session_id?: string | null
           player_user_agent?: string | null
+          playlist_id?: string | null
+          program_id?: string | null
           slug?: string | null
           status?: string
           updated_at?: string
@@ -804,6 +892,8 @@ export type Database = {
           player_heartbeat_at?: string | null
           player_session_id?: string | null
           player_user_agent?: string | null
+          playlist_id?: string | null
+          program_id?: string | null
           slug?: string | null
           status?: string
           updated_at?: string
@@ -829,6 +919,20 @@ export type Database = {
             columns: ["layout_id"]
             isOneToOne: false
             referencedRelation: "layouts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "screens_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "screens_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
             referencedColumns: ["id"]
           },
         ]
