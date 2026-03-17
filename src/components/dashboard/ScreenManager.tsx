@@ -86,6 +86,8 @@ export function ScreenManager() {
   const { screens, isLoading, addScreen, updateScreen, deleteScreen } = useScreens();
   const { media } = useMedia();
   const { layouts } = useLayouts();
+  const { playlists } = usePlaylists();
+  const { programs } = usePrograms();
   const { currentEstablishmentId } = useEstablishmentContext();
 
   const { data: maxScreens } = useQuery({
