@@ -10,6 +10,8 @@ import { useScreens } from "@/hooks/useScreens";
 import { useMedia } from "@/hooks/useMedia";
 import { useLayouts } from "@/hooks/useLayouts";
 import { usePlaylistItems } from "@/hooks/usePlaylistItems";
+import { usePlaylists } from "@/hooks/usePlaylists";
+import { usePrograms } from "@/hooks/usePrograms";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
