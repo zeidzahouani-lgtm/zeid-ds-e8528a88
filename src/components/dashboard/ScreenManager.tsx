@@ -150,6 +150,8 @@ export function ScreenManager() {
           {screens.map((screen) => {
             const assignedMedia = media.find((m) => m.id === screen.current_media_id);
             const assignedLayout = layouts.find((l) => l.id === (screen as any).layout_id);
+            const assignedPlaylist = playlists.find((p) => p.id === (screen as any).playlist_id);
+            const assignedProgram = programs.find((p) => p.id === (screen as any).program_id);
             const orientationPreview = getOrientationPreview(screen.orientation);
 
             return (
