@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface Schedule {
   id: string;
-  screen_id: string;
+  program_id: string | null;
+  screen_id: string | null;
   media_id: string | null;
   start_time: string;
   end_time: string;
@@ -13,18 +14,18 @@ export interface Schedule {
   media?: { id: string; name: string; type: string; url: string } | null;
 }
 
-export function useSchedules(screenId?: string) {
+export function useSchedules(programId?: string) {
   const queryClient = useQueryClient();
-  const queryKey = ["schedules", screenId];
+  const queryKey = ["schedules", programId];
 
   const { data: schedules = [], isLoading } = useQuery({
     queryKey,
-    enabled: !!screenId,
+    enabled: !!programId,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("schedules")
         .select("*, media:media_id(id, name, type, url)")
-        .eq("screen_id", screenId!)
+        .eq("program_id", programId!)
         .order("start_time", { ascending: true });
       if (error) throw error;
       return data as Schedule[];
@@ -40,7 +41,7 @@ export function useSchedules(screenId?: string) {
     }) => {
       const { error } = await supabase
         .from("schedules")
-        .insert({ ...schedule, screen_id: screenId! });
+        .insert({ ...schedule, program_id: programId! });
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
