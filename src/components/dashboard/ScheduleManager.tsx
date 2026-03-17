@@ -1,36 +1,54 @@
 import { useState } from "react";
-import { Clock, Plus, Trash2, ToggleLeft, ToggleRight } from "lucide-react";
+import { Clock, Plus, Trash2, ToggleLeft, ToggleRight, Tv, FolderPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useScreens } from "@/hooks/useScreens";
-import { useMedia } from "@/hooks/useMedia";
+import { usePrograms } from "@/hooks/usePrograms";
 import { useSchedules } from "@/hooks/useSchedules";
+import { useMedia } from "@/hooks/useMedia";
+import { useScreens } from "@/hooks/useScreens";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const DAYS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 
 export function ScheduleManager() {
-  const { screens } = useScreens();
+  const { programs, isLoading: loadingPrograms, addProgram, deleteProgram } = usePrograms();
   const { media } = useMedia();
-  const [selectedScreen, setSelectedScreen] = useState("");
+  const { screens, updateScreen } = useScreens();
+  const [selectedProgram, setSelectedProgram] = useState("");
+  const [newName, setNewName] = useState("");
   const [formMedia, setFormMedia] = useState("");
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("18:00");
   const [days, setDays] = useState<number[]>([1, 2, 3, 4, 5]);
 
   const { schedules, isLoading, addSchedule, updateSchedule, deleteSchedule } =
-    useSchedules(selectedScreen || undefined);
+    useSchedules(selectedProgram || undefined);
+
+  const assignedScreens = screens.filter((s: any) => s.program_id === selectedProgram);
 
   const toggleDay = (d: number) => {
     setDays((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d].sort()));
   };
 
+  const handleCreate = async () => {
+    if (!newName.trim()) return;
+    try {
+      const result = await addProgram.mutateAsync(newName.trim());
+      toast.success("Programme créé");
+      setNewName("");
+      if (result?.id) setSelectedProgram(result.id);
+    } catch {
+      toast.error("Erreur");
+    }
+  };
+
   const handleAdd = async () => {
-    if (!formMedia || !selectedScreen) return;
+    if (!formMedia || !selectedProgram) return;
     try {
       await addSchedule.mutateAsync({
         media_id: formMedia,
@@ -45,26 +63,74 @@ export function ScheduleManager() {
     }
   };
 
+  const handleAssignScreen = async (screenId: string) => {
+    try {
+      await supabase.from("screens").update({ program_id: selectedProgram } as any).eq("id", screenId);
+      toast.success("Écran assigné au programme");
+    } catch {
+      toast.error("Erreur");
+    }
+  };
+
+  const handleUnassignScreen = async (screenId: string) => {
+    try {
+      await supabase.from("screens").update({ program_id: null } as any).eq("id", screenId);
+      toast.success("Écran retiré du programme");
+    } catch {
+      toast.error("Erreur");
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <h2 className="text-xl font-semibold text-foreground">Programmation Horaire</h2>
+      {/* Create program */}
+      <Card className="p-4 space-y-3 border-border/50">
+        <p className="text-sm font-medium text-foreground">Nouveau programme</p>
+        <div className="flex gap-2">
+          <Input
+            placeholder="Nom du programme"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+            className="max-w-xs"
+          />
+          <Button onClick={handleCreate} disabled={!newName.trim()} className="gap-2">
+            <FolderPlus className="h-4 w-4" /> Créer
+          </Button>
+        </div>
+      </Card>
+
+      {/* Select program */}
+      <div className="flex flex-wrap gap-3 items-center">
+        <Select value={selectedProgram} onValueChange={setSelectedProgram}>
+          <SelectTrigger className="w-[260px]">
+            <SelectValue placeholder="Choisir un programme" />
+          </SelectTrigger>
+          <SelectContent>
+            {programs.map((p) => (
+              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {selectedProgram && (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => {
+              deleteProgram.mutate(selectedProgram);
+              setSelectedProgram("");
+              toast.success("Programme supprimé");
+            }}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1" /> Supprimer
+          </Button>
+        )}
       </div>
 
-      <Select value={selectedScreen} onValueChange={setSelectedScreen}>
-        <SelectTrigger className="w-[220px]">
-          <SelectValue placeholder="Choisir un écran" />
-        </SelectTrigger>
-        <SelectContent>
-          {screens.map((s) => (
-            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-
-      {selectedScreen && (
+      {selectedProgram && (
         <>
-          <Card className="glass-panel p-4 space-y-4">
+          {/* Add schedule entry */}
+          <Card className="p-4 space-y-4 border-border/50">
             <p className="text-sm font-medium text-foreground">Nouvelle programmation</p>
             <div className="flex flex-wrap gap-3 items-end">
               <Select value={formMedia} onValueChange={setFormMedia}>
@@ -99,14 +165,15 @@ export function ScheduleManager() {
             </div>
           </Card>
 
+          {/* Schedule list */}
           {isLoading ? (
             <p className="text-muted-foreground">Chargement...</p>
           ) : schedules.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Aucune programmation pour cet écran.</p>
+            <p className="text-muted-foreground text-sm">Aucune programmation dans ce programme.</p>
           ) : (
             <div className="space-y-2">
               {schedules.map((sch) => (
-                <Card key={sch.id} className="glass-panel p-3">
+                <Card key={sch.id} className="p-3 border-border/50">
                   <div className="flex items-center gap-3 flex-wrap">
                     <Clock className="h-4 w-4 text-primary shrink-0" />
                     <span className="font-medium truncate">
@@ -130,9 +197,7 @@ export function ScheduleManager() {
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 ml-auto"
-                      onClick={() =>
-                        updateSchedule.mutate({ id: sch.id, active: !sch.active })
-                      }
+                      onClick={() => updateSchedule.mutate({ id: sch.id, active: !sch.active })}
                       title={sch.active ? "Désactiver" : "Activer"}
                     >
                       {sch.active ? (
@@ -154,6 +219,44 @@ export function ScheduleManager() {
               ))}
             </div>
           )}
+
+          {/* Assign screens */}
+          <Card className="p-4 space-y-3 border-border/50">
+            <p className="text-sm font-medium text-foreground flex items-center gap-2">
+              <Tv className="h-4 w-4" /> Écrans assignés
+            </p>
+            {assignedScreens.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {assignedScreens.map((s: any) => (
+                  <Badge key={s.id} variant="secondary" className="gap-1 pr-1">
+                    {s.name}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5 ml-1"
+                      onClick={() => handleUnassignScreen(s.id)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Select onValueChange={handleAssignScreen}>
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue placeholder="Assigner un écran" />
+                </SelectTrigger>
+                <SelectContent>
+                  {screens
+                    .filter((s: any) => s.program_id !== selectedProgram)
+                    .map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </Card>
         </>
       )}
     </div>
