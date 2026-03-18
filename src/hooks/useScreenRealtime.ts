@@ -244,11 +244,9 @@ export function useScreenRealtime(screenId: string | undefined) {
     if (pl.length <= 1) return;
     const duration = getItemDuration(pl, currentIndex) * 1000;
     timerRef.current = setTimeout(() => {
-      setCurrentIndex((prev) => {
-        const next = (prev + 1) % pl.length;
-        resolveMedia(screenRef.current, pl, next);
-        return next;
-      });
+      const next = (currentIndexRef.current + 1) % pl.length;
+      setCurrentIndex(next);
+      resolveMedia(screenRef.current, pl, next);
     }, duration);
     return () => clearTimeout(timerRef.current);
   }, [currentIndex, playlistVersion, resolveMedia, getItemDuration]);
