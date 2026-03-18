@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Palette, Type, Image, Globe, Save, RotateCcw, Upload, Bot, Eye, EyeOff, BarChart3, Zap, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { Palette, Type, Image, Globe, Save, RotateCcw, Upload, Bot, Eye, EyeOff, BarChart3, Zap, CheckCircle, XCircle, Loader2, Monitor } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
@@ -66,6 +67,18 @@ export default function AdminCustomization() {
   const [loadingDaily, setLoadingDaily] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [showSignatureOnPlayer, setShowSignatureOnPlayer] = useState(false);
+
+  useEffect(() => {
+    supabase
+      .from("app_settings" as any)
+      .select("key, value")
+      .eq("key", "show_signature_on_player")
+      .single()
+      .then(({ data }: any) => {
+        if (data?.value === "true") setShowSignatureOnPlayer(true);
+      });
+  }, []);
 
   useEffect(() => { setForm(settings); }, [settings]);
 
@@ -322,7 +335,33 @@ export default function AdminCustomization() {
           </CardContent>
         </Card>
 
-        {/* AI Configuration - Full Width */}
+        {/* Signature on Player */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Monitor className="h-4 w-4 text-primary icon-neon" />
+              Signature sur les écrans
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Afficher "ScreenFlow by Dravox" sur le contenu</Label>
+                <p className="text-[10px] text-muted-foreground normal-case">La signature sera affichée discrètement en bas de l'écran pendant la diffusion</p>
+              </div>
+              <Switch
+                checked={showSignatureOnPlayer}
+                onCheckedChange={async (checked) => {
+                  setShowSignatureOnPlayer(checked);
+                  await upsertSetting("show_signature_on_player", checked ? "true" : "false");
+                  toast.success(checked ? "Signature activée sur les écrans" : "Signature désactivée sur les écrans");
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm">

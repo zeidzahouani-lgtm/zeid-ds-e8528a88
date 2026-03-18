@@ -14,14 +14,14 @@ export interface AppSettings {
 }
 
 const defaultSettings: AppSettings = {
-  app_name: "SignageOS",
+  app_name: "ScreenFlow by Dravox",
   app_tagline: "Digital Signage CMS",
   logo_url: "",
   favicon_url: "",
   primary_color: "185 100% 55%",
   accent_color: "270 80% 60%",
   welcome_message: "Connectez-vous à votre tableau de bord",
-  page_title: "SignageOS — Digital Signage CMS",
+  page_title: "ScreenFlow by Dravox — Digital Signage CMS",
 };
 
 async function fetchSettings(): Promise<AppSettings> {
