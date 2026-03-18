@@ -399,6 +399,18 @@ function parseMimeParts(body: string, boundary: string): { text: string; attachm
   return { text, attachments };
 }
 
+function extractRfc822FromFetchResponse(fetchResp: string): string {
+  const literalMatch = fetchResp.match(/BODY\[\]\s+\{(\d+)\}\r?\n/i);
+  if (!literalMatch || literalMatch.index === undefined) return fetchResp;
+
+  const literalSize = parseInt(literalMatch[1], 10);
+  if (!Number.isFinite(literalSize) || literalSize <= 0) return fetchResp;
+
+  const start = literalMatch.index + literalMatch[0].length;
+  const rawEmail = fetchResp.slice(start, start + literalSize);
+  return rawEmail || fetchResp;
+}
+
 /**
  * Parse screen name from text. Supported formats:
  * [ecran:nom], [écran:nom], [screen:nom], ecran: nom, écran=nom, screen:nom
