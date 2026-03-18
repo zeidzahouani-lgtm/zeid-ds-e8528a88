@@ -319,15 +319,6 @@ export default function AdminEmail() {
                 <Input value={config.from_email} onChange={e => setConfig({ ...config, from_email: e.target.value })} placeholder="noreply@mondomaine.com" />
               </div>
             </div>
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30">
-              <Switch checked={config.auto_import} onCheckedChange={v => setConfig({ ...config, auto_import: v })} />
-              <div>
-                <Label className="text-sm">Import automatique des pièces jointes</Label>
-                <p className="text-[10px] text-muted-foreground normal-case">
-                  Les images reçues par email seront automatiquement ajoutées au flux avec le statut "en attente"
-                </p>
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>
