@@ -162,22 +162,24 @@ export function useScreenRealtime(screenId: string | undefined) {
       const userAgent = navigator.userAgent;
       const staleThreshold = new Date(Date.now() - SESSION_TIMEOUT).toISOString();
 
-      let claimRes = await supabase.from("screens").update({
+      const updatePayload = {
         player_session_id: SESSION_ID, player_heartbeat_at: new Date().toISOString(),
         player_user_agent: userAgent, status: "online",
-      } as any).eq("id", screenData.id).is("player_session_id", null);
+      } as any;
 
-      if ((claimRes as any).count === 0) {
-        claimRes = await supabase.from("screens").update({
-          player_session_id: SESSION_ID, player_heartbeat_at: new Date().toISOString(),
-          player_user_agent: userAgent, status: "online",
-        } as any).eq("id", screenData.id).eq("player_session_id", SESSION_ID);
+      // Try claim: no session
+      let claimRes = await supabase.from("screens").update(updatePayload)
+        .eq("id", screenData.id).is("player_session_id", null).select("id");
+
+      // Try claim: same session (page reload)
+      if (!claimRes.data || claimRes.data.length === 0) {
+        claimRes = await supabase.from("screens").update(updatePayload)
+          .eq("id", screenData.id).eq("player_session_id", SESSION_ID).select("id");
       }
-      if ((claimRes as any).count === 0) {
-        claimRes = await supabase.from("screens").update({
-          player_session_id: SESSION_ID, player_heartbeat_at: new Date().toISOString(),
-          player_user_agent: userAgent, status: "online",
-        } as any).eq("id", screenData.id).lt("player_heartbeat_at", staleThreshold);
+      // Try claim: stale session (heartbeat expired)
+      if (!claimRes.data || claimRes.data.length === 0) {
+        claimRes = await supabase.from("screens").update(updatePayload)
+          .eq("id", screenData.id).lt("player_heartbeat_at", staleThreshold).select("id");
       }
 
       const { data: verifyData } = await supabase.from("screens").select("player_session_id").eq("id", screenData.id).single();
@@ -186,6 +188,20 @@ export function useScreenRealtime(screenId: string | undefined) {
         setScreen(screenData as ScreenData);
         screenRef.current = screenData as ScreenData;
         setLoading(false);
+
+        // Auto-retry every 10s to reclaim stale sessions automatically
+        const retryInterval = setInterval(async () => {
+          const stale = new Date(Date.now() - SESSION_TIMEOUT).toISOString();
+          const retry = await supabase.from("screens").update(updatePayload)
+            .eq("id", screenData.id).lt("player_heartbeat_at", stale).select("id");
+          if (retry.data && retry.data.length > 0) {
+            clearInterval(retryInterval);
+            setSessionBlocked(false);
+            // Re-init by reloading
+            window.location.reload();
+          }
+        }, 10000);
+        heartbeatRef.current = retryInterval as any;
         return;
       }
 
