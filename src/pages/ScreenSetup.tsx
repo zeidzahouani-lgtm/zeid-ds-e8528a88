@@ -376,7 +376,7 @@ function CompatibilityTab() {
   );
 }
 
-
+export default function ScreenSetup() {
   const { screens, updateScreen } = useScreens();
 
   return (
