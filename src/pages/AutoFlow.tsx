@@ -230,6 +230,31 @@ export default function AutoFlow() {
     }
   };
 
+  const handleReimportEmail = async (email: InboxEmail) => {
+    if (!email.attachment_urls?.length) {
+      toast.error("Cet email n'a aucune pièce jointe image");
+      return;
+    }
+    try {
+      // Reset processed flag
+      await (supabase.from("inbox_emails") as any).update({ is_processed: false }).eq("id", email.id);
+      // Re-create content
+      const { error } = await (supabase.from("contents") as any).insert({
+        image_url: email.attachment_urls[0],
+        title: email.subject || `Email de ${email.from_name || email.from_email}`,
+        status: "pending",
+        source: "email",
+        sender_email: email.from_email,
+      });
+      if (error) throw error;
+      await (supabase.from("inbox_emails") as any).update({ is_processed: true }).eq("id", email.id);
+      toast.success("Email réimporté avec succès");
+      queryClient.invalidateQueries({ queryKey: ["contents"] });
+      queryClient.invalidateQueries({ queryKey: ["inbox_emails"] });
+    } catch (e: any) {
+      toast.error("Erreur: " + e.message);
+    }
+
   const handleImportToLibraryAndAssign = async () => {
     if (!libraryImportEmail) return;
 
