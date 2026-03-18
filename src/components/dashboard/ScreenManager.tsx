@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock } from "lucide-react";
+import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock, RefreshCw, Tv } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import { usePlaylistItems } from "@/hooks/usePlaylistItems";
 import { usePlaylists } from "@/hooks/usePlaylists";
 import { usePrograms } from "@/hooks/usePrograms";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -35,8 +35,23 @@ const getOrientationPreview = (orientation: string): OrientationPreview =>
 function parseUserAgent(ua: string | null): { device: string; icon: React.ReactNode } {
   if (!ua) return { device: "Inconnu", icon: <Monitor className="h-3 w-3" /> };
   const lower = ua.toLowerCase();
+  // Smart TVs
+  if (lower.includes("webos") || lower.includes("lgwebos") || lower.includes("lg netcast"))
+    return { device: "LG WebOS", icon: <Tv className="h-3 w-3" /> };
+  if (lower.includes("tizen") || lower.includes("samsung"))
+    return { device: "Samsung Tizen", icon: <Tv className="h-3 w-3" /> };
+  if (lower.includes("philips") || lower.includes("nettv") || lower.includes("saphi"))
+    return { device: "Philips", icon: <Tv className="h-3 w-3" /> };
+  if (lower.includes("android tv") || lower.includes("androidtv") || lower.includes("googletv"))
+    return { device: "Android TV", icon: <Tv className="h-3 w-3" /> };
+  if (lower.includes("firetv") || lower.includes("fire tv") || lower.includes("silk") && lower.includes("fire"))
+    return { device: "Fire TV", icon: <Tv className="h-3 w-3" /> };
+  if (lower.includes("chromecast") || lower.includes("crkey"))
+    return { device: "Chromecast", icon: <Tv className="h-3 w-3" /> };
+  // Mobile / Tablet
   if (/iphone|android.*mobile/.test(lower)) return { device: "Mobile", icon: <Smartphone className="h-3 w-3" /> };
   if (/ipad|android(?!.*mobile)|tablet/.test(lower)) return { device: "Tablette", icon: <Tablet className="h-3 w-3" /> };
+  // Desktop browsers
   let browser = "Navigateur";
   if (lower.includes("chrome") && !lower.includes("edg")) browser = "Chrome";
   else if (lower.includes("firefox")) browser = "Firefox";
@@ -45,7 +60,7 @@ function parseUserAgent(ua: string | null): { device: string; icon: React.ReactN
   let os = "";
   if (lower.includes("windows")) os = "Windows";
   else if (lower.includes("mac os")) os = "Mac";
-  else if (lower.includes("linux")) os = "Linux";
+  else if (lower.includes("linux") && !lower.includes("android")) os = "Linux";
   return { device: os ? `${browser} / ${os}` : browser, icon: <Laptop className="h-3 w-3" /> };
 }
 
@@ -89,6 +104,14 @@ export function ScreenManager() {
   const { playlists } = usePlaylists();
   const { programs } = usePrograms();
   const { currentEstablishmentId } = useEstablishmentContext();
+  const queryClient = useQueryClient();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ["screens"] });
+    setTimeout(() => setIsRefreshing(false), 800);
+  };
 
   const { data: maxScreens } = useQuery({
     queryKey: ["establishment-max-screens", currentEstablishmentId],
@@ -123,6 +146,9 @@ export function ScreenManager() {
       <div className="flex items-center gap-3">
         <h2 className="text-xl font-semibold text-foreground">Gestion des Écrans</h2>
         <span className="text-sm text-muted-foreground">({screens.length})</span>
+        <Button variant="outline" size="icon" onClick={handleRefresh} title="Actualiser les écrans" className="ml-auto">
+          <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+        </Button>
       </div>
 
       <div className="flex gap-3">
