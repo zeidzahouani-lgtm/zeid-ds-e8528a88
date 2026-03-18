@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Mail, Server, Save, Loader2, CheckCircle, XCircle, Zap, Eye, EyeOff, Shield, Inbox, Clock, History, Plus } from "lucide-react";
+import { Mail, Server, Save, Loader2, CheckCircle, XCircle, Zap, Eye, EyeOff, Shield, Inbox, Clock, History, Plus, KeyRound } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 
@@ -25,12 +26,17 @@ interface EmailConfig {
   from_name: string;
   from_email: string;
   auto_import: boolean;
+  auth_method: string;
+  oauth_tenant_id: string;
+  oauth_client_id: string;
+  oauth_client_secret: string;
 }
 
 const defaultConfig: EmailConfig = {
   imap_host: "", imap_port: "993", imap_user: "", imap_password: "", imap_tls: true,
   smtp_host: "", smtp_port: "587", smtp_user: "", smtp_password: "", smtp_tls: true,
   from_name: "", from_email: "", auto_import: false,
+  auth_method: "basic", oauth_tenant_id: "", oauth_client_id: "", oauth_client_secret: "",
 };
 
 interface EmailAction {
@@ -232,7 +238,7 @@ export default function AdminEmail() {
               </div>
             </button>
 
-            {/* Microsoft / Outlook */}
+            {/* Microsoft / Outlook (OAuth2) */}
             <button
               type="button"
               className="flex items-center gap-3 p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/60 hover:border-primary/30 transition-all text-left group"
@@ -245,16 +251,17 @@ export default function AdminEmail() {
                   smtp_host: "smtp.office365.com",
                   smtp_port: "587",
                   smtp_tls: true,
+                  auth_method: "oauth2",
                 }));
-                toast.success("Paramètres Microsoft pré-remplis. Entrez votre email et mot de passe.");
+                toast.success("Microsoft Exchange sélectionné. Renseignez les identifiants OAuth2 Azure AD ci-dessous.");
               }}
             >
               <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0 group-hover:bg-blue-500/20 transition-colors">
                 <Mail className="h-5 w-5 text-blue-400" />
               </div>
               <div>
-                <p className="font-medium text-sm">Microsoft 365 / Outlook</p>
-                <p className="text-[11px] text-muted-foreground normal-case">Outlook, Hotmail, Office 365</p>
+                <p className="font-medium text-sm">Microsoft Exchange / Outlook.com</p>
+                <p className="text-[11px] text-muted-foreground normal-case">OAuth2 — authentification moderne (recommandé)</p>
               </div>
             </button>
 
@@ -284,6 +291,61 @@ export default function AdminEmail() {
               </div>
             </button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Auth Method */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <KeyRound className="h-4 w-4 text-primary icon-neon" />
+            Méthode d'authentification
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Type d'authentification</Label>
+            <Select value={config.auth_method} onValueChange={v => setConfig({ ...config, auth_method: v })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="basic">Basique (mot de passe)</SelectItem>
+                <SelectItem value="oauth2">OAuth2 / Microsoft Exchange (authentification moderne)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {config.auth_method === "oauth2" && (
+            <div className="space-y-4 p-4 rounded-lg border border-primary/20 bg-primary/5">
+              <div className="flex items-center gap-2 text-sm font-medium text-primary">
+                <Shield className="h-4 w-4" />
+                Configuration Azure AD (OAuth2)
+              </div>
+              <p className="text-xs text-muted-foreground normal-case leading-relaxed">
+                Créez une application dans <strong>Azure AD → Inscriptions d'applications</strong>, puis accordez les permissions 
+                <code className="mx-1 px-1 py-0.5 bg-muted rounded text-[11px]">IMAP.AccessAsApp</code> et 
+                <code className="mx-1 px-1 py-0.5 bg-muted rounded text-[11px]">SMTP.SendAsApp</code> avec consentement administrateur.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Tenant ID</Label>
+                  <Input value={config.oauth_tenant_id} onChange={e => setConfig({ ...config, oauth_tenant_id: e.target.value })} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Client ID</Label>
+                  <Input value={config.oauth_client_id} onChange={e => setConfig({ ...config, oauth_client_id: e.target.value })} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Client Secret</Label>
+                  <Input type="password" value={config.oauth_client_secret} onChange={e => setConfig({ ...config, oauth_client_secret: e.target.value })} placeholder="~xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
+                </div>
+              </div>
+              <div className="text-[11px] text-muted-foreground normal-case p-2 rounded bg-muted/50">
+                💡 Le mot de passe n'est pas utilisé avec OAuth2. Seuls le Tenant ID, Client ID, Client Secret et l'adresse email sont nécessaires.
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

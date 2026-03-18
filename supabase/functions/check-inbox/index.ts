@@ -17,8 +17,12 @@ async function sendAckEmail(supabase: any, content: any, baseUrl: string) {
   const smtpPass = cfg.email_smtp_password;
   const fromName = cfg.email_from_name || "Affichage Dynamique";
   const fromEmail = cfg.email_from_email || smtpUser;
+  const authMethod = cfg.email_auth_method || "basic";
+  const oauthTenantId = cfg.email_oauth_tenant_id;
+  const oauthClientId = cfg.email_oauth_client_id;
+  const oauthClientSecret = cfg.email_oauth_client_secret;
 
-  if (!smtpHost || !smtpUser || !smtpPass || !content.sender_email) {
+  if (!smtpHost || !smtpUser || !content.sender_email) {
     console.log("SMTP not configured or no sender_email, skipping ACK");
     return;
   }
@@ -146,12 +150,27 @@ Ou répondez à cet email avec "valider" ou "annuler".`;
 
     const ehloResp = await write("EHLO localhost");
     
-    // AUTH
-    const authResp = await write(`AUTH PLAIN ${btoa(`\0${smtpUser}\0${smtpPass}`)}`);
-    if (!authResp.includes("235")) {
-      console.error("SMTP AUTH failed:", authResp.trim());
-      finalConn.close();
-      return;
+    // AUTH — OAuth2 or basic
+    let authResp: string;
+    if (authMethod === "oauth2" && oauthTenantId && oauthClientId && oauthClientSecret) {
+      const tokenUrl = `https://login.microsoftonline.com/${oauthTenantId}/oauth2/v2.0/token`;
+      const tokenBody = new URLSearchParams({
+        grant_type: "client_credentials",
+        client_id: oauthClientId,
+        client_secret: oauthClientSecret,
+        scope: "https://outlook.office365.com/.default",
+      });
+      const tokenResp = await fetch(tokenUrl, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: tokenBody });
+      const tokenData = await tokenResp.json();
+      if (!tokenResp.ok || !tokenData.access_token) {
+        console.error("OAuth2 token failed for SMTP:", tokenData.error_description || tokenData.error);
+        finalConn.close();
+        return;
+      }
+      const xoauth2 = btoa(`user=${smtpUser}\x01auth=Bearer ${tokenData.access_token}\x01\x01`);
+      authResp = await write(`AUTH XOAUTH2 ${xoauth2}`);
+    } else {
+      authResp = await write(`AUTH PLAIN ${btoa(`\0${smtpUser}\0${smtpPass}`)}`);
     }
 
     const mailResp = await write(`MAIL FROM:<${fromEmail}>`);
@@ -545,15 +564,33 @@ serve(async (req) => {
     const imapPort = parseInt(cfg.email_imap_port || "993");
     const imapUser = cfg.email_imap_user;
     const imapPass = cfg.email_imap_password;
+    const authMethod = cfg.email_auth_method || "basic";
+    const oauthTenantId = cfg.email_oauth_tenant_id;
+    const oauthClientId = cfg.email_oauth_client_id;
+    const oauthClientSecret = cfg.email_oauth_client_secret;
 
-    if (!imapHost || !imapUser || !imapPass) {
+    if (!imapHost || !imapUser) {
       return new Response(JSON.stringify({ error: "IMAP non configuré" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log(`📬 Connecting to IMAP ${imapHost}:${imapPort}...`);
+    if (authMethod === "basic" && !imapPass) {
+      return new Response(JSON.stringify({ error: "Mot de passe IMAP non configuré" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (authMethod === "oauth2" && (!oauthTenantId || !oauthClientId || !oauthClientSecret)) {
+      return new Response(JSON.stringify({ error: "Configuration OAuth2 incomplète" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log(`📬 Connecting to IMAP ${imapHost}:${imapPort} (auth: ${authMethod})...`);
 
     // Connect to IMAP
     let conn: Deno.Conn;
@@ -604,11 +641,34 @@ serve(async (req) => {
     // Read greeting
     await read();
 
-    // Login
-    const loginResp = await cmd(`LOGIN "${imapUser}" "${imapPass}"`);
+    // Login — OAuth2 or basic
+    let loginResp: string;
+    if (authMethod === "oauth2") {
+      const tokenUrl = `https://login.microsoftonline.com/${oauthTenantId}/oauth2/v2.0/token`;
+      const tokenBody = new URLSearchParams({
+        grant_type: "client_credentials",
+        client_id: oauthClientId,
+        client_secret: oauthClientSecret,
+        scope: "https://outlook.office365.com/.default",
+      });
+      const tokenResp = await fetch(tokenUrl, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: tokenBody });
+      const tokenData = await tokenResp.json();
+      if (!tokenResp.ok || !tokenData.access_token) {
+        conn.close();
+        return new Response(JSON.stringify({ error: `Échec OAuth2: ${tokenData.error_description || tokenData.error || "Token request failed"}` }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const xoauth2 = btoa(`user=${imapUser}\x01auth=Bearer ${tokenData.access_token}\x01\x01`);
+      loginResp = await cmd(`AUTHENTICATE XOAUTH2 ${xoauth2}`);
+    } else {
+      loginResp = await cmd(`LOGIN "${imapUser}" "${imapPass}"`);
+    }
+
     if (!loginResp.includes("OK")) {
       conn.close();
-      return new Response(JSON.stringify({ error: "Échec de connexion IMAP" }), {
+      return new Response(JSON.stringify({ error: "Échec de connexion IMAP", details: loginResp.trim().slice(0, 200) }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
