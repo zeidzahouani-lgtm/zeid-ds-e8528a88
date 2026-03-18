@@ -102,7 +102,7 @@ export default function QRCodeWidget({ config }: QRCodeWidgetProps) {
   const value = buildQRValue(config);
 
   return (
-    <div className="flex flex-col items-center justify-center h-full w-full p-4" style={{ backgroundColor: bgColor }}>
+    <div className="flex flex-col items-center justify-center h-full w-full p-4" style={{ backgroundColor: config?.transparentBg ? 'transparent' : bgColor }}>
       <QRCodeSVG value={value} size={128} bgColor={bgColor} fgColor={fgColor} className="max-w-full max-h-[80%]" />
       {label && <p className="text-xs mt-2 font-medium text-center" style={{ color: fgColor }}>{label}</p>}
     </div>

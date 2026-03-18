@@ -151,7 +151,7 @@ export default function WeatherWidget({ config }: WeatherWidgetProps) {
   const Icon = icons[condition as keyof typeof icons] || Sun;
 
   return (
-    <div className="flex flex-col items-center justify-center h-full w-full bg-gradient-to-br from-blue-900 to-blue-700 text-white p-4 relative">
+    <div className={`flex flex-col items-center justify-center h-full w-full text-white p-4 relative ${config?.transparentBg ? '' : 'bg-gradient-to-br from-blue-900 to-blue-700'}`}>
       {loading && !realtime && (
         <Loader2 className="h-8 w-8 animate-spin opacity-60" />
       )}
