@@ -1,0 +1,1 @@
+ALTER TABLE public.playlist_items ADD COLUMN IF NOT EXISTS duration integer DEFAULT NULL;
