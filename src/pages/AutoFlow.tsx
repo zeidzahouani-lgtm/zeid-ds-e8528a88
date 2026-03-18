@@ -595,6 +595,144 @@ export default function AutoFlow() {
             </div>
           )}
         </TabsContent>
+
+        {/* ===== TAB: GUIDE EMAIL ===== */}
+        <TabsContent value="guide">
+          <div className="space-y-6">
+            <Card className="p-4 bg-muted/30">
+              <div className="flex items-start gap-3">
+                <BookOpen className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                <div>
+                  <h3 className="text-sm font-medium mb-1">Guide : Envoyer du contenu par email</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Envoyez un email avec une image en pièce jointe à l'adresse configurée. Utilisez des tags dans l'objet ou le corps pour contrôler l'affichage.
+                  </p>
+                </div>
+              </div>
+            </Card>
+
+            {/* Tags reference */}
+            <Card className="p-5">
+              <h3 className="text-sm font-semibold mb-3">🏷️ Tags supportés</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-2 px-3 text-muted-foreground font-medium">Tag</th>
+                      <th className="text-left py-2 px-3 text-muted-foreground font-medium">Description</th>
+                      <th className="text-left py-2 px-3 text-muted-foreground font-medium">Exemple</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    <tr><td className="py-2 px-3"><code className="bg-muted px-1.5 py-0.5 rounded text-xs">[ecran:nom]</code></td><td className="py-2 px-3">Écran cible</td><td className="py-2 px-3 text-muted-foreground"><code className="text-xs">[ecran:Accueil]</code></td></tr>
+                    <tr><td className="py-2 px-3"><code className="bg-muted px-1.5 py-0.5 rounded text-xs">[durée:Xmin]</code></td><td className="py-2 px-3">Durée en minutes</td><td className="py-2 px-3 text-muted-foreground"><code className="text-xs">[durée:30min]</code></td></tr>
+                    <tr><td className="py-2 px-3"><code className="bg-muted px-1.5 py-0.5 rounded text-xs">[durée:Xh]</code></td><td className="py-2 px-3">Durée en heures</td><td className="py-2 px-3 text-muted-foreground"><code className="text-xs">[durée:2h]</code></td></tr>
+                    <tr><td className="py-2 px-3"><code className="bg-muted px-1.5 py-0.5 rounded text-xs">[durée:XhYmin]</code></td><td className="py-2 px-3">Durée combinée</td><td className="py-2 px-3 text-muted-foreground"><code className="text-xs">[durée:1h30min]</code></td></tr>
+                    <tr><td className="py-2 px-3"><code className="bg-muted px-1.5 py-0.5 rounded text-xs">[debut:date]</code></td><td className="py-2 px-3">Date/heure de début</td><td className="py-2 px-3 text-muted-foreground"><code className="text-xs">[debut:2026-03-20 14:00]</code></td></tr>
+                    <tr><td className="py-2 px-3"><code className="bg-muted px-1.5 py-0.5 rounded text-xs">[fin:date]</code></td><td className="py-2 px-3">Date/heure de fin</td><td className="py-2 px-3 text-muted-foreground"><code className="text-xs">[fin:2026-03-20 18:00]</code></td></tr>
+                    <tr><td className="py-2 px-3"><code className="bg-muted px-1.5 py-0.5 rounded text-xs">[statut:actif]</code></td><td className="py-2 px-3">Activer immédiatement</td><td className="py-2 px-3 text-muted-foreground"><code className="text-xs">[statut:actif]</code></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                💡 Les tags peuvent être placés dans l'<strong>objet</strong> ou le <strong>corps</strong> de l'email. L'objet est prioritaire.
+              </p>
+            </Card>
+
+            {/* Example 1 */}
+            <Card className="p-5 border-l-4 border-l-primary">
+              <div className="flex items-center gap-2 mb-3">
+                <Badge className="bg-primary/10 text-primary border-primary/20">Exemple 1</Badge>
+                <h4 className="text-sm font-semibold">Affichage immédiat pendant 30 minutes</h4>
+              </div>
+              <div className="bg-muted/40 rounded-lg p-4 space-y-2 text-sm font-mono">
+                <div><span className="text-muted-foreground">Objet :</span> <span className="text-foreground">Promo Flash [ecran:Accueil] [durée:30min] [statut:actif]</span></div>
+                <div><span className="text-muted-foreground">Pièce jointe :</span> <span className="text-foreground">promo.jpg</span></div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                → Le contenu s'affichera <strong>immédiatement</strong> sur l'écran "Accueil" pendant <strong>30 minutes</strong>, puis disparaîtra.
+              </p>
+            </Card>
+
+            {/* Example 2 */}
+            <Card className="p-5 border-l-4 border-l-primary">
+              <div className="flex items-center gap-2 mb-3">
+                <Badge className="bg-primary/10 text-primary border-primary/20">Exemple 2</Badge>
+                <h4 className="text-sm font-semibold">Affichage pendant 2 heures</h4>
+              </div>
+              <div className="bg-muted/40 rounded-lg p-4 space-y-2 text-sm font-mono">
+                <div><span className="text-muted-foreground">Objet :</span> <span className="text-foreground">Menu du jour [ecran:Restaurant] [durée:2h]</span></div>
+                <div><span className="text-muted-foreground">Pièce jointe :</span> <span className="text-foreground">menu.png</span></div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                → Activé immédiatement sur l'écran "Restaurant" pour <strong>2 heures</strong>.
+              </p>
+            </Card>
+
+            {/* Example 3 */}
+            <Card className="p-5 border-l-4 border-l-primary">
+              <div className="flex items-center gap-2 mb-3">
+                <Badge className="bg-primary/10 text-primary border-primary/20">Exemple 3</Badge>
+                <h4 className="text-sm font-semibold">Créneau horaire précis</h4>
+              </div>
+              <div className="bg-muted/40 rounded-lg p-4 space-y-2 text-sm font-mono">
+                <div><span className="text-muted-foreground">Objet :</span> <span className="text-foreground">Événement ce soir [ecran:Hall]</span></div>
+                <div className="mt-1"><span className="text-muted-foreground">Corps :</span></div>
+                <div className="pl-4 text-foreground">
+                  [debut:2026-03-18 18:00]<br />
+                  [fin:2026-03-18 23:00]<br />
+                  [statut:actif]
+                </div>
+                <div><span className="text-muted-foreground">Pièce jointe :</span> <span className="text-foreground">event.jpg</span></div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                → Affiché sur l'écran "Hall" de <strong>18h à 23h</strong> aujourd'hui.
+              </p>
+            </Card>
+
+            {/* Example 4 */}
+            <Card className="p-5 border-l-4 border-l-primary">
+              <div className="flex items-center gap-2 mb-3">
+                <Badge className="bg-primary/10 text-primary border-primary/20">Exemple 4</Badge>
+                <h4 className="text-sm font-semibold">Durée combinée 1h30</h4>
+              </div>
+              <div className="bg-muted/40 rounded-lg p-4 space-y-2 text-sm font-mono">
+                <div><span className="text-muted-foreground">Objet :</span> <span className="text-foreground">Annonce importante [ecran:Salle de réunion] [durée:1h30min] [statut:actif]</span></div>
+                <div><span className="text-muted-foreground">Pièce jointe :</span> <span className="text-foreground">annonce.png</span></div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                → Affiché <strong>immédiatement</strong> sur "Salle de réunion" pendant <strong>1h30</strong>.
+              </p>
+            </Card>
+
+            {/* Example 5 */}
+            <Card className="p-5 border-l-4 border-l-muted-foreground/30">
+              <div className="flex items-center gap-2 mb-3">
+                <Badge variant="outline">Exemple 5</Badge>
+                <h4 className="text-sm font-semibold">Email simple (sans tags)</h4>
+              </div>
+              <div className="bg-muted/40 rounded-lg p-4 space-y-2 text-sm font-mono">
+                <div><span className="text-muted-foreground">Objet :</span> <span className="text-foreground">Nouvelle affiche publicitaire</span></div>
+                <div><span className="text-muted-foreground">Pièce jointe :</span> <span className="text-foreground">affiche.jpg</span></div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                → Le contenu sera créé en statut <strong>"En attente"</strong> sans écran assigné. Configurez-le manuellement depuis l'onglet Contenus.
+              </p>
+            </Card>
+
+            {/* Tips */}
+            <Card className="p-4 bg-primary/5 border-primary/20">
+              <h4 className="text-sm font-semibold mb-2">💡 Astuces</h4>
+              <ul className="text-xs text-muted-foreground space-y-1.5 list-disc pl-4">
+                <li>Les noms d'écrans ne sont pas sensibles à la casse : <code className="bg-muted px-1 rounded">[ecran:accueil]</code> = <code className="bg-muted px-1 rounded">[ecran:Accueil]</code></li>
+                <li>Les accents sont supportés : <code className="bg-muted px-1 rounded">[écran:Hall]</code> et <code className="bg-muted px-1 rounded">[durée:30min]</code></li>
+                <li>Anglais aussi accepté : <code className="bg-muted px-1 rounded">[screen:Lobby]</code>, <code className="bg-muted px-1 rounded">[start:...]</code>, <code className="bg-muted px-1 rounded">[end:...]</code></li>
+                <li>Un accusé de réception avec boutons <strong>Valider / Annuler</strong> est envoyé automatiquement</li>
+                <li>L'expéditeur peut répondre <strong>"valider"</strong> ou <strong>"annuler"</strong> par email</li>
+              </ul>
+            </Card>
+          </div>
+        </TabsContent>
       </Tabs>
 
       {/* Preview Content Dialog */}
