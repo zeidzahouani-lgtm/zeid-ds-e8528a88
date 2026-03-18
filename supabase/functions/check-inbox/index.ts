@@ -704,25 +704,38 @@ serve(async (req) => {
         // Auto-create content for image/video attachments
         let contentId: string | null = null;
         if (attachmentUrls.length > 0) {
-          // Clean title (remove screen tag from subject)
+          // Clean title (remove all tags from subject)
            let cleanTitle = (subject || `Email de ${fromName || fromEmail}`)
-             .replace(/\[(?:ecran|écran|screen)\s*[:=][^\]]+\]/gi, "")
+             .replace(/\[(?:ecran|écran|screen|dur[eéè]+e?|d[eéè]but|start|fin|end|statut|status)\s*[:=][^\]]+\]/gi, "")
              .replace(/(?:^|\s)(?:ecran|écran|screen)\s*[:=]\s*[^,;\r\n]+/gi, "")
              .trim();
           if (!cleanTitle) cleanTitle = `Email de ${fromName || fromEmail}`;
 
+          // Parse schedule/duration from subject + body
+          const scheduleFromSubject = parseScheduleFromText(subject || "");
+          const scheduleFromBody = parseScheduleFromText(bodyText || "");
+          const schedule = {
+            ...scheduleFromBody,
+            ...scheduleFromSubject, // subject takes priority
+          };
+
           const insertData: Record<string, unknown> = {
             image_url: attachmentUrls[0],
             title: cleanTitle,
-            status: "pending",
+            status: schedule.status || "pending",
             source: "email",
             sender_email: fromEmail,
           };
+
+          if (schedule.start_time) insertData.start_time = schedule.start_time;
+          if (schedule.end_time) insertData.end_time = schedule.end_time;
 
           // Assign screen if found
           if (screenId) {
             insertData.screen_id = screenId;
           }
+
+          console.log(`📅 Schedule parsed: status=${schedule.status || "pending"}, start=${schedule.start_time || "none"}, end=${schedule.end_time || "none"}`);
 
           const { data: contentData, error: contentError } = await supabase.from("contents").insert(insertData).select().single();
 
