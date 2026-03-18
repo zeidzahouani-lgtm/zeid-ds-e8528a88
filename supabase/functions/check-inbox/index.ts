@@ -218,14 +218,31 @@ Ou répondez à cet email avec "valider" ou "annuler".`;
 }
 
 function decodeBase64(str: string): Uint8Array {
-  const cleaned = str.replace(/\r?\n/g, "");
+  // Clean: remove whitespace, newlines, and any non-base64 chars at the end
+  let cleaned = str.replace(/[\r\n\s]/g, "");
+  
+  // Remove any trailing non-base64 characters (IMAP protocol data)
+  cleaned = cleaned.replace(/[^A-Za-z0-9+/=]+$/, "");
+  
+  // Ensure proper padding
+  const remainder = cleaned.length % 4;
+  if (remainder === 2) cleaned += "==";
+  else if (remainder === 3) cleaned += "=";
+  else if (remainder === 1) cleaned = cleaned.slice(0, -1); // invalid, trim last char
+  
   try {
     const binary = atob(cleaned);
+    const CHUNK_SIZE = 8192;
     const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    for (let i = 0; i < binary.length; i += CHUNK_SIZE) {
+      const end = Math.min(i + CHUNK_SIZE, binary.length);
+      for (let j = i; j < end; j++) {
+        bytes[j] = binary.charCodeAt(j);
+      }
+    }
     return bytes;
   } catch (e) {
-    console.error("Base64 decode error:", e);
+    console.error("Base64 decode error, input length:", cleaned.length, e);
     return new Uint8Array(0);
   }
 }
