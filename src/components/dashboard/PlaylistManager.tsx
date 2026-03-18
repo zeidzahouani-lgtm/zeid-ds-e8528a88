@@ -24,7 +24,7 @@ export function PlaylistManager() {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
-  const { items, isLoading, addItem, removeItem, updateItemDuration } = usePlaylistItems(selectedPlaylist || undefined);
+  const { items, isLoading, addItem, removeItem, reorderItems, updateItemDuration } = usePlaylistItems(selectedPlaylist || undefined);
 
   const assignedScreens = screens.filter((s: any) => s.playlist_id === selectedPlaylist);
 
