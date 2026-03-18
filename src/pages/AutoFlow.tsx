@@ -574,6 +574,16 @@ export default function AutoFlow() {
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPreviewEmail(email)} title="Voir">
                         <Eye className="h-4 w-4" />
                       </Button>
+                      {email.has_attachments && email.attachment_urls?.length > 0 && (
+                        <Button
+                          variant="ghost" size="icon"
+                          className="h-8 w-8 text-primary"
+                          onClick={() => openLibraryImportDialog(email)}
+                          title="Importer dans Bibliothèque et assigner"
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      )}
                       {email.has_attachments && email.attachment_urls?.length > 0 && !email.is_processed && (
                         <Button
                           variant="ghost" size="icon"
