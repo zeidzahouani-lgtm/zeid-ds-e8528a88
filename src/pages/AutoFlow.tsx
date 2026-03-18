@@ -154,6 +154,38 @@ export default function AutoFlow() {
     return s?.name || screenId.slice(0, 8);
   };
 
+  const parseScreenDirective = (text?: string | null): string | null => {
+    if (!text) return null;
+    const normalized = text.replace(/\r?\n/g, " ").trim();
+    const bracketMatch = normalized.match(/\[(?:ecran|écran|screen)\s*[:=]\s*([^\]\r\n]+)\]/i);
+    if (bracketMatch?.[1]) return bracketMatch[1].trim().replace(/^['"\s]+|['"\s]+$/g, "");
+
+    const inlineMatch = normalized.match(/(?:^|\s)(?:ecran|écran|screen)\s*[:=]\s*([^,;\r\n]+)/i);
+    if (inlineMatch?.[1]) return inlineMatch[1].trim().replace(/^['"\s]+|['"\s]+$/g, "");
+
+    return null;
+  };
+
+  const guessScreenIdFromEmail = (email: InboxEmail): string => {
+    const requested = parseScreenDirective(email.subject) || parseScreenDirective(email.body_preview);
+
+    if (requested && screens?.length) {
+      const wanted = requested.toLowerCase().trim();
+      const exact = screens.find((s: any) => s.name?.toLowerCase() === wanted || s.slug?.toLowerCase() === wanted);
+      if (exact) return exact.id;
+
+      const partial = screens.find((s: any) => s.name?.toLowerCase().includes(wanted));
+      if (partial) return partial.id;
+    }
+
+    return screens?.length === 1 ? screens[0].id : "";
+  };
+
+  const openLibraryImportDialog = (email: InboxEmail) => {
+    setLibraryImportEmail(email);
+    setTargetScreenId(guessScreenIdFromEmail(email));
+  };
+
   const handleCheckInbox = async () => {
     setCheckingInbox(true);
     try {
