@@ -271,8 +271,9 @@ export default function ScreenSetup() {
       </Card>
 
       <Tabs defaultValue="ai" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="ai" className="gap-1.5"><Bot className="h-4 w-4" /> Assistant IA</TabsTrigger>
+          <TabsTrigger value="compat" className="gap-1.5"><CheckCircle className="h-4 w-4" /> Compatibilité</TabsTrigger>
           <TabsTrigger value="samsung" className="gap-1.5"><Tv className="h-4 w-4" /> Samsung</TabsTrigger>
           <TabsTrigger value="lg" className="gap-1.5"><Tv className="h-4 w-4" /> LG</TabsTrigger>
           <TabsTrigger value="philips" className="gap-1.5"><Monitor className="h-4 w-4" /> Philips</TabsTrigger>
