@@ -365,7 +365,15 @@ function parseMimeParts(body: string, boundary: string): { text: string; attachm
       if (filename) {
         let data: Uint8Array;
         if (transferEncoding.includes("base64")) {
-          data = decodeBase64(partBody);
+          // Clean partBody: remove anything after the base64 content
+          // Base64 content ends before the next boundary or closing paren
+          let cleanBody = partBody;
+          // Remove trailing IMAP artifacts like ")\r\nA5 OK..."
+          const closingParenIdx = cleanBody.lastIndexOf("\n)");
+          if (closingParenIdx !== -1) {
+            cleanBody = cleanBody.substring(0, closingParenIdx);
+          }
+          data = decodeBase64(cleanBody);
         } else {
           data = new TextEncoder().encode(partBody);
         }
