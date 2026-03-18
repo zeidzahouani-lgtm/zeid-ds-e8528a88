@@ -254,6 +254,7 @@ export default function AutoFlow() {
     } catch (e: any) {
       toast.error("Erreur: " + e.message);
     }
+  };
 
   const handleImportToLibraryAndAssign = async () => {
     if (!libraryImportEmail) return;
