@@ -146,6 +146,9 @@ export function ScreenManager() {
       <div className="flex items-center gap-3">
         <h2 className="text-xl font-semibold text-foreground">Gestion des Écrans</h2>
         <span className="text-sm text-muted-foreground">({screens.length})</span>
+        <Button variant="outline" size="icon" onClick={handleRefresh} title="Actualiser les écrans" className="ml-auto">
+          <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
+        </Button>
       </div>
 
       <div className="flex gap-3">
