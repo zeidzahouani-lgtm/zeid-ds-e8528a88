@@ -974,6 +974,11 @@ export default function AutoFlow() {
                     <ArrowRight className="h-4 w-4" /> Importer comme contenu
                   </Button>
                 )}
+                {previewEmail.is_processed && previewEmail.has_attachments && previewEmail.attachment_urls?.length > 0 && (
+                  <Button variant="outline" className="gap-2 text-orange-500 border-orange-500/30 hover:bg-orange-500/10" onClick={() => { handleReimportEmail(previewEmail); setPreviewEmail(null); }}>
+                    <RefreshCw className="h-4 w-4" /> Réimporter cet email
+                  </Button>
+                )}
                 {previewEmail.is_processed && (
                   <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
                     <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
