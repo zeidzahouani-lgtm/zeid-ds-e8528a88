@@ -594,6 +594,16 @@ export default function AutoFlow() {
                           <ArrowRight className="h-4 w-4" />
                         </Button>
                       )}
+                      {email.has_attachments && email.attachment_urls?.length > 0 && email.is_processed && (
+                        <Button
+                          variant="ghost" size="icon"
+                          className="h-8 w-8 text-orange-500"
+                          onClick={() => handleReimportEmail(email)}
+                          title="Réimporter cet email"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost" size="icon"
                         className="h-8 w-8 text-destructive"
