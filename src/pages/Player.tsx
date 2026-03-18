@@ -435,6 +435,7 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Arra
 
 export default function Player() {
   const { id } = useParams<{ id: string }>();
+  const debugMode = typeof window !== "undefined" && window.location.search.indexOf("debug=1") >= 0;
   const { screen, media, loading, sessionBlocked, forceTakeover, playlistLength, currentIndex, currentDuration, layoutId } = useScreenRealtime(id);
   const activeContents = useActiveContents(screen?.id);
   const branding = usePlayerBranding(screen?.id);
