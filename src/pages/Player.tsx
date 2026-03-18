@@ -529,6 +529,7 @@ export default function Player() {
   if (loading) {
     return (
       <div style={{ ...playerBgStyle, position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {debugMode && <DiagnosticOverlay screenId={id} screenName={undefined} screenStatus={undefined} mediaId={null} mediaType={null} mediaUrl={null} layoutId={null} playlistLength={0} currentIndex={0} sessionBlocked={false} licenseValid={null} orientation={undefined} />}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
           <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} />
           <MonitorPlay style={{ height: 48, width: 48, color: "#3b82f6" }} />
