@@ -551,7 +551,7 @@ serve(async (req) => {
     }
 
     const read = async (): Promise<string> => {
-      const buf = new Uint8Array(65536);
+      const buf = new Uint8Array(131072);
       const n = await conn.read(buf);
       return n ? new TextDecoder().decode(buf.subarray(0, n)) : "";
     };
