@@ -150,12 +150,27 @@ Ou répondez à cet email avec "valider" ou "annuler".`;
 
     const ehloResp = await write("EHLO localhost");
     
-    // AUTH
-    const authResp = await write(`AUTH PLAIN ${btoa(`\0${smtpUser}\0${smtpPass}`)}`);
-    if (!authResp.includes("235")) {
-      console.error("SMTP AUTH failed:", authResp.trim());
-      finalConn.close();
-      return;
+    // AUTH — OAuth2 or basic
+    let authResp: string;
+    if (authMethod === "oauth2" && oauthTenantId && oauthClientId && oauthClientSecret) {
+      const tokenUrl = `https://login.microsoftonline.com/${oauthTenantId}/oauth2/v2.0/token`;
+      const tokenBody = new URLSearchParams({
+        grant_type: "client_credentials",
+        client_id: oauthClientId,
+        client_secret: oauthClientSecret,
+        scope: "https://outlook.office365.com/.default",
+      });
+      const tokenResp = await fetch(tokenUrl, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: tokenBody });
+      const tokenData = await tokenResp.json();
+      if (!tokenResp.ok || !tokenData.access_token) {
+        console.error("OAuth2 token failed for SMTP:", tokenData.error_description || tokenData.error);
+        finalConn.close();
+        return;
+      }
+      const xoauth2 = btoa(`user=${smtpUser}\x01auth=Bearer ${tokenData.access_token}\x01\x01`);
+      authResp = await write(`AUTH XOAUTH2 ${xoauth2}`);
+    } else {
+      authResp = await write(`AUTH PLAIN ${btoa(`\0${smtpUser}\0${smtpPass}`)}`);
     }
 
     const mailResp = await write(`MAIL FROM:<${fromEmail}>`);
