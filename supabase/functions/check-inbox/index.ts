@@ -579,12 +579,18 @@ serve(async (req) => {
     const readFull = async (tag: string): Promise<string> => {
       let response = "";
       let attempts = 0;
-      while (attempts < 100) {
+      const donePattern = new RegExp(`(?:\\r?\\n|^)${tag}\\s+(OK|NO|BAD)\\b`, "m");
+
+      while (attempts < 150) {
         const chunk = await read();
+        if (!chunk) break;
+
         response += chunk;
-        if (response.includes(`${tag} OK`) || response.includes(`${tag} NO`) || response.includes(`${tag} BAD`)) break;
+        if (donePattern.test(response)) break;
+
         attempts++;
       }
+
       return response;
     };
 
@@ -631,10 +637,11 @@ serve(async (req) => {
 
     for (const uid of uids) {
       try {
-        // Fetch full email
-        const fetchResp = await cmd(`FETCH ${uid} (BODY[] BODY[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID)])`);
+        // Fetch raw RFC822 message
+        const fetchResp = await cmd(`FETCH ${uid} (BODY[])`);
+        const rawEmail = extractRfc822FromFetchResponse(fetchResp);
 
-        const headerSection = fetchResp;
+        const headerSection = rawEmail;
         const from = parseHeader(headerSection, "From");
         const subject = parseHeader(headerSection, "Subject");
         const { name: fromName, email: fromEmail } = extractFromAddress(from);
@@ -659,18 +666,18 @@ serve(async (req) => {
         let screenId: string | null = null;
 
         // Parse MIME for attachments
-        const boundaryMatch = fetchResp.match(/boundary="?([^";\s\r\n]+)"?/i);
+        const boundaryMatch = rawEmail.match(/boundary="?([^";\s\r\n]+)"?/i);
         let bodyText = "";
         const attachments: Attachment[] = [];
 
         if (boundaryMatch) {
-          const parsed = parseMimeParts(fetchResp, boundaryMatch[1]);
+          const parsed = parseMimeParts(rawEmail, boundaryMatch[1]);
           bodyText = parsed.text;
           attachments.push(...parsed.attachments);
         } else {
           // Simple email without MIME parts
-          const bodyStart = fetchResp.indexOf("\r\n\r\n");
-          if (bodyStart !== -1) bodyText = fetchResp.substring(bodyStart + 4, fetchResp.lastIndexOf(")")).trim();
+          const bodyStart = rawEmail.indexOf("\r\n\r\n");
+          if (bodyStart !== -1) bodyText = rawEmail.substring(bodyStart + 4).trim();
         }
 
         console.log(`📎 Found ${attachments.length} attachment(s) in email from ${fromEmail}`);
