@@ -193,6 +193,100 @@ export default function AdminEmail() {
         </div>
       </div>
 
+      {/* Quick provider presets */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Plus className="h-4 w-4 text-primary icon-neon" />
+            Configuration rapide — Fournisseur de messagerie
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs text-muted-foreground mb-4 normal-case">
+            Sélectionnez votre fournisseur pour pré-remplir les paramètres serveur. Vous devrez ensuite entrer votre adresse email et votre mot de passe d'application.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {/* Gmail */}
+            <button
+              type="button"
+              className="flex items-center gap-3 p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/60 hover:border-primary/30 transition-all text-left group"
+              onClick={() => {
+                setConfig(prev => ({
+                  ...prev,
+                  imap_host: "imap.gmail.com",
+                  imap_port: "993",
+                  imap_tls: true,
+                  smtp_host: "smtp.gmail.com",
+                  smtp_port: "587",
+                  smtp_tls: true,
+                }));
+                toast.success("Paramètres Gmail pré-remplis. Entrez votre email et mot de passe d'application Google.");
+              }}
+            >
+              <div className="h-10 w-10 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0 group-hover:bg-red-500/20 transition-colors">
+                <Mail className="h-5 w-5 text-red-400" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">Gmail</p>
+                <p className="text-[11px] text-muted-foreground normal-case">Google — mot de passe d'application requis</p>
+              </div>
+            </button>
+
+            {/* Microsoft / Outlook */}
+            <button
+              type="button"
+              className="flex items-center gap-3 p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/60 hover:border-primary/30 transition-all text-left group"
+              onClick={() => {
+                setConfig(prev => ({
+                  ...prev,
+                  imap_host: "outlook.office365.com",
+                  imap_port: "993",
+                  imap_tls: true,
+                  smtp_host: "smtp.office365.com",
+                  smtp_port: "587",
+                  smtp_tls: true,
+                }));
+                toast.success("Paramètres Microsoft pré-remplis. Entrez votre email et mot de passe.");
+              }}
+            >
+              <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0 group-hover:bg-blue-500/20 transition-colors">
+                <Mail className="h-5 w-5 text-blue-400" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">Microsoft 365 / Outlook</p>
+                <p className="text-[11px] text-muted-foreground normal-case">Outlook, Hotmail, Office 365</p>
+              </div>
+            </button>
+
+            {/* OVH */}
+            <button
+              type="button"
+              className="flex items-center gap-3 p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/60 hover:border-primary/30 transition-all text-left group"
+              onClick={() => {
+                setConfig(prev => ({
+                  ...prev,
+                  imap_host: "ssl0.ovh.net",
+                  imap_port: "993",
+                  imap_tls: true,
+                  smtp_host: "ssl0.ovh.net",
+                  smtp_port: "465",
+                  smtp_tls: true,
+                }));
+                toast.success("Paramètres OVH pré-remplis. Entrez votre email et mot de passe OVH.");
+              }}
+            >
+              <div className="h-10 w-10 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0 group-hover:bg-indigo-500/20 transition-colors">
+                <Server className="h-5 w-5 text-indigo-400" />
+              </div>
+              <div>
+                <p className="font-medium text-sm">OVH</p>
+                <p className="text-[11px] text-muted-foreground normal-case">OVH Mail Pro / MX Plan</p>
+              </div>
+            </button>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* IMAP */}
         <Card>
