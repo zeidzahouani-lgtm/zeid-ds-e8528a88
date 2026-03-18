@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ListMusic, Plus, Trash2, GripVertical, Tv, FolderPlus } from "lucide-react";
+import { ListMusic, Plus, Trash2, GripVertical, Tv, FolderPlus, Save, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -19,11 +19,15 @@ export function PlaylistManager() {
   const [selectedPlaylist, setSelectedPlaylist] = useState<string>("");
   const [selectedMedia, setSelectedMedia] = useState<string>("");
   const [newName, setNewName] = useState("");
+  // Track local duration edits: { itemId: newDuration }
+  const [durationEdits, setDurationEdits] = useState<Record<string, number>>({});
+  const [saving, setSaving] = useState(false);
 
-  const { items, isLoading, addItem, removeItem } = usePlaylistItems(selectedPlaylist || undefined);
+  const { items, isLoading, addItem, removeItem, updateItemDuration } = usePlaylistItems(selectedPlaylist || undefined);
 
-  // Screens assigned to this playlist
   const assignedScreens = screens.filter((s: any) => s.playlist_id === selectedPlaylist);
+
+  const hasPendingChanges = Object.keys(durationEdits).length > 0;
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
@@ -48,11 +52,33 @@ export function PlaylistManager() {
     }
   };
 
+  const handleDurationChange = (itemId: string, value: string) => {
+    const num = parseInt(value, 10);
+    if (isNaN(num) || num < 1) return;
+    setDurationEdits((prev) => ({ ...prev, [itemId]: num }));
+  };
+
+  const handleSave = async () => {
+    if (!hasPendingChanges) return;
+    setSaving(true);
+    try {
+      const promises = Object.entries(durationEdits).map(([id, duration]) =>
+        updateItemDuration.mutateAsync({ id, duration })
+      );
+      await Promise.all(promises);
+      setDurationEdits({});
+      toast.success("Modifications sauvegardées");
+    } catch {
+      toast.error("Erreur lors de la sauvegarde");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleAssignScreen = async (screenId: string) => {
     try {
       await supabase.from("screens").update({ playlist_id: selectedPlaylist } as any).eq("id", screenId);
       toast.success("Écran assigné à la playlist");
-      // Invalidate screens
       updateScreen.reset();
       window.dispatchEvent(new Event("invalidate-screens"));
     } catch {
@@ -67,6 +93,12 @@ export function PlaylistManager() {
     } catch {
       toast.error("Erreur");
     }
+  };
+
+  // Reset edits when switching playlists
+  const handleSelectPlaylist = (id: string) => {
+    setSelectedPlaylist(id);
+    setDurationEdits({});
   };
 
   return (
@@ -90,7 +122,7 @@ export function PlaylistManager() {
 
       {/* Select playlist */}
       <div className="flex flex-wrap gap-3 items-center">
-        <Select value={selectedPlaylist} onValueChange={setSelectedPlaylist}>
+        <Select value={selectedPlaylist} onValueChange={handleSelectPlaylist}>
           <SelectTrigger className="w-[260px]">
             <SelectValue placeholder="Choisir une playlist" />
           </SelectTrigger>
@@ -107,6 +139,7 @@ export function PlaylistManager() {
             onClick={() => {
               deletePlaylist.mutate(selectedPlaylist);
               setSelectedPlaylist("");
+              setDurationEdits({});
               toast.success("Playlist supprimée");
             }}
           >
@@ -144,30 +177,56 @@ export function PlaylistManager() {
             <p className="text-muted-foreground text-sm">Aucun média dans cette playlist.</p>
           ) : (
             <div className="space-y-2">
-              {items.map((item, index) => (
-                <Card key={item.id} className="p-3 border-border/50">
-                  <div className="flex items-center gap-3">
-                    <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <Badge variant="outline" className="text-xs shrink-0">{index + 1}</Badge>
-                    <ListMusic className="h-4 w-4 text-primary shrink-0" />
-                    <span className="font-medium flex-1 truncate">
-                      {(item as any).media?.name ?? "Média inconnu"}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {(item as any).media?.duration ?? 10}s
-                    </span>
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => removeItem.mutate(item.id)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </Card>
-              ))}
+              {items.map((item, index) => {
+                const mediaDuration = (item as any).media?.duration ?? 10;
+                const itemDuration = (item as any).duration;
+                const effectiveDuration = durationEdits[item.id] ?? itemDuration ?? mediaDuration;
+
+                return (
+                  <Card key={item.id} className="p-3 border-border/50">
+                    <div className="flex items-center gap-3">
+                      <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <Badge variant="outline" className="text-xs shrink-0">{index + 1}</Badge>
+                      <ListMusic className="h-4 w-4 text-primary shrink-0" />
+                      <span className="font-medium flex-1 truncate">
+                        {(item as any).media?.name ?? "Média inconnu"}
+                      </span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                        <Input
+                          type="number"
+                          min={1}
+                          value={effectiveDuration}
+                          onChange={(e) => handleDurationChange(item.id, e.target.value)}
+                          className="w-16 h-7 text-xs text-center"
+                        />
+                        <span className="text-xs text-muted-foreground">s</span>
+                      </div>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => removeItem.mutate(item.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </Card>
+                );
+              })}
             </div>
+          )}
+
+          {/* Save button */}
+          {items.length > 0 && (
+            <Button
+              onClick={handleSave}
+              disabled={!hasPendingChanges || saving}
+              className="gap-2"
+            >
+              <Save className="h-4 w-4" />
+              {saving ? "Sauvegarde..." : "Sauvegarder"}
+            </Button>
           )}
 
           {/* Assign screens */}
