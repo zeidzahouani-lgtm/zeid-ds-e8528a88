@@ -675,7 +675,7 @@ export default function Player() {
     );
   }
 
-  if (sessionBlocked) {
+  if (sessionBlocked && !previewMode) {
     return (
       <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, textAlign: "center", padding: 32 }}>
