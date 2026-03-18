@@ -50,6 +50,9 @@ export default function AutoFlow() {
   const [previewEmail, setPreviewEmail] = useState<InboxEmail | null>(null);
   const [activeTab, setActiveTab] = useState("contents");
   const [resendingAck, setResendingAck] = useState<string | null>(null);
+  const [libraryImportEmail, setLibraryImportEmail] = useState<InboxEmail | null>(null);
+  const [targetScreenId, setTargetScreenId] = useState<string>("");
+  const [assigningLibrary, setAssigningLibrary] = useState(false);
 
   const handleResendAck = async (c: Content) => {
     setResendingAck(c.id);
