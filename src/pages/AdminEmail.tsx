@@ -25,12 +25,17 @@ interface EmailConfig {
   from_name: string;
   from_email: string;
   auto_import: boolean;
+  auth_method: string;
+  oauth_tenant_id: string;
+  oauth_client_id: string;
+  oauth_client_secret: string;
 }
 
 const defaultConfig: EmailConfig = {
   imap_host: "", imap_port: "993", imap_user: "", imap_password: "", imap_tls: true,
   smtp_host: "", smtp_port: "587", smtp_user: "", smtp_password: "", smtp_tls: true,
   from_name: "", from_email: "", auto_import: false,
+  auth_method: "basic", oauth_tenant_id: "", oauth_client_id: "", oauth_client_secret: "",
 };
 
 interface EmailAction {
