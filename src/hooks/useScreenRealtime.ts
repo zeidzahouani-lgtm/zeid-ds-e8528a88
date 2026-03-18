@@ -245,7 +245,20 @@ export function useScreenRealtime(screenId: string | undefined) {
       .channel(`screen-${realId}`)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "screens", filter: `id=eq.${realId}` }, async (payload) => {
         const newData = payload.new as ScreenData;
+        const oldData = payload.old as Partial<ScreenData>;
+
+        // Only react to meaningful changes, not heartbeat/status updates
+        const relevantChange =
+          newData.current_media_id !== oldData.current_media_id ||
+          newData.layout_id !== oldData.layout_id ||
+          newData.playlist_id !== oldData.playlist_id ||
+          newData.program_id !== oldData.program_id ||
+          newData.orientation !== oldData.orientation;
+
         setScreen(newData);
+
+        if (!relevantChange) return;
+
         if (newData.current_media_id) {
           const { data: mediaData } = await supabase.from("media").select("*").eq("id", newData.current_media_id).single();
           if (mediaData) setMedia(mediaData as MediaData);
@@ -256,7 +269,7 @@ export function useScreenRealtime(screenId: string | undefined) {
         setCurrentIndex(0);
         resolveMedia(newData, pl, 0);
       })
-      .on("postgres_changes", { event: "*", schema: "public", table: "playlist_items" }, async () => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "playlist_items", filter: screen?.playlist_id ? `playlist_id=eq.${screen.playlist_id}` : `screen_id=eq.${realId}` }, async () => {
         if (!screen) return;
         const pl = await fetchPlaylist(screen);
         setPlaylist(pl);
@@ -272,7 +285,7 @@ export function useScreenRealtime(screenId: string | undefined) {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [screen?.id, screen, playlist, currentIndex, fetchPlaylist, fetchSchedules, resolveMedia]);
+  }, [screen?.id, screen?.playlist_id, screen?.program_id, fetchPlaylist, fetchSchedules, resolveMedia]);
 
   const currentDuration = playlist.length > 0
     ? (playlist[currentIndex % playlist.length]?.media?.duration ?? 10)
