@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock, RefreshCw, Tv, Power } from "lucide-react";
+import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock, RefreshCw, Tv, Power, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -129,6 +129,7 @@ export function ScreenManager() {
   const quotaReached = maxScreens != null && maxScreens > 0 && screens.length >= maxScreens;
   const [newName, setNewName] = useState("");
   const [playlistScreenId, setPlaylistScreenId] = useState<string | null>(null);
+  const [previewScreen, setPreviewScreen] = useState<{ id: string; slug: string | null; name: string } | null>(null);
 
   const handleAdd = async () => {
     if (!newName.trim()) return;
@@ -302,6 +303,14 @@ export function ScreenManager() {
                   <Button
                     variant="outline"
                     size="icon"
+                    onClick={() => setPreviewScreen({ id: screen.id, slug: (screen as any).slug || screen.id, name: screen.name })}
+                    title="Aperçu en temps réel"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
                     onClick={() => setPlaylistScreenId(screen.id)}
                     title="Gérer la playlist"
                   >
@@ -367,6 +376,30 @@ export function ScreenManager() {
             </DialogDescription>
           </DialogHeader>
           {playlistScreenId && <PlaylistPanel screenId={playlistScreenId} media={media} />}
+        </DialogContent>
+      </Dialog>
+
+      {/* Live preview dialog */}
+      <Dialog open={!!previewScreen} onOpenChange={() => setPreviewScreen(null)}>
+        <DialogContent className="max-w-5xl w-[95vw] h-[80vh] flex flex-col p-0">
+          <DialogHeader className="px-6 pt-6 pb-2">
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" /> Aperçu en temps réel
+            </DialogTitle>
+            <DialogDescription>
+              {previewScreen?.name} — Ce que l'écran affiche actuellement
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 px-6 pb-6 min-h-0">
+            {previewScreen && (
+              <iframe
+                src={`/player/${previewScreen.slug || previewScreen.id}?preview=1`}
+                className="w-full h-full rounded-lg border border-border bg-black"
+                title={`Aperçu - ${previewScreen.name}`}
+                allow="autoplay"
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
