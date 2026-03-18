@@ -216,11 +216,21 @@ export function PlaylistManager() {
                 const mediaDuration = (item as any).media?.duration ?? 10;
                 const itemDuration = (item as any).duration;
                 const effectiveDuration = durationEdits[item.id] ?? itemDuration ?? mediaDuration;
+                const isDragging = dragIndex === index;
+                const isDragOver = dragOverIndex === index;
 
                 return (
-                  <Card key={item.id} className="p-3 border-border/50">
+                  <Card
+                    key={item.id}
+                    className={`p-3 border-border/50 transition-all ${isDragging ? "opacity-40 scale-95" : ""} ${isDragOver ? "border-primary ring-1 ring-primary/30" : ""}`}
+                    draggable
+                    onDragStart={() => handleDragStart(index)}
+                    onDragOver={(e) => handleDragOver(e, index)}
+                    onDrop={() => handleDrop(index)}
+                    onDragEnd={handleDragEnd}
+                  >
                     <div className="flex items-center gap-3">
-                      <GripVertical className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <GripVertical className="h-4 w-4 text-muted-foreground shrink-0 cursor-grab active:cursor-grabbing" />
                       <Badge variant="outline" className="text-xs shrink-0">{index + 1}</Badge>
                       <ListMusic className="h-4 w-4 text-primary shrink-0" />
                       <span className="font-medium flex-1 truncate">
