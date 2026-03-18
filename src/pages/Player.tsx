@@ -7,6 +7,7 @@ import WidgetRenderer from "@/components/widgets/WidgetRenderer";
 import { validateLicense, activateLicenseByKey } from "@/hooks/useLicenses";
 import { QRCodeSVG } from "qrcode.react";
 import FallbackScreen from "@/components/player/FallbackScreen";
+import DiagnosticOverlay from "@/components/player/DiagnosticOverlay";
 
 // Hook to fetch active contents for a screen filtered by current time
 function useActiveContents(screenId: string | undefined) {
@@ -434,6 +435,7 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Arra
 
 export default function Player() {
   const { id } = useParams<{ id: string }>();
+  const debugMode = typeof window !== "undefined" && window.location.search.indexOf("debug=1") >= 0;
   const { screen, media, loading, sessionBlocked, forceTakeover, playlistLength, currentIndex, currentDuration, layoutId } = useScreenRealtime(id);
   const activeContents = useActiveContents(screen?.id);
   const branding = usePlayerBranding(screen?.id);
@@ -527,6 +529,7 @@ export default function Player() {
   if (loading) {
     return (
       <div style={{ ...playerBgStyle, position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {debugMode && <DiagnosticOverlay screenId={id} screenName={undefined} screenStatus={undefined} mediaId={null} mediaType={null} mediaUrl={null} layoutId={null} playlistLength={0} currentIndex={0} sessionBlocked={false} licenseValid={null} orientation={undefined} />}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
           <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} />
           <MonitorPlay style={{ height: 48, width: 48, color: "#3b82f6" }} />
@@ -613,8 +616,18 @@ export default function Player() {
 
   const rotationStyle = getOrientationStyle(screen.orientation);
 
+  var diagProps = {
+    screenId: screen.id, screenName: screen.name, screenStatus: screen.status,
+    mediaId: media ? media.id : null, mediaType: media ? media.type : null,
+    mediaUrl: media ? media.url : null, layoutId: layoutId,
+    playlistLength: playlistLength, currentIndex: currentIndex,
+    sessionBlocked: sessionBlocked, licenseValid: licenseValid,
+    orientation: screen.orientation,
+  };
+
   return (
     <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", inset: 0, overflow: "hidden", cursor: "none" }} onClick={requestFullscreen}>
+      {debugMode && <DiagnosticOverlay {...diagProps} />}
       <div style={{ width: "100%", height: "100%", transition: "transform 0.7s ease-in-out", ...rotationStyle }}>
         <div style={{ width: "100%", height: "100%", transition: "opacity 0.5s ease-in-out", opacity: visible ? 1 : 0 }}>
           {/* Fallback screen */}
