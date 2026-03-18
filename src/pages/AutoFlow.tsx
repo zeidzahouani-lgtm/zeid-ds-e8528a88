@@ -230,6 +230,32 @@ export default function AutoFlow() {
     }
   };
 
+  const handleReimportEmail = async (email: InboxEmail) => {
+    if (!email.attachment_urls?.length) {
+      toast.error("Cet email n'a aucune pièce jointe image");
+      return;
+    }
+    try {
+      // Reset processed flag
+      await (supabase.from("inbox_emails") as any).update({ is_processed: false }).eq("id", email.id);
+      // Re-create content
+      const { error } = await (supabase.from("contents") as any).insert({
+        image_url: email.attachment_urls[0],
+        title: email.subject || `Email de ${email.from_name || email.from_email}`,
+        status: "pending",
+        source: "email",
+        sender_email: email.from_email,
+      });
+      if (error) throw error;
+      await (supabase.from("inbox_emails") as any).update({ is_processed: true }).eq("id", email.id);
+      toast.success("Email réimporté avec succès");
+      queryClient.invalidateQueries({ queryKey: ["contents"] });
+      queryClient.invalidateQueries({ queryKey: ["inbox_emails"] });
+    } catch (e: any) {
+      toast.error("Erreur: " + e.message);
+    }
+  };
+
   const handleImportToLibraryAndAssign = async () => {
     if (!libraryImportEmail) return;
 
@@ -594,6 +620,16 @@ export default function AutoFlow() {
                           <ArrowRight className="h-4 w-4" />
                         </Button>
                       )}
+                      {email.has_attachments && email.attachment_urls?.length > 0 && email.is_processed && (
+                        <Button
+                          variant="ghost" size="icon"
+                          className="h-8 w-8 text-orange-500"
+                          onClick={() => handleReimportEmail(email)}
+                          title="Réimporter cet email"
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost" size="icon"
                         className="h-8 w-8 text-destructive"
@@ -936,6 +972,11 @@ export default function AutoFlow() {
                 {previewEmail.has_attachments && previewEmail.attachment_urls?.length > 0 && !previewEmail.is_processed && (
                   <Button className="gap-2" onClick={() => { handleImportAsContent(previewEmail); setPreviewEmail(null); }}>
                     <ArrowRight className="h-4 w-4" /> Importer comme contenu
+                  </Button>
+                )}
+                {previewEmail.is_processed && previewEmail.has_attachments && previewEmail.attachment_urls?.length > 0 && (
+                  <Button variant="outline" className="gap-2 text-orange-500 border-orange-500/30 hover:bg-orange-500/10" onClick={() => { handleReimportEmail(previewEmail); setPreviewEmail(null); }}>
+                    <RefreshCw className="h-4 w-4" /> Réimporter cet email
                   </Button>
                 )}
                 {previewEmail.is_processed && (
