@@ -102,6 +102,40 @@ export function PlaylistManager() {
     setDurationEdits({});
   };
 
+  const handleDragStart = (index: number) => {
+    setDragIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+
+  const handleDrop = async (index: number) => {
+    if (dragIndex === null || dragIndex === index) {
+      setDragIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+    const reordered = [...items];
+    const [moved] = reordered.splice(dragIndex, 1);
+    reordered.splice(index, 0, moved);
+    const orderedIds = reordered.map((item) => item.id);
+    setDragIndex(null);
+    setDragOverIndex(null);
+    try {
+      await reorderItems.mutateAsync(orderedIds);
+      toast.success("Ordre mis à jour");
+    } catch {
+      toast.error("Erreur lors du réordonnement");
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDragIndex(null);
+    setDragOverIndex(null);
+  };
+
   return (
     <div className="space-y-6">
       {/* Create playlist */}
