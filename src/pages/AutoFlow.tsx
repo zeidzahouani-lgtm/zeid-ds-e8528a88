@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  Mail, CheckCircle2, XCircle, Clock, Play, Trash2, Eye, Loader2, Copy, ExternalLink, RefreshCw, Pencil, Inbox, Paperclip, ArrowRight, Image as ImageIcon, Send, KeyRound, Plus, Monitor, BookOpen
+  Mail, CheckCircle2, XCircle, Clock, Play, Trash2, Eye, Loader2, Copy, ExternalLink, RefreshCw, Pencil, Inbox, Paperclip, ArrowRight, Image as ImageIcon, Send, KeyRound, Plus, Monitor, BookOpen, Download
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -50,6 +50,9 @@ export default function AutoFlow() {
   const [previewEmail, setPreviewEmail] = useState<InboxEmail | null>(null);
   const [activeTab, setActiveTab] = useState("contents");
   const [resendingAck, setResendingAck] = useState<string | null>(null);
+  const [libraryImportEmail, setLibraryImportEmail] = useState<InboxEmail | null>(null);
+  const [targetScreenId, setTargetScreenId] = useState<string>("");
+  const [assigningLibrary, setAssigningLibrary] = useState(false);
 
   const handleResendAck = async (c: Content) => {
     setResendingAck(c.id);
@@ -151,6 +154,38 @@ export default function AutoFlow() {
     return s?.name || screenId.slice(0, 8);
   };
 
+  const parseScreenDirective = (text?: string | null): string | null => {
+    if (!text) return null;
+    const normalized = text.replace(/\r?\n/g, " ").trim();
+    const bracketMatch = normalized.match(/\[(?:ecran|écran|screen)\s*[:=]\s*([^\]\r\n]+)\]/i);
+    if (bracketMatch?.[1]) return bracketMatch[1].trim().replace(/^['"\s]+|['"\s]+$/g, "");
+
+    const inlineMatch = normalized.match(/(?:^|\s)(?:ecran|écran|screen)\s*[:=]\s*([^,;\r\n]+)/i);
+    if (inlineMatch?.[1]) return inlineMatch[1].trim().replace(/^['"\s]+|['"\s]+$/g, "");
+
+    return null;
+  };
+
+  const guessScreenIdFromEmail = (email: InboxEmail): string => {
+    const requested = parseScreenDirective(email.subject) || parseScreenDirective(email.body_preview);
+
+    if (requested && screens?.length) {
+      const wanted = requested.toLowerCase().trim();
+      const exact = screens.find((s: any) => s.name?.toLowerCase() === wanted || s.slug?.toLowerCase() === wanted);
+      if (exact) return exact.id;
+
+      const partial = screens.find((s: any) => s.name?.toLowerCase().includes(wanted));
+      if (partial) return partial.id;
+    }
+
+    return screens?.length === 1 ? screens[0].id : "";
+  };
+
+  const openLibraryImportDialog = (email: InboxEmail) => {
+    setLibraryImportEmail(email);
+    setTargetScreenId(guessScreenIdFromEmail(email));
+  };
+
   const handleCheckInbox = async () => {
     setCheckingInbox(true);
     try {
@@ -192,6 +227,75 @@ export default function AutoFlow() {
       queryClient.invalidateQueries({ queryKey: ["inbox_emails"] });
     } catch (e: any) {
       toast.error("Erreur: " + e.message);
+    }
+  };
+
+  const handleImportToLibraryAndAssign = async () => {
+    if (!libraryImportEmail) return;
+
+    if (!libraryImportEmail.attachment_urls?.length) {
+      toast.error("Cet email n'a aucune pièce jointe");
+      return;
+    }
+
+    if (!targetScreenId) {
+      toast.error("Veuillez choisir un écran");
+      return;
+    }
+
+    setAssigningLibrary(true);
+    try {
+      const selectedScreen = screens?.find((s: any) => s.id === targetScreenId);
+      if (!selectedScreen) throw new Error("Écran introuvable");
+
+      const attachmentUrl = libraryImportEmail.attachment_urls[0];
+      const fileNameRaw = attachmentUrl.split("/").pop()?.split("?")[0] || `email_${Date.now()}.jpg`;
+      const fileName = decodeURIComponent(fileNameRaw);
+      const mediaType = /\.(mp4|webm|mov|m4v|avi)$/i.test(fileName) ? "video" : "image";
+
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) throw new Error("Session expirée, reconnectez-vous");
+
+      const { data: insertedMedia, error: mediaError } = await (supabase.from("media") as any)
+        .insert({
+          name: fileName,
+          type: mediaType,
+          url: attachmentUrl,
+          duration: mediaType === "image" ? 10 : 30,
+          user_id: authData.user.id,
+          establishment_id: selectedScreen.establishment_id || null,
+        })
+        .select("id")
+        .single();
+
+      if (mediaError) throw mediaError;
+
+      const { error: screenError } = await (supabase.from("screens") as any)
+        .update({
+          current_media_id: insertedMedia.id,
+          layout_id: null,
+          playlist_id: null,
+          program_id: null,
+        })
+        .eq("id", targetScreenId);
+
+      if (screenError) throw screenError;
+
+      await (supabase.from("inbox_emails") as any)
+        .update({ is_processed: true })
+        .eq("id", libraryImportEmail.id);
+
+      toast.success(`PJ importée dans la Bibliothèque et assignée à l'écran ${selectedScreen.name}`);
+
+      setLibraryImportEmail(null);
+      setTargetScreenId("");
+      queryClient.invalidateQueries({ queryKey: ["media"] });
+      queryClient.invalidateQueries({ queryKey: ["screens"] });
+      queryClient.invalidateQueries({ queryKey: ["inbox_emails"] });
+    } catch (e: any) {
+      toast.error("Erreur: " + (e.message || "Import impossible"));
+    } finally {
+      setAssigningLibrary(false);
     }
   };
 
@@ -470,6 +574,16 @@ export default function AutoFlow() {
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPreviewEmail(email)} title="Voir">
                         <Eye className="h-4 w-4" />
                       </Button>
+                      {email.has_attachments && email.attachment_urls?.length > 0 && (
+                        <Button
+                          variant="ghost" size="icon"
+                          className="h-8 w-8 text-primary"
+                          onClick={() => openLibraryImportDialog(email)}
+                          title="Importer dans Bibliothèque et assigner"
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      )}
                       {email.has_attachments && email.attachment_urls?.length > 0 && !email.is_processed && (
                         <Button
                           variant="ghost" size="icon"
@@ -814,6 +928,11 @@ export default function AutoFlow() {
               )}
 
               <div className="flex gap-2 pt-2">
+                {previewEmail.has_attachments && previewEmail.attachment_urls?.length > 0 && (
+                  <Button variant="outline" className="gap-2" onClick={() => { openLibraryImportDialog(previewEmail); setPreviewEmail(null); }}>
+                    <Download className="h-4 w-4" /> Importer Bibliothèque + Assigner
+                  </Button>
+                )}
                 {previewEmail.has_attachments && previewEmail.attachment_urls?.length > 0 && !previewEmail.is_processed && (
                   <Button className="gap-2" onClick={() => { handleImportAsContent(previewEmail); setPreviewEmail(null); }}>
                     <ArrowRight className="h-4 w-4" /> Importer comme contenu
@@ -825,6 +944,69 @@ export default function AutoFlow() {
                     Déjà importé
                   </Badge>
                 )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Library + Assign Dialog */}
+      <Dialog
+        open={!!libraryImportEmail}
+        onOpenChange={(open) => {
+          if (!open) {
+            setLibraryImportEmail(null);
+            setTargetScreenId("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Download className="h-5 w-5" />
+              Importer la PJ dans Bibliothèque
+            </DialogTitle>
+          </DialogHeader>
+
+          {libraryImportEmail && (
+            <div className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                Email: <span className="text-foreground font-medium">{libraryImportEmail.subject || "(Sans objet)"}</span>
+              </div>
+
+              {libraryImportEmail.attachment_urls?.[0] && (
+                <div className="rounded-lg border border-border overflow-hidden bg-muted/20">
+                  <img src={libraryImportEmail.attachment_urls[0]} alt="Aperçu PJ" className="w-full h-44 object-cover" />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Écran cible</label>
+                <Select value={targetScreenId} onValueChange={setTargetScreenId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choisir un écran" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(screens || []).map((screen: any) => (
+                      <SelectItem key={screen.id} value={screen.id}>
+                        {screen.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Cette action va importer la PJ dans la Bibliothèque puis l'afficher sur l'écran choisi.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => { setLibraryImportEmail(null); setTargetScreenId(""); }}>
+                  Annuler
+                </Button>
+                <Button onClick={handleImportToLibraryAndAssign} disabled={assigningLibrary || !targetScreenId} className="gap-2">
+                  {assigningLibrary ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  Importer et assigner
+                </Button>
               </div>
             </div>
           )}
