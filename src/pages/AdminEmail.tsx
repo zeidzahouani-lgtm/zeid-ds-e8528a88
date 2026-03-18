@@ -294,6 +294,61 @@ export default function AdminEmail() {
         </CardContent>
       </Card>
 
+      {/* Auth Method */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <KeyRound className="h-4 w-4 text-primary icon-neon" />
+            Méthode d'authentification
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Type d'authentification</Label>
+            <Select value={config.auth_method} onValueChange={v => setConfig({ ...config, auth_method: v })}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="basic">Basique (mot de passe)</SelectItem>
+                <SelectItem value="oauth2">OAuth2 / Microsoft Exchange (authentification moderne)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {config.auth_method === "oauth2" && (
+            <div className="space-y-4 p-4 rounded-lg border border-primary/20 bg-primary/5">
+              <div className="flex items-center gap-2 text-sm font-medium text-primary">
+                <Shield className="h-4 w-4" />
+                Configuration Azure AD (OAuth2)
+              </div>
+              <p className="text-xs text-muted-foreground normal-case leading-relaxed">
+                Créez une application dans <strong>Azure AD → Inscriptions d'applications</strong>, puis accordez les permissions 
+                <code className="mx-1 px-1 py-0.5 bg-muted rounded text-[11px]">IMAP.AccessAsApp</code> et 
+                <code className="mx-1 px-1 py-0.5 bg-muted rounded text-[11px]">SMTP.SendAsApp</code> avec consentement administrateur.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Tenant ID</Label>
+                  <Input value={config.oauth_tenant_id} onChange={e => setConfig({ ...config, oauth_tenant_id: e.target.value })} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Client ID</Label>
+                  <Input value={config.oauth_client_id} onChange={e => setConfig({ ...config, oauth_client_id: e.target.value })} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Client Secret</Label>
+                  <Input type="password" value={config.oauth_client_secret} onChange={e => setConfig({ ...config, oauth_client_secret: e.target.value })} placeholder="~xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
+                </div>
+              </div>
+              <div className="text-[11px] text-muted-foreground normal-case p-2 rounded bg-muted/50">
+                💡 Le mot de passe n'est pas utilisé avec OAuth2. Seuls le Tenant ID, Client ID, Client Secret et l'adresse email sont nécessaires.
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* IMAP */}
         <Card>
