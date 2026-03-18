@@ -928,6 +928,11 @@ export default function AutoFlow() {
               )}
 
               <div className="flex gap-2 pt-2">
+                {previewEmail.has_attachments && previewEmail.attachment_urls?.length > 0 && (
+                  <Button variant="outline" className="gap-2" onClick={() => { openLibraryImportDialog(previewEmail); setPreviewEmail(null); }}>
+                    <Download className="h-4 w-4" /> Importer Bibliothèque + Assigner
+                  </Button>
+                )}
                 {previewEmail.has_attachments && previewEmail.attachment_urls?.length > 0 && !previewEmail.is_processed && (
                   <Button className="gap-2" onClick={() => { handleImportAsContent(previewEmail); setPreviewEmail(null); }}>
                     <ArrowRight className="h-4 w-4" /> Importer comme contenu
