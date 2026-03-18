@@ -105,7 +105,7 @@ const PRESETS: PresetTemplate[] = [
 
 const DEFAULT_WIDGET_CONFIGS: Record<string, any> = {
   clock: { format: "24h", showDate: true, showSeconds: true, gmtOffset: null },
-  weather: { city: "Paris", country: "FR", temperature: 22, condition: "sunny" },
+  weather: { city: "Paris", country: "FR", temperature: 22, condition: "sunny", useRealtime: true },
   marquee: { text: "Bienvenue ! Ceci est un message défilant.", speed: 80, backgroundColor: "#1a1a2e", textColor: "#ffffff", fontSize: 24 },
   fixedtext: { text: "Texte fixe", fontSize: 24, textColor: "#ffffff", backgroundColor: "transparent", textAlign: "center", fontWeight: "bold" },
   qrcode: { qrType: "url", url: "https://example.com", label: "Scannez-moi", bgColor: "#ffffff", fgColor: "#000000" },
@@ -951,6 +951,17 @@ export default function LayoutEditor() {
                       <div className="space-y-2 border-t border-border pt-3">
                         <p className="text-xs font-medium">Configuration Météo</p>
                         <div>
+                          <label className="text-xs text-muted-foreground flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={(selectedRegion as any).widget_config?.useRealtime !== false}
+                              onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, useRealtime: e.target.checked } } as any)}
+                            />
+                            🌐 Météo temps réel (Open-Meteo)
+                          </label>
+                          <p className="text-[10px] text-muted-foreground mt-0.5 ml-5">Données actualisées toutes les 10 min, sans clé API</p>
+                        </div>
+                        <div>
                           <label className="text-xs text-muted-foreground">Pays</label>
                           <Select value={(selectedRegion as any).widget_config?.country || "FR"} onValueChange={(v) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, country: v } } as any)}>
                             <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
@@ -965,22 +976,26 @@ export default function LayoutEditor() {
                           <label className="text-xs text-muted-foreground">Ville</label>
                           <Input value={(selectedRegion as any).widget_config?.city || "Paris"} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, city: e.target.value } } as any)} className="h-8 text-sm mt-1" />
                         </div>
-                        <div>
-                          <label className="text-xs text-muted-foreground">Température (°C)</label>
-                          <Input type="number" value={(selectedRegion as any).widget_config?.temperature ?? 22} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, temperature: +e.target.value } } as any)} className="h-8 text-sm mt-1" />
-                        </div>
-                        <div>
-                          <label className="text-xs text-muted-foreground">Condition</label>
-                          <Select value={(selectedRegion as any).widget_config?.condition || "sunny"} onValueChange={(v) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, condition: v } } as any)}>
-                            <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="sunny">☀️ Ensoleillé</SelectItem>
-                              <SelectItem value="cloudy">☁️ Nuageux</SelectItem>
-                              <SelectItem value="rainy">🌧️ Pluvieux</SelectItem>
-                              <SelectItem value="snowy">❄️ Neigeux</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
+                        {(selectedRegion as any).widget_config?.useRealtime === false && (
+                          <>
+                            <div>
+                              <label className="text-xs text-muted-foreground">Température (°C)</label>
+                              <Input type="number" value={(selectedRegion as any).widget_config?.temperature ?? 22} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, temperature: +e.target.value } } as any)} className="h-8 text-sm mt-1" />
+                            </div>
+                            <div>
+                              <label className="text-xs text-muted-foreground">Condition</label>
+                              <Select value={(selectedRegion as any).widget_config?.condition || "sunny"} onValueChange={(v) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, condition: v } } as any)}>
+                                <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="sunny">☀️ Ensoleillé</SelectItem>
+                                  <SelectItem value="cloudy">☁️ Nuageux</SelectItem>
+                                  <SelectItem value="rainy">🌧️ Pluvieux</SelectItem>
+                                  <SelectItem value="snowy">❄️ Neigeux</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </>
+                        )}
                       </div>
                     )}
 
