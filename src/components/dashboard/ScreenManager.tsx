@@ -104,6 +104,14 @@ export function ScreenManager() {
   const { playlists } = usePlaylists();
   const { programs } = usePrograms();
   const { currentEstablishmentId } = useEstablishmentContext();
+  const queryClient = useQueryClient();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ["screens"] });
+    setTimeout(() => setIsRefreshing(false), 800);
+  };
 
   const { data: maxScreens } = useQuery({
     queryKey: ["establishment-max-screens", currentEstablishmentId],
