@@ -303,6 +303,14 @@ export function ScreenManager() {
                   <Button
                     variant="outline"
                     size="icon"
+                    onClick={() => setPreviewScreen({ id: screen.id, slug: (screen as any).slug || screen.id, name: screen.name })}
+                    title="Aperçu en temps réel"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
                     onClick={() => setPlaylistScreenId(screen.id)}
                     title="Gérer la playlist"
                   >
