@@ -17,8 +17,12 @@ async function sendAckEmail(supabase: any, content: any, baseUrl: string) {
   const smtpPass = cfg.email_smtp_password;
   const fromName = cfg.email_from_name || "Affichage Dynamique";
   const fromEmail = cfg.email_from_email || smtpUser;
+  const authMethod = cfg.email_auth_method || "basic";
+  const oauthTenantId = cfg.email_oauth_tenant_id;
+  const oauthClientId = cfg.email_oauth_client_id;
+  const oauthClientSecret = cfg.email_oauth_client_secret;
 
-  if (!smtpHost || !smtpUser || !smtpPass || !content.sender_email) {
+  if (!smtpHost || !smtpUser || !content.sender_email) {
     console.log("SMTP not configured or no sender_email, skipping ACK");
     return;
   }
