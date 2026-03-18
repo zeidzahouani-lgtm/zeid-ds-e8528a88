@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { Monitor, Smartphone, Tv, Copy, CheckCheck, ExternalLink, Pencil, Check, X, Bot, Send, Loader2 } from "lucide-react";
+import { Monitor, Smartphone, Tv, Copy, CheckCheck, ExternalLink, Pencil, Check, X, Bot, Send, Loader2, CheckCircle, AlertTriangle, HelpCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -238,6 +238,144 @@ function AIGuideTab() {
   );
 }
 
+const COMPATIBLE_DEVICES = [
+  { brand: "LG", model: "32SM5J-B", platform: "webOS 6.0", browser: "Chromium 79", resolution: "1920×1080", status: "verified" as const, notes: "Play via URL, 24/7, rotation" },
+  { brand: "LG", model: "55SM5KE-B", platform: "webOS 4.0", browser: "Chromium 53", resolution: "1920×1080", status: "verified" as const, notes: "Play via URL, SI Server" },
+  { brand: "LG", model: "55UH5F-H", platform: "webOS 4.1", browser: "Chromium 53", resolution: "3840×2160", status: "verified" as const, notes: "UHD, Play via URL" },
+  { brand: "LG", model: "43UL3J-B", platform: "webOS 6.0", browser: "Chromium 79", resolution: "3840×2160", status: "verified" as const, notes: "UHD, Wi-Fi intégré" },
+  { brand: "LG", model: "55UH5J-H", platform: "webOS 6.0", browser: "Chromium 79", resolution: "3840×2160", status: "verified" as const, notes: "24/7, 500 nits" },
+  { brand: "Samsung", model: "QBR Series", platform: "Tizen 4.0", browser: "Chromium 56", resolution: "3840×2160", status: "verified" as const, notes: "URL Launcher, SSSP" },
+  { brand: "Samsung", model: "QMR Series", platform: "Tizen 5.0", browser: "Chromium 69", resolution: "3840×2160", status: "verified" as const, notes: "URL Launcher, 24/7" },
+  { brand: "Samsung", model: "QM55R", platform: "Tizen 5.0", browser: "Chromium 69", resolution: "3840×2160", status: "verified" as const, notes: "UHD, 500 nits" },
+  { brand: "Samsung", model: "QB65R-B", platform: "Tizen 6.5", browser: "Chromium 85", resolution: "3840×2160", status: "verified" as const, notes: "Smart Signage, Wi-Fi" },
+  { brand: "Philips", model: "55BDL4050D", platform: "Android 7.1", browser: "Chromium 51", resolution: "1920×1080", status: "compatible" as const, notes: "CMND, Kiosk intégré" },
+  { brand: "Philips", model: "10BDL4151T", platform: "Android 8.0", browser: "Chromium 62", resolution: "1920×1080", status: "compatible" as const, notes: "Tactile, Android SoC" },
+  { brand: "Philips", model: "65BDL3652T", platform: "Android 11", browser: "Chromium 95", resolution: "3840×2160", status: "verified" as const, notes: "UHD, tactile" },
+  { brand: "Android", model: "Fire TV Stick 4K", platform: "Fire OS 7", browser: "Silk / Fully Kiosk", resolution: "3840×2160", status: "verified" as const, notes: "Via Fully Kiosk Browser" },
+  { brand: "Android", model: "Xiaomi Mi Box S", platform: "Android TV 9", browser: "Fully Kiosk", resolution: "3840×2160", status: "compatible" as const, notes: "Via Fully Kiosk Browser" },
+  { brand: "Android", model: "NVIDIA Shield TV", platform: "Android TV 11", browser: "Fully Kiosk", resolution: "3840×2160", status: "verified" as const, notes: "Hautes performances" },
+  { brand: "Android", model: "Chromecast avec Google TV", platform: "Android TV 12", browser: "Chrome", resolution: "3840×2160", status: "compatible" as const, notes: "Via navigateur Chrome" },
+  { brand: "Navigateur", model: "Chrome (Windows/Mac/Linux)", platform: "Desktop", browser: "Chromium 90+", resolution: "Variable", status: "verified" as const, notes: "Recommandé" },
+  { brand: "Navigateur", model: "Firefox", platform: "Desktop", browser: "Firefox 90+", resolution: "Variable", status: "verified" as const, notes: "Compatible" },
+  { brand: "Navigateur", model: "Safari", platform: "macOS / iOS", browser: "WebKit", resolution: "Variable", status: "compatible" as const, notes: "Limitations mineures possibles" },
+  { brand: "Navigateur", model: "Edge", platform: "Desktop", browser: "Chromium 90+", resolution: "Variable", status: "verified" as const, notes: "Compatible" },
+  { brand: "Raspberry Pi", model: "Raspberry Pi 4", platform: "Raspberry Pi OS", browser: "Chromium 92+", resolution: "1920×1080", status: "verified" as const, notes: "Kiosk mode recommandé" },
+];
+
+function CompatibilityTab() {
+  const [filter, setFilter] = useState("");
+  const brands = [...new Set(COMPATIBLE_DEVICES.map(d => d.brand))];
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
+
+  const filtered = COMPATIBLE_DEVICES.filter(d => {
+    const matchesBrand = !selectedBrand || d.brand === selectedBrand;
+    const matchesSearch = !filter || `${d.brand} ${d.model} ${d.platform}`.toLowerCase().includes(filter.toLowerCase());
+    return matchesBrand && matchesSearch;
+  });
+
+  const statusConfig = {
+    verified: { label: "Testé ✓", className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" },
+    compatible: { label: "Compatible", className: "bg-amber-500/10 text-amber-600 border-amber-500/30" },
+    limited: { label: "Limité", className: "bg-destructive/10 text-destructive border-destructive/30" },
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 text-emerald-500" />
+            Appareils compatibles
+          </CardTitle>
+          <Badge variant="secondary">{COMPATIBLE_DEVICES.length} appareils</Badge>
+        </div>
+        <CardDescription>
+          Liste des modèles testés et vérifiés pour fonctionner avec la plateforme
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Filters */}
+        <div className="flex flex-wrap gap-2">
+          <Input
+            placeholder="Rechercher un modèle..."
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="max-w-xs h-8 text-sm"
+          />
+          <Button
+            variant={selectedBrand === null ? "default" : "outline"}
+            size="sm"
+            onClick={() => setSelectedBrand(null)}
+          >
+            Tous
+          </Button>
+          {brands.map(b => (
+            <Button
+              key={b}
+              variant={selectedBrand === b ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedBrand(selectedBrand === b ? null : b)}
+            >
+              {b}
+            </Button>
+          ))}
+        </div>
+
+        {/* Legend */}
+        <div className="flex gap-4 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1"><CheckCircle className="h-3 w-3 text-emerald-500" /> Testé et vérifié</span>
+          <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-amber-500" /> Compatible (non testé en interne)</span>
+          <span className="flex items-center gap-1"><HelpCircle className="h-3 w-3 text-muted-foreground" /> Limité</span>
+        </div>
+
+        {/* Table */}
+        <div className="border rounded-lg overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-muted/50 border-b">
+                <th className="text-left px-3 py-2 font-medium text-muted-foreground">Marque</th>
+                <th className="text-left px-3 py-2 font-medium text-muted-foreground">Modèle</th>
+                <th className="text-left px-3 py-2 font-medium text-muted-foreground">Plateforme</th>
+                <th className="text-left px-3 py-2 font-medium text-muted-foreground">Navigateur</th>
+                <th className="text-left px-3 py-2 font-medium text-muted-foreground">Résolution</th>
+                <th className="text-left px-3 py-2 font-medium text-muted-foreground">Statut</th>
+                <th className="text-left px-3 py-2 font-medium text-muted-foreground">Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((d, i) => (
+                <tr key={i} className="border-b last:border-b-0 hover:bg-muted/30 transition-colors">
+                  <td className="px-3 py-2 font-medium">{d.brand}</td>
+                  <td className="px-3 py-2 font-mono text-xs">{d.model}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{d.platform}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{d.browser}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{d.resolution}</td>
+                  <td className="px-3 py-2">
+                    <Badge variant="outline" className={statusConfig[d.status].className + " text-[10px]"}>
+                      {statusConfig[d.status].label}
+                    </Badge>
+                  </td>
+                  <td className="px-3 py-2 text-xs text-muted-foreground">{d.notes}</td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">Aucun appareil trouvé</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="p-3 bg-muted/50 rounded-lg border border-border">
+          <p className="text-xs text-muted-foreground">
+            <strong>Critères minimum :</strong> Chromium 53+ ou équivalent, support HTML5/CSS3, JavaScript ES6, résolution 1920×1080 minimum. 
+            Votre appareil n'est pas listé ? Utilisez l'onglet <strong>Assistant IA</strong> pour vérifier la compatibilité de votre modèle.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function ScreenSetup() {
   const { screens, updateScreen } = useScreens();
 
@@ -271,8 +409,9 @@ export default function ScreenSetup() {
       </Card>
 
       <Tabs defaultValue="ai" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="ai" className="gap-1.5"><Bot className="h-4 w-4" /> Assistant IA</TabsTrigger>
+          <TabsTrigger value="compat" className="gap-1.5"><CheckCircle className="h-4 w-4" /> Compatibilité</TabsTrigger>
           <TabsTrigger value="samsung" className="gap-1.5"><Tv className="h-4 w-4" /> Samsung</TabsTrigger>
           <TabsTrigger value="lg" className="gap-1.5"><Tv className="h-4 w-4" /> LG</TabsTrigger>
           <TabsTrigger value="philips" className="gap-1.5"><Monitor className="h-4 w-4" /> Philips</TabsTrigger>
@@ -281,6 +420,10 @@ export default function ScreenSetup() {
 
         <TabsContent value="ai">
           <AIGuideTab />
+        </TabsContent>
+
+        <TabsContent value="compat">
+          <CompatibilityTab />
         </TabsContent>
 
         <TabsContent value="samsung">
