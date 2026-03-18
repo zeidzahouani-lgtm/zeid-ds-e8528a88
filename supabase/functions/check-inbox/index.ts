@@ -397,6 +397,61 @@ function parseScreenFromText(input: string): string | null {
   return null;
 }
 
+/**
+ * Parse schedule/duration directives from email text. Supported formats:
+ * [durée:30min], [duree:2h], [durée:1h30], [debut:2025-03-20 14:00], [fin:2025-03-20 18:00], [statut:actif]
+ */
+function parseScheduleFromText(input: string): {
+  start_time?: string;
+  end_time?: string;
+  status?: string;
+} {
+  if (!input) return {};
+  const text = input.replace(/\r?\n/g, " ").trim();
+  const result: { start_time?: string; end_time?: string; status?: string } = {};
+
+  // Parse duration: [durée:30min], [duree:2h], [durée:1h30]
+  const durationMatch = text.match(/\[(?:dur[eéè]+e?)\s*[:=]\s*(\d+)\s*(min|h|heure|heures?)(?:(\d+)\s*(?:min)?)?\]/i);
+  if (durationMatch) {
+    const now = new Date();
+    result.start_time = now.toISOString();
+    let totalMinutes = 0;
+    if (durationMatch[2].startsWith("h")) {
+      totalMinutes = parseInt(durationMatch[1]) * 60;
+      if (durationMatch[3]) totalMinutes += parseInt(durationMatch[3]);
+    } else {
+      totalMinutes = parseInt(durationMatch[1]);
+    }
+    result.end_time = new Date(now.getTime() + totalMinutes * 60000).toISOString();
+    result.status = "active";
+  }
+
+  // Parse explicit start: [debut:2025-03-20 14:00] or [début:...]
+  const startMatch = text.match(/\[(?:d[eéè]but|start)\s*[:=]\s*([^\]]+)\]/i);
+  if (startMatch) {
+    const d = new Date(startMatch[1].trim());
+    if (!isNaN(d.getTime())) result.start_time = d.toISOString();
+  }
+
+  // Parse explicit end: [fin:2025-03-20 18:00] or [end:...]
+  const endMatch = text.match(/\[(?:fin|end)\s*[:=]\s*([^\]]+)\]/i);
+  if (endMatch) {
+    const d = new Date(endMatch[1].trim());
+    if (!isNaN(d.getTime())) result.end_time = d.toISOString();
+  }
+
+  // Parse status: [statut:actif]
+  const statusMatch = text.match(/\[(?:statut|status)\s*[:=]\s*(actif|active|programm[eéè]+|scheduled|pending|en attente)\]/i);
+  if (statusMatch) {
+    const s = statusMatch[1].toLowerCase();
+    if (s === "actif" || s === "active") result.status = "active";
+    else if (s.startsWith("programm") || s === "scheduled") result.status = "scheduled";
+    else result.status = "pending";
+  }
+
+  return result;
+}
+
 async function resolveScreenId(supabase: any, screenName: string): Promise<string | null> {
   const normalizedName = screenName.toLowerCase().trim();
   
@@ -649,25 +704,38 @@ serve(async (req) => {
         // Auto-create content for image/video attachments
         let contentId: string | null = null;
         if (attachmentUrls.length > 0) {
-          // Clean title (remove screen tag from subject)
+          // Clean title (remove all tags from subject)
            let cleanTitle = (subject || `Email de ${fromName || fromEmail}`)
-             .replace(/\[(?:ecran|écran|screen)\s*[:=][^\]]+\]/gi, "")
+             .replace(/\[(?:ecran|écran|screen|dur[eéè]+e?|d[eéè]but|start|fin|end|statut|status)\s*[:=][^\]]+\]/gi, "")
              .replace(/(?:^|\s)(?:ecran|écran|screen)\s*[:=]\s*[^,;\r\n]+/gi, "")
              .trim();
           if (!cleanTitle) cleanTitle = `Email de ${fromName || fromEmail}`;
 
+          // Parse schedule/duration from subject + body
+          const scheduleFromSubject = parseScheduleFromText(subject || "");
+          const scheduleFromBody = parseScheduleFromText(bodyText || "");
+          const schedule = {
+            ...scheduleFromBody,
+            ...scheduleFromSubject, // subject takes priority
+          };
+
           const insertData: Record<string, unknown> = {
             image_url: attachmentUrls[0],
             title: cleanTitle,
-            status: "pending",
+            status: schedule.status || "pending",
             source: "email",
             sender_email: fromEmail,
           };
+
+          if (schedule.start_time) insertData.start_time = schedule.start_time;
+          if (schedule.end_time) insertData.end_time = schedule.end_time;
 
           // Assign screen if found
           if (screenId) {
             insertData.screen_id = screenId;
           }
+
+          console.log(`📅 Schedule parsed: status=${schedule.status || "pending"}, start=${schedule.start_time || "none"}, end=${schedule.end_time || "none"}`);
 
           const { data: contentData, error: contentError } = await supabase.from("contents").insert(insertData).select().single();
 
