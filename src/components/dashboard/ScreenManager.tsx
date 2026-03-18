@@ -35,8 +35,23 @@ const getOrientationPreview = (orientation: string): OrientationPreview =>
 function parseUserAgent(ua: string | null): { device: string; icon: React.ReactNode } {
   if (!ua) return { device: "Inconnu", icon: <Monitor className="h-3 w-3" /> };
   const lower = ua.toLowerCase();
+  // Smart TVs
+  if (lower.includes("webos") || lower.includes("lgwebos") || lower.includes("lg netcast"))
+    return { device: "LG WebOS", icon: <Tv className="h-3 w-3" /> };
+  if (lower.includes("tizen") || lower.includes("samsung"))
+    return { device: "Samsung Tizen", icon: <Tv className="h-3 w-3" /> };
+  if (lower.includes("philips") || lower.includes("nettv") || lower.includes("saphi"))
+    return { device: "Philips", icon: <Tv className="h-3 w-3" /> };
+  if (lower.includes("android tv") || lower.includes("androidtv") || lower.includes("googletv"))
+    return { device: "Android TV", icon: <Tv className="h-3 w-3" /> };
+  if (lower.includes("firetv") || lower.includes("fire tv") || lower.includes("silk") && lower.includes("fire"))
+    return { device: "Fire TV", icon: <Tv className="h-3 w-3" /> };
+  if (lower.includes("chromecast") || lower.includes("crkey"))
+    return { device: "Chromecast", icon: <Tv className="h-3 w-3" /> };
+  // Mobile / Tablet
   if (/iphone|android.*mobile/.test(lower)) return { device: "Mobile", icon: <Smartphone className="h-3 w-3" /> };
   if (/ipad|android(?!.*mobile)|tablet/.test(lower)) return { device: "Tablette", icon: <Tablet className="h-3 w-3" /> };
+  // Desktop browsers
   let browser = "Navigateur";
   if (lower.includes("chrome") && !lower.includes("edg")) browser = "Chrome";
   else if (lower.includes("firefox")) browser = "Firefox";
@@ -45,7 +60,7 @@ function parseUserAgent(ua: string | null): { device: string; icon: React.ReactN
   let os = "";
   if (lower.includes("windows")) os = "Windows";
   else if (lower.includes("mac os")) os = "Mac";
-  else if (lower.includes("linux")) os = "Linux";
+  else if (lower.includes("linux") && !lower.includes("android")) os = "Linux";
   return { device: os ? `${browser} / ${os}` : browser, icon: <Laptop className="h-3 w-3" /> };
 }
 
