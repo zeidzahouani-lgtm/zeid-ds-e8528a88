@@ -5,31 +5,76 @@ interface ClockWidgetProps {
     format?: "12h" | "24h";
     showDate?: boolean;
     showSeconds?: boolean;
+    gmtOffset?: number;
   };
 }
+
+export const GMT_OFFSETS = [
+  { value: -12, label: "GMT-12" },
+  { value: -11, label: "GMT-11" },
+  { value: -10, label: "GMT-10 (Hawaii)" },
+  { value: -9, label: "GMT-9 (Alaska)" },
+  { value: -8, label: "GMT-8 (Los Angeles)" },
+  { value: -7, label: "GMT-7 (Denver)" },
+  { value: -6, label: "GMT-6 (Chicago)" },
+  { value: -5, label: "GMT-5 (New York)" },
+  { value: -4, label: "GMT-4 (Santiago)" },
+  { value: -3, label: "GMT-3 (São Paulo)" },
+  { value: -2, label: "GMT-2" },
+  { value: -1, label: "GMT-1 (Açores)" },
+  { value: 0, label: "GMT+0 (Londres, Casablanca)" },
+  { value: 1, label: "GMT+1 (Paris, Alger)" },
+  { value: 2, label: "GMT+2 (Le Caire)" },
+  { value: 3, label: "GMT+3 (Riyad, Moscou)" },
+  { value: 3.5, label: "GMT+3:30 (Téhéran)" },
+  { value: 4, label: "GMT+4 (Dubaï)" },
+  { value: 5, label: "GMT+5 (Karachi)" },
+  { value: 5.5, label: "GMT+5:30 (Mumbai)" },
+  { value: 6, label: "GMT+6 (Dacca)" },
+  { value: 7, label: "GMT+7 (Bangkok)" },
+  { value: 8, label: "GMT+8 (Pékin, Singapour)" },
+  { value: 9, label: "GMT+9 (Tokyo)" },
+  { value: 10, label: "GMT+10 (Sydney)" },
+  { value: 11, label: "GMT+11" },
+  { value: 12, label: "GMT+12 (Auckland)" },
+];
 
 export default function ClockWidget({ config }: ClockWidgetProps) {
   const [now, setNow] = useState(new Date());
   const format = config?.format || "24h";
   const showDate = config?.showDate !== false;
   const showSeconds = config?.showSeconds !== false;
+  const gmtOffset = config?.gmtOffset;
 
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
 
-  const hours = format === "12h" ? now.getHours() % 12 || 12 : now.getHours();
-  const mins = String(now.getMinutes()).padStart(2, "0");
-  const secs = String(now.getSeconds()).padStart(2, "0");
-  const ampm = format === "12h" ? (now.getHours() >= 12 ? "PM" : "AM") : "";
+  // Compute adjusted time based on GMT offset
+  const getAdjustedDate = () => {
+    if (gmtOffset === undefined || gmtOffset === null) return now;
+    const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+    return new Date(utc + gmtOffset * 3600000);
+  };
 
-  const dateStr = now.toLocaleDateString("fr-FR", {
+  const adjusted = getAdjustedDate();
+
+  const hours = format === "12h" ? adjusted.getHours() % 12 || 12 : adjusted.getHours();
+  const mins = String(adjusted.getMinutes()).padStart(2, "0");
+  const secs = String(adjusted.getSeconds()).padStart(2, "0");
+  const ampm = format === "12h" ? (adjusted.getHours() >= 12 ? "PM" : "AM") : "";
+
+  const dateStr = adjusted.toLocaleDateString("fr-FR", {
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
   });
+
+  const offsetLabel = gmtOffset !== undefined && gmtOffset !== null
+    ? `GMT${gmtOffset >= 0 ? "+" : ""}${gmtOffset % 1 === 0 ? gmtOffset : gmtOffset.toFixed(1).replace(".", ":")}`
+    : null;
 
   return (
     <div className="flex flex-col items-center justify-center h-full w-full bg-black/80 text-white p-4">
@@ -38,6 +83,9 @@ export default function ClockWidget({ config }: ClockWidgetProps) {
         {showSeconds && <span className="text-2xl opacity-70">:{secs}</span>}
         {ampm && <span className="text-lg ml-2 opacity-70">{ampm}</span>}
       </div>
+      {offsetLabel && (
+        <p className="text-[10px] opacity-50 mt-0.5 font-mono">{offsetLabel}</p>
+      )}
       {showDate && (
         <p className="text-sm opacity-60 mt-2 capitalize">{dateStr}</p>
       )}
