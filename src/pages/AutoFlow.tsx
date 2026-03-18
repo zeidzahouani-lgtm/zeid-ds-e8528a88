@@ -230,6 +230,75 @@ export default function AutoFlow() {
     }
   };
 
+  const handleImportToLibraryAndAssign = async () => {
+    if (!libraryImportEmail) return;
+
+    if (!libraryImportEmail.attachment_urls?.length) {
+      toast.error("Cet email n'a aucune pièce jointe");
+      return;
+    }
+
+    if (!targetScreenId) {
+      toast.error("Veuillez choisir un écran");
+      return;
+    }
+
+    setAssigningLibrary(true);
+    try {
+      const selectedScreen = screens?.find((s: any) => s.id === targetScreenId);
+      if (!selectedScreen) throw new Error("Écran introuvable");
+
+      const attachmentUrl = libraryImportEmail.attachment_urls[0];
+      const fileNameRaw = attachmentUrl.split("/").pop()?.split("?")[0] || `email_${Date.now()}.jpg`;
+      const fileName = decodeURIComponent(fileNameRaw);
+      const mediaType = /\.(mp4|webm|mov|m4v|avi)$/i.test(fileName) ? "video" : "image";
+
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData.user) throw new Error("Session expirée, reconnectez-vous");
+
+      const { data: insertedMedia, error: mediaError } = await (supabase.from("media") as any)
+        .insert({
+          name: fileName,
+          type: mediaType,
+          url: attachmentUrl,
+          duration: mediaType === "image" ? 10 : 30,
+          user_id: authData.user.id,
+          establishment_id: selectedScreen.establishment_id || null,
+        })
+        .select("id")
+        .single();
+
+      if (mediaError) throw mediaError;
+
+      const { error: screenError } = await (supabase.from("screens") as any)
+        .update({
+          current_media_id: insertedMedia.id,
+          layout_id: null,
+          playlist_id: null,
+          program_id: null,
+        })
+        .eq("id", targetScreenId);
+
+      if (screenError) throw screenError;
+
+      await (supabase.from("inbox_emails") as any)
+        .update({ is_processed: true })
+        .eq("id", libraryImportEmail.id);
+
+      toast.success(`PJ importée dans la Bibliothèque et assignée à l'écran ${selectedScreen.name}`);
+
+      setLibraryImportEmail(null);
+      setTargetScreenId("");
+      queryClient.invalidateQueries({ queryKey: ["media"] });
+      queryClient.invalidateQueries({ queryKey: ["screens"] });
+      queryClient.invalidateQueries({ queryKey: ["inbox_emails"] });
+    } catch (e: any) {
+      toast.error("Erreur: " + (e.message || "Import impossible"));
+    } finally {
+      setAssigningLibrary(false);
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center gap-3 mb-1">
