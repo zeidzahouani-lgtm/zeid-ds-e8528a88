@@ -6,6 +6,7 @@ interface FixedTextWidgetProps {
     backgroundColor?: string;
     textAlign?: "left" | "center" | "right";
     fontWeight?: string;
+    transparentBg?: boolean;
   };
 }
 
