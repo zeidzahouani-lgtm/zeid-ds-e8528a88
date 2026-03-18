@@ -1060,9 +1060,116 @@ export default function LayoutEditor() {
                       <div className="space-y-2 border-t border-border pt-3">
                         <p className="text-xs font-medium">Configuration QR Code</p>
                         <div>
-                          <label className="text-xs text-muted-foreground">URL</label>
-                          <Input value={(selectedRegion as any).widget_config?.url || ""} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, url: e.target.value } } as any)} className="h-8 text-sm mt-1" />
+                          <label className="text-xs text-muted-foreground">Type de QR Code</label>
+                          <Select value={(selectedRegion as any).widget_config?.qrType || "url"} onValueChange={(v) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, qrType: v } } as any)}>
+                            <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {QR_CODE_TYPES.map((t) => (
+                                <SelectItem key={t.value} value={t.value}>{t.label} — {t.description}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
+
+                        {/* URL */}
+                        {((selectedRegion as any).widget_config?.qrType || "url") === "url" && (
+                          <div>
+                            <label className="text-xs text-muted-foreground">URL</label>
+                            <Input value={(selectedRegion as any).widget_config?.url || ""} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, url: e.target.value } } as any)} className="h-8 text-sm mt-1" placeholder="https://..." />
+                          </div>
+                        )}
+
+                        {/* Location */}
+                        {(selectedRegion as any).widget_config?.qrType === "location" && (
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-xs text-muted-foreground">Latitude</label>
+                              <Input value={(selectedRegion as any).widget_config?.latitude || ""} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, latitude: e.target.value } } as any)} className="h-8 text-sm mt-1" placeholder="33.5731" />
+                            </div>
+                            <div>
+                              <label className="text-xs text-muted-foreground">Longitude</label>
+                              <Input value={(selectedRegion as any).widget_config?.longitude || ""} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, longitude: e.target.value } } as any)} className="h-8 text-sm mt-1" placeholder="-7.5898" />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Contact vCard */}
+                        {(selectedRegion as any).widget_config?.qrType === "contact" && (
+                          <div className="space-y-2">
+                            <div>
+                              <label className="text-xs text-muted-foreground">Nom complet</label>
+                              <Input value={(selectedRegion as any).widget_config?.contactName || ""} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, contactName: e.target.value } } as any)} className="h-8 text-sm mt-1" />
+                            </div>
+                            <div>
+                              <label className="text-xs text-muted-foreground">Téléphone</label>
+                              <Input value={(selectedRegion as any).widget_config?.contactPhone || ""} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, contactPhone: e.target.value } } as any)} className="h-8 text-sm mt-1" placeholder="+212..." />
+                            </div>
+                            <div>
+                              <label className="text-xs text-muted-foreground">Email</label>
+                              <Input value={(selectedRegion as any).widget_config?.contactEmail || ""} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, contactEmail: e.target.value } } as any)} className="h-8 text-sm mt-1" />
+                            </div>
+                            <div>
+                              <label className="text-xs text-muted-foreground">Organisation</label>
+                              <Input value={(selectedRegion as any).widget_config?.contactOrg || ""} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, contactOrg: e.target.value } } as any)} className="h-8 text-sm mt-1" />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* WiFi */}
+                        {(selectedRegion as any).widget_config?.qrType === "wifi" && (
+                          <div className="space-y-2">
+                            <div>
+                              <label className="text-xs text-muted-foreground">Nom du réseau (SSID)</label>
+                              <Input value={(selectedRegion as any).widget_config?.wifiSsid || ""} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, wifiSsid: e.target.value } } as any)} className="h-8 text-sm mt-1" />
+                            </div>
+                            <div>
+                              <label className="text-xs text-muted-foreground">Mot de passe</label>
+                              <Input value={(selectedRegion as any).widget_config?.wifiPassword || ""} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, wifiPassword: e.target.value } } as any)} className="h-8 text-sm mt-1" />
+                            </div>
+                            <div>
+                              <label className="text-xs text-muted-foreground">Chiffrement</label>
+                              <Select value={(selectedRegion as any).widget_config?.wifiEncryption || "WPA"} onValueChange={(v) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, wifiEncryption: v } } as any)}>
+                                <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="WPA">WPA/WPA2</SelectItem>
+                                  <SelectItem value="WEP">WEP</SelectItem>
+                                  <SelectItem value="nopass">Aucun</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Email */}
+                        {(selectedRegion as any).widget_config?.qrType === "email" && (
+                          <div className="space-y-2">
+                            <div>
+                              <label className="text-xs text-muted-foreground">Adresse email</label>
+                              <Input value={(selectedRegion as any).widget_config?.emailAddress || ""} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, emailAddress: e.target.value } } as any)} className="h-8 text-sm mt-1" />
+                            </div>
+                            <div>
+                              <label className="text-xs text-muted-foreground">Sujet</label>
+                              <Input value={(selectedRegion as any).widget_config?.emailSubject || ""} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, emailSubject: e.target.value } } as any)} className="h-8 text-sm mt-1" />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Phone */}
+                        {(selectedRegion as any).widget_config?.qrType === "phone" && (
+                          <div>
+                            <label className="text-xs text-muted-foreground">Numéro de téléphone</label>
+                            <Input value={(selectedRegion as any).widget_config?.phoneNumber || ""} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, phoneNumber: e.target.value } } as any)} className="h-8 text-sm mt-1" placeholder="+212..." />
+                          </div>
+                        )}
+
+                        {/* Free text */}
+                        {(selectedRegion as any).widget_config?.qrType === "text" && (
+                          <div>
+                            <label className="text-xs text-muted-foreground">Texte libre</label>
+                            <Input value={(selectedRegion as any).widget_config?.freeText || ""} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, freeText: e.target.value } } as any)} className="h-8 text-sm mt-1" />
+                          </div>
+                        )}
+
                         <div>
                           <label className="text-xs text-muted-foreground">Label</label>
                           <Input value={(selectedRegion as any).widget_config?.label || ""} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, label: e.target.value } } as any)} className="h-8 text-sm mt-1" />
