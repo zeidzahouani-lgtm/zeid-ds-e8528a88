@@ -72,7 +72,12 @@ export default function Layouts() {
                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => navigate(`/layouts/${layout.id}`)}>
                       <Edit className="h-3.5 w-3.5" />
                     </Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteLayout.mutate(layout.id)}>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => {
+                      deleteLayout.mutate(layout.id, {
+                        onSuccess: () => toast({ title: "Layout supprimé" }),
+                        onError: () => toast({ title: "Erreur", description: "Impossible de supprimer le layout.", variant: "destructive" }),
+                      });
+                    }}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
