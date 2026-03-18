@@ -364,18 +364,27 @@ export function ScreenManager() {
         </div>
       )}
 
-      {/* Playlist dialog */}
-      <Dialog open={!!playlistScreenId} onOpenChange={() => setPlaylistScreenId(null)}>
-        <DialogContent>
-          <DialogHeader>
+      {/* Live preview dialog */}
+      <Dialog open={!!previewScreen} onOpenChange={() => setPreviewScreen(null)}>
+        <DialogContent className="max-w-5xl w-[95vw] h-[80vh] flex flex-col p-0">
+          <DialogHeader className="px-6 pt-6 pb-2">
             <DialogTitle className="flex items-center gap-2">
-              <ListMusic className="h-5 w-5" /> Playlist
+              <Eye className="h-5 w-5" /> Aperçu en temps réel
             </DialogTitle>
             <DialogDescription>
-              {screens.find((s) => s.id === playlistScreenId)?.name}
+              {previewScreen?.name} — Ce que l'écran affiche actuellement
             </DialogDescription>
           </DialogHeader>
-          {playlistScreenId && <PlaylistPanel screenId={playlistScreenId} media={media} />}
+          <div className="flex-1 px-6 pb-6 min-h-0">
+            {previewScreen && (
+              <iframe
+                src={`/player/${previewScreen.slug || previewScreen.id}?preview=1`}
+                className="w-full h-full rounded-lg border border-border bg-black"
+                title={`Aperçu - ${previewScreen.name}`}
+                allow="autoplay"
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
