@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from "react";
-import { Monitor, Smartphone, Tv, Copy, CheckCheck, ExternalLink, Pencil, Check, X, Bot, Send, Loader2, CheckCircle, AlertTriangle, HelpCircle } from "lucide-react";
+import { Monitor, Smartphone, Tv, Copy, CheckCheck, ExternalLink, Pencil, Check, X, Bot, Send, Loader2, CheckCircle, AlertTriangle, HelpCircle, Bug } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,7 @@ import ReactMarkdown from "react-markdown";
 
 const playerUrl = window.location.origin + "/player/";
 
-function CopyButton({ text }: { text: string }) {
+function CopyButton({ text, label, icon }: { text: string; label?: string; icon?: React.ReactNode }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
     navigator.clipboard.writeText(text);
@@ -21,8 +21,8 @@ function CopyButton({ text }: { text: string }) {
   };
   return (
     <Button variant="outline" size="sm" onClick={copy} className="gap-1.5">
-      {copied ? <CheckCheck className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-      {copied ? "Copié" : "Copier"}
+      {copied ? <CheckCheck className="h-3.5 w-3.5" /> : (icon || <Copy className="h-3.5 w-3.5" />)}
+      {copied ? "Copié" : (label || "Copier")}
     </Button>
   );
 }
@@ -100,6 +100,7 @@ function ScreenRow({ screen, updateScreen }: { screen: any; updateScreen: any })
         <Button variant="ghost" size="sm"><ExternalLink className="h-3.5 w-3.5" /></Button>
       </a>
       <CopyButton text={url} />
+      <CopyButton text={url + "?debug=1"} label="Debug" icon={<Bug className="h-3.5 w-3.5" />} />
     </div>
   );
 }
