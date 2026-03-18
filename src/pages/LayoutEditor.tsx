@@ -948,20 +948,76 @@ export default function LayoutEditor() {
                       <div className="space-y-2 border-t border-border pt-3">
                         <p className="text-xs font-medium">Configuration Météo</p>
                         <div>
+                          <label className="text-xs text-muted-foreground">Pays</label>
+                          <Select value={(selectedRegion as any).widget_config?.country || "FR"} onValueChange={(v) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, country: v } } as any)}>
+                            <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {COUNTRY_LIST.map((c) => (
+                                <SelectItem key={c.code} value={c.code}>{c.flag} {c.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
                           <label className="text-xs text-muted-foreground">Ville</label>
                           <Input value={(selectedRegion as any).widget_config?.city || "Paris"} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, city: e.target.value } } as any)} className="h-8 text-sm mt-1" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Température (°C)</label>
+                          <Input type="number" value={(selectedRegion as any).widget_config?.temperature ?? 22} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, temperature: +e.target.value } } as any)} className="h-8 text-sm mt-1" />
                         </div>
                         <div>
                           <label className="text-xs text-muted-foreground">Condition</label>
                           <Select value={(selectedRegion as any).widget_config?.condition || "sunny"} onValueChange={(v) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, condition: v } } as any)}>
                             <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="sunny">Ensoleillé</SelectItem>
-                              <SelectItem value="cloudy">Nuageux</SelectItem>
-                              <SelectItem value="rainy">Pluvieux</SelectItem>
-                              <SelectItem value="snowy">Neigeux</SelectItem>
+                              <SelectItem value="sunny">☀️ Ensoleillé</SelectItem>
+                              <SelectItem value="cloudy">☁️ Nuageux</SelectItem>
+                              <SelectItem value="rainy">🌧️ Pluvieux</SelectItem>
+                              <SelectItem value="snowy">❄️ Neigeux</SelectItem>
                             </SelectContent>
                           </Select>
+                        </div>
+                      </div>
+                    )}
+
+                    {(selectedRegion as any).widget_type === "clock" && (
+                      <div className="space-y-2 border-t border-border pt-3">
+                        <p className="text-xs font-medium">Configuration Horloge</p>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Format</label>
+                          <Select value={(selectedRegion as any).widget_config?.format || "24h"} onValueChange={(v) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, format: v } } as any)}>
+                            <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="24h">24h</SelectItem>
+                              <SelectItem value="12h">12h (AM/PM)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Fuseau horaire (GMT)</label>
+                          <Select
+                            value={(selectedRegion as any).widget_config?.gmtOffset !== null && (selectedRegion as any).widget_config?.gmtOffset !== undefined ? String((selectedRegion as any).widget_config.gmtOffset) : "local"}
+                            onValueChange={(v) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, gmtOffset: v === "local" ? null : parseFloat(v) } } as any)}
+                          >
+                            <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="local">🖥️ Heure locale</SelectItem>
+                              {GMT_OFFSETS.map((o) => (
+                                <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <label className="text-xs text-muted-foreground flex items-center gap-2">
+                            <input type="checkbox" checked={(selectedRegion as any).widget_config?.showDate !== false} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, showDate: e.target.checked } } as any)} />
+                            Date
+                          </label>
+                          <label className="text-xs text-muted-foreground flex items-center gap-2">
+                            <input type="checkbox" checked={(selectedRegion as any).widget_config?.showSeconds !== false} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, showSeconds: e.target.checked } } as any)} />
+                            Secondes
+                          </label>
                         </div>
                       </div>
                     )}
