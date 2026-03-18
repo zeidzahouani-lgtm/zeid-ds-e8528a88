@@ -13,7 +13,7 @@ import { usePlaylistItems } from "@/hooks/usePlaylistItems";
 import { usePlaylists } from "@/hooks/usePlaylists";
 import { usePrograms } from "@/hooks/usePrograms";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
