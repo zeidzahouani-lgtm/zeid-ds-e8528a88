@@ -16,6 +16,9 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import WidgetRenderer from "@/components/widgets/WidgetRenderer";
+import { COUNTRY_LIST } from "@/components/widgets/WeatherWidget";
+import { GMT_OFFSETS } from "@/components/widgets/ClockWidget";
+import { QR_CODE_TYPES, type QRCodeType } from "@/components/widgets/QRCodeWidget";
 
 type DragMode = "move" | "resize" | null;
 
