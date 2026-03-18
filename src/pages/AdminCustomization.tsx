@@ -335,7 +335,33 @@ export default function AdminCustomization() {
           </CardContent>
         </Card>
 
-        {/* AI Configuration - Full Width */}
+        {/* Signature on Player */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Monitor className="h-4 w-4 text-primary icon-neon" />
+              Signature sur les écrans
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Afficher "ScreenFlow by Dravox" sur le contenu</Label>
+                <p className="text-[10px] text-muted-foreground normal-case">La signature sera affichée discrètement en bas de l'écran pendant la diffusion</p>
+              </div>
+              <Switch
+                checked={showSignatureOnPlayer}
+                onCheckedChange={async (checked) => {
+                  setShowSignatureOnPlayer(checked);
+                  await upsertSetting("show_signature_on_player", checked ? "true" : "false");
+                  toast.success(checked ? "Signature activée sur les écrans" : "Signature désactivée sur les écrans");
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm">
