@@ -70,7 +70,8 @@ const SESSION_ID = generateSessionId();
 const HEARTBEAT_INTERVAL = 5000;
 const SESSION_TIMEOUT = 15000;
 
-export function useScreenRealtime(screenId: string | undefined) {
+export function useScreenRealtime(screenId: string | undefined, options?: { previewOnly?: boolean }) {
+  const previewOnly = options?.previewOnly ?? false;
   const [screen, setScreen] = useState<ScreenData | null>(null);
   const [media, setMedia] = useState<MediaData | null>(null);
   const [loading, setLoading] = useState(true);
