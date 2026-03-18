@@ -8,6 +8,7 @@ interface WeatherWidgetProps {
     temperature?: number;
     condition?: "sunny" | "cloudy" | "rainy" | "snowy";
     useRealtime?: boolean;
+    transparentBg?: boolean;
   };
 }
 
