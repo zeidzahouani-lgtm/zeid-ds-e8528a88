@@ -79,10 +79,21 @@ export function useLayouts() {
 
   const deleteLayout = useMutation({
     mutationFn: async (id: string) => {
-      // Unlink screens that reference this layout
-      await supabase.from("screens").update({ layout_id: null } as any).eq("layout_id", id);
-      const { error } = await supabase.from("layouts").delete().eq("id", id);
+      const { error: unlinkError } = await supabase
+        .from("screens")
+        .update({ layout_id: null } as any)
+        .eq("layout_id", id);
+      if (unlinkError) throw unlinkError;
+
+      const { data, error } = await supabase
+        .from("layouts")
+        .delete()
+        .eq("id", id)
+        .select("id")
+        .single();
+
       if (error) throw error;
+      if (!data) throw new Error("Suppression refusée: layout introuvable ou accès non autorisé.");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["layouts"] });
@@ -92,8 +103,15 @@ export function useLayouts() {
 
   const updateLayout = useMutation({
     mutationFn: async ({ id, ...updates }: { id: string; name?: string; width?: number; height?: number; background_color?: string; bg_type?: string; bg_image_url?: string | null; bg_image_fit?: string; bg_overlay_darken?: number; bg_overlay_blur?: number }) => {
-      const { error } = await supabase.from("layouts").update(updates as any).eq("id", id);
+      const { data, error } = await supabase
+        .from("layouts")
+        .update(updates as any)
+        .eq("id", id)
+        .select("id")
+        .single();
+
       if (error) throw error;
+      if (!data) throw new Error("Modification refusée: layout introuvable ou accès non autorisé.");
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["layouts"] }),
   });
@@ -133,16 +151,30 @@ export function useLayoutRegions(layoutId: string | undefined) {
 
   const updateRegion = useMutation({
     mutationFn: async ({ id, ...updates }: { id: string; x?: number; y?: number; width?: number; height?: number; name?: string; media_id?: string | null; z_index?: number; widget_type?: string | null; widget_config?: any }) => {
-      const { error } = await supabase.from("layout_regions").update(updates).eq("id", id);
+      const { data, error } = await supabase
+        .from("layout_regions")
+        .update(updates)
+        .eq("id", id)
+        .select("id")
+        .single();
+
       if (error) throw error;
+      if (!data) throw new Error("Modification refusée: zone introuvable ou accès non autorisé.");
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["layout_regions", layoutId] }),
   });
 
   const deleteRegion = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("layout_regions").delete().eq("id", id);
+      const { data, error } = await supabase
+        .from("layout_regions")
+        .delete()
+        .eq("id", id)
+        .select("id")
+        .single();
+
       if (error) throw error;
+      if (!data) throw new Error("Suppression refusée: zone introuvable ou accès non autorisé.");
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["layout_regions", layoutId] }),
   });
