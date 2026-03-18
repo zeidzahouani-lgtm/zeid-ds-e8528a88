@@ -73,16 +73,21 @@ const SESSION_TIMEOUT = 15000;
 export function useScreenRealtime(screenId: string | undefined) {
   const [screen, setScreen] = useState<ScreenData | null>(null);
   const [media, setMedia] = useState<MediaData | null>(null);
-  const [playlist, setPlaylist] = useState<PlaylistItem[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [sessionBlocked, setSessionBlocked] = useState(false);
+  const [playlistVersion, setPlaylistVersion] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
+
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
   const schedulesRef = useRef<ScheduleRow[]>([]);
   const realScreenIdRef = useRef<string | undefined>(undefined);
   const heartbeatRef = useRef<ReturnType<typeof setInterval>>();
-  // Keep a ref of screen to avoid resetting timer on heartbeat-only updates
   const screenRef = useRef<ScreenData | null>(null);
+  const playlistRef = useRef<PlaylistItem[]>([]);
+  const currentIndexRef = useRef(0);
+
+  // Keep currentIndexRef in sync
+  useEffect(() => { currentIndexRef.current = currentIndex; }, [currentIndex]);
 
   const fetchPlaylist = useCallback(async (screenData: ScreenData) => {
     if (screenData.playlist_id) {
@@ -129,13 +134,17 @@ export function useScreenRealtime(screenId: string | undefined) {
     []
   );
 
-  // Get effective duration for a playlist item (item override > media default > 10s)
   const getItemDuration = useCallback((pl: PlaylistItem[], idx: number): number => {
     if (pl.length === 0) return 0;
     const item = pl[idx % pl.length];
     if (!item) return 10;
-    // Use playlist_items.duration override if set, else media.duration, else 10
     return item.duration ?? item.media?.duration ?? 10;
+  }, []);
+
+  // Helper to update playlist and bump version (avoids array-ref issues)
+  const updatePlaylist = useCallback((pl: PlaylistItem[]) => {
+    playlistRef.current = pl;
+    setPlaylistVersion((v) => v + 1);
   }, []);
 
   useEffect(() => {
@@ -195,7 +204,7 @@ export function useScreenRealtime(screenId: string | undefined) {
         fetchPlaylist(screenData as ScreenData),
         fetchSchedules(screenData as ScreenData),
       ]);
-      setPlaylist(pl);
+      updatePlaylist(pl);
       schedulesRef.current = sch;
 
       if (screenData?.current_media_id && pl.length === 0) {
@@ -229,26 +238,31 @@ export function useScreenRealtime(screenId: string | undefined) {
     return () => { setOffline(); window.removeEventListener("beforeunload", setOffline); };
   }, [screenId, resolveMedia]);
 
-  // Playlist advancement timer — uses refs to avoid resetting on heartbeat updates
+  // Playlist advancement timer — only depends on playlistVersion and currentIndex
   useEffect(() => {
-    if (playlist.length <= 1) return;
-    const duration = getItemDuration(playlist, currentIndex) * 1000;
+    const pl = playlistRef.current;
+    if (pl.length <= 1) return;
+    const duration = getItemDuration(pl, currentIndex) * 1000;
     timerRef.current = setTimeout(() => {
       setCurrentIndex((prev) => {
-        const next = (prev + 1) % playlist.length;
-        resolveMedia(screenRef.current, playlist, next);
+        const next = (prev + 1) % pl.length;
+        resolveMedia(screenRef.current, pl, next);
         return next;
       });
     }, duration);
     return () => clearTimeout(timerRef.current);
-  }, [currentIndex, playlist, resolveMedia, getItemDuration]);
+  }, [currentIndex, playlistVersion, resolveMedia, getItemDuration]);
 
+  // Periodic schedule check
   useEffect(() => {
     if (!screenId) return;
-    const interval = setInterval(() => { resolveMedia(screenRef.current, playlist, currentIndex); }, 60_000);
+    const interval = setInterval(() => {
+      resolveMedia(screenRef.current, playlistRef.current, currentIndexRef.current);
+    }, 60_000);
     return () => clearInterval(interval);
-  }, [screenId, playlist, currentIndex, resolveMedia]);
+  }, [screenId, resolveMedia]);
 
+  // Realtime subscriptions
   useEffect(() => {
     const realId = realScreenIdRef.current;
     if (!realId) return;
@@ -257,16 +271,17 @@ export function useScreenRealtime(screenId: string | undefined) {
       .channel(`screen-${realId}`)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "screens", filter: `id=eq.${realId}` }, async (payload) => {
         const newData = payload.new as ScreenData;
-        const oldData = payload.old as Partial<ScreenData>;
+        // Compare against our stored ref (payload.old may be incomplete with default REPLICA IDENTITY)
+        const prev = screenRef.current;
 
-        const relevantChange =
-          newData.current_media_id !== oldData.current_media_id ||
-          newData.layout_id !== oldData.layout_id ||
-          newData.playlist_id !== oldData.playlist_id ||
-          newData.program_id !== oldData.program_id ||
-          newData.orientation !== oldData.orientation;
+        const relevantChange = !prev ||
+          newData.current_media_id !== prev.current_media_id ||
+          newData.layout_id !== prev.layout_id ||
+          newData.playlist_id !== prev.playlist_id ||
+          newData.program_id !== prev.program_id ||
+          newData.orientation !== prev.orientation;
 
-        // Always keep screen state fresh for UI fields
+        // Always keep screen state fresh
         setScreen(newData);
         screenRef.current = newData;
 
@@ -277,7 +292,7 @@ export function useScreenRealtime(screenId: string | undefined) {
           if (mediaData) setMedia(mediaData as MediaData);
         }
         const [pl, sch] = await Promise.all([fetchPlaylist(newData), fetchSchedules(newData)]);
-        setPlaylist(pl);
+        updatePlaylist(pl);
         schedulesRef.current = sch;
         setCurrentIndex(0);
         resolveMedia(newData, pl, 0);
@@ -286,7 +301,7 @@ export function useScreenRealtime(screenId: string | undefined) {
         const s = screenRef.current;
         if (!s) return;
         const pl = await fetchPlaylist(s);
-        setPlaylist(pl);
+        updatePlaylist(pl);
         setCurrentIndex(0);
         resolveMedia(s, pl, 0);
       })
@@ -295,15 +310,16 @@ export function useScreenRealtime(screenId: string | undefined) {
         if (!s) return;
         const sch = await fetchSchedules(s);
         schedulesRef.current = sch;
-        resolveMedia(s, playlist, currentIndex);
+        resolveMedia(s, playlistRef.current, currentIndexRef.current);
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [screen?.id, screen?.playlist_id, screen?.program_id, fetchPlaylist, fetchSchedules, resolveMedia]);
+  }, [screen?.id, screen?.playlist_id, screen?.program_id, fetchPlaylist, fetchSchedules, resolveMedia, updatePlaylist]);
 
-  const currentDuration = playlist.length > 0
-    ? getItemDuration(playlist, currentIndex)
+  const pl = playlistRef.current;
+  const currentDuration = pl.length > 0
+    ? getItemDuration(pl, currentIndex)
     : (media?.duration ?? 0);
 
   const forceTakeover = useCallback(async () => {
@@ -323,15 +339,20 @@ export function useScreenRealtime(screenId: string | undefined) {
     }, HEARTBEAT_INTERVAL);
     const s = screenRef.current;
     if (!s) return;
-    const [pl, sch] = await Promise.all([fetchPlaylist(s), fetchSchedules(s)]);
-    setPlaylist(pl);
+    const [newPl, sch] = await Promise.all([fetchPlaylist(s), fetchSchedules(s)]);
+    updatePlaylist(newPl);
     schedulesRef.current = sch;
-    if (s?.current_media_id && pl.length === 0) {
+    if (s?.current_media_id && newPl.length === 0) {
       const { data: mediaData } = await supabase.from("media").select("*").eq("id", s.current_media_id).single();
       if (mediaData) setMedia(mediaData as MediaData);
     }
-    resolveMedia(s, pl, 0);
-  }, [fetchPlaylist, fetchSchedules, resolveMedia]);
+    setCurrentIndex(0);
+    resolveMedia(s, newPl, 0);
+  }, [fetchPlaylist, fetchSchedules, resolveMedia, updatePlaylist]);
 
-  return { screen, media, loading, sessionBlocked, forceTakeover, playlistLength: playlist.length, currentIndex, currentDuration, layoutId: screen?.layout_id ?? null };
+  return {
+    screen, media, loading, sessionBlocked, forceTakeover,
+    playlistLength: playlistRef.current.length, currentIndex, currentDuration,
+    layoutId: screen?.layout_id ?? null,
+  };
 }
