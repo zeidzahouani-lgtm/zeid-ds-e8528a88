@@ -284,6 +284,10 @@ export default function ScreenSetup() {
           <AIGuideTab />
         </TabsContent>
 
+        <TabsContent value="compat">
+          <CompatibilityTab />
+        </TabsContent>
+
         <TabsContent value="samsung">
           <Card>
             <CardHeader>
