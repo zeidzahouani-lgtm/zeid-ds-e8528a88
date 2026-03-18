@@ -129,6 +129,7 @@ export function ScreenManager() {
   const quotaReached = maxScreens != null && maxScreens > 0 && screens.length >= maxScreens;
   const [newName, setNewName] = useState("");
   const [playlistScreenId, setPlaylistScreenId] = useState<string | null>(null);
+  const [previewScreen, setPreviewScreen] = useState<{ id: string; slug: string | null; name: string } | null>(null);
 
   const handleAdd = async () => {
     if (!newName.trim()) return;
