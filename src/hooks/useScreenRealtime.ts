@@ -160,6 +160,35 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
       if (!screenData) { setLoading(false); return; }
       realScreenIdRef.current = screenData.id;
 
+      // ---- PREVIEW MODE: read-only, no session claim ----
+      if (previewOnly) {
+        setScreen(screenData as ScreenData);
+        screenRef.current = screenData as ScreenData;
+        setSessionBlocked(false);
+
+        const [pl, sch] = await Promise.all([
+          fetchPlaylist(screenData as ScreenData),
+          fetchSchedules(screenData as ScreenData),
+        ]);
+        updatePlaylist(pl);
+        schedulesRef.current = sch;
+
+        if (screenData.current_media_id && pl.length === 0) {
+          const { data: mediaData } = await supabase
+            .from("media")
+            .select("*")
+            .eq("id", screenData.current_media_id)
+            .single();
+          if (mediaData) setMedia(mediaData as MediaData);
+        }
+
+        setCurrentIndex(0);
+        resolveMedia(screenData as ScreenData, pl, 0);
+        setLoading(false);
+        return;
+      }
+
+      // ---- NORMAL MODE: claim session ----
       const userAgent = navigator.userAgent;
       const staleThreshold = new Date(Date.now() - SESSION_TIMEOUT).toISOString();
 
@@ -295,6 +324,9 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
 
     init();
 
+    // Preview mode: no offline cleanup needed
+    if (previewOnly) return;
+
     const setOffline = () => {
       const realId = realScreenIdRef.current;
       if (!realId) return;
@@ -313,7 +345,7 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
 
     window.addEventListener("beforeunload", setOffline);
     return () => { setOffline(); window.removeEventListener("beforeunload", setOffline); };
-  }, [screenId, resolveMedia]);
+  }, [screenId, previewOnly, resolveMedia]);
 
   // Playlist advancement timer — only depends on playlistVersion and currentIndex
   useEffect(() => {
