@@ -950,6 +950,69 @@ export default function AutoFlow() {
         </DialogContent>
       </Dialog>
 
+      {/* Import Library + Assign Dialog */}
+      <Dialog
+        open={!!libraryImportEmail}
+        onOpenChange={(open) => {
+          if (!open) {
+            setLibraryImportEmail(null);
+            setTargetScreenId("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Download className="h-5 w-5" />
+              Importer la PJ dans Bibliothèque
+            </DialogTitle>
+          </DialogHeader>
+
+          {libraryImportEmail && (
+            <div className="space-y-4">
+              <div className="text-sm text-muted-foreground">
+                Email: <span className="text-foreground font-medium">{libraryImportEmail.subject || "(Sans objet)"}</span>
+              </div>
+
+              {libraryImportEmail.attachment_urls?.[0] && (
+                <div className="rounded-lg border border-border overflow-hidden bg-muted/20">
+                  <img src={libraryImportEmail.attachment_urls[0]} alt="Aperçu PJ" className="w-full h-44 object-cover" />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Écran cible</label>
+                <Select value={targetScreenId} onValueChange={setTargetScreenId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choisir un écran" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(screens || []).map((screen: any) => (
+                      <SelectItem key={screen.id} value={screen.id}>
+                        {screen.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Cette action va importer la PJ dans la Bibliothèque puis l'afficher sur l'écran choisi.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => { setLibraryImportEmail(null); setTargetScreenId(""); }}>
+                  Annuler
+                </Button>
+                <Button onClick={handleImportToLibraryAndAssign} disabled={assigningLibrary || !targetScreenId} className="gap-2">
+                  {assigningLibrary ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  Importer et assigner
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Edit Dialog */}
       <EditContentDialog
         content={editContent}
