@@ -163,11 +163,34 @@ export default function AdminEmail() {
 
   return (
     <div className="space-y-6 animate-cyber-in">
-      <div>
-        <h1 className="text-2xl font-bold tracking-widest neon-glow-cyan text-primary">Configuration Email</h1>
-        <p className="text-muted-foreground text-sm mt-1 normal-case tracking-normal">
-          Configurez les serveurs IMAP et SMTP pour l'import automatique de contenus par email
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-widest neon-glow-cyan text-primary">Configuration Email</h1>
+          <p className="text-muted-foreground text-sm mt-1 normal-case tracking-normal">
+            Configurez les serveurs IMAP et SMTP pour l'import automatique de contenus par email
+          </p>
+        </div>
+        <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card">
+          <Switch
+            checked={config.auto_import}
+            onCheckedChange={async (v) => {
+              setConfig({ ...config, auto_import: v });
+              await upsertSetting("email_auto_import", String(v));
+              toast.success(v ? "Système email activé" : "Système email désactivé");
+            }}
+          />
+          <div className="flex items-center gap-2">
+            {config.auto_import ? (
+              <Badge className="bg-green-500/20 text-green-400 border-green-500/30 gap-1">
+                <CheckCircle className="h-3 w-3" /> Actif
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="gap-1 text-muted-foreground">
+                <XCircle className="h-3 w-3" /> Inactif
+              </Badge>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -294,15 +317,6 @@ export default function AdminEmail() {
               <div className="space-y-2">
                 <Label className="text-xs uppercase tracking-wider text-muted-foreground">Email de l'expéditeur</Label>
                 <Input value={config.from_email} onChange={e => setConfig({ ...config, from_email: e.target.value })} placeholder="noreply@mondomaine.com" />
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/30">
-              <Switch checked={config.auto_import} onCheckedChange={v => setConfig({ ...config, auto_import: v })} />
-              <div>
-                <Label className="text-sm">Import automatique des pièces jointes</Label>
-                <p className="text-[10px] text-muted-foreground normal-case">
-                  Les images reçues par email seront automatiquement ajoutées au flux avec le statut "en attente"
-                </p>
               </div>
             </div>
           </CardContent>
