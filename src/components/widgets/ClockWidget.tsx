@@ -77,7 +77,7 @@ export default function ClockWidget({ config }: ClockWidgetProps) {
     : null;
 
   return (
-    <div className="flex flex-col items-center justify-center h-full w-full bg-black/80 text-white p-4">
+    <div className={`flex flex-col items-center justify-center h-full w-full text-white p-4 ${config?.transparentBg ? '' : 'bg-black/80'}`}>
       <div className="text-4xl font-bold font-mono tracking-wider">
         {String(hours).padStart(2, "0")}:{mins}
         {showSeconds && <span className="text-2xl opacity-70">:{secs}</span>}
