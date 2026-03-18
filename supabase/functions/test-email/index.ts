@@ -5,113 +5,157 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-async function testImplicitTls(host: string, port: number, expectedPattern: RegExp, label: string): Promise<Response> {
-  try {
-    const conn = await Deno.connectTls({ hostname: host, port });
-    const buf = new Uint8Array(2048);
-    const n = await conn.read(buf);
-    const greeting = n ? new TextDecoder().decode(buf.subarray(0, n)) : "";
-    conn.close();
-
-    const success = expectedPattern.test(greeting);
-    return new Response(JSON.stringify({
-      success: true,
-      message: success
-        ? `Connexion ${label} réussie à ${host}:${port} (TLS). Réponse: ${greeting.trim().slice(0, 120)}`
-        : `Connexion TCP établie à ${host}:${port} mais réponse inattendue. Le serveur est joignable.`,
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch (e: any) {
-    return new Response(JSON.stringify({
-      success: false,
-      error: `Impossible de se connecter à ${host}:${port} (TLS) — ${e.message}`,
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+// --- OAuth2 helper: get access token via client credentials ---
+async function getOAuth2Token(tenantId: string, clientId: string, clientSecret: string): Promise<string> {
+  const url = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+  const body = new URLSearchParams({
+    grant_type: "client_credentials",
+    client_id: clientId,
+    client_secret: clientSecret,
+    scope: "https://outlook.office365.com/.default",
+  });
+  const resp = await fetch(url, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body });
+  const data = await resp.json();
+  if (!resp.ok || !data.access_token) {
+    throw new Error(data.error_description || data.error || "OAuth2 token request failed");
   }
+  return data.access_token;
 }
 
-async function testStartTls(host: string, port: number, label: string): Promise<Response> {
+function buildXOAuth2Token(user: string, accessToken: string): string {
+  const str = `user=${user}\x01auth=Bearer ${accessToken}\x01\x01`;
+  return btoa(str);
+}
+
+// --- Test with actual authentication ---
+async function testImapAuth(host: string, port: number, user: string, password: string, authMethod: string, oauthConfig?: { tenant_id: string; client_id: string; client_secret: string }): Promise<Response> {
   try {
-    // Step 1: Plain TCP connection
-    const conn = await Deno.connect({ hostname: host, port });
+    let conn: Deno.Conn;
+    if (port === 993) {
+      conn = await Deno.connectTls({ hostname: host, port });
+    } else {
+      conn = await Deno.connect({ hostname: host, port });
+    }
 
     const read = async (): Promise<string> => {
       const buf = new Uint8Array(4096);
       const n = await conn.read(buf);
       return n ? new TextDecoder().decode(buf.subarray(0, n)) : "";
     };
-    const write = async (cmd: string) => {
-      await conn.write(new TextEncoder().encode(cmd + "\r\n"));
+
+    let tagCounter = 0;
+    const cmd = async (command: string): Promise<string> => {
+      const tag = `T${++tagCounter}`;
+      await conn.write(new TextEncoder().encode(`${tag} ${command}\r\n`));
+      let response = "";
+      let attempts = 0;
+      while (attempts < 30) {
+        const chunk = await read();
+        response += chunk;
+        if (response.includes(`${tag} OK`) || response.includes(`${tag} NO`) || response.includes(`${tag} BAD`)) break;
+        attempts++;
+      }
+      return response;
     };
 
-    // Step 2: Read greeting
+    // Read greeting
     const greeting = await read();
-    if (!/220/.test(greeting)) {
+
+    let loginResp: string;
+    if (authMethod === "oauth2" && oauthConfig) {
+      // Get OAuth2 token and use XOAUTH2
+      const accessToken = await getOAuth2Token(oauthConfig.tenant_id, oauthConfig.client_id, oauthConfig.client_secret);
+      const xoauth2Token = buildXOAuth2Token(user, accessToken);
+      loginResp = await cmd(`AUTHENTICATE XOAUTH2 ${xoauth2Token}`);
+    } else {
+      loginResp = await cmd(`LOGIN "${user}" "${password}"`);
+    }
+
+    if (loginResp.includes("OK")) {
+      await cmd("LOGOUT");
       conn.close();
       return new Response(JSON.stringify({
+        success: true,
+        message: `Connexion IMAP réussie à ${host}:${port} (${authMethod === "oauth2" ? "OAuth2/XOAUTH2" : "mot de passe"}). Authentification validée ✅`,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    } else {
+      conn.close();
+      const detail = loginResp.trim().slice(0, 200);
+      return new Response(JSON.stringify({
         success: false,
-        error: `${label} greeting inattendu sur ${host}:${port}: ${greeting.trim().slice(0, 120)}`,
+        error: `Échec d'authentification IMAP sur ${host}:${port} (${authMethod === "oauth2" ? "OAuth2" : "basique"}). Réponse: ${detail}`,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-
-    // Step 3: Send EHLO
-    await write(`EHLO test.local`);
-    const ehloResp = await read();
-
-    // Step 4: Attempt STARTTLS
-    if (ehloResp.toUpperCase().includes("STARTTLS")) {
-      await write("STARTTLS");
-      const starttlsResp = await read();
-
-      if (/220/.test(starttlsResp)) {
-        // Step 5: Upgrade to TLS
-        const tlsConn = await Deno.startTls(conn, { hostname: host });
-        tlsConn.close();
-
-        return new Response(JSON.stringify({
-          success: true,
-          message: `Connexion ${label} réussie à ${host}:${port} (STARTTLS). Le serveur supporte le chiffrement.`,
-        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      } else {
-        conn.close();
-        return new Response(JSON.stringify({
-          success: false,
-          error: `STARTTLS refusé par ${host}:${port}: ${starttlsResp.trim().slice(0, 120)}`,
-        }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      }
-    }
-
-    // No STARTTLS but server responded — plain connection works
-    conn.close();
-    return new Response(JSON.stringify({
-      success: true,
-      message: `Connexion ${label} réussie à ${host}:${port} (non chiffré). STARTTLS non disponible.`,
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
     return new Response(JSON.stringify({
       success: false,
-      error: `Impossible de se connecter à ${host}:${port} (STARTTLS) — ${e.message}`,
+      error: `Erreur IMAP ${host}:${port} — ${e.message}`,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 }
 
-async function testPlain(host: string, port: number, expectedPattern: RegExp, label: string): Promise<Response> {
+async function testSmtpAuth(host: string, port: number, user: string, password: string, authMethod: string, oauthConfig?: { tenant_id: string; client_id: string; client_secret: string }): Promise<Response> {
   try {
-    const conn = await Deno.connect({ hostname: host, port });
-    const buf = new Uint8Array(2048);
-    const n = await conn.read(buf);
-    const greeting = n ? new TextDecoder().decode(buf.subarray(0, n)) : "";
-    conn.close();
+    let finalConn: Deno.Conn;
 
-    const success = expectedPattern.test(greeting);
-    return new Response(JSON.stringify({
-      success: true,
-      message: success
-        ? `Connexion ${label} réussie à ${host}:${port}. Réponse: ${greeting.trim().slice(0, 120)}`
-        : `Connexion TCP établie à ${host}:${port} mais réponse inattendue.`,
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (port === 465) {
+      finalConn = await Deno.connectTls({ hostname: host, port });
+    } else {
+      // STARTTLS for port 587/25
+      const tcpConn = await Deno.connect({ hostname: host, port });
+      const tcpRead = async () => { const buf = new Uint8Array(4096); const n = await tcpConn.read(buf); return n ? new TextDecoder().decode(buf.subarray(0, n)) : ""; };
+      const tcpWrite = async (cmd: string) => { await tcpConn.write(new TextEncoder().encode(cmd + "\r\n")); return await tcpRead(); };
+      
+      const greeting = await tcpRead();
+      if (!/220/.test(greeting)) {
+        tcpConn.close();
+        return new Response(JSON.stringify({ success: false, error: `SMTP greeting inattendu: ${greeting.trim().slice(0, 120)}` }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      
+      await tcpWrite("EHLO test.local");
+      const starttlsResp = await tcpWrite("STARTTLS");
+      if (/220/.test(starttlsResp)) {
+        finalConn = await Deno.startTls(tcpConn, { hostname: host });
+      } else {
+        // No STARTTLS, continue plain
+        finalConn = tcpConn as any;
+      }
+    }
+
+    const read = async () => { const buf = new Uint8Array(4096); const n = await finalConn.read(buf); return n ? new TextDecoder().decode(buf.subarray(0, n)) : ""; };
+    const write = async (cmd: string) => { await finalConn.write(new TextEncoder().encode(cmd + "\r\n")); return await read(); };
+
+    // Read greeting for 465 or post-STARTTLS
+    if (port === 465) await read();
+    await write("EHLO test.local");
+
+    let authResp: string;
+    if (authMethod === "oauth2" && oauthConfig) {
+      const accessToken = await getOAuth2Token(oauthConfig.tenant_id, oauthConfig.client_id, oauthConfig.client_secret);
+      const xoauth2Token = buildXOAuth2Token(user, accessToken);
+      authResp = await write(`AUTH XOAUTH2 ${xoauth2Token}`);
+    } else {
+      authResp = await write(`AUTH PLAIN ${btoa(`\0${user}\0${password}`)}`);
+    }
+
+    if (authResp.includes("235")) {
+      await write("QUIT");
+      finalConn.close();
+      return new Response(JSON.stringify({
+        success: true,
+        message: `Connexion SMTP réussie à ${host}:${port} (${authMethod === "oauth2" ? "OAuth2/XOAUTH2" : "mot de passe"}). Authentification validée ✅`,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    } else {
+      finalConn.close();
+      return new Response(JSON.stringify({
+        success: false,
+        error: `Échec d'authentification SMTP sur ${host}:${port} (${authMethod === "oauth2" ? "OAuth2" : "basique"}). Réponse: ${authResp.trim().slice(0, 200)}`,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
   } catch (e: any) {
     return new Response(JSON.stringify({
       success: false,
-      error: `Impossible de se connecter à ${host}:${port} — ${e.message}`,
+      error: `Erreur SMTP ${host}:${port} — ${e.message}`,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 }
@@ -128,34 +172,47 @@ serve(async (req) => {
       });
     }
 
+    const authMethod = config.auth_method || "basic";
+    const oauthConfig = authMethod === "oauth2" ? {
+      tenant_id: config.oauth_tenant_id,
+      client_id: config.oauth_client_id,
+      client_secret: config.oauth_client_secret,
+    } : undefined;
+
     if (type === "imap") {
       const host = config.imap_host;
       const port = parseInt(config.imap_port || "993");
-      if (!host) {
-        return new Response(JSON.stringify({ error: "Serveur IMAP non configuré" }), {
+      const user = config.imap_user;
+      const password = config.imap_password;
+      if (!host || !user) {
+        return new Response(JSON.stringify({ error: "Serveur IMAP ou utilisateur non configuré" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      // Port 993 = implicit TLS, others = plain
-      if (port === 993) {
-        return await testImplicitTls(host, port, /OK|\*/i, "IMAP");
+      if (authMethod === "oauth2" && (!oauthConfig?.tenant_id || !oauthConfig?.client_id || !oauthConfig?.client_secret)) {
+        return new Response(JSON.stringify({ error: "Configuration OAuth2 incomplète (Tenant ID, Client ID et Client Secret requis)" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
-      return await testPlain(host, port, /OK|\*/i, "IMAP");
+      return await testImapAuth(host, port, user, password, authMethod, oauthConfig);
     }
 
     if (type === "smtp") {
       const host = config.smtp_host;
       const port = parseInt(config.smtp_port || "587");
-      if (!host) {
-        return new Response(JSON.stringify({ error: "Serveur SMTP non configuré" }), {
+      const user = config.smtp_user;
+      const password = config.smtp_password;
+      if (!host || !user) {
+        return new Response(JSON.stringify({ error: "Serveur SMTP ou utilisateur non configuré" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      // Port 465 = implicit TLS, port 587/25 = STARTTLS
-      if (port === 465) {
-        return await testImplicitTls(host, port, /220/, "SMTP");
+      if (authMethod === "oauth2" && (!oauthConfig?.tenant_id || !oauthConfig?.client_id || !oauthConfig?.client_secret)) {
+        return new Response(JSON.stringify({ error: "Configuration OAuth2 incomplète (Tenant ID, Client ID et Client Secret requis)" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
-      return await testStartTls(host, port, "SMTP");
+      return await testSmtpAuth(host, port, user, password, authMethod, oauthConfig);
     }
 
     return new Response(JSON.stringify({ error: "Type invalide. Utilisez 'imap' ou 'smtp'" }), {

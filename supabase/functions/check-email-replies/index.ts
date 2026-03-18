@@ -28,15 +28,19 @@ serve(async (req) => {
     const imapPort = parseInt(cfg.email_imap_port || "993");
     const imapUser = cfg.email_imap_user;
     const imapPass = cfg.email_imap_password;
+    const authMethod = cfg.email_auth_method || "basic";
+    const oauthTenantId = cfg.email_oauth_tenant_id;
+    const oauthClientId = cfg.email_oauth_client_id;
+    const oauthClientSecret = cfg.email_oauth_client_secret;
 
-    if (!imapHost || !imapUser || !imapPass) {
+    if (!imapHost || !imapUser) {
       return new Response(JSON.stringify({ error: "IMAP not configured" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log(`📬 Connecting to IMAP ${imapHost}:${imapPort}...`);
+    console.log(`📬 Connecting to IMAP ${imapHost}:${imapPort} (auth: ${authMethod})...`);
 
     // Connect to IMAP
     let conn: Deno.Conn;
@@ -77,8 +81,30 @@ serve(async (req) => {
     // Read greeting
     await read();
 
-    // Login
-    const loginResp = await cmd(`LOGIN "${imapUser}" "${imapPass}"`);
+    // Login — OAuth2 or basic
+    let loginResp: string;
+    if (authMethod === "oauth2" && oauthTenantId && oauthClientId && oauthClientSecret) {
+      const tokenUrl = `https://login.microsoftonline.com/${oauthTenantId}/oauth2/v2.0/token`;
+      const tokenBody = new URLSearchParams({
+        grant_type: "client_credentials",
+        client_id: oauthClientId,
+        client_secret: oauthClientSecret,
+        scope: "https://outlook.office365.com/.default",
+      });
+      const tokenResp = await fetch(tokenUrl, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: tokenBody });
+      const tokenData = await tokenResp.json();
+      if (!tokenResp.ok || !tokenData.access_token) {
+        conn.close();
+        return new Response(JSON.stringify({ error: `OAuth2 token failed: ${tokenData.error_description || tokenData.error}` }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const xoauth2 = btoa(`user=${imapUser}\x01auth=Bearer ${tokenData.access_token}\x01\x01`);
+      loginResp = await cmd(`AUTHENTICATE XOAUTH2 ${xoauth2}`);
+    } else {
+      loginResp = await cmd(`LOGIN "${imapUser}" "${imapPass}"`);
+    }
+
     if (!loginResp.includes("OK")) {
       conn.close();
       return new Response(JSON.stringify({ error: "IMAP login failed", details: loginResp.slice(0, 200) }), {
