@@ -238,7 +238,7 @@ export default function AdminEmail() {
               </div>
             </button>
 
-            {/* Microsoft / Outlook */}
+            {/* Microsoft / Outlook (OAuth2) */}
             <button
               type="button"
               className="flex items-center gap-3 p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/60 hover:border-primary/30 transition-all text-left group"
@@ -251,16 +251,17 @@ export default function AdminEmail() {
                   smtp_host: "smtp.office365.com",
                   smtp_port: "587",
                   smtp_tls: true,
+                  auth_method: "oauth2",
                 }));
-                toast.success("Paramètres Microsoft pré-remplis. Entrez votre email et mot de passe.");
+                toast.success("Microsoft Exchange sélectionné. Renseignez les identifiants OAuth2 Azure AD ci-dessous.");
               }}
             >
               <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0 group-hover:bg-blue-500/20 transition-colors">
                 <Mail className="h-5 w-5 text-blue-400" />
               </div>
               <div>
-                <p className="font-medium text-sm">Microsoft 365 / Outlook</p>
-                <p className="text-[11px] text-muted-foreground normal-case">Outlook, Hotmail, Office 365</p>
+                <p className="font-medium text-sm">Microsoft Exchange / Outlook.com</p>
+                <p className="text-[11px] text-muted-foreground normal-case">OAuth2 — authentification moderne (recommandé)</p>
               </div>
             </button>
 
