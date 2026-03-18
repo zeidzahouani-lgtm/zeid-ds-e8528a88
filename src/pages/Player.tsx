@@ -616,8 +616,18 @@ export default function Player() {
 
   const rotationStyle = getOrientationStyle(screen.orientation);
 
+  var diagProps = {
+    screenId: screen.id, screenName: screen.name, screenStatus: screen.status,
+    mediaId: media ? media.id : null, mediaType: media ? media.type : null,
+    mediaUrl: media ? media.url : null, layoutId: layoutId,
+    playlistLength: playlistLength, currentIndex: currentIndex,
+    sessionBlocked: sessionBlocked, licenseValid: licenseValid,
+    orientation: screen.orientation,
+  };
+
   return (
     <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", inset: 0, overflow: "hidden", cursor: "none" }} onClick={requestFullscreen}>
+      {debugMode && <DiagnosticOverlay {...diagProps} />}
       <div style={{ width: "100%", height: "100%", transition: "transform 0.7s ease-in-out", ...rotationStyle }}>
         <div style={{ width: "100%", height: "100%", transition: "opacity 0.5s ease-in-out", opacity: visible ? 1 : 0 }}>
           {/* Fallback screen */}
