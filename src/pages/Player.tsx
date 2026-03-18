@@ -571,12 +571,12 @@ export default function Player() {
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>();
 
-  // License validation
-  const [licenseValid, setLicenseValid] = useState<boolean | null>(null);
+  // License validation (skip in preview mode)
+  const [licenseValid, setLicenseValid] = useState<boolean | null>(previewMode ? true : null);
   const [licenseMessage, setLicenseMessage] = useState("");
 
   useEffect(() => {
-    if (!screen?.id) return;
+    if (!screen?.id || previewMode) return;
 
     const checkLicense = () => {
       validateLicense(screen.id).then((result) => {
@@ -604,22 +604,24 @@ export default function Player() {
       clearInterval(interval);
       supabase.removeChannel(channel);
     };
-  }, [screen?.id, licenseValid]);
+  }, [screen?.id, licenseValid, previewMode]);
 
   const requestFullscreen = useCallback(() => {
+    if (previewMode) return; // No fullscreen in preview
     const el = containerRef.current;
     if (!el || document.fullscreenElement) return;
     try { el.requestFullscreen?.().catch(() => {}); } catch (_) {}
-  }, []);
+  }, [previewMode]);
 
   useEffect(() => {
+    if (previewMode) return; // No auto-fullscreen in preview
     const handler = () => {
       requestFullscreen();
       document.removeEventListener("click", handler);
     };
     document.addEventListener("click", handler);
     return () => document.removeEventListener("click", handler);
-  }, [requestFullscreen]);
+  }, [requestFullscreen, previewMode]);
 
   useEffect(() => {
     if (layoutId) return;
