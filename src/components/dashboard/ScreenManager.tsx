@@ -364,6 +364,21 @@ export function ScreenManager() {
         </div>
       )}
 
+      {/* Playlist dialog */}
+      <Dialog open={!!playlistScreenId} onOpenChange={() => setPlaylistScreenId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ListMusic className="h-5 w-5" /> Playlist
+            </DialogTitle>
+            <DialogDescription>
+              {screens.find((s) => s.id === playlistScreenId)?.name}
+            </DialogDescription>
+          </DialogHeader>
+          {playlistScreenId && <PlaylistPanel screenId={playlistScreenId} media={media} />}
+        </DialogContent>
+      </Dialog>
+
       {/* Live preview dialog */}
       <Dialog open={!!previewScreen} onOpenChange={() => setPreviewScreen(null)}>
         <DialogContent className="max-w-5xl w-[95vw] h-[80vh] flex flex-col p-0">
