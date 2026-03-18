@@ -19,9 +19,10 @@ export function PlaylistManager() {
   const [selectedPlaylist, setSelectedPlaylist] = useState<string>("");
   const [selectedMedia, setSelectedMedia] = useState<string>("");
   const [newName, setNewName] = useState("");
-  // Track local duration edits: { itemId: newDuration }
   const [durationEdits, setDurationEdits] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const { items, isLoading, addItem, removeItem, updateItemDuration } = usePlaylistItems(selectedPlaylist || undefined);
 
