@@ -561,7 +561,8 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Arra
 export default function Player() {
   const { id } = useParams<{ id: string }>();
   const debugMode = typeof window !== "undefined" && window.location.search.indexOf("debug=1") >= 0;
-  const { screen, media, loading, sessionBlocked, forceTakeover, playlistLength, currentIndex, currentDuration, layoutId } = useScreenRealtime(id);
+  const previewMode = typeof window !== "undefined" && window.location.search.indexOf("preview=1") >= 0;
+  const { screen, media, loading, sessionBlocked, forceTakeover, playlistLength, currentIndex, currentDuration, layoutId } = useScreenRealtime(id, { previewOnly: previewMode });
   const activeContents = useActiveContents(screen?.id);
   const branding = usePlayerBranding(screen?.id);
   const [visible, setVisible] = useState(true);
@@ -570,12 +571,12 @@ export default function Player() {
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>();
 
-  // License validation
-  const [licenseValid, setLicenseValid] = useState<boolean | null>(null);
+  // License validation (skip in preview mode)
+  const [licenseValid, setLicenseValid] = useState<boolean | null>(previewMode ? true : null);
   const [licenseMessage, setLicenseMessage] = useState("");
 
   useEffect(() => {
-    if (!screen?.id) return;
+    if (!screen?.id || previewMode) return;
 
     const checkLicense = () => {
       validateLicense(screen.id).then((result) => {
@@ -603,22 +604,24 @@ export default function Player() {
       clearInterval(interval);
       supabase.removeChannel(channel);
     };
-  }, [screen?.id, licenseValid]);
+  }, [screen?.id, licenseValid, previewMode]);
 
   const requestFullscreen = useCallback(() => {
+    if (previewMode) return; // No fullscreen in preview
     const el = containerRef.current;
     if (!el || document.fullscreenElement) return;
     try { el.requestFullscreen?.().catch(() => {}); } catch (_) {}
-  }, []);
+  }, [previewMode]);
 
   useEffect(() => {
+    if (previewMode) return; // No auto-fullscreen in preview
     const handler = () => {
       requestFullscreen();
       document.removeEventListener("click", handler);
     };
     document.addEventListener("click", handler);
     return () => document.removeEventListener("click", handler);
-  }, [requestFullscreen]);
+  }, [requestFullscreen, previewMode]);
 
   useEffect(() => {
     if (layoutId) return;
@@ -672,7 +675,7 @@ export default function Player() {
     );
   }
 
-  if (sessionBlocked) {
+  if (sessionBlocked && !previewMode) {
     return (
       <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, textAlign: "center", padding: 32 }}>
