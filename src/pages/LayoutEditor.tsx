@@ -105,7 +105,7 @@ const PRESETS: PresetTemplate[] = [
 
 const DEFAULT_WIDGET_CONFIGS: Record<string, any> = {
   clock: { format: "24h", showDate: true, showSeconds: true, gmtOffset: null },
-  weather: { city: "Paris", country: "FR", temperature: 22, condition: "sunny" },
+  weather: { city: "Paris", country: "FR", temperature: 22, condition: "sunny", useRealtime: true },
   marquee: { text: "Bienvenue ! Ceci est un message défilant.", speed: 80, backgroundColor: "#1a1a2e", textColor: "#ffffff", fontSize: 24 },
   fixedtext: { text: "Texte fixe", fontSize: 24, textColor: "#ffffff", backgroundColor: "transparent", textAlign: "center", fontWeight: "bold" },
   qrcode: { qrType: "url", url: "https://example.com", label: "Scannez-moi", bgColor: "#ffffff", fgColor: "#000000" },
