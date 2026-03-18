@@ -54,7 +54,20 @@ function getActiveScheduleMedia(schedules: ScheduleRow[]): MediaData | null {
   return null;
 }
 
-const SESSION_ID = crypto.randomUUID();
+// Polyfill for crypto.randomUUID (not available on LG WebOS, older Android)
+function generateSessionId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  // Fallback UUID v4
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+const SESSION_ID = generateSessionId();
 const HEARTBEAT_INTERVAL = 5000;
 const SESSION_TIMEOUT = 15000;
 
@@ -71,7 +84,6 @@ export function useScreenRealtime(screenId: string | undefined) {
   const heartbeatRef = useRef<ReturnType<typeof setInterval>>();
 
   const fetchPlaylist = useCallback(async (screenData: ScreenData) => {
-    // Fetch via playlist_id if set, else fallback to screen_id for backward compat
     if (screenData.playlist_id) {
       const { data } = await supabase
         .from("playlist_items")
@@ -80,7 +92,6 @@ export function useScreenRealtime(screenId: string | undefined) {
         .order("position", { ascending: true });
       return (data ?? []) as PlaylistItem[];
     }
-    // Fallback: legacy screen_id based items
     const { data } = await supabase
       .from("playlist_items")
       .select("*, media:media_id(id, name, type, url, duration)")
@@ -90,7 +101,6 @@ export function useScreenRealtime(screenId: string | undefined) {
   }, []);
 
   const fetchSchedules = useCallback(async (screenData: ScreenData) => {
-    // Fetch via program_id if set, else fallback to screen_id
     if (screenData.program_id) {
       const { data } = await supabase
         .from("schedules")
@@ -162,7 +172,9 @@ export function useScreenRealtime(screenId: string | undefined) {
       heartbeatRef.current = setInterval(async () => {
         const realId = realScreenIdRef.current;
         if (!realId) return;
-        await (supabase.from("screens").update({ player_heartbeat_at: new Date().toISOString() } as any) as any).eq("id", realId).eq("player_session_id", SESSION_ID);
+        try {
+          await (supabase.from("screens").update({ player_heartbeat_at: new Date().toISOString() } as any) as any).eq("id", realId).eq("player_session_id", SESSION_ID);
+        } catch (_) { /* ignore heartbeat errors on low-power devices */ }
       }, HEARTBEAT_INTERVAL);
 
       setScreen(screenData as ScreenData);
@@ -192,11 +204,13 @@ export function useScreenRealtime(screenId: string | undefined) {
       const apiKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/screens?id=eq.${realId}&player_session_id=eq.${SESSION_ID}&apikey=${apiKey}`;
       const body = JSON.stringify({ status: "offline", player_session_id: null, player_heartbeat_at: null, player_user_agent: null });
-      fetch(url, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'apikey': apiKey, 'Authorization': `Bearer ${apiKey}`, 'Prefer': 'return=minimal' },
-        body, keepalive: true,
-      }).catch(() => {});
+      try {
+        fetch(url, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'apikey': apiKey, 'Authorization': `Bearer ${apiKey}`, 'Prefer': 'return=minimal' },
+          body, keepalive: true,
+        }).catch(() => {});
+      } catch (_) { /* sendBeacon fallback not needed */ }
     };
 
     window.addEventListener("beforeunload", setOffline);
@@ -275,7 +289,9 @@ export function useScreenRealtime(screenId: string | undefined) {
     if (heartbeatRef.current) clearInterval(heartbeatRef.current);
     heartbeatRef.current = setInterval(async () => {
       if (!realScreenIdRef.current) return;
-      await (supabase.from("screens").update({ player_heartbeat_at: new Date().toISOString() } as any) as any).eq("id", realScreenIdRef.current).eq("player_session_id", SESSION_ID);
+      try {
+        await (supabase.from("screens").update({ player_heartbeat_at: new Date().toISOString() } as any) as any).eq("id", realScreenIdRef.current).eq("player_session_id", SESSION_ID);
+      } catch (_) {}
     }, HEARTBEAT_INTERVAL);
     if (!screen) return;
     const [pl, sch] = await Promise.all([fetchPlaylist(screen), fetchSchedules(screen)]);

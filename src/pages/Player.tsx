@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useScreenRealtime } from "@/hooks/useScreenRealtime";
-import { MonitorPlay, ShieldOff, KeyRound, QrCode, MonitorX } from "lucide-react";
+import { MonitorPlay, ShieldOff, KeyRound, MonitorX } from "lucide-react";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import WidgetRenderer from "@/components/widgets/WidgetRenderer";
@@ -72,6 +72,7 @@ interface PlayerBranding {
   showLogo: boolean;
   bgColor: string;
   watermark: string;
+  showSignatureOnPlayer: boolean;
 }
 
 function getOrientationStyle(orientation: string): React.CSSProperties {
@@ -99,33 +100,37 @@ function getOrientationStyle(orientation: string): React.CSSProperties {
 
 function MediaRenderer({ media, playlistLength }: { media: { id: string; name: string; type: string; url: string }; playlistLength?: number }) {
   if (media.type === "image") {
-    return <img src={media.url} alt={media.name} className="w-full h-full object-cover" />;
+    return <img src={media.url} alt={media.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />;
   }
   if (media.type === "video") {
     return (
-      <video key={media.id} src={media.url} className="w-full h-full object-cover" autoPlay loop={!playlistLength || playlistLength <= 1} playsInline />
+      <video
+        key={media.id}
+        src={media.url}
+        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        autoPlay
+        muted
+        loop={!playlistLength || playlistLength <= 1}
+        playsInline
+      />
     );
   }
-  return <iframe src={media.url} className="w-full h-full border-0" allowFullScreen title={media.name} />;
+  return <iframe src={media.url} style={{ width: "100%", height: "100%", border: "none" }} allowFullScreen title={media.name} />;
 }
 
-/**
- * Fetches player branding: establishment logo, settings (show_logo, bg_color, watermark),
- * with fallback to global app_settings.
- */
 function usePlayerBranding(screenId?: string): PlayerBranding {
   const [branding, setBranding] = useState<PlayerBranding>({
     logoUrl: "",
     showLogo: true,
     bgColor: "#000000",
     watermark: "",
+    showSignatureOnPlayer: false,
   });
 
   useEffect(() => {
     if (!screenId) return;
 
     const fetchBranding = async () => {
-      // Get screen's establishment_id
       const { data: screenData } = await supabase
         .from("screens")
         .select("establishment_id")
@@ -136,9 +141,9 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
       let showLogo = true;
       let bgColor = "#000000";
       let watermark = "";
+      let showSignatureOnPlayer = false;
 
       if (screenData?.establishment_id) {
-        // Get establishment logo
         const { data: estData } = await supabase
           .from("establishments")
           .select("logo_url")
@@ -146,7 +151,6 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
           .single();
         if (estData?.logo_url) logoUrl = estData.logo_url;
 
-        // Get establishment settings for player branding
         const { data: estSettings } = await supabase
           .from("establishment_settings")
           .select("key, value")
@@ -156,7 +160,6 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
         if (estSettings) {
           const settingsMap: Record<string, string> = {};
           estSettings.forEach((s: any) => { if (s.value) settingsMap[s.key] = s.value; });
-
           if (settingsMap.brand_logo_url && !logoUrl) logoUrl = settingsMap.brand_logo_url;
           if (settingsMap.brand_show_logo_player === "false") showLogo = false;
           if (settingsMap.brand_player_bg_color) bgColor = settingsMap.brand_player_bg_color;
@@ -164,17 +167,20 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
         }
       }
 
-      // Fallback to global app logo if no establishment logo
-      if (!logoUrl) {
-        const { data } = await supabase
-          .from("app_settings")
-          .select("key, value")
-          .eq("key", "logo_url")
-          .single();
-        if (data?.value) logoUrl = data.value;
+      // Check global setting for signature on player
+      const { data: globalSettings } = await supabase
+        .from("app_settings")
+        .select("key, value")
+        .in("key", ["logo_url", "show_signature_on_player"]);
+
+      if (globalSettings) {
+        globalSettings.forEach((s: any) => {
+          if (s.key === "logo_url" && s.value && !logoUrl) logoUrl = s.value;
+          if (s.key === "show_signature_on_player" && s.value === "true") showSignatureOnPlayer = true;
+        });
       }
 
-      setBranding({ logoUrl, showLogo, bgColor, watermark });
+      setBranding({ logoUrl, showLogo, bgColor, watermark, showSignatureOnPlayer });
     };
 
     fetchBranding();
@@ -185,14 +191,32 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
 
 function CompanyLogo({ logoUrl, show = true }: { logoUrl: string; show?: boolean }) {
   if (!logoUrl || !show) return null;
-  return <img src={logoUrl} alt="Logo" className="h-16 w-auto object-contain mb-4" />;
+  return <img src={logoUrl} alt="Logo" style={{ height: 64, width: "auto", objectFit: "contain", marginBottom: 16 }} />;
 }
 
 function Watermark({ text }: { text: string }) {
   if (!text) return null;
   return (
-    <div className="absolute bottom-4 right-4 z-50 text-white/20 text-xs font-medium tracking-wider pointer-events-none">
+    <div style={{
+      position: "absolute", bottom: 16, right: 16, zIndex: 50,
+      color: "rgba(255,255,255,0.2)", fontSize: 12, fontWeight: 500,
+      letterSpacing: "0.05em", pointerEvents: "none",
+    }}>
       {text}
+    </div>
+  );
+}
+
+function PlayerSignature({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <div style={{
+      position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)",
+      zIndex: 50, color: "rgba(255,255,255,0.15)", fontSize: 10,
+      fontWeight: 400, letterSpacing: "0.1em", pointerEvents: "none",
+      whiteSpace: "nowrap",
+    }}>
+      ScreenFlow by Dravox
     </div>
   );
 }
@@ -227,7 +251,8 @@ function LayoutRenderer({ layoutId, screenOrientation }: { layoutId: string; scr
   const rotationStyle = getOrientationStyle(screenOrientation);
 
   return (
-    <div className="w-full h-full relative" style={{
+    <div style={{
+      width: "100%", height: "100%", position: "relative",
       backgroundColor: layout.background_color,
       backgroundImage: layout.bg_type === "image" && layout.bg_image_url ? `url(${layout.bg_image_url})` : undefined,
       backgroundSize: layout.bg_image_fit === "contain" ? "contain" : layout.bg_image_fit === "repeat" ? "auto" : "cover",
@@ -235,11 +260,10 @@ function LayoutRenderer({ layoutId, screenOrientation }: { layoutId: string; scr
       backgroundPosition: "center",
       ...rotationStyle,
     }}>
-      {/* Darken + Blur overlay */}
-      {layout.bg_type === "image" && layout.bg_image_url && ((layout.bg_overlay_darken || 0) > 0 || (layout.bg_overlay_blur || 0) > 0) && (
-        <div className="absolute inset-0 pointer-events-none" style={{
+      {layout.bg_type === "image" && layout.bg_image_url && ((layout.bg_overlay_darken || 0) > 0) && (
+        <div style={{
+          position: "absolute", inset: 0, pointerEvents: "none",
           backgroundColor: `rgba(0,0,0,${(layout.bg_overlay_darken || 0) / 100})`,
-          backdropFilter: (layout.bg_overlay_blur || 0) > 0 ? `blur(${layout.bg_overlay_blur}px)` : undefined,
           zIndex: 0,
         }} />
       )}
@@ -303,42 +327,53 @@ function LicenseScreen({
   };
 
   return (
-    <div ref={containerRef} className="fixed inset-0 bg-black flex items-center justify-center" onClick={requestFullscreen}>
-      <div className="flex flex-col items-center gap-6 text-center p-8 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+    <div ref={containerRef} style={{ position: "fixed", inset: 0, backgroundColor: "#000", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={requestFullscreen}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 24, textAlign: "center", padding: 32, maxWidth: 400, width: "100%" }} onClick={(e) => e.stopPropagation()}>
         <CompanyLogo logoUrl={logoUrl} show={showLogo} />
-        <div className="h-20 w-20 rounded-2xl bg-destructive/10 flex items-center justify-center">
-          <ShieldOff className="h-10 w-10 text-destructive" />
+        <div style={{ height: 80, width: 80, borderRadius: 16, backgroundColor: "rgba(239,68,68,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <ShieldOff style={{ height: 40, width: 40, color: "#ef4444" }} />
         </div>
-        <h1 className="text-2xl font-bold text-destructive uppercase tracking-widest">Licence invalide</h1>
-        <p className="text-gray-400">{message}</p>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: "#ef4444", textTransform: "uppercase", letterSpacing: "0.1em" }}>Licence invalide</h1>
+        <p style={{ color: "#9ca3af" }}>{message}</p>
 
-        <form onSubmit={handleSubmit} className="w-full space-y-3 mt-2">
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+        <form onSubmit={handleSubmit} style={{ width: "100%", display: "flex", flexDirection: "column", gap: 12, marginTop: 8 }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ position: "relative", flex: 1 }}>
+              <KeyRound style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", height: 16, width: 16, color: "#6b7280" }} />
               <input
                 type="text"
                 value={key}
                 onChange={(e) => { setKey(e.target.value.toUpperCase()); setError(""); }}
                 placeholder="XXXX-XXXX-XXXX-XXXX"
-                className="w-full h-11 pl-10 pr-3 rounded-lg bg-white/5 border border-white/10 text-white font-mono tracking-widest text-sm placeholder:text-gray-600 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-colors"
+                style={{
+                  width: "100%", height: 44, paddingLeft: 40, paddingRight: 12,
+                  borderRadius: 8, backgroundColor: "rgba(255,255,255,0.05)",
+                  border: "1px solid rgba(255,255,255,0.1)", color: "#fff",
+                  fontFamily: "monospace", letterSpacing: "0.1em", fontSize: 14,
+                }}
                 autoFocus
               />
             </div>
             <button
               type="submit"
               disabled={checking || !key.trim()}
-              className="h-11 px-5 rounded-lg bg-primary text-black font-semibold text-sm tracking-wider uppercase hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              style={{
+                height: 44, padding: "0 20px", borderRadius: 8,
+                backgroundColor: "#3b82f6", color: "#000", fontWeight: 600,
+                fontSize: 14, letterSpacing: "0.05em", textTransform: "uppercase",
+                border: "none", cursor: checking || !key.trim() ? "not-allowed" : "pointer",
+                opacity: checking || !key.trim() ? 0.4 : 1,
+              }}
             >
               {checking ? "..." : "Activer"}
             </button>
           </div>
-          {error && <p className="text-destructive text-sm">{error}</p>}
+          {error && <p style={{ color: "#ef4444", fontSize: 14 }}>{error}</p>}
         </form>
 
-        <div className="w-full border-t border-white/5 pt-5 mt-3 flex flex-col items-center gap-3">
-          <p className="text-xs text-gray-500 uppercase tracking-wider">ou scannez pour assigner depuis l'admin</p>
-          <div className="bg-white p-3 rounded-xl">
+        <div style={{ width: "100%", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: 20, marginTop: 12, display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+          <p style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.1em" }}>ou scannez pour assigner depuis l'admin</p>
+          <div style={{ backgroundColor: "#fff", padding: 12, borderRadius: 12 }}>
             <QRCodeSVG
               value={`${window.location.origin}/admin/licenses?screen=${screenId}`}
               size={140}
@@ -347,16 +382,15 @@ function LicenseScreen({
           </div>
         </div>
 
-        <p className="text-xs text-gray-600 mt-2">
+        <p style={{ fontSize: 11, color: "#4b5563", marginTop: 8 }}>
           Vérification automatique toutes les 5 secondes
-          <span className="inline-block ml-1 h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
         </p>
       </div>
     </div>
   );
 }
 
-function ActiveContentCarousel({ contents, screenOrientation, onVideoEnd }: { contents: Array<{ id: string; image_url: string; title: string | null; metadata: Record<string, any> | null }>; screenOrientation: string; onVideoEnd?: () => void }) {
+function ActiveContentCarousel({ contents, screenOrientation }: { contents: Array<{ id: string; image_url: string; title: string | null; metadata: Record<string, any> | null }>; screenOrientation: string }) {
   const [index, setIndex] = useState(0);
   const current = contents[Math.min(index, contents.length - 1)];
   const contentType = (current?.metadata as any)?.type || "image";
@@ -379,19 +413,20 @@ function ActiveContentCarousel({ contents, screenOrientation, onVideoEnd }: { co
   const rotationStyle = getOrientationStyle(contentOrientation);
 
   return (
-    <div className="w-full h-full" style={rotationStyle}>
+    <div style={{ width: "100%", height: "100%", ...rotationStyle }}>
       {contentType === "video" ? (
         <video
           key={current.id}
           src={current.image_url}
-          className="w-full h-full object-cover"
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
           autoPlay
+          muted
           playsInline
           onEnded={contents.length > 1 ? advance : undefined}
           loop={contents.length <= 1}
         />
       ) : (
-        <img src={current.image_url} alt={current.title || ""} className="w-full h-full object-cover" />
+        <img src={current.image_url} alt={current.title || ""} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
       )}
     </div>
   );
@@ -446,7 +481,7 @@ export default function Player() {
   const requestFullscreen = useCallback(() => {
     const el = containerRef.current;
     if (!el || document.fullscreenElement) return;
-    el.requestFullscreen?.().catch(() => {});
+    try { el.requestFullscreen?.().catch(() => {}); } catch (_) {}
   }, []);
 
   useEffect(() => {
@@ -465,7 +500,6 @@ export default function Player() {
     return () => clearTimeout(timer);
   }, [media?.id, currentIndex, layoutId]);
 
-  // Track whether we have content (for fade transition)
   useEffect(() => {
     const nowHasContent = !!(media || activeContents.length > 0);
     setHasContent(nowHasContent);
@@ -488,15 +522,15 @@ export default function Player() {
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [media?.id, currentIndex, currentDuration, layoutId]);
 
-  const playerBgStyle = { backgroundColor: branding.bgColor };
+  const playerBgStyle: React.CSSProperties = { backgroundColor: branding.bgColor };
 
   if (loading) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center" style={playerBgStyle}>
-        <div className="animate-pulse flex flex-col items-center gap-3">
+      <div style={{ ...playerBgStyle, position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
           <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} />
-          <MonitorPlay className="h-12 w-12 text-primary" />
-          <p className="text-muted-foreground">Connexion à l'écran...</p>
+          <MonitorPlay style={{ height: 48, width: 48, color: "#3b82f6" }} />
+          <p style={{ color: "#9ca3af" }}>Connexion à l'écran...</p>
         </div>
       </div>
     );
@@ -504,33 +538,36 @@ export default function Player() {
 
   if (!screen) {
     return (
-      <div className="fixed inset-0 bg-black flex items-center justify-center">
-        <p className="text-destructive text-lg">Écran introuvable</p>
+      <div style={{ position: "fixed", inset: 0, backgroundColor: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <p style={{ color: "#ef4444", fontSize: 18 }}>Écran introuvable</p>
       </div>
     );
   }
 
   if (sessionBlocked) {
     return (
-      <div ref={containerRef} className="fixed inset-0 flex items-center justify-center" style={playerBgStyle}>
-        <div className="flex flex-col items-center gap-4 text-center p-8">
+      <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, textAlign: "center", padding: 32 }}>
           <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} />
-          <div className="h-20 w-20 rounded-2xl bg-destructive/10 flex items-center justify-center">
-            <MonitorX className="h-10 w-10 text-destructive" />
+          <div style={{ height: 80, width: 80, borderRadius: 16, backgroundColor: "rgba(239,68,68,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <MonitorX style={{ height: 40, width: 40, color: "#ef4444" }} />
           </div>
-          <h1 className="text-2xl font-bold text-destructive uppercase tracking-widest">Écran déjà actif</h1>
-          <p className="text-muted-foreground max-w-sm">
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: "#ef4444", textTransform: "uppercase", letterSpacing: "0.1em" }}>Écran déjà actif</h1>
+          <p style={{ color: "#9ca3af", maxWidth: 380 }}>
             Cet écran est déjà ouvert sur un autre appareil. Fermez l'autre session pour pouvoir l'utiliser ici.
           </p>
           <button
             onClick={forceTakeover}
-            className="mt-4 px-6 py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors"
+            style={{
+              marginTop: 16, padding: "12px 24px", borderRadius: 8,
+              backgroundColor: "#3b82f6", color: "#fff", fontWeight: 600,
+              border: "none", cursor: "pointer", fontSize: 14,
+            }}
           >
             Forcer la prise de contrôle
           </button>
-          <p className="text-xs text-muted-foreground/50 mt-2">
+          <p style={{ fontSize: 11, color: "#6b7280", marginTop: 8 }}>
             Vérification automatique toutes les 15 secondes
-            <span className="inline-block ml-1 h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
           </p>
         </div>
         <Watermark text={branding.watermark} />
@@ -540,11 +577,11 @@ export default function Player() {
 
   if (licenseValid === null) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center" style={playerBgStyle}>
-        <div className="animate-pulse flex flex-col items-center gap-3">
+      <div style={{ ...playerBgStyle, position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
           <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} />
-          <MonitorPlay className="h-12 w-12 text-primary" />
-          <p className="text-muted-foreground">Vérification de la licence...</p>
+          <MonitorPlay style={{ height: 48, width: 48, color: "#3b82f6" }} />
+          <p style={{ color: "#9ca3af" }}>Vérification de la licence...</p>
         </div>
       </div>
     );
@@ -566,9 +603,10 @@ export default function Player() {
 
   if (layoutId) {
     return (
-      <div ref={containerRef} className="fixed inset-0 overflow-hidden cursor-none" style={playerBgStyle} onClick={requestFullscreen}>
+      <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", inset: 0, overflow: "hidden", cursor: "none" }} onClick={requestFullscreen}>
         <LayoutRenderer layoutId={layoutId} screenOrientation={screen.orientation} />
         <Watermark text={branding.watermark} />
+        <PlayerSignature show={branding.showSignatureOnPlayer} />
       </div>
     );
   }
@@ -576,12 +614,16 @@ export default function Player() {
   const rotationStyle = getOrientationStyle(screen.orientation);
 
   return (
-    <div ref={containerRef} className="fixed inset-0 overflow-hidden cursor-none" style={playerBgStyle} onClick={requestFullscreen}>
-      <div className="w-full h-full transition-transform duration-700 ease-in-out" style={rotationStyle}>
-        <div className="w-full h-full transition-opacity duration-500 ease-in-out" style={{ opacity: visible ? 1 : 0 }}>
-          {/* Fallback screen - always rendered, fades out when content arrives */}
-          <div className="absolute inset-0 transition-opacity duration-1000 ease-in-out"
-            style={{ opacity: hasContent ? 0 : 1, pointerEvents: hasContent ? "none" : "auto" }}>
+    <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", inset: 0, overflow: "hidden", cursor: "none" }} onClick={requestFullscreen}>
+      <div style={{ width: "100%", height: "100%", transition: "transform 0.7s ease-in-out", ...rotationStyle }}>
+        <div style={{ width: "100%", height: "100%", transition: "opacity 0.5s ease-in-out", opacity: visible ? 1 : 0 }}>
+          {/* Fallback screen */}
+          <div style={{
+            position: "absolute", inset: 0,
+            transition: "opacity 1s ease-in-out",
+            opacity: hasContent ? 0 : 1,
+            pointerEvents: hasContent ? "none" : "auto",
+          }}>
             <FallbackScreen
               screenName={screen.name}
               screenId={screen.id}
@@ -590,9 +632,13 @@ export default function Player() {
             />
           </div>
 
-          {/* Actual content - fades in */}
-          <div className="absolute inset-0 transition-opacity duration-1000 ease-in-out"
-            style={{ opacity: hasContent ? 1 : 0, pointerEvents: hasContent ? "auto" : "none" }}>
+          {/* Actual content */}
+          <div style={{
+            position: "absolute", inset: 0,
+            transition: "opacity 1s ease-in-out",
+            opacity: hasContent ? 1 : 0,
+            pointerEvents: hasContent ? "auto" : "none",
+          }}>
             {activeContents.length > 0 && !media ? (
               <ActiveContentCarousel contents={activeContents} screenOrientation={screen.orientation} />
             ) : media ? (
@@ -602,20 +648,26 @@ export default function Player() {
         </div>
 
         {playlistLength > 1 && currentDuration > 0 && (
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-muted/20">
-            <div className="h-full bg-primary transition-none" style={{ width: `${progress}%` }} />
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 4, backgroundColor: "rgba(255,255,255,0.1)" }}>
+            <div style={{ height: "100%", backgroundColor: "#3b82f6", width: `${progress}%` }} />
           </div>
         )}
 
         {playlistLength > 1 && (
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+          <div style={{ position: "absolute", bottom: 12, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 6 }}>
             {Array.from({ length: playlistLength }).map((_, i) => (
-              <div key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === currentIndex ? "w-6 bg-primary" : "w-1.5 bg-muted-foreground/30"}`} />
+              <div key={i} style={{
+                height: 6, borderRadius: 3,
+                transition: "all 0.3s",
+                width: i === currentIndex ? 24 : 6,
+                backgroundColor: i === currentIndex ? "#3b82f6" : "rgba(255,255,255,0.2)",
+              }} />
             ))}
           </div>
         )}
       </div>
       <Watermark text={branding.watermark} />
+      <PlayerSignature show={branding.showSignatureOnPlayer} />
     </div>
   );
 }

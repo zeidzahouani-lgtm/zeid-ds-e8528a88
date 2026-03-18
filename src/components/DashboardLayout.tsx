@@ -35,6 +35,11 @@ export function DashboardLayout() {
               <Outlet />
             </div>
           </main>
+          <footer className="h-8 flex items-center justify-center shrink-0 border-t border-border/30">
+            <span className="text-[11px] text-muted-foreground/50 tracking-wider">
+              ScreenFlow by Dravox
+            </span>
+          </footer>
         </div>
       </div>
     </SidebarProvider>
