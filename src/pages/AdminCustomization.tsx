@@ -67,6 +67,18 @@ export default function AdminCustomization() {
   const [loadingDaily, setLoadingDaily] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [showSignatureOnPlayer, setShowSignatureOnPlayer] = useState(false);
+
+  useEffect(() => {
+    supabase
+      .from("app_settings" as any)
+      .select("key, value")
+      .eq("key", "show_signature_on_player")
+      .single()
+      .then(({ data }: any) => {
+        if (data?.value === "true") setShowSignatureOnPlayer(true);
+      });
+  }, []);
 
   useEffect(() => { setForm(settings); }, [settings]);
 
