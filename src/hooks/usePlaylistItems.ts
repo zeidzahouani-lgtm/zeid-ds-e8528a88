@@ -23,7 +23,7 @@ export function usePlaylistItems(playlistId?: string) {
     mutationFn: async ({ mediaId, position }: { mediaId: string; position: number }) => {
       const { error } = await supabase
         .from("playlist_items")
-        .insert({ playlist_id: playlistId!, media_id: mediaId, position });
+        .insert({ playlist_id: playlistId!, media_id: mediaId, position } as any);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
@@ -47,5 +47,16 @@ export function usePlaylistItems(playlistId?: string) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
   });
 
-  return { items, isLoading, addItem, removeItem, reorderItems };
+  const updateItemDuration = useMutation({
+    mutationFn: async ({ id, duration }: { id: string; duration: number | null }) => {
+      const { error } = await supabase
+        .from("playlist_items")
+        .update({ duration } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+  });
+
+  return { items, isLoading, addItem, removeItem, reorderItems, updateItemDuration };
 }
