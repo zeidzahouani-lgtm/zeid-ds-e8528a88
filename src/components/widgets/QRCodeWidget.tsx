@@ -38,6 +38,7 @@ interface QRCodeWidgetProps {
     phoneNumber?: string;
     // Text
     freeText?: string;
+    transparentBg?: boolean;
   };
 }
 
