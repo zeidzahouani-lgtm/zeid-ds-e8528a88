@@ -219,6 +219,10 @@ export default function AutoFlow() {
             <KeyRound className="h-4 w-4" />
             Codes d'accès ({accessCodes.length})
           </TabsTrigger>
+          <TabsTrigger value="guide" className="gap-2">
+            <BookOpen className="h-4 w-4" />
+            Guide Email
+          </TabsTrigger>
         </TabsList>
 
         {/* ===== TAB: CONTENUS ===== */}
