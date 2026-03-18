@@ -307,6 +307,31 @@ export function ScreenManager() {
                   >
                     <ListMusic className="h-4 w-4" />
                   </Button>
+                  {screen.status === 'online' && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      title="Forcer l'arrêt de la session"
+                      onClick={async () => {
+                        try {
+                          await updateScreen.mutateAsync({
+                            id: screen.id,
+                            status: 'offline',
+                          } as any);
+                          await supabase.from("screens").update({
+                            player_session_id: null,
+                            player_heartbeat_at: null,
+                          }).eq("id", screen.id);
+                          toast.success("Session arrêtée");
+                        } catch {
+                          toast.error("Erreur lors de l'arrêt");
+                        }
+                      }}
+                      className="text-orange-500 border-orange-500/30 hover:bg-orange-500/10"
+                    >
+                      <Power className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="icon"
