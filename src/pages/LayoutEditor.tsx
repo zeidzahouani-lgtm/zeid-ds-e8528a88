@@ -932,6 +932,21 @@ export default function LayoutEditor() {
                       </div>
                     )}
 
+                    {/* Transparent background toggle for all widgets */}
+                    {(selectedRegion as any).widget_type && (
+                      <div className="border-t border-border pt-3">
+                        <label className="text-xs text-muted-foreground flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={(selectedRegion as any).widget_config?.transparentBg === true}
+                            onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, transparentBg: e.target.checked } } as any)}
+                          />
+                          🪟 Fond transparent
+                        </label>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 ml-5">Rend le fond du widget transparent</p>
+                      </div>
+                    )}
+
                     {/* Widget-specific configs */}
                     {(selectedRegion as any).widget_type === "marquee" && (
                       <div className="space-y-2 border-t border-border pt-3">

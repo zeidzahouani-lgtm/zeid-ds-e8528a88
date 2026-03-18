@@ -6,6 +6,7 @@ interface FixedTextWidgetProps {
     backgroundColor?: string;
     textAlign?: "left" | "center" | "right";
     fontWeight?: string;
+    transparentBg?: boolean;
   };
 }
 
@@ -20,7 +21,7 @@ export default function FixedTextWidget({ config }: FixedTextWidgetProps) {
   return (
     <div
       className="flex items-center justify-center h-full w-full p-4"
-      style={{ backgroundColor, textAlign: textAlign as any }}
+      style={{ backgroundColor: config?.transparentBg ? 'transparent' : backgroundColor, textAlign: textAlign as any }}
     >
       <p style={{ fontSize: `${fontSize}px`, color: textColor, fontWeight }}>{text}</p>
     </div>

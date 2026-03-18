@@ -7,6 +7,7 @@ interface MarqueeWidgetProps {
     backgroundColor?: string;
     textColor?: string;
     fontSize?: number;
+    transparentBg?: boolean;
   };
 }
 
@@ -50,7 +51,7 @@ export default function MarqueeWidget({ config }: MarqueeWidgetProps) {
     <div
       ref={containerRef}
       className="flex items-center h-full w-full overflow-hidden"
-      style={{ backgroundColor: bg }}
+      style={{ backgroundColor: config?.transparentBg ? 'transparent' : bg }}
     >
       <span
         ref={textRef}
