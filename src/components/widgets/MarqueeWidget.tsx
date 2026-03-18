@@ -7,6 +7,7 @@ interface MarqueeWidgetProps {
     backgroundColor?: string;
     textColor?: string;
     fontSize?: number;
+    transparentBg?: boolean;
   };
 }
 
