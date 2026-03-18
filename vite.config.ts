@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
-const LEGACY_BROWSER_TARGET = "es2019";
+const LEGACY_BROWSER_TARGET = "es2017";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
