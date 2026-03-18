@@ -397,6 +397,61 @@ function parseScreenFromText(input: string): string | null {
   return null;
 }
 
+/**
+ * Parse schedule/duration directives from email text. Supported formats:
+ * [durée:30min], [duree:2h], [durée:1h30], [debut:2025-03-20 14:00], [fin:2025-03-20 18:00], [statut:actif]
+ */
+function parseScheduleFromText(input: string): {
+  start_time?: string;
+  end_time?: string;
+  status?: string;
+} {
+  if (!input) return {};
+  const text = input.replace(/\r?\n/g, " ").trim();
+  const result: { start_time?: string; end_time?: string; status?: string } = {};
+
+  // Parse duration: [durée:30min], [duree:2h], [durée:1h30]
+  const durationMatch = text.match(/\[(?:dur[eéè]+e?)\s*[:=]\s*(\d+)\s*(min|h|heure|heures?)(?:(\d+)\s*(?:min)?)?\]/i);
+  if (durationMatch) {
+    const now = new Date();
+    result.start_time = now.toISOString();
+    let totalMinutes = 0;
+    if (durationMatch[2].startsWith("h")) {
+      totalMinutes = parseInt(durationMatch[1]) * 60;
+      if (durationMatch[3]) totalMinutes += parseInt(durationMatch[3]);
+    } else {
+      totalMinutes = parseInt(durationMatch[1]);
+    }
+    result.end_time = new Date(now.getTime() + totalMinutes * 60000).toISOString();
+    result.status = "active";
+  }
+
+  // Parse explicit start: [debut:2025-03-20 14:00] or [début:...]
+  const startMatch = text.match(/\[(?:d[eéè]but|start)\s*[:=]\s*([^\]]+)\]/i);
+  if (startMatch) {
+    const d = new Date(startMatch[1].trim());
+    if (!isNaN(d.getTime())) result.start_time = d.toISOString();
+  }
+
+  // Parse explicit end: [fin:2025-03-20 18:00] or [end:...]
+  const endMatch = text.match(/\[(?:fin|end)\s*[:=]\s*([^\]]+)\]/i);
+  if (endMatch) {
+    const d = new Date(endMatch[1].trim());
+    if (!isNaN(d.getTime())) result.end_time = d.toISOString();
+  }
+
+  // Parse status: [statut:actif]
+  const statusMatch = text.match(/\[(?:statut|status)\s*[:=]\s*(actif|active|programm[eéè]+|scheduled|pending|en attente)\]/i);
+  if (statusMatch) {
+    const s = statusMatch[1].toLowerCase();
+    if (s === "actif" || s === "active") result.status = "active";
+    else if (s.startsWith("programm") || s === "scheduled") result.status = "scheduled";
+    else result.status = "pending";
+  }
+
+  return result;
+}
+
 async function resolveScreenId(supabase: any, screenName: string): Promise<string | null> {
   const normalizedName = screenName.toLowerCase().trim();
   
