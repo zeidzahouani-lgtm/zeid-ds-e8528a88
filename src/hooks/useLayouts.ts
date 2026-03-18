@@ -79,10 +79,15 @@ export function useLayouts() {
 
   const deleteLayout = useMutation({
     mutationFn: async (id: string) => {
+      // Unlink screens that reference this layout
+      await supabase.from("screens").update({ layout_id: null } as any).eq("layout_id", id);
       const { error } = await supabase.from("layouts").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["layouts"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["layouts"] });
+      queryClient.invalidateQueries({ queryKey: ["screens"] });
+    },
   });
 
   const updateLayout = useMutation({
