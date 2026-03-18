@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useScreenRealtime } from "@/hooks/useScreenRealtime";
 import { MonitorPlay, ShieldOff, KeyRound, MonitorX } from "lucide-react";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, Component, type ErrorInfo, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import WidgetRenderer from "@/components/widgets/WidgetRenderer";
 import { validateLicense, activateLicenseByKey } from "@/hooks/useLicenses";
@@ -74,6 +74,60 @@ interface PlayerBranding {
   bgColor: string;
   watermark: string;
   showSignatureOnPlayer: boolean;
+}
+
+interface RegionErrorBoundaryProps {
+  children: ReactNode;
+  regionId: string;
+}
+
+interface RegionErrorBoundaryState {
+  hasError: boolean;
+}
+
+class RegionErrorBoundary extends Component<RegionErrorBoundaryProps, RegionErrorBoundaryState> {
+  state: RegionErrorBoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(): RegionErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.warn("[Player] Widget region render error", {
+      regionId: this.props.regionId,
+      error: error.message,
+      componentStack: errorInfo.componentStack,
+    });
+  }
+
+  componentDidUpdate(prevProps: RegionErrorBoundaryProps) {
+    if (prevProps.regionId !== this.props.regionId && this.state.hasError) {
+      this.setState({ hasError: false });
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "rgba(0,0,0,0.55)",
+          color: "#fff",
+          fontSize: 12,
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+        }}>
+          Widget indisponible
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
 }
 
 function getOrientationStyle(orientation: string): React.CSSProperties {
@@ -222,32 +276,101 @@ function PlayerSignature({ show }: { show: boolean }) {
   );
 }
 
-function LayoutRenderer({ layoutId, screenOrientation }: { layoutId: string; screenOrientation: string }) {
+function LayoutRenderer({
+  layoutId,
+  screenOrientation,
+  screenName,
+  screenId,
+  logoUrl,
+  showLogo,
+}: {
+  layoutId: string;
+  screenOrientation: string;
+  screenName: string;
+  screenId: string;
+  logoUrl: string;
+  showLogo: boolean;
+}) {
   const [layout, setLayout] = useState<LayoutData | null>(null);
   const [regions, setRegions] = useState<LayoutRegionData[]>([]);
+  const [isLayoutLoading, setIsLayoutLoading] = useState(true);
+  const [layoutError, setLayoutError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchLayout = async () => {
+  const fetchLayout = useCallback(async () => {
+    try {
       const [layoutRes, regionsRes] = await Promise.all([
         supabase.from("layouts").select("id, width, height, background_color, bg_type, bg_image_url, bg_image_fit, bg_overlay_darken, bg_overlay_blur").eq("id", layoutId).single(),
         supabase.from("layout_regions").select("*, media:media_id(id, name, type, url)").eq("layout_id", layoutId).order("z_index", { ascending: true }),
       ]);
+
+      if (layoutRes.error) throw layoutRes.error;
+      if (regionsRes.error) throw regionsRes.error;
+
       if (layoutRes.data) setLayout(layoutRes.data as LayoutData);
-      if (regionsRes.data) setRegions(regionsRes.data as LayoutRegionData[]);
+      setRegions((regionsRes.data ?? []) as LayoutRegionData[]);
+      setLayoutError(null);
+    } catch (err: any) {
+      setLayoutError(err?.message || "Erreur de chargement du layout");
+    } finally {
+      setIsLayoutLoading(false);
+    }
+  }, [layoutId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const safeFetch = async () => {
+      if (cancelled) return;
+      await fetchLayout();
     };
-    fetchLayout();
+
+    safeFetch();
+
+    const pollInterval = setInterval(safeFetch, 30000);
 
     const channel = supabase
       .channel(`layout-regions-${layoutId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "layout_regions", filter: `layout_id=eq.${layoutId}` }, () => {
-        fetchLayout();
+        safeFetch();
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, [layoutId]);
+    return () => {
+      cancelled = true;
+      clearInterval(pollInterval);
+      supabase.removeChannel(channel);
+    };
+  }, [layoutId, fetchLayout]);
 
-  if (!layout) return null;
+  if (!layout) {
+    return (
+      <div style={{ width: "100%", height: "100%", position: "relative" }}>
+        <FallbackScreen
+          screenName={screenName}
+          screenId={screenId}
+          logoUrl={logoUrl}
+          showLogo={showLogo}
+        />
+        {(isLayoutLoading || layoutError) && (
+          <div style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "rgba(0,0,0,0.2)",
+            color: "#fff",
+            fontSize: 12,
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            pointerEvents: "none",
+          }}>
+            {isLayoutLoading ? "Chargement du layout..." : "Reconnexion au layout..."}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const rotationStyle = getOrientationStyle(screenOrientation);
 
@@ -280,11 +403,13 @@ function LayoutRenderer({ layoutId, screenOrientation }: { layoutId: string; scr
         };
         return (
           <div key={region.id} style={style}>
-            {region.widget_type ? (
-              <WidgetRenderer widgetType={region.widget_type} widgetConfig={region.widget_config ?? undefined} />
-            ) : region.media ? (
-              <MediaRenderer media={region.media} />
-            ) : null}
+            <RegionErrorBoundary regionId={region.id}>
+              {region.widget_type ? (
+                <WidgetRenderer widgetType={region.widget_type} widgetConfig={region.widget_config ?? undefined} />
+              ) : region.media ? (
+                <MediaRenderer media={region.media} />
+              ) : null}
+            </RegionErrorBoundary>
           </div>
         );
       })}
@@ -607,7 +732,15 @@ export default function Player() {
   if (layoutId) {
     return (
       <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", inset: 0, overflow: "hidden", cursor: "none" }} onClick={requestFullscreen}>
-        <LayoutRenderer layoutId={layoutId} screenOrientation={screen.orientation} />
+        {debugMode && <DiagnosticOverlay screenId={screen.id} screenName={screen.name} screenStatus={screen.status} mediaId={null} mediaType={null} mediaUrl={null} layoutId={layoutId} playlistLength={playlistLength} currentIndex={currentIndex} sessionBlocked={sessionBlocked} licenseValid={licenseValid} orientation={screen.orientation} />}
+        <LayoutRenderer
+          layoutId={layoutId}
+          screenOrientation={screen.orientation}
+          screenName={screen.name}
+          screenId={screen.id}
+          logoUrl={branding.logoUrl}
+          showLogo={branding.showLogo}
+        />
         <Watermark text={branding.watermark} />
         <PlayerSignature show={branding.showSignatureOnPlayer} />
       </div>
