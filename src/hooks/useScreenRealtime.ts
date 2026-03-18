@@ -162,74 +162,134 @@ export function useScreenRealtime(screenId: string | undefined) {
       const userAgent = navigator.userAgent;
       const staleThreshold = new Date(Date.now() - SESSION_TIMEOUT).toISOString();
 
-      const updatePayload = {
-        player_session_id: SESSION_ID, player_heartbeat_at: new Date().toISOString(),
-        player_user_agent: userAgent, status: "online",
-      } as any;
+      const makeUpdatePayload = () => ({
+        player_session_id: SESSION_ID,
+        player_heartbeat_at: new Date().toISOString(),
+        player_user_agent: userAgent,
+        status: "online",
+      } as any);
+
+      const activateSession = async (activeScreenData: ScreenData) => {
+        if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+        heartbeatRef.current = setInterval(async () => {
+          const realId = realScreenIdRef.current;
+          if (!realId) return;
+          try {
+            await (supabase.from("screens").update({ player_heartbeat_at: new Date().toISOString() } as any) as any)
+              .eq("id", realId)
+              .eq("player_session_id", SESSION_ID);
+          } catch (_) {}
+        }, HEARTBEAT_INTERVAL);
+
+        setSessionBlocked(false);
+        setScreen(activeScreenData);
+        screenRef.current = activeScreenData;
+
+        const [pl, sch] = await Promise.all([
+          fetchPlaylist(activeScreenData),
+          fetchSchedules(activeScreenData),
+        ]);
+        updatePlaylist(pl);
+        schedulesRef.current = sch;
+
+        if (activeScreenData.current_media_id && pl.length === 0) {
+          const { data: mediaData } = await supabase
+            .from("media")
+            .select("*")
+            .eq("id", activeScreenData.current_media_id)
+            .single();
+          if (mediaData) setMedia(mediaData as MediaData);
+        }
+
+        setCurrentIndex(0);
+        resolveMedia(activeScreenData, pl, 0);
+        setLoading(false);
+      };
 
       // Try claim: no session
-      let claimRes = await supabase.from("screens").update(updatePayload)
+      let claimRes = await supabase.from("screens").update(makeUpdatePayload())
         .eq("id", screenData.id).is("player_session_id", null).select("id");
 
       // Try claim: same session (page reload)
       if (!claimRes.data || claimRes.data.length === 0) {
-        claimRes = await supabase.from("screens").update(updatePayload)
+        claimRes = await supabase.from("screens").update(makeUpdatePayload())
           .eq("id", screenData.id).eq("player_session_id", SESSION_ID).select("id");
       }
+
       // Try claim: stale session (heartbeat expired)
       if (!claimRes.data || claimRes.data.length === 0) {
-        claimRes = await supabase.from("screens").update(updatePayload)
+        claimRes = await supabase.from("screens").update(makeUpdatePayload())
           .eq("id", screenData.id).lt("player_heartbeat_at", staleThreshold).select("id");
       }
 
-      const { data: verifyData } = await supabase.from("screens").select("player_session_id").eq("id", screenData.id).single();
+      const { data: verifyData } = await supabase
+        .from("screens")
+        .select("player_session_id, player_heartbeat_at")
+        .eq("id", screenData.id)
+        .single();
+
       if (verifyData && (verifyData as any).player_session_id !== SESSION_ID) {
         setSessionBlocked(true);
         setScreen(screenData as ScreenData);
         screenRef.current = screenData as ScreenData;
         setLoading(false);
 
-        // Auto-retry every 10s to reclaim stale sessions automatically
+        let lastHeartbeat = (verifyData as any).player_heartbeat_at as string | null;
+        let unchangedForMs = 0;
+
+        // Auto-retry every 10s, then force-takeover if heartbeat stays unchanged
         const retryInterval = setInterval(async () => {
-          const stale = new Date(Date.now() - SESSION_TIMEOUT).toISOString();
-          const retry = await supabase.from("screens").update(updatePayload)
-            .eq("id", screenData.id).lt("player_heartbeat_at", stale).select("id");
-          if (retry.data && retry.data.length > 0) {
-            clearInterval(retryInterval);
-            setSessionBlocked(false);
-            // Re-init by reloading
-            window.location.reload();
-          }
+          try {
+            const stale = new Date(Date.now() - SESSION_TIMEOUT).toISOString();
+            const retry = await supabase.from("screens").update(makeUpdatePayload())
+              .eq("id", screenData.id)
+              .lt("player_heartbeat_at", stale)
+              .select("id");
+
+            if (retry.data && retry.data.length > 0) {
+              clearInterval(retryInterval);
+              await activateSession(screenData as ScreenData);
+              return;
+            }
+
+            const { data: live } = await supabase
+              .from("screens")
+              .select("player_session_id, player_heartbeat_at")
+              .eq("id", screenData.id)
+              .single();
+
+            if (!live) return;
+            if ((live as any).player_session_id === SESSION_ID) {
+              clearInterval(retryInterval);
+              await activateSession(screenData as ScreenData);
+              return;
+            }
+
+            const currentHeartbeat = (live as any).player_heartbeat_at as string | null;
+            if (currentHeartbeat === lastHeartbeat) {
+              unchangedForMs += 10000;
+            } else {
+              lastHeartbeat = currentHeartbeat;
+              unchangedForMs = 0;
+            }
+
+            if (unchangedForMs >= SESSION_TIMEOUT) {
+              const forced = await supabase.from("screens").update(makeUpdatePayload())
+                .eq("id", screenData.id)
+                .select("id");
+              if (forced.data && forced.data.length > 0) {
+                clearInterval(retryInterval);
+                await activateSession(screenData as ScreenData);
+              }
+            }
+          } catch (_) {}
         }, 10000);
+
         heartbeatRef.current = retryInterval as any;
         return;
       }
 
-      heartbeatRef.current = setInterval(async () => {
-        const realId = realScreenIdRef.current;
-        if (!realId) return;
-        try {
-          await (supabase.from("screens").update({ player_heartbeat_at: new Date().toISOString() } as any) as any).eq("id", realId).eq("player_session_id", SESSION_ID);
-        } catch (_) {}
-      }, HEARTBEAT_INTERVAL);
-
-      setScreen(screenData as ScreenData);
-      screenRef.current = screenData as ScreenData;
-
-      const [pl, sch] = await Promise.all([
-        fetchPlaylist(screenData as ScreenData),
-        fetchSchedules(screenData as ScreenData),
-      ]);
-      updatePlaylist(pl);
-      schedulesRef.current = sch;
-
-      if (screenData?.current_media_id && pl.length === 0) {
-        const { data: mediaData } = await supabase.from("media").select("*").eq("id", screenData.current_media_id).single();
-        if (mediaData) setMedia(mediaData as MediaData);
-      }
-
-      resolveMedia(screenData, pl, 0);
-      setLoading(false);
+      await activateSession(screenData as ScreenData);
     };
 
     init();
