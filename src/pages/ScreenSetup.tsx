@@ -100,6 +100,7 @@ function ScreenRow({ screen, updateScreen }: { screen: any; updateScreen: any })
         <Button variant="ghost" size="sm"><ExternalLink className="h-3.5 w-3.5" /></Button>
       </a>
       <CopyButton text={url} />
+      <CopyButton text={url + "?debug=1"} label="Debug" icon={<Bug className="h-3.5 w-3.5" />} />
     </div>
   );
 }
