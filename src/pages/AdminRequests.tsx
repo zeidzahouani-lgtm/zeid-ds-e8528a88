@@ -741,6 +741,140 @@ export default function AdminRequests() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* View registration detail dialog */}
+      <Dialog open={!!viewRegDialog} onOpenChange={() => setViewRegDialog(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Search className="h-5 w-5" /> Détail de la demande</DialogTitle>
+            <DialogDescription>Demande d'inscription de {viewRegDialog?.display_name}</DialogDescription>
+          </DialogHeader>
+          {viewRegDialog && (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div><p className="text-muted-foreground text-xs">Nom</p><p className="font-medium">{viewRegDialog.display_name}</p></div>
+                <div><p className="text-muted-foreground text-xs">Email</p><p className="font-medium">{viewRegDialog.email}</p></div>
+                <div><p className="text-muted-foreground text-xs">Établissement</p><p className="font-medium">{viewRegDialog.establishment_name}</p></div>
+                <div><p className="text-muted-foreground text-xs">Écrans</p><p className="font-medium">{viewRegDialog.num_screens}</p></div>
+                {viewRegDialog.phone && <div><p className="text-muted-foreground text-xs">Téléphone</p><p className="font-medium">{viewRegDialog.phone}</p></div>}
+                {viewRegDialog.address && <div><p className="text-muted-foreground text-xs">Adresse</p><p className="font-medium">{viewRegDialog.address}</p></div>}
+                <div><p className="text-muted-foreground text-xs">Statut</p>{statusBadge(viewRegDialog.status)}</div>
+                <div><p className="text-muted-foreground text-xs">Date</p><p className="font-medium">{new Date(viewRegDialog.created_at).toLocaleString("fr-FR")}</p></div>
+              </div>
+              {viewRegDialog.message && (
+                <div><p className="text-muted-foreground text-xs mb-1">Message</p><p className="bg-secondary/50 rounded-md p-3">{viewRegDialog.message}</p></div>
+              )}
+              {viewRegDialog.rejection_reason && (
+                <div><p className="text-muted-foreground text-xs mb-1">Raison du refus</p><p className="bg-destructive/10 text-destructive rounded-md p-3">{viewRegDialog.rejection_reason}</p></div>
+              )}
+              {viewRegDialog.reviewed_by && (
+                <div><p className="text-muted-foreground text-xs">Traité par</p><p className="font-medium">{getAdminName(viewRegDialog.reviewed_by)} — {viewRegDialog.reviewed_at ? new Date(viewRegDialog.reviewed_at).toLocaleString("fr-FR") : ""}</p></div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewRegDialog(null)}>Fermer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit registration dialog */}
+      <Dialog open={!!editRegDialog} onOpenChange={() => setEditRegDialog(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Pencil className="h-5 w-5" /> Modifier la demande</DialogTitle>
+            <DialogDescription>Modifiez les informations de la demande d'inscription</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Nom</label>
+                <Input value={editRegForm.display_name} onChange={(e) => setEditRegForm({ ...editRegForm, display_name: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Email</label>
+                <Input value={editRegForm.email} onChange={(e) => setEditRegForm({ ...editRegForm, email: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Établissement</label>
+                <Input value={editRegForm.establishment_name} onChange={(e) => setEditRegForm({ ...editRegForm, establishment_name: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Nb écrans</label>
+                <Input type="number" min={1} value={editRegForm.num_screens} onChange={(e) => setEditRegForm({ ...editRegForm, num_screens: parseInt(e.target.value) || 1 })} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Téléphone</label>
+                <Input value={editRegForm.phone} onChange={(e) => setEditRegForm({ ...editRegForm, phone: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Adresse</label>
+                <Input value={editRegForm.address} onChange={(e) => setEditRegForm({ ...editRegForm, address: e.target.value })} />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Message</label>
+              <Textarea value={editRegForm.message} onChange={(e) => setEditRegForm({ ...editRegForm, message: e.target.value })} rows={2} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditRegDialog(null)}>Annuler</Button>
+            <Button onClick={() => saveEditReg.mutate()} disabled={saveEditReg.isPending}>
+              {saveEditReg.isPending ? "Sauvegarde..." : "Sauvegarder"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* View reset detail dialog */}
+      <Dialog open={!!viewResetDialog} onOpenChange={() => setViewResetDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Search className="h-5 w-5" /> Détail de la demande</DialogTitle>
+            <DialogDescription>Demande de réinitialisation</DialogDescription>
+          </DialogHeader>
+          {viewResetDialog && (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div><p className="text-muted-foreground text-xs">Email</p><p className="font-medium">{viewResetDialog.email}</p></div>
+                <div><p className="text-muted-foreground text-xs">Statut</p>{statusBadge(viewResetDialog.status)}</div>
+                <div><p className="text-muted-foreground text-xs">Date de demande</p><p className="font-medium">{new Date(viewResetDialog.created_at).toLocaleString("fr-FR")}</p></div>
+                {viewResetDialog.handled_by && (
+                  <div><p className="text-muted-foreground text-xs">Traité par</p><p className="font-medium">{getAdminName(viewResetDialog.handled_by)}</p></div>
+                )}
+                {viewResetDialog.handled_at && (
+                  <div><p className="text-muted-foreground text-xs">Date de traitement</p><p className="font-medium">{new Date(viewResetDialog.handled_at).toLocaleString("fr-FR")}</p></div>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewResetDialog(null)}>Fermer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit reset dialog */}
+      <Dialog open={!!editResetDialog} onOpenChange={() => setEditResetDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Pencil className="h-5 w-5" /> Modifier la demande</DialogTitle>
+            <DialogDescription>Modifiez l'email de la demande de réinitialisation</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Email</label>
+              <Input value={editResetEmail} onChange={(e) => setEditResetEmail(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditResetDialog(null)}>Annuler</Button>
+            <Button onClick={() => saveEditReset.mutate()} disabled={saveEditReset.isPending}>
+              {saveEditReset.isPending ? "Sauvegarde..." : "Sauvegarder"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
