@@ -39,10 +39,13 @@ export function useLicenses() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("licenses" as any)
-        .select("*")
+        .select("*, establishment:establishments(name)")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data || []) as unknown as License[];
+      return ((data || []) as any[]).map((l: any) => ({
+        ...l,
+        establishment_name: l.establishment?.name || null,
+      })) as unknown as License[];
     },
   });
 
