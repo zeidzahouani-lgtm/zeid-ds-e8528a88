@@ -443,10 +443,12 @@ export type Database = {
           activated_at: string | null
           created_at: string
           created_by: string | null
+          establishment_id: string | null
           id: string
           is_active: boolean
           license_key: string
           screen_id: string | null
+          source: string
           valid_from: string
           valid_until: string
         }
@@ -454,10 +456,12 @@ export type Database = {
           activated_at?: string | null
           created_at?: string
           created_by?: string | null
+          establishment_id?: string | null
           id?: string
           is_active?: boolean
           license_key: string
           screen_id?: string | null
+          source?: string
           valid_from?: string
           valid_until: string
         }
@@ -465,14 +469,23 @@ export type Database = {
           activated_at?: string | null
           created_at?: string
           created_by?: string | null
+          establishment_id?: string | null
           id?: string
           is_active?: boolean
           license_key?: string
           screen_id?: string | null
+          source?: string
           valid_from?: string
           valid_until?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "licenses_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "licenses_screen_id_fkey"
             columns: ["screen_id"]
