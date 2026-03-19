@@ -201,6 +201,15 @@ export default function AdminRequests() {
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [sendRegEmail, setSendRegEmail] = useState(true);
 
+  // State for view/edit dialogs
+  const [viewRegDialog, setViewRegDialog] = useState<RegistrationRequest | null>(null);
+  const [editRegDialog, setEditRegDialog] = useState<RegistrationRequest | null>(null);
+  const [editRegForm, setEditRegForm] = useState({ display_name: "", email: "", establishment_name: "", num_screens: 1, phone: "", address: "", message: "" });
+
+  const [viewResetDialog, setViewResetDialog] = useState<PasswordResetRequest | null>(null);
+  const [editResetDialog, setEditResetDialog] = useState<PasswordResetRequest | null>(null);
+  const [editResetEmail, setEditResetEmail] = useState("");
+
   const openResetDialog = (req: PasswordResetRequest, mode: "handle" | "resend" = "handle") => {
     setNewPassword(generatePassword());
     setShowPassword(false);
@@ -214,6 +223,24 @@ export default function AdminRequests() {
     setShowRegPassword(false);
     setRejectionReason("");
     setRegDialog(req);
+  };
+
+  const openEditReg = (req: RegistrationRequest) => {
+    setEditRegForm({
+      display_name: req.display_name,
+      email: req.email,
+      establishment_name: req.establishment_name,
+      num_screens: req.num_screens,
+      phone: req.phone || "",
+      address: req.address || "",
+      message: req.message || "",
+    });
+    setEditRegDialog(req);
+  };
+
+  const openEditReset = (req: PasswordResetRequest) => {
+    setEditResetEmail(req.email);
+    setEditResetDialog(req);
   };
 
   // Handle password reset
