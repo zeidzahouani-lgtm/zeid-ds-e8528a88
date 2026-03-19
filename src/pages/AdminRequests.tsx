@@ -289,23 +289,67 @@ export default function AdminRequests() {
       if (res.error) throw res.error;
       if (res.data?.error) throw new Error(res.data.error);
 
-      // Create establishment
-      const { data: est, error: estError } = await supabase.from("establishments").insert({
-        name: regDialog.establishment_name,
-        max_screens: regDialog.num_screens,
-        created_by: user!.id,
-        phone: regDialog.phone,
-        address: regDialog.address,
-      }).select().single();
-      if (estError) throw estError;
+      // Check if establishment already exists
+      const { data: existingEst } = await supabase
+        .from("establishments")
+        .select("id")
+        .eq("name", regDialog.establishment_name)
+        .limit(1);
+
+      let estId: string;
+
+      if (existingEst && existingEst.length > 0) {
+        estId = existingEst[0].id;
+      } else {
+        // Create establishment with requested num_screens as max_screens
+        const { data: est, error: estError } = await supabase.from("establishments").insert({
+          name: regDialog.establishment_name,
+          max_screens: regDialog.num_screens,
+          created_by: user!.id,
+          phone: regDialog.phone,
+          address: regDialog.address,
+        }).select().single();
+        if (estError) throw estError;
+        estId = est.id;
+      }
 
       // Assign user to establishment
-      if (res.data?.user?.id && est) {
+      if (res.data?.user?.id) {
         await supabase.from("user_establishments").insert({
           user_id: res.data.user.id,
-          establishment_id: est.id,
+          establishment_id: estId,
           role: "admin",
         });
+      }
+
+      // Auto-generate licenses for the requested number of screens
+      const numScreens = regDialog.num_screens || 1;
+      const generateKey = () => {
+        const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        const parts: string[] = [];
+        for (let s = 0; s < 4; s++) {
+          let seg = "";
+          for (let i = 0; i < 4; i++) seg += chars[Math.floor(Math.random() * chars.length)];
+          parts.push(seg);
+        }
+        return parts.join("-");
+      };
+
+      const validUntil = new Date();
+      validUntil.setFullYear(validUntil.getFullYear() + 1); // 1 year validity
+
+      const licensesToInsert = Array.from({ length: numScreens }, () => ({
+        license_key: generateKey(),
+        created_by: user!.id,
+        valid_until: validUntil.toISOString(),
+        is_active: true,
+      }));
+
+      if (licensesToInsert.length > 0) {
+        const { error: licError } = await supabase
+          .from("licenses" as any)
+          .insert(licensesToInsert as any);
+        if (licError) throw licError;
       }
 
       // Send email if checked
