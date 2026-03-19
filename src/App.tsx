@@ -16,6 +16,7 @@ const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const PublicManual = lazy(() => import("./pages/PublicManual"));
 const DashboardHome = lazy(() => import("./pages/DashboardHome"));
 const Displays = lazy(() => import("./pages/Displays"));
 const Library = lazy(() => import("./pages/Library"));
