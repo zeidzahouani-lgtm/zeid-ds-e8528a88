@@ -35,6 +35,16 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-background">
+      {/* Theme toggle */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={toggleTheme}
+        className="absolute top-4 right-4 z-20 h-9 w-9 text-muted-foreground hover:text-primary backdrop-blur-sm bg-card/30 border border-border/30"
+      >
+        {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      </Button>
+
       {/* Animated gradient background */}
       <AnimatedBackground />
 
