@@ -251,7 +251,7 @@ export default function AdminCustomization() {
               Visuels
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-6">
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">Logo</Label>
               <div className="flex gap-2">
@@ -271,6 +271,45 @@ export default function AdminCustomization() {
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">URL du favicon</Label>
               <Input value={form.favicon_url} onChange={(e) => setForm({ ...form, favicon_url: e.target.value })} placeholder="https://example.com/favicon.ico" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Vidéo de la page de connexion</Label>
+              <p className="text-[10px] text-muted-foreground normal-case">Uploadez une vidéo affichée à droite du formulaire de connexion. Laissez vide pour un login plein écran.</p>
+              <div className="flex gap-2">
+                <Input value={form.login_video_url || ""} onChange={(e) => setForm({ ...form, login_video_url: e.target.value })} placeholder="URL de la vidéo ou uploadez un fichier" className="flex-1" />
+                <input ref={videoInputRef} type="file" accept="video/mp4,video/webm" className="hidden" onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (!file.type.startsWith("video/")) { toast.error("Veuillez sélectionner une vidéo"); return; }
+                  setUploadingVideo(true);
+                  try {
+                    const ext = file.name.split(".").pop();
+                    const fileName = `branding/login-video-${Date.now()}.${ext}`;
+                    const { error } = await supabase.storage.from("media").upload(fileName, file, { upsert: true });
+                    if (error) throw error;
+                    const { data } = supabase.storage.from("media").getPublicUrl(fileName);
+                    setForm({ ...form, login_video_url: data.publicUrl });
+                    toast.success("Vidéo uploadée avec succès");
+                  } catch { toast.error("Erreur lors de l'upload de la vidéo"); } finally {
+                    setUploadingVideo(false);
+                    if (videoInputRef.current) videoInputRef.current.value = "";
+                  }
+                }} />
+                <Button variant="outline" size="icon" onClick={() => videoInputRef.current?.click()} disabled={uploadingVideo} className="shrink-0">
+                  <Upload className="h-4 w-4" />
+                </Button>
+                {form.login_video_url && (
+                  <Button variant="outline" size="icon" onClick={() => setForm({ ...form, login_video_url: "" })} className="shrink-0 text-destructive hover:text-destructive">
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              {uploadingVideo && <p className="text-xs text-primary animate-pulse normal-case">Upload en cours...</p>}
+              {form.login_video_url && (
+                <div className="mt-2 rounded-lg overflow-hidden bg-secondary/50">
+                  <video src={form.login_video_url} className="w-full max-h-40 object-cover" muted autoPlay loop playsInline />
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
