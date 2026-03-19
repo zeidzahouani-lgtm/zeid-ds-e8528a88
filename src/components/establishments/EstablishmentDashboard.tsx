@@ -66,6 +66,9 @@ export function EstablishmentDashboard({ establishmentId }: Props) {
     },
   });
 
+  const screenIds = useMemo(() => screens.map((s: any) => s.id), [screens]);
+  const { data: licenseStatuses } = useScreenLicenses(screenIds);
+
   const onlineScreens = screens.filter((s: any) => s.status === "online").length;
   const offlineScreens = screens.length - onlineScreens;
 
