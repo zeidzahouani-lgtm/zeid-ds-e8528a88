@@ -343,6 +343,8 @@ export default function AdminRequests() {
         created_by: user!.id,
         valid_until: validUntil.toISOString(),
         is_active: true,
+        source: 'auto',
+        establishment_id: estId,
       }));
 
       if (licensesToInsert.length > 0) {

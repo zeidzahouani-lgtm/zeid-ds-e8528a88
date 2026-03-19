@@ -11,6 +11,9 @@ export interface License {
   is_active: boolean;
   activated_at: string | null;
   created_at: string;
+  source: string;
+  establishment_id: string | null;
+  establishment_name?: string;
 }
 
 function generateLicenseKey(): string {
