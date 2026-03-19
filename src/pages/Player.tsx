@@ -587,9 +587,8 @@ export default function Player() {
 
     checkLicense();
 
-    const interval = setInterval(() => {
-      if (licenseValid !== true) checkLicense();
-    }, 5000);
+    // Always poll every 10s, even when valid — catches deactivations
+    const interval = setInterval(checkLicense, 10000);
 
     const channel = supabase
       .channel(`license-realtime-${screen.id}`)
@@ -604,7 +603,7 @@ export default function Player() {
       clearInterval(interval);
       supabase.removeChannel(channel);
     };
-  }, [screen?.id, licenseValid, previewMode]);
+  }, [screen?.id, previewMode]);
 
   const requestFullscreen = useCallback(() => {
     if (previewMode) return; // No fullscreen in preview
