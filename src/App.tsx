@@ -71,6 +71,7 @@ const App = () => (
               <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
               <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/manual" element={<PublicManual />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/player/:id" element={<Player />} />
               <Route path="/upload/:id" element={<UploadPage />} />
