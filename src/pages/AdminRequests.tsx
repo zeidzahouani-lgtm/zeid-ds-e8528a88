@@ -353,6 +353,69 @@ export default function AdminRequests() {
     onError: (e) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
 
+  // Save edited registration request
+  const saveEditReg = useMutation({
+    mutationFn: async () => {
+      if (!editRegDialog) return;
+      await supabase
+        .from("registration_requests" as any)
+        .update({
+          display_name: editRegForm.display_name,
+          email: editRegForm.email,
+          establishment_name: editRegForm.establishment_name,
+          num_screens: editRegForm.num_screens,
+          phone: editRegForm.phone || null,
+          address: editRegForm.address || null,
+          message: editRegForm.message || null,
+        } as any)
+        .eq("id", editRegDialog.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["registration_requests"] });
+      toast({ title: "Demande modifiée" });
+      setEditRegDialog(null);
+    },
+    onError: (e) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+  });
+
+  // Save edited password reset request
+  const saveEditReset = useMutation({
+    mutationFn: async () => {
+      if (!editResetDialog) return;
+      await supabase
+        .from("password_reset_requests" as any)
+        .update({ email: editResetEmail } as any)
+        .eq("id", editResetDialog.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["password_reset_requests"] });
+      toast({ title: "Demande modifiée" });
+      setEditResetDialog(null);
+    },
+    onError: (e) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+  });
+
+  // Delete request
+  const deleteRegRequest = useMutation({
+    mutationFn: async (id: string) => {
+      await supabase.from("registration_requests" as any).delete().eq("id", id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["registration_requests"] });
+      toast({ title: "Demande supprimée" });
+    },
+  });
+
+  const deleteResetRequest = useMutation({
+    mutationFn: async (id: string) => {
+      await supabase.from("password_reset_requests" as any).delete().eq("id", id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["password_reset_requests"] });
+      toast({ title: "Demande supprimée" });
+    },
+  });
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast({ title: "Copié dans le presse-papier" });
