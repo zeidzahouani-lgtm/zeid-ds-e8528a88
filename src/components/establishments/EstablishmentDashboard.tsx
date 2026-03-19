@@ -1,8 +1,10 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tv, Image, Key, Activity, Wifi, WifiOff, LayoutGrid, ListMusic, Clock } from "lucide-react";
+import { Tv, Image, Key, Activity, Wifi, WifiOff, LayoutGrid, ListMusic, Clock, ShieldAlert, ShieldOff } from "lucide-react";
+import { useScreenLicenses } from "@/hooks/useScreenLicenses";
 
 interface Props {
   establishmentId: string;
