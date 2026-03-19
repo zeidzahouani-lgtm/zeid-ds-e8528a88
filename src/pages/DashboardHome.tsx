@@ -1,10 +1,13 @@
-import { Tv, Image, ListMusic, Clock, Wifi, WifiOff } from "lucide-react";
+import { useMemo } from "react";
+import { Tv, Image, ListMusic, Clock, Wifi, WifiOff, ShieldAlert, ShieldOff } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useScreens } from "@/hooks/useScreens";
 import { useMedia } from "@/hooks/useMedia";
 import { Link, Navigate } from "react-router-dom";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import { EstablishmentDashboard } from "@/components/establishments/EstablishmentDashboard";
+import { useScreenLicenses } from "@/hooks/useScreenLicenses";
 
 export default function DashboardHome() {
   const { screens } = useScreens();
