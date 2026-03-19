@@ -29,6 +29,9 @@ export default function DashboardHome() {
     );
   }
 
+  const screenIds = useMemo(() => screens.map((s: any) => s.id), [screens]);
+  const { data: licenseStatuses } = useScreenLicenses(screenIds);
+
   const online = screens.filter((s: any) => s.status === "online").length;
   const offline = screens.length - online;
 
