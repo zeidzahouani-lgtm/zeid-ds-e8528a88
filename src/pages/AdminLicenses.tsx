@@ -145,126 +145,173 @@ export default function AdminLicenses() {
         </CardContent>
       </Card>
 
-      {/* Licenses list */}
+      {/* Licenses list with tabs */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold tracking-wider">
-          Licences existantes
-          <Badge variant="secondary" className="ml-2">{licenses.length}</Badge>
-        </h2>
-
-        {isLoading ? (
-          <Card className="p-8 text-center">
-            <p className="text-muted-foreground normal-case animate-pulse">Chargement...</p>
-          </Card>
-        ) : licenses.length === 0 ? (
-          <Card className="p-8 text-center">
-            <Key className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
-            <p className="text-muted-foreground normal-case">Aucune licence générée</p>
-          </Card>
-        ) : (
-          <div className="space-y-3 stagger-children">
-            {licenses.map((license) => {
-              const expired = isExpired(license.valid_until);
-              const screenName = screens.find((s: any) => s.id === license.screen_id)?.name;
-
-              return (
-                <Card key={license.id} className={`p-4 ${expired ? "opacity-60" : ""}`}>
-                  <div className="flex flex-col md:flex-row md:items-center gap-4">
-                    {/* License key */}
-                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${
-                        license.is_active && !expired ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"
-                      }`}>
-                        {license.is_active && !expired ? <Shield className="h-4 w-4" /> : <ShieldOff className="h-4 w-4" />}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <code className="text-sm font-mono font-bold tracking-wider">{license.license_key}</code>
-                          <button onClick={() => copyKey(license.license_key)} className="text-muted-foreground hover:text-primary transition-colors">
-                            <Copy className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground normal-case">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            Expire: {new Date(license.valid_until).toLocaleDateString("fr-FR")}
-                          </span>
-                          {screenName && (
-                            <span className="flex items-center gap-1">
-                              <Monitor className="h-3 w-3" />
-                              {screenName}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Status badges */}
-                    <div className="flex items-center gap-2">
-                      {expired && (
-                        <Badge variant="destructive" className="text-[10px]">Expirée</Badge>
-                      )}
-                      {!expired && license.is_active && (
-                        <Badge className="bg-status-online/20 text-status-online border-status-online/30 text-[10px]">Active</Badge>
-                      )}
-                      {!license.is_active && (
-                        <Badge variant="secondary" className="text-[10px]">Désactivée</Badge>
-                      )}
-                      {!license.screen_id && (
-                        <Badge variant="outline" className="text-[10px]">Non assignée</Badge>
-                      )}
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-2">
-                      {expired && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1.5 text-xs border-primary/30 text-primary hover:bg-primary/10"
-                          onClick={() => { setRenewingId(license.id); setRenewDays("365"); }}
-                        >
-                          <RefreshCw className="h-3.5 w-3.5" />
-                          Renouveler
-                        </Button>
-                      )}
-                      {!license.screen_id && (
-                        <Select onValueChange={(val) => {
-                          if (val) assignScreen.mutate({ id: license.id, screen_id: val });
-                        }}>
-                          <SelectTrigger className="w-[140px] h-8 text-xs">
-                            <SelectValue placeholder="Assigner..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {screens.map((s: any) => (
-                              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => toggleLicense.mutate({ id: license.id, is_active: !license.is_active })}
-                      >
-                        {license.is_active ? <ShieldOff className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        onClick={() => setDeletingId(license.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
+        <Tabs defaultValue="all" className="w-full">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold tracking-wider">
+              Licences existantes
+              <Badge variant="secondary" className="ml-2">{licenses.length}</Badge>
+            </h2>
+            <TabsList>
+              <TabsTrigger value="all" className="gap-1.5 text-xs">
+                Toutes
+                <Badge variant="secondary" className="text-[10px] ml-1">{licenses.length}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="manual" className="gap-1.5 text-xs">
+                <Wrench className="h-3 w-3" />
+                Manuelles
+                <Badge variant="secondary" className="text-[10px] ml-1">{licenses.filter(l => l.source !== 'auto').length}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="auto" className="gap-1.5 text-xs">
+                <Sparkles className="h-3 w-3" />
+                Auto
+                <Badge variant="secondary" className="text-[10px] ml-1">{licenses.filter(l => l.source === 'auto').length}</Badge>
+              </TabsTrigger>
+            </TabsList>
           </div>
-        )}
+
+          {["all", "manual", "auto"].map((tab) => (
+            <TabsContent key={tab} value={tab} className="mt-3">
+              {isLoading ? (
+                <Card className="p-8 text-center">
+                  <p className="text-muted-foreground normal-case animate-pulse">Chargement...</p>
+                </Card>
+              ) : (() => {
+                const filtered = tab === "all" ? licenses
+                  : tab === "auto" ? licenses.filter(l => l.source === 'auto')
+                  : licenses.filter(l => l.source !== 'auto');
+
+                return filtered.length === 0 ? (
+                  <Card className="p-8 text-center">
+                    <Key className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+                    <p className="text-muted-foreground normal-case">Aucune licence {tab === 'auto' ? 'automatique' : tab === 'manual' ? 'manuelle' : ''}</p>
+                  </Card>
+                ) : (
+                  <div className="space-y-3 stagger-children">
+                    {filtered.map((license) => {
+                      const expired = isExpired(license.valid_until);
+                      const screenName = screens.find((s: any) => s.id === license.screen_id)?.name;
+
+                      return (
+                        <Card key={license.id} className={`p-4 ${expired ? "opacity-60" : ""}`}>
+                          <div className="flex flex-col md:flex-row md:items-center gap-4">
+                            {/* License key */}
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <div className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 ${
+                                license.is_active && !expired ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"
+                              }`}>
+                                {license.is_active && !expired ? <Shield className="h-4 w-4" /> : <ShieldOff className="h-4 w-4" />}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <code className="text-sm font-mono font-bold tracking-wider">{license.license_key}</code>
+                                  <button onClick={() => copyKey(license.license_key)} className="text-muted-foreground hover:text-primary transition-colors">
+                                    <Copy className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                                <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground normal-case flex-wrap">
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    Expire: {new Date(license.valid_until).toLocaleDateString("fr-FR")}
+                                  </span>
+                                  {screenName && (
+                                    <span className="flex items-center gap-1">
+                                      <Monitor className="h-3 w-3" />
+                                      {screenName}
+                                    </span>
+                                  )}
+                                  {license.establishment_name && (
+                                    <span className="flex items-center gap-1">
+                                      <Building2 className="h-3 w-3" />
+                                      {license.establishment_name}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Status badges */}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              {license.source === 'auto' ? (
+                                <Badge variant="outline" className="text-[10px] gap-1 border-accent text-accent-foreground">
+                                  <Sparkles className="h-2.5 w-2.5" />
+                                  Auto
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[10px] gap-1">
+                                  <Wrench className="h-2.5 w-2.5" />
+                                  Manuelle
+                                </Badge>
+                              )}
+                              {expired && (
+                                <Badge variant="destructive" className="text-[10px]">Expirée</Badge>
+                              )}
+                              {!expired && license.is_active && (
+                                <Badge className="bg-status-online/20 text-status-online border-status-online/30 text-[10px]">Active</Badge>
+                              )}
+                              {!license.is_active && (
+                                <Badge variant="secondary" className="text-[10px]">Désactivée</Badge>
+                              )}
+                              {!license.screen_id && (
+                                <Badge variant="outline" className="text-[10px]">Non assignée</Badge>
+                              )}
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex items-center gap-2">
+                              {expired && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-1.5 text-xs border-primary/30 text-primary hover:bg-primary/10"
+                                  onClick={() => { setRenewingId(license.id); setRenewDays("365"); }}
+                                >
+                                  <RefreshCw className="h-3.5 w-3.5" />
+                                  Renouveler
+                                </Button>
+                              )}
+                              {!license.screen_id && (
+                                <Select onValueChange={(val) => {
+                                  if (val) assignScreen.mutate({ id: license.id, screen_id: val });
+                                }}>
+                                  <SelectTrigger className="w-[140px] h-8 text-xs">
+                                    <SelectValue placeholder="Assigner..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {screens.map((s: any) => (
+                                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => toggleLicense.mutate({ id: license.id, is_active: !license.is_active })}
+                              >
+                                {license.is_active ? <ShieldOff className="h-4 w-4" /> : <Shield className="h-4 w-4" />}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive"
+                                onClick={() => setDeletingId(license.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </TabsContent>
+          ))}
+        </Tabs>
       </div>
 
       {/* Renew dialog */}
