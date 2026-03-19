@@ -1,8 +1,10 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tv, Image, Key, Activity, Wifi, WifiOff, LayoutGrid, ListMusic, Clock } from "lucide-react";
+import { Tv, Image, Key, Activity, Wifi, WifiOff, LayoutGrid, ListMusic, Clock, ShieldAlert, ShieldOff } from "lucide-react";
+import { useScreenLicenses } from "@/hooks/useScreenLicenses";
 
 interface Props {
   establishmentId: string;
@@ -63,6 +65,9 @@ export function EstablishmentDashboard({ establishmentId }: Props) {
       return count || 0;
     },
   });
+
+  const screenIds = useMemo(() => screens.map((s: any) => s.id), [screens]);
+  const { data: licenseStatuses } = useScreenLicenses(screenIds);
 
   const onlineScreens = screens.filter((s: any) => s.status === "online").length;
   const offlineScreens = screens.length - onlineScreens;
@@ -126,9 +131,22 @@ export function EstablishmentDashboard({ establishmentId }: Props) {
                   <Tv className="h-3.5 w-3.5 text-muted-foreground" />
                   <span>{s.name}</span>
                 </div>
-                <Badge variant={s.status === "online" ? "default" : "secondary"} className="text-[10px]">
-                  {s.status === "online" ? "En ligne" : "Hors ligne"}
-                </Badge>
+                <div className="flex items-center gap-1">
+                  <Badge variant={s.status === "online" ? "default" : "secondary"} className="text-[10px]">
+                    {s.status === "online" ? "En ligne" : "Hors ligne"}
+                  </Badge>
+                  {licenseStatuses && !licenseStatuses[s.id]?.valid && (
+                    <Badge variant="outline" className="text-destructive border-destructive/30 gap-1 text-[10px]">
+                      {licenseStatuses[s.id]?.expired ? (
+                        <><ShieldOff className="h-3 w-3" /> Expirée</>
+                      ) : licenseStatuses[s.id]?.inactive ? (
+                        <><ShieldAlert className="h-3 w-3" /> Désactivée</>
+                      ) : (
+                        <><ShieldAlert className="h-3 w-3" /> Sans licence</>
+                      )}
+                    </Badge>
+                  )}
+                </div>
               </div>
             ))}
           </CardContent>

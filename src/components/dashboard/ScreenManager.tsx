@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock, RefreshCw, Tv, Power, Eye } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock, RefreshCw, Tv, Power, Eye, ShieldAlert, ShieldOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useScreenLicenses } from "@/hooks/useScreenLicenses";
 
 type OrientationPreview = {
   label: string;
@@ -105,6 +106,8 @@ export function ScreenManager() {
   const { programs } = usePrograms();
   const { currentEstablishmentId } = useEstablishmentContext();
   const queryClient = useQueryClient();
+  const screenIds = useMemo(() => screens.map((s: any) => s.id), [screens]);
+  const { data: licenseStatuses } = useScreenLicenses(screenIds);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = async () => {
@@ -228,6 +231,17 @@ export function ScreenManager() {
                       ) : (
                         <Badge variant="outline" className="text-status-offline border-status-offline/30 gap-1 text-xs">
                           <WifiOff className="h-3 w-3" /> Hors ligne
+                        </Badge>
+                      )}
+                      {licenseStatuses && !licenseStatuses[screen.id]?.valid && (
+                        <Badge variant="outline" className="text-destructive border-destructive/30 gap-1 text-xs">
+                          {licenseStatuses[screen.id]?.expired ? (
+                            <><ShieldOff className="h-3 w-3" /> Licence expirée</>
+                          ) : licenseStatuses[screen.id]?.inactive ? (
+                            <><ShieldAlert className="h-3 w-3" /> Licence désactivée</>
+                          ) : (
+                            <><ShieldAlert className="h-3 w-3" /> Sans licence</>
+                          )}
                         </Badge>
                       )}
                       {assignedPlaylist && (
