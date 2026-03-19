@@ -106,6 +106,8 @@ export function ScreenManager() {
   const { programs } = usePrograms();
   const { currentEstablishmentId } = useEstablishmentContext();
   const queryClient = useQueryClient();
+  const screenIds = useMemo(() => screens.map((s: any) => s.id), [screens]);
+  const { data: licenseStatuses } = useScreenLicenses(screenIds);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = async () => {
