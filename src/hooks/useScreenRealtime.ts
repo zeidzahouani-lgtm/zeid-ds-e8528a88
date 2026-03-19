@@ -125,14 +125,27 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
   }, []);
 
   const resolveMedia = useCallback(
-    (screenData: ScreenData | null, pl: PlaylistItem[], idx: number) => {
+    (screenData: ScreenData | null, pl: PlaylistItem[], idx: number, opts?: { skipDbUpdate?: boolean }) => {
       const scheduled = getActiveScheduleMedia(schedulesRef.current);
       if (scheduled) { setMedia(scheduled); return; }
-      if (pl.length > 0) { setMedia(pl[idx % pl.length]?.media ?? null); return; }
+      if (pl.length > 0) {
+        const item = pl[idx % pl.length];
+        const mediaItem = item?.media ?? null;
+        setMedia(mediaItem);
+        // In normal mode, write current_media_id to DB so preview stays in sync
+        if (mediaItem && !previewOnly && !opts?.skipDbUpdate) {
+          const realId = realScreenIdRef.current;
+          if (realId) {
+            supabase.from("screens").update({ current_media_id: mediaItem.id } as any)
+              .eq("id", realId).then(() => {});
+          }
+        }
+        return;
+      }
       if (screenData?.current_media_id) return;
       setMedia(null);
     },
-    []
+    [previewOnly]
   );
 
   const getItemDuration = useCallback((pl: PlaylistItem[], idx: number): number => {
