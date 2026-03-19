@@ -6,7 +6,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { MonitorPlay, Moon, Play, Sun } from "lucide-react";
+import { MonitorPlay, Moon, Play, Sun, BookOpen, Download } from "lucide-react";
 import { toast } from "sonner";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
 import { LoginParticles } from "@/components/LoginParticles";
@@ -178,6 +178,15 @@ export default function Login() {
                 S'inscrire
               </Link>
             </p>
+          </div>
+
+          <div className="flex items-center justify-center gap-3 pt-2 border-t border-border/30">
+            <Link to="/manual">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground hover:text-primary">
+                <BookOpen className="h-3.5 w-3.5" />
+                Consulter le Manuel
+              </Button>
+            </Link>
           </div>
         </Card>
       </div>

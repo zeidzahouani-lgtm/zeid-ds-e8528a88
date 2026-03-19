@@ -1,16 +1,25 @@
 import { useRef } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import {
   Download, Monitor, Tv, Image, ListMusic, Clock, LayoutGrid,
   Sparkles, Shield, Cloud, Zap, Eye, Users, Settings, Mail,
-  BookOpen, Rocket, Target, Layers, Globe, Lock, BarChart3,
+  BookOpen, Rocket, Target, Layers, Globe, Lock,
   ChevronRight, Play, Upload, Palette, Bell, Server
 } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+
+import screenshotLogin from "@/assets/screenshots/login-screen.png";
+import screenshotScreens from "@/assets/screenshots/screens-management.png";
+import screenshotMedia from "@/assets/screenshots/media-library.png";
+import screenshotLayout from "@/assets/screenshots/layout-editor.png";
+import screenshotSchedule from "@/assets/screenshots/schedule-view.png";
+import screenshotAI from "@/assets/screenshots/ai-assistant.png";
+import screenshotAutoflow from "@/assets/screenshots/autoflow-email.png";
+import screenshotAdmin from "@/assets/screenshots/admin-panel.png";
 
 /* ──────────── PDF Export ──────────── */
 async function exportToPDF(element: HTMLElement, filename: string) {
@@ -66,7 +75,8 @@ const manualSections = [
       "Vérifiez votre email et connectez-vous avec vos identifiants.",
       "Lors de la première connexion, vous serez guidé vers le tableau de bord principal.",
     ],
-    screenshot: "Écran de connexion avec formulaire d'authentification",
+    screenshot: screenshotLogin,
+    screenshotAlt: "Écran de connexion avec formulaire d'authentification",
   },
   {
     id: "screens",
@@ -79,7 +89,8 @@ const manualSections = [
       "Sur votre écran physique, ouvrez le navigateur et collez l'URL Player.",
       "L'écran apparaîtra comme 'En ligne' dans le tableau de bord une fois connecté.",
     ],
-    screenshot: "Page de gestion des écrans avec statuts en temps réel",
+    screenshot: screenshotScreens,
+    screenshotAlt: "Page de gestion des écrans avec statuts en temps réel",
   },
   {
     id: "content",
@@ -92,7 +103,8 @@ const manualSections = [
       "Organisez vos médias en playlists depuis la section 'Playlists'.",
       "Réorganisez l'ordre des médias par glisser-déposer dans la playlist.",
     ],
-    screenshot: "Bibliothèque de médias avec vignettes et options d'upload",
+    screenshot: screenshotMedia,
+    screenshotAlt: "Bibliothèque de médias avec vignettes et options d'upload",
   },
   {
     id: "layouts",
@@ -105,7 +117,8 @@ const manualSections = [
       "Assignez des médias ou playlists à chaque zone.",
       "Sauvegardez et assignez le layout à un ou plusieurs écrans.",
     ],
-    screenshot: "Éditeur de layout avec zones drag & drop et widgets",
+    screenshot: screenshotLayout,
+    screenshotAlt: "Éditeur de layout avec zones drag & drop et widgets",
   },
   {
     id: "schedules",
@@ -118,7 +131,8 @@ const manualSections = [
       "Activez ou désactivez les programmations selon vos besoins.",
       "Les contenus s'afficheront automatiquement selon le planning défini.",
     ],
-    screenshot: "Calendrier de programmation avec plages horaires configurées",
+    screenshot: screenshotSchedule,
+    screenshotAlt: "Calendrier de programmation avec plages horaires configurées",
   },
   {
     id: "ai",
@@ -131,7 +145,8 @@ const manualSections = [
       "Validez, modifiez ou régénérez les suggestions selon vos besoins.",
       "Publiez directement le contenu généré sur vos écrans.",
     ],
-    screenshot: "Interface de l'assistant IA avec chat et suggestions",
+    screenshot: screenshotAI,
+    screenshotAlt: "Interface de l'assistant IA avec chat et suggestions",
   },
   {
     id: "autoflow",
@@ -144,7 +159,8 @@ const manualSections = [
       "Les contenus sont ajoutés en attente de validation ou publiés directement.",
       "Suivez l'historique des emails reçus dans la section 'Flux Automatique'.",
     ],
-    screenshot: "Page du flux automatique avec historique des emails traités",
+    screenshot: screenshotAutoflow,
+    screenshotAlt: "Page du flux automatique avec historique des emails traités",
   },
   {
     id: "admin",
@@ -157,7 +173,8 @@ const manualSections = [
       "Gérez les licences : activation, désactivation, suivi des expirations.",
       "Personnalisez l'apparence globale : logo, couleurs, messages d'accueil.",
     ],
-    screenshot: "Panneau d'administration avec gestion des utilisateurs",
+    screenshot: screenshotAdmin,
+    screenshotAlt: "Panneau d'administration avec gestion des utilisateurs",
   },
 ];
 
@@ -177,11 +194,21 @@ function FeatureCard({ icon: Icon, title, desc }: { icon: any; title: string; de
   );
 }
 
-function ScreenshotPlaceholder({ label }: { label: string }) {
+function ManualScreenshot({ src, alt }: { src: string; alt: string }) {
   return (
-    <div className="rounded-xl border-2 border-dashed border-primary/20 bg-primary/5 p-8 flex flex-col items-center justify-center gap-2 my-4">
-      <Eye className="h-8 w-8 text-primary/40" />
-      <p className="text-xs text-muted-foreground text-center italic">📸 {label}</p>
+    <div className="rounded-xl overflow-hidden border border-primary/20 shadow-glow-blue my-4">
+      <img
+        src={src}
+        alt={alt}
+        className="w-full h-auto object-cover"
+        loading="lazy"
+      />
+      <div className="bg-card/80 px-4 py-2 border-t border-primary/10">
+        <p className="text-xs text-muted-foreground italic flex items-center gap-1.5">
+          <Eye className="h-3 w-3 text-primary/60" />
+          {alt}
+        </p>
+      </div>
     </div>
   );
 }
@@ -361,7 +388,7 @@ export default function Resources() {
                           </li>
                         ))}
                       </ol>
-                      <ScreenshotPlaceholder label={section.screenshot} />
+                      <ManualScreenshot src={section.screenshot} alt={section.screenshotAlt} />
                     </AccordionContent>
                   </AccordionItem>
                 ))}
