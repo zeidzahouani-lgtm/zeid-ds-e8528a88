@@ -172,7 +172,7 @@ export default function AdminCustomization() {
       const keys = Object.keys(form) as (keyof typeof form)[];
       for (const key of keys) {
         if (form[key] !== settings[key]) {
-          await updateSetting.mutateAsync({ key, value: form[key] });
+          await upsertSetting(key, form[key]);
         }
       }
       toast.success("Personnalisation sauvegardée");
