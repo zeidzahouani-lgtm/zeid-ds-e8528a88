@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useLicenses } from "@/hooks/useLicenses";
 import { useScreens } from "@/hooks/useScreens";
+import { useEstablishments } from "@/hooks/useEstablishments";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -19,8 +20,10 @@ export default function AdminLicenses() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { licenses, isLoading, createLicense, toggleLicense, deleteLicense, assignScreen, renewLicense } = useLicenses();
   const { screens } = useScreens();
+  const { establishments } = useEstablishments();
   const [durationDays, setDurationDays] = useState("365");
   const [selectedScreen, setSelectedScreen] = useState("");
+  const [selectedEstablishment, setSelectedEstablishment] = useState("");
   const [creating, setCreating] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [renewingId, setRenewingId] = useState<string | null>(null);
@@ -32,18 +35,38 @@ export default function AdminLicenses() {
   useEffect(() => {
     if (screenFromQR) {
       setSelectedScreen(screenFromQR);
-      // Clear the param so it doesn't persist
       searchParams.delete("screen");
       setSearchParams(searchParams, { replace: true });
     }
   }, [screenFromQR]);
 
+  // Filter screens by selected establishment for creation form
+  const filteredScreensForCreate = useMemo(() => {
+    if (!selectedEstablishment || selectedEstablishment === "none") return screens;
+    return screens.filter((s: any) => s.establishment_id === selectedEstablishment);
+  }, [screens, selectedEstablishment]);
+
+  // Reset screen selection when establishment changes
+  useEffect(() => {
+    if (selectedEstablishment && selectedScreen) {
+      const screenExists = filteredScreensForCreate.find((s: any) => s.id === selectedScreen);
+      if (!screenExists) setSelectedScreen("");
+    }
+  }, [selectedEstablishment, filteredScreensForCreate]);
+
+  // Get screens filtered by a license's establishment
+  const getScreensForLicense = (license: any) => {
+    if (!license.establishment_id) return screens;
+    return screens.filter((s: any) => s.establishment_id === license.establishment_id);
+  };
+
   const handleCreate = async () => {
     setCreating(true);
     try {
       await createLicense.mutateAsync({
-        screenId: selectedScreen || undefined,
+        screenId: selectedScreen && selectedScreen !== "none" ? selectedScreen : undefined,
         durationDays: parseInt(durationDays) || 365,
+        establishmentId: selectedEstablishment && selectedEstablishment !== "none" ? selectedEstablishment : undefined,
       });
       toast.success("Licence générée avec succès");
       setSelectedScreen("");
@@ -100,7 +123,26 @@ export default function AdminLicenses() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Établissement</Label>
+              <Select value={selectedEstablishment} onValueChange={setSelectedEstablishment}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Tous les établissements" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Aucun (global)</SelectItem>
+                  {(establishments || []).map((e: any) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      <span className="flex items-center gap-2">
+                        <Building2 className="h-3 w-3" />
+                        {e.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">Durée (jours)</Label>
               <Select value={durationDays} onValueChange={setDurationDays}>
@@ -125,7 +167,7 @@ export default function AdminLicenses() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Assigner plus tard</SelectItem>
-                  {screens.map((s: any) => (
+                  {filteredScreensForCreate.map((s: any) => (
                     <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                   ))}
                 </SelectContent>
@@ -192,6 +234,7 @@ export default function AdminLicenses() {
                     {filtered.map((license) => {
                       const expired = isExpired(license.valid_until);
                       const screenName = screens.find((s: any) => s.id === license.screen_id)?.name;
+                      const assignableScreens = getScreensForLicense(license);
 
                       return (
                         <Card key={license.id} className={`p-4 ${expired ? "opacity-60" : ""}`}>
@@ -222,10 +265,10 @@ export default function AdminLicenses() {
                                     </span>
                                   )}
                                   {license.establishment_name && (
-                                    <span className="flex items-center gap-1">
-                                      <Building2 className="h-3 w-3" />
+                                    <Badge variant="outline" className="text-[10px] gap-1">
+                                      <Building2 className="h-2.5 w-2.5" />
                                       {license.establishment_name}
-                                    </span>
+                                    </Badge>
                                   )}
                                 </div>
                               </div>
@@ -279,9 +322,13 @@ export default function AdminLicenses() {
                                     <SelectValue placeholder="Assigner..." />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    {screens.map((s: any) => (
-                                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                                    ))}
+                                    {assignableScreens.length === 0 ? (
+                                      <SelectItem value="__empty" disabled>Aucun écran disponible</SelectItem>
+                                    ) : (
+                                      assignableScreens.map((s: any) => (
+                                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                                      ))
+                                    )}
                                   </SelectContent>
                                 </Select>
                               )}
