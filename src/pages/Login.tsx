@@ -2,10 +2,11 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useAppSettings } from "@/hooks/useAppSettings";
+import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { MonitorPlay } from "lucide-react";
+import { MonitorPlay, Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
 import { LoginParticles } from "@/components/LoginParticles";
@@ -16,6 +17,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
   const { settings } = useAppSettings();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,6 +35,16 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-background">
+      {/* Theme toggle */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={toggleTheme}
+        className="absolute top-4 right-4 z-20 h-9 w-9 text-muted-foreground hover:text-primary backdrop-blur-sm bg-card/30 border border-border/30"
+      >
+        {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      </Button>
+
       {/* Animated gradient background */}
       <AnimatedBackground />
 
