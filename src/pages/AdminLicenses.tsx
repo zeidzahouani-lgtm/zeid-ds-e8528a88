@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useLicenses } from "@/hooks/useLicenses";
 import { useScreens } from "@/hooks/useScreens";
@@ -8,10 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Key, Plus, Trash2, Copy, Shield, ShieldOff, Monitor, Calendar, QrCode, Camera, RefreshCw } from "lucide-react";
+import { Key, Plus, Trash2, Copy, Shield, ShieldOff, Monitor, Calendar, QrCode, Camera, RefreshCw, Building2, Sparkles, Wrench } from "lucide-react";
 import QRScanner from "@/components/dashboard/QRScanner";
 
 export default function AdminLicenses() {
