@@ -34,6 +34,7 @@ const AdminEmail = lazy(() => import("./pages/AdminEmail"));
 const AdminRequests = lazy(() => import("./pages/AdminRequests"));
 const UploadPage = lazy(() => import("./pages/UploadPage"));
 const EstablishmentSettings = lazy(() => import("./pages/EstablishmentSettings"));
+const Resources = lazy(() => import("./pages/Resources"));
 
 const queryClient = new QueryClient();
 
