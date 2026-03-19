@@ -16,6 +16,7 @@ import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useScreenLicenses } from "@/hooks/useScreenLicenses";
 
 type OrientationPreview = {
   label: string;
