@@ -1,7 +1,7 @@
-import { MonitorPlay, ArrowRight, Wifi, BarChart3, Layers, Zap, Radio, Tv } from "lucide-react";
+import { MonitorPlay, ArrowRight, Wifi, BarChart3, Layers, Zap, Radio, Tv, Monitor, Signal, Globe, Activity } from "lucide-react";
 import { useMemo } from "react";
 
-const ICONS = [MonitorPlay, ArrowRight, Wifi, BarChart3, Layers, Zap, Radio, Tv];
+const ICONS = [MonitorPlay, ArrowRight, Wifi, BarChart3, Layers, Zap, Radio, Tv, Monitor, Signal, Globe, Activity];
 
 interface Particle {
   id: number;
@@ -12,7 +12,7 @@ interface Particle {
   duration: number;
   delay: number;
   opacity: number;
-  direction: number; // 0-360
+  drift: number;
 }
 
 function generateParticles(count: number): Particle[] {
@@ -21,23 +21,24 @@ function generateParticles(count: number): Particle[] {
     particles.push({
       id: i,
       Icon: ICONS[i % ICONS.length],
-      size: 16 + Math.random() * 20,
+      size: 18 + Math.random() * 28,
       x: Math.random() * 100,
       y: Math.random() * 100,
-      duration: 18 + Math.random() * 22,
-      delay: -(Math.random() * 30),
-      opacity: 0.04 + Math.random() * 0.08,
-      direction: Math.random() * 360,
+      duration: 14 + Math.random() * 18,
+      delay: -(Math.random() * 20),
+      opacity: 0.06 + Math.random() * 0.14,
+      drift: 40 + Math.random() * 80,
     });
   }
   return particles;
 }
 
 export function LoginParticles() {
-  const particles = useMemo(() => generateParticles(14), []);
+  const particles = useMemo(() => generateParticles(20), []);
 
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+    <div className="absolute inset-0 overflow-hidden pointer-events-none z-[1]" aria-hidden="true">
+      {/* Floating icon particles */}
       {particles.map((p) => (
         <div
           key={p.id}
@@ -45,19 +46,36 @@ export function LoginParticles() {
           style={{
             left: `${p.x}%`,
             top: `${p.y}%`,
-            animationDuration: `${p.duration}s`,
-            animationDelay: `${p.delay}s`,
-            opacity: p.opacity,
-            ["--float-angle" as string]: `${p.direction}deg`,
+            animationDuration: `${p.duration}s, ${p.duration * 0.8}s`,
+            animationDelay: `${p.delay}s, ${p.delay}s`,
+            ["--drift" as string]: `${p.drift}px`,
           }}
         >
           <p.Icon
-            style={{ width: p.size, height: p.size }}
-            className="text-primary"
-            strokeWidth={1}
+            style={{ width: p.size, height: p.size, opacity: p.opacity }}
+            className="text-primary drop-shadow-[0_0_6px_hsl(210_100%_56%/0.4)]"
+            strokeWidth={1.2}
           />
         </div>
       ))}
+
+      {/* Floating orbs for extra depth */}
+      <div className="login-orb login-orb-1" />
+      <div className="login-orb login-orb-2" />
+      <div className="login-orb login-orb-3" />
+
+      {/* Connection lines */}
+      <svg className="absolute inset-0 w-full h-full opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
+        <line x1="10%" y1="20%" x2="40%" y2="60%" className="stroke-primary" strokeWidth="0.5" strokeDasharray="4 8">
+          <animate attributeName="stroke-dashoffset" from="0" to="-48" dur="8s" repeatCount="indefinite" />
+        </line>
+        <line x1="60%" y1="10%" x2="90%" y2="80%" className="stroke-primary" strokeWidth="0.5" strokeDasharray="4 8">
+          <animate attributeName="stroke-dashoffset" from="0" to="-48" dur="12s" repeatCount="indefinite" />
+        </line>
+        <line x1="80%" y1="15%" x2="30%" y2="90%" className="stroke-accent" strokeWidth="0.5" strokeDasharray="4 8">
+          <animate attributeName="stroke-dashoffset" from="0" to="-48" dur="10s" repeatCount="indefinite" />
+        </line>
+      </svg>
     </div>
   );
 }
