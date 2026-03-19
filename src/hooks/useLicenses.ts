@@ -38,7 +38,7 @@ export function useLicenses() {
     queryKey: ["licenses"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("licenses" as any)
+        .from("licenses")
         .select("*, establishment:establishments(name)")
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -50,7 +50,7 @@ export function useLicenses() {
   });
 
   const createLicense = useMutation({
-    mutationFn: async ({ screenId, durationDays }: { screenId?: string; durationDays: number }) => {
+    mutationFn: async ({ screenId, durationDays, establishmentId }: { screenId?: string; durationDays: number; establishmentId?: string }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non authentifié");
 
@@ -58,13 +58,14 @@ export function useLicenses() {
       validUntil.setDate(validUntil.getDate() + durationDays);
 
       const { error } = await supabase
-        .from("licenses" as any)
+        .from("licenses")
         .insert({
           license_key: generateLicenseKey(),
           screen_id: screenId || null,
           created_by: user.id,
           valid_until: validUntil.toISOString(),
           is_active: true,
+          establishment_id: establishmentId || null,
         } as any);
       if (error) throw error;
     },
@@ -74,9 +75,9 @@ export function useLicenses() {
   const toggleLicense = useMutation({
     mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
       const { error } = await supabase
-        .from("licenses" as any)
+        .from("licenses")
         .update({ is_active } as any)
-        .eq("id", id as any);
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["licenses"] }),
@@ -85,9 +86,9 @@ export function useLicenses() {
   const deleteLicense = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from("licenses" as any)
+        .from("licenses")
         .delete()
-        .eq("id", id as any);
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["licenses"] }),
@@ -96,9 +97,9 @@ export function useLicenses() {
   const assignScreen = useMutation({
     mutationFn: async ({ id, screen_id }: { id: string; screen_id: string }) => {
       const { error } = await supabase
-        .from("licenses" as any)
+        .from("licenses")
         .update({ screen_id, activated_at: new Date().toISOString() } as any)
-        .eq("id", id as any);
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["licenses"] }),
@@ -109,9 +110,9 @@ export function useLicenses() {
       const validUntil = new Date();
       validUntil.setDate(validUntil.getDate() + durationDays);
       const { error } = await supabase
-        .from("licenses" as any)
+        .from("licenses")
         .update({ valid_until: validUntil.toISOString(), is_active: true } as any)
-        .eq("id", id as any);
+        .eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["licenses"] }),
@@ -123,10 +124,10 @@ export function useLicenses() {
 // Validate a license key for a specific screen (used by Player)
 export async function validateLicense(screenId: string): Promise<{ valid: boolean; message?: string }> {
   const { data, error } = await supabase
-    .from("licenses" as any)
+    .from("licenses")
     .select("*")
-    .eq("screen_id", screenId as any)
-    .eq("is_active", true as any);
+    .eq("screen_id", screenId)
+    .eq("is_active", true);
 
   if (error) return { valid: false, message: "Erreur de validation" };
 
@@ -147,10 +148,10 @@ export async function validateLicense(screenId: string): Promise<{ valid: boolea
 export async function activateLicenseByKey(licenseKey: string, screenId: string): Promise<{ valid: boolean; message?: string }> {
   // Find the license by key
   const { data, error } = await supabase
-    .from("licenses" as any)
+    .from("licenses")
     .select("*")
-    .eq("license_key", licenseKey.trim().toUpperCase() as any)
-    .eq("is_active", true as any)
+    .eq("license_key", licenseKey.trim().toUpperCase())
+    .eq("is_active", true)
     .single();
 
   if (error || !data) return { valid: false, message: "Clé de licence introuvable ou désactivée" };
@@ -166,12 +167,25 @@ export async function activateLicenseByKey(licenseKey: string, screenId: string)
     return { valid: false, message: "Cette licence est déjà assignée à un autre écran" };
   }
 
+  // Check establishment match: license's establishment must match screen's establishment
+  if (license.establishment_id) {
+    const { data: screenData } = await supabase
+      .from("screens")
+      .select("establishment_id")
+      .eq("id", screenId)
+      .single();
+
+    if (screenData && screenData.establishment_id !== license.establishment_id) {
+      return { valid: false, message: "Cette licence appartient à un autre établissement" };
+    }
+  }
+
   // Assign to this screen if not yet assigned
   if (!license.screen_id) {
     const { error: updateError } = await supabase
-      .from("licenses" as any)
+      .from("licenses")
       .update({ screen_id: screenId, activated_at: new Date().toISOString() } as any)
-      .eq("id", license.id as any);
+      .eq("id", license.id);
 
     if (updateError) return { valid: false, message: "Erreur lors de l'activation" };
   }
