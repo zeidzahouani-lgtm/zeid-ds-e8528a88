@@ -371,6 +371,7 @@ export default function AdminRequests() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["registration_requests"] });
+      queryClient.invalidateQueries({ queryKey: ["licenses"] });
       toast({ title: "Inscription approuvée", description: sendRegEmail ? `Identifiants envoyés par email à ${regDialog?.email}` : `Compte créé pour ${regDialog?.email}` });
       setRegDialog(null);
     },
