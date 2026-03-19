@@ -1,19 +1,20 @@
-import { useEffect, useRef } from "react";
-
 /**
- * Subtle animated gradient background with flowing wave motion.
- * Uses CSS only for performance (GPU-composited transforms & opacity).
+ * Animated gradient background with flowing blobs, grid overlay, and scan line.
+ * Adapts to dark and light themes via CSS classes.
  */
 export function AnimatedBackground() {
   return (
     <div className="animated-bg-container" aria-hidden="true">
-      {/* Primary gradient blob */}
+      {/* Large gradient blobs */}
       <div className="animated-bg-blob animated-bg-blob-1" />
-      {/* Secondary gradient blob */}
       <div className="animated-bg-blob animated-bg-blob-2" />
-      {/* Tertiary gradient blob */}
       <div className="animated-bg-blob animated-bg-blob-3" />
-      {/* Noise overlay for texture */}
+      <div className="animated-bg-blob animated-bg-blob-4" />
+      {/* Grid overlay */}
+      <div className="animated-bg-grid" />
+      {/* Horizontal scan line */}
+      <div className="animated-bg-scanline" />
+      {/* Noise texture */}
       <div className="animated-bg-noise" />
     </div>
   );

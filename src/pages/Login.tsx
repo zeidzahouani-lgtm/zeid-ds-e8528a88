@@ -32,33 +32,42 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden bg-background">
       {/* Animated gradient background */}
       <AnimatedBackground />
 
       {/* Floating thematic particles */}
       <LoginParticles />
 
-      {/* Login card */}
-      <Card className="login-card w-full max-w-md p-8 space-y-6 relative z-10">
+      {/* Login card with enhanced glassmorphism */}
+      <Card className="login-card w-full max-w-md p-8 space-y-6 relative z-10 border-primary/10 shadow-glow-blue">
+        {/* Gradient border glow */}
+        <div className="absolute inset-0 rounded-[inherit] p-px bg-gradient-to-br from-primary/20 via-transparent to-accent/20 pointer-events-none -z-[1]" />
+
         <div className="flex flex-col items-center gap-3 login-header">
           {settings.logo_url ? (
             <img
               src={settings.logo_url}
               alt={settings.app_name}
-              className="h-14 w-14 rounded-xl object-contain"
+              className="h-14 w-14 rounded-xl object-contain login-logo-pulse"
             />
           ) : (
-            <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center shadow-neon-cyan login-logo-pulse">
-              <MonitorPlay className="h-8 w-8 text-primary icon-neon" />
+            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/10 flex items-center justify-center login-logo-pulse border border-primary/20">
+              <MonitorPlay className="h-9 w-9 text-primary icon-neon" />
             </div>
           )}
-          <h1 className="text-2xl font-bold tracking-widest neon-glow-cyan text-primary">
+          <h1 className="text-2xl font-bold tracking-widest gradient-primary-text">
             {settings.app_name.toUpperCase()}
           </h1>
           <p className="text-sm text-muted-foreground normal-case tracking-normal">
             {settings.welcome_message}
           </p>
+
+          {/* Animated status bar */}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
+            <span className="status-dot-live w-1.5 h-1.5 rounded-full bg-status-online inline-block" />
+            <span>Système connecté</span>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 login-form-fields">
@@ -72,7 +81,7 @@ export default function Login() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="login-input-focus"
+              className="login-input-focus bg-background/50 backdrop-blur-sm"
             />
           </div>
           <div className="space-y-2">
@@ -85,12 +94,12 @@ export default function Login() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="login-input-focus"
+              className="login-input-focus bg-background/50 backdrop-blur-sm"
             />
           </div>
           <Button
             type="submit"
-            className="w-full login-btn-hover"
+            className="w-full login-btn-hover gradient-primary text-primary-foreground font-semibold"
             disabled={loading}
           >
             {loading ? (
@@ -107,13 +116,13 @@ export default function Login() {
         <div className="text-center text-sm space-y-2 normal-case login-footer">
           <Link
             to="/forgot-password"
-            className="text-primary hover:underline block"
+            className="text-primary hover:underline block transition-colors duration-200"
           >
             Mot de passe oublié ?
           </Link>
           <p className="text-muted-foreground">
             Pas encore de compte ?{" "}
-            <Link to="/register" className="text-primary hover:underline">
+            <Link to="/register" className="text-primary hover:underline transition-colors duration-200">
               S'inscrire
             </Link>
           </p>
