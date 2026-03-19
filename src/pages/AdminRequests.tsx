@@ -523,8 +523,14 @@ export default function AdminRequests() {
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   {statusBadge(req.status)}
+                  <Button size="icon" variant="ghost" onClick={() => setViewResetDialog(req)} title="Consulter">
+                    <Search className="h-4 w-4" />
+                  </Button>
+                  <Button size="icon" variant="ghost" onClick={() => openEditReset(req)} title="Modifier">
+                    <Pencil className="h-4 w-4" />
+                  </Button>
                   {req.status === "pending" && (
                     <Button size="sm" onClick={() => openResetDialog(req)}>Traiter</Button>
                   )}
@@ -533,6 +539,9 @@ export default function AdminRequests() {
                       <RefreshCw className="h-3.5 w-3.5" /> Renvoyer
                     </Button>
                   )}
+                  <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => deleteResetRequest.mutate(req.id)} title="Supprimer">
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
