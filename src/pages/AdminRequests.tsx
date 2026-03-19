@@ -483,14 +483,23 @@ export default function AdminRequests() {
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground">
                     {new Date(req.created_at).toLocaleDateString("fr-FR")}
                   </span>
                   {statusBadge(req.status)}
+                  <Button size="icon" variant="ghost" onClick={() => setViewRegDialog(req)} title="Consulter">
+                    <Search className="h-4 w-4" />
+                  </Button>
+                  <Button size="icon" variant="ghost" onClick={() => openEditReg(req)} title="Modifier">
+                    <Pencil className="h-4 w-4" />
+                  </Button>
                   {req.status === "pending" && (
                     <Button size="sm" onClick={() => openRegDialog(req)}>Examiner</Button>
                   )}
+                  <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => deleteRegRequest.mutate(req.id)} title="Supprimer">
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
