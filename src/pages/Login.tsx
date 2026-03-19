@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { MonitorPlay } from "lucide-react";
 import { toast } from "sonner";
+import { AnimatedBackground } from "@/components/AnimatedBackground";
+import { LoginParticles } from "@/components/LoginParticles";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -30,39 +32,90 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'radial-gradient(ellipse at 50% 30%, hsl(185 100% 55% / 0.03), transparent 60%), radial-gradient(ellipse at 50% 0%, hsl(0 0% 7%) 0%, hsl(0 0% 2%) 70%)' }}>
-      <Card className="w-full max-w-md p-8 space-y-6 animate-cyber-in">
-        <div className="flex flex-col items-center gap-3">
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Animated gradient background */}
+      <AnimatedBackground />
+
+      {/* Floating thematic particles */}
+      <LoginParticles />
+
+      {/* Login card */}
+      <Card className="login-card w-full max-w-md p-8 space-y-6 relative z-10">
+        <div className="flex flex-col items-center gap-3 login-header">
           {settings.logo_url ? (
-            <img src={settings.logo_url} alt={settings.app_name} className="h-14 w-14 rounded-xl object-contain" />
+            <img
+              src={settings.logo_url}
+              alt={settings.app_name}
+              className="h-14 w-14 rounded-xl object-contain"
+            />
           ) : (
-            <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center shadow-neon-cyan">
+            <div className="h-14 w-14 rounded-xl bg-primary/10 flex items-center justify-center shadow-neon-cyan login-logo-pulse">
               <MonitorPlay className="h-8 w-8 text-primary icon-neon" />
             </div>
           )}
-          <h1 className="text-2xl font-bold tracking-widest neon-glow-cyan text-primary">{settings.app_name.toUpperCase()}</h1>
-          <p className="text-sm text-muted-foreground normal-case tracking-normal">{settings.welcome_message}</p>
+          <h1 className="text-2xl font-bold tracking-widest neon-glow-cyan text-primary">
+            {settings.app_name.toUpperCase()}
+          </h1>
+          <p className="text-sm text-muted-foreground normal-case tracking-normal">
+            {settings.welcome_message}
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 login-form-fields">
           <div className="space-y-2">
-            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Email</label>
-            <Input type="email" placeholder="vous@exemple.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Email
+            </label>
+            <Input
+              type="email"
+              placeholder="vous@exemple.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="login-input-focus"
+            />
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Mot de passe</label>
-            <Input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Mot de passe
+            </label>
+            <Input
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="login-input-focus"
+            />
           </div>
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Connexion..." : "Se connecter"}
+          <Button
+            type="submit"
+            className="w-full login-btn-hover"
+            disabled={loading}
+          >
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <span className="login-spinner" />
+                Connexion...
+              </span>
+            ) : (
+              "Se connecter"
+            )}
           </Button>
         </form>
 
-        <div className="text-center text-sm space-y-2 normal-case">
-          <Link to="/forgot-password" className="text-primary hover:underline block">Mot de passe oublié ?</Link>
+        <div className="text-center text-sm space-y-2 normal-case login-footer">
+          <Link
+            to="/forgot-password"
+            className="text-primary hover:underline block"
+          >
+            Mot de passe oublié ?
+          </Link>
           <p className="text-muted-foreground">
             Pas encore de compte ?{" "}
-            <Link to="/register" className="text-primary hover:underline">S'inscrire</Link>
+            <Link to="/register" className="text-primary hover:underline">
+              S'inscrire
+            </Link>
           </p>
         </div>
       </Card>
