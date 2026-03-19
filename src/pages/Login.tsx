@@ -179,6 +179,15 @@ export default function Login() {
               </Link>
             </p>
           </div>
+
+          <div className="flex items-center justify-center gap-3 pt-2 border-t border-border/30">
+            <Link to="/manual">
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground hover:text-primary">
+                <BookOpen className="h-3.5 w-3.5" />
+                Consulter le Manuel
+              </Button>
+            </Link>
+          </div>
         </Card>
       </div>
 
