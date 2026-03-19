@@ -571,12 +571,12 @@ export default function Player() {
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>();
 
-  // License validation (skip in preview mode)
-  const [licenseValid, setLicenseValid] = useState<boolean | null>(previewMode ? true : null);
+  // License validation (also in preview mode so preview reflects real state)
+  const [licenseValid, setLicenseValid] = useState<boolean | null>(null);
   const [licenseMessage, setLicenseMessage] = useState("");
 
   useEffect(() => {
-    if (!screen?.id || previewMode) return;
+    if (!screen?.id) return;
 
     const checkLicense = () => {
       validateLicense(screen.id).then((result) => {
@@ -603,7 +603,7 @@ export default function Player() {
       clearInterval(interval);
       supabase.removeChannel(channel);
     };
-  }, [screen?.id, previewMode]);
+  }, [screen?.id]);
 
   const requestFullscreen = useCallback(() => {
     if (previewMode) return; // No fullscreen in preview
