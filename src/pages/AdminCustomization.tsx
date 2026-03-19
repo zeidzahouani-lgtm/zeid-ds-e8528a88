@@ -52,7 +52,9 @@ export default function AdminCustomization() {
   const [form, setForm] = useState(settings);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   // AI config state
   const [selectedProvider, setSelectedProvider] = useState<AIProviderType>("auto");
