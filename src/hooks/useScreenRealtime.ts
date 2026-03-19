@@ -125,14 +125,27 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
   }, []);
 
   const resolveMedia = useCallback(
-    (screenData: ScreenData | null, pl: PlaylistItem[], idx: number) => {
+    (screenData: ScreenData | null, pl: PlaylistItem[], idx: number, opts?: { skipDbUpdate?: boolean }) => {
       const scheduled = getActiveScheduleMedia(schedulesRef.current);
       if (scheduled) { setMedia(scheduled); return; }
-      if (pl.length > 0) { setMedia(pl[idx % pl.length]?.media ?? null); return; }
+      if (pl.length > 0) {
+        const item = pl[idx % pl.length];
+        const mediaItem = item?.media ?? null;
+        setMedia(mediaItem);
+        // In normal mode, write current_media_id to DB so preview stays in sync
+        if (mediaItem && !previewOnly && !opts?.skipDbUpdate) {
+          const realId = realScreenIdRef.current;
+          if (realId) {
+            supabase.from("screens").update({ current_media_id: mediaItem.id } as any)
+              .eq("id", realId).then(() => {});
+          }
+        }
+        return;
+      }
       if (screenData?.current_media_id) return;
       setMedia(null);
     },
-    []
+    [previewOnly]
   );
 
   const getItemDuration = useCallback((pl: PlaylistItem[], idx: number): number => {
@@ -347,8 +360,9 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
     return () => { setOffline(); window.removeEventListener("beforeunload", setOffline); };
   }, [screenId, previewOnly, resolveMedia]);
 
-  // Playlist advancement timer — only depends on playlistVersion and currentIndex
+  // Playlist advancement timer — only in NORMAL mode (not preview)
   useEffect(() => {
+    if (previewOnly) return; // Preview follows DB state, no local timer
     const pl = playlistRef.current;
     if (pl.length <= 1) return;
     const duration = getItemDuration(pl, currentIndex) * 1000;
@@ -358,16 +372,16 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
       resolveMedia(screenRef.current, pl, next);
     }, duration);
     return () => clearTimeout(timerRef.current);
-  }, [currentIndex, playlistVersion, resolveMedia, getItemDuration]);
+  }, [currentIndex, playlistVersion, resolveMedia, getItemDuration, previewOnly]);
 
-  // Periodic schedule check
+  // Periodic schedule check — only in normal mode
   useEffect(() => {
-    if (!screenId) return;
+    if (!screenId || previewOnly) return;
     const interval = setInterval(() => {
       resolveMedia(screenRef.current, playlistRef.current, currentIndexRef.current);
     }, 60_000);
     return () => clearInterval(interval);
-  }, [screenId, resolveMedia]);
+  }, [screenId, resolveMedia, previewOnly]);
 
   // Realtime subscriptions
   useEffect(() => {
@@ -375,10 +389,9 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
     if (!realId) return;
 
     const channel = supabase
-      .channel(`screen-${realId}`)
+      .channel(`screen-${realId}${previewOnly ? '-preview' : ''}`)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "screens", filter: `id=eq.${realId}` }, async (payload) => {
         const newData = payload.new as ScreenData;
-        // Compare against our stored ref (payload.old may be incomplete with default REPLICA IDENTITY)
         const prev = screenRef.current;
 
         const relevantChange = !prev ||
@@ -394,6 +407,18 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
 
         if (!relevantChange) return;
 
+        // In preview mode: just follow current_media_id from DB
+        if (previewOnly && newData.current_media_id) {
+          const { data: mediaData } = await supabase.from("media").select("*").eq("id", newData.current_media_id).single();
+          if (mediaData) setMedia(mediaData as MediaData);
+          // Find the index in playlist for progress indicator
+          const pl = playlistRef.current;
+          const foundIdx = pl.findIndex(item => item.media?.id === newData.current_media_id);
+          if (foundIdx >= 0) setCurrentIndex(foundIdx);
+          return;
+        }
+
+        // Normal mode: handle config changes
         if (newData.current_media_id) {
           const { data: mediaData } = await supabase.from("media").select("*").eq("id", newData.current_media_id).single();
           if (mediaData) setMedia(mediaData as MediaData);
@@ -402,9 +427,10 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
         updatePlaylist(pl);
         schedulesRef.current = sch;
         setCurrentIndex(0);
-        resolveMedia(newData, pl, 0);
+        resolveMedia(newData, pl, 0, { skipDbUpdate: true });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "playlist_items" }, async () => {
+        if (previewOnly) return; // Preview follows current_media_id
         const s = screenRef.current;
         if (!s) return;
         const pl = await fetchPlaylist(s);
@@ -413,6 +439,7 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
         resolveMedia(s, pl, 0);
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "schedules" }, async () => {
+        if (previewOnly) return;
         const s = screenRef.current;
         if (!s) return;
         const sch = await fetchSchedules(s);
@@ -422,7 +449,7 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [screen?.id, screen?.playlist_id, screen?.program_id, fetchPlaylist, fetchSchedules, resolveMedia, updatePlaylist]);
+  }, [screen?.id, screen?.playlist_id, screen?.program_id, fetchPlaylist, fetchSchedules, resolveMedia, updatePlaylist, previewOnly]);
 
   const pl = playlistRef.current;
   const currentDuration = pl.length > 0
