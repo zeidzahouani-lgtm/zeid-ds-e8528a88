@@ -233,6 +233,17 @@ export function ScreenManager() {
                           <WifiOff className="h-3 w-3" /> Hors ligne
                         </Badge>
                       )}
+                      {licenseStatuses && !licenseStatuses[screen.id]?.valid && (
+                        <Badge variant="outline" className="text-destructive border-destructive/30 gap-1 text-xs">
+                          {licenseStatuses[screen.id]?.expired ? (
+                            <><ShieldOff className="h-3 w-3" /> Licence expirée</>
+                          ) : licenseStatuses[screen.id]?.inactive ? (
+                            <><ShieldAlert className="h-3 w-3" /> Licence désactivée</>
+                          ) : (
+                            <><ShieldAlert className="h-3 w-3" /> Sans licence</>
+                          )}
+                        </Badge>
+                      )}
                       {assignedPlaylist && (
                         <Badge variant="outline" className="text-primary border-primary/30 gap-1 text-xs">
                           <ListMusic className="h-3 w-3" /> {assignedPlaylist.name}

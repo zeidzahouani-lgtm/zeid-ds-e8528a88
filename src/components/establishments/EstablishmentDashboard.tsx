@@ -131,9 +131,22 @@ export function EstablishmentDashboard({ establishmentId }: Props) {
                   <Tv className="h-3.5 w-3.5 text-muted-foreground" />
                   <span>{s.name}</span>
                 </div>
-                <Badge variant={s.status === "online" ? "default" : "secondary"} className="text-[10px]">
-                  {s.status === "online" ? "En ligne" : "Hors ligne"}
-                </Badge>
+                <div className="flex items-center gap-1">
+                  <Badge variant={s.status === "online" ? "default" : "secondary"} className="text-[10px]">
+                    {s.status === "online" ? "En ligne" : "Hors ligne"}
+                  </Badge>
+                  {licenseStatuses && !licenseStatuses[s.id]?.valid && (
+                    <Badge variant="outline" className="text-destructive border-destructive/30 gap-1 text-[10px]">
+                      {licenseStatuses[s.id]?.expired ? (
+                        <><ShieldOff className="h-3 w-3" /> Expirée</>
+                      ) : licenseStatuses[s.id]?.inactive ? (
+                        <><ShieldAlert className="h-3 w-3" /> Désactivée</>
+                      ) : (
+                        <><ShieldAlert className="h-3 w-3" /> Sans licence</>
+                      )}
+                    </Badge>
+                  )}
+                </div>
               </div>
             ))}
           </CardContent>

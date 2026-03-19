@@ -85,7 +85,7 @@ export default function DashboardHome() {
                   <Tv className="h-5 w-5 text-primary shrink-0 icon-neon" />
                   <div className="min-w-0">
                     <p className="font-medium truncate normal-case">{screen.name}</p>
-                    <div className="flex items-center gap-1.5 mt-1">
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                       {screen.status === "online" ? (
                         <span className="text-xs text-status-online flex items-center gap-1 normal-case">
                           <span className="h-1.5 w-1.5 rounded-full bg-status-online neon-pulse-online inline-block" />
@@ -96,6 +96,17 @@ export default function DashboardHome() {
                           <span className="h-1.5 w-1.5 rounded-full bg-status-offline inline-block" />
                           Hors ligne
                         </span>
+                      )}
+                      {licenseStatuses && !licenseStatuses[screen.id]?.valid && (
+                        <Badge variant="outline" className="text-destructive border-destructive/30 gap-1 text-[10px] px-1.5 py-0 normal-case">
+                          {licenseStatuses[screen.id]?.expired ? (
+                            <><ShieldOff className="h-3 w-3" /> Expirée</>
+                          ) : licenseStatuses[screen.id]?.inactive ? (
+                            <><ShieldAlert className="h-3 w-3" /> Désactivée</>
+                          ) : (
+                            <><ShieldAlert className="h-3 w-3" /> Sans licence</>
+                          )}
+                        </Badge>
                       )}
                     </div>
                   </div>
