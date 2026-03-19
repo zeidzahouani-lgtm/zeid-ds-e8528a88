@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useAppSettings } from "@/hooks/useAppSettings";
@@ -6,7 +6,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { MonitorPlay, Moon, Sun } from "lucide-react";
+import { MonitorPlay, Moon, Play, Sun } from "lucide-react";
 import { toast } from "sonner";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
 import { LoginParticles } from "@/components/LoginParticles";
@@ -15,12 +15,56 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [videoBlocked, setVideoBlocked] = useState(false);
+  const [videoError, setVideoError] = useState(false);
   const { signIn } = useAuth();
   const { settings } = useAppSettings();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const hasVideo = !!settings.login_video_url;
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!hasVideo || !video) return;
+
+    setVideoError(false);
+    video.muted = true;
+    video.playsInline = true;
+
+    const tryPlay = async () => {
+      try {
+        await video.play();
+        setVideoBlocked(false);
+      } catch {
+        setVideoBlocked(true);
+      }
+    };
+
+    const onCanPlay = () => {
+      void tryPlay();
+    };
+
+    video.addEventListener("canplay", onCanPlay);
+    void tryPlay();
+
+    return () => {
+      video.removeEventListener("canplay", onCanPlay);
+    };
+  }, [hasVideo, settings.login_video_url]);
+
+  const handleManualPlay = async () => {
+    const video = videoRef.current;
+    if (!video) return;
+    try {
+      await video.play();
+      setVideoBlocked(false);
+    } catch {
+      setVideoBlocked(true);
+      toast.error("Impossible de lancer la vidéo");
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,7 +81,6 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex relative overflow-hidden bg-background">
-      {/* Theme toggle */}
       <Button
         variant="ghost"
         size="icon"
@@ -47,15 +90,11 @@ export default function Login() {
         {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
       </Button>
 
-      {/* LEFT SIDE — Login form */}
-      <div className={`relative flex items-center justify-center p-6 ${hasVideo ? 'w-1/2' : 'w-full'}`}>
-        {/* Animated gradient background */}
+      <div className={`relative flex items-center justify-center p-6 w-full ${hasVideo ? "md:w-1/2" : ""}`}>
         <AnimatedBackground />
-        {/* Floating thematic particles */}
         <LoginParticles />
 
         <Card className="login-card w-full max-w-md p-8 space-y-6 relative z-10 border-primary/10 shadow-glow-blue">
-          {/* Gradient border glow */}
           <div className="absolute inset-0 rounded-[inherit] p-px bg-gradient-to-br from-primary/20 via-transparent to-accent/20 pointer-events-none -z-[1]" />
 
           <div className="flex flex-col items-center gap-3 login-header">
@@ -77,7 +116,6 @@ export default function Login() {
               {settings.welcome_message}
             </p>
 
-            {/* Animated status bar */}
             <div className="flex items-center gap-2 text-xs text-muted-foreground/60">
               <span className="status-dot-live w-1.5 h-1.5 rounded-full bg-status-online inline-block" />
               <span>Système connecté</span>
@@ -144,19 +182,43 @@ export default function Login() {
         </Card>
       </div>
 
-      {/* RIGHT SIDE — Video */}
       {hasVideo && (
-        <div className="w-1/2 relative hidden md:block">
-          <video
-            src={settings.login_video_url}
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-          {/* Subtle overlay for contrast */}
-          <div className="absolute inset-0 bg-gradient-to-l from-transparent via-transparent to-background/60 pointer-events-none" />
+        <div className="hidden md:flex md:w-1/2 items-center justify-center p-8 bg-gradient-to-br from-background via-secondary/20 to-background">
+          <div className="relative w-full max-w-3xl aspect-video rounded-2xl overflow-hidden bg-card/30 backdrop-blur-sm border border-primary/30 shadow-neon neon-border">
+            <video
+              ref={videoRef}
+              src={settings.login_video_url}
+              autoPlay
+              loop
+              muted
+              playsInline
+              preload="auto"
+              className="absolute inset-0 w-full h-full object-cover"
+              onLoadedData={() => setVideoError(false)}
+              onError={() => {
+                setVideoError(true);
+                setVideoBlocked(false);
+              }}
+            />
+
+            <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-background/40 via-transparent to-background/20" />
+
+            {videoBlocked && !videoError && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/60 backdrop-blur-sm">
+                <p className="text-sm text-foreground font-medium">Lecture vidéo bloquée par le navigateur</p>
+                <Button onClick={handleManualPlay} className="gap-2 gradient-primary text-primary-foreground">
+                  <Play className="h-4 w-4" />
+                  Lancer la vidéo
+                </Button>
+              </div>
+            )}
+
+            {videoError && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/70">
+                <p className="text-sm text-muted-foreground">Impossible de charger la vidéo</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
