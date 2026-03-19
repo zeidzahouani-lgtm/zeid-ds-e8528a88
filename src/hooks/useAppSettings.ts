@@ -11,6 +11,7 @@ export interface AppSettings {
   accent_color: string;
   welcome_message: string;
   page_title: string;
+  login_video_url: string;
 }
 
 const defaultSettings: AppSettings = {
@@ -22,6 +23,7 @@ const defaultSettings: AppSettings = {
   accent_color: "270 80% 60%",
   welcome_message: "Connectez-vous à votre tableau de bord",
   page_title: "ScreenFlow by Dravox — Digital Signage CMS",
+  login_video_url: "",
 };
 
 async function fetchSettings(): Promise<AppSettings> {
