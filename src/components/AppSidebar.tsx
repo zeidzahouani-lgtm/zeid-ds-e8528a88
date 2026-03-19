@@ -42,6 +42,7 @@ const establishmentAdminItems = [
   { title: "Personnalisation", url: "/admin/customization", icon: Palette },
   { title: "Email", url: "/admin/email", icon: AtSign },
   { title: "Config. Établissement", url: "/admin/establishment-settings", icon: Settings },
+  { title: "Ressources", url: "/admin/resources", icon: BookOpen },
 ];
 
 const globalAdminItems = [
