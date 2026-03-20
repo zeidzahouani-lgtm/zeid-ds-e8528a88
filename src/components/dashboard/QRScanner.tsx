@@ -16,6 +16,27 @@ export default function QRScanner({ open, onClose, onScan }: QRScannerProps) {
   const [error, setError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
 
+  const extractScreenId = (decodedText: string) => {
+    try {
+      const normalizedValue = decodedText.startsWith("http://") || decodedText.startsWith("https://")
+        ? decodedText
+        : `${window.location.origin}${decodedText.startsWith("/") ? "" : "/"}${decodedText}`;
+
+      const url = new URL(normalizedValue);
+      const screenFromQuery = url.searchParams.get("screen") ?? url.searchParams.get("screenId");
+      if (screenFromQuery) return screenFromQuery;
+
+      const assignMatch = url.pathname.match(/\/assign-license\/([^/?#]+)/i);
+      if (assignMatch?.[1]) return decodeURIComponent(assignMatch[1]);
+    } catch {
+      const rawValue = decodedText.trim();
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(rawValue);
+      if (isUuid) return rawValue;
+    }
+
+    return null;
+  };
+
   const stopScanner = useCallback(() => {
     const scanner = scannerRef.current;
     scannerRef.current = null;
@@ -79,16 +100,13 @@ export default function QRScanner({ open, onClose, onScan }: QRScannerProps) {
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: 250, height: 250 } },
         (decodedText) => {
-          try {
-            const url = new URL(decodedText);
-            const screenId = url.searchParams.get("screen");
-            if (screenId) {
-              stopScanner();
-              onScan(screenId);
-              onClose();
-            }
-          } catch {
-            // Not a valid URL, ignore
+          const screenId = extractScreenId(decodedText);
+          if (screenId) {
+            stopScanner();
+            onScan(screenId);
+            onClose();
+          } else {
+            setError("QR code non reconnu. Scannez le QR code affiché sur l'écran du player.");
           }
         },
         () => {}
