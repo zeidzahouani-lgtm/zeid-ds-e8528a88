@@ -44,12 +44,38 @@ export default function QRScanner({ open, onClose, onScan }: QRScannerProps) {
     }
   }, []);
 
-  const startScanner = useCallback(() => {
+  const startScanner = useCallback(async () => {
     setError(null);
+
+    // Request camera permission directly in the click handler (required by browsers)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+      });
+      // Stop the stream immediately — html5-qrcode will request its own
+      stream.getTracks().forEach((t) => t.stop());
+    } catch (err) {
+      if (err instanceof Error && err.name === "NotAllowedError") {
+        setError("Accès à la caméra refusé. Vérifiez les permissions dans les réglages de votre navigateur.");
+      } else {
+        setError("Impossible d'accéder à la caméra.");
+      }
+      return;
+    }
+
+    // Small delay to ensure the DOM container is fully painted inside the dialog
+    await new Promise((r) => setTimeout(r, 150));
+
+    const readerEl = document.getElementById("qr-reader");
+    if (!readerEl) {
+      setError("Conteneur du scanner introuvable.");
+      return;
+    }
+
     try {
       const scanner = new Html5Qrcode("qr-reader");
       scannerRef.current = scanner;
-      scanner.start(
+      await scanner.start(
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: 250, height: 250 } },
         (decodedText) => {
@@ -66,14 +92,11 @@ export default function QRScanner({ open, onClose, onScan }: QRScannerProps) {
           }
         },
         () => {}
-      ).then(() => {
-        setScanning(true);
-      }).catch(() => {
-        setError("Impossible d'accéder à la caméra. Vérifiez les permissions.");
-        scannerRef.current = null;
-      });
+      );
+      setScanning(true);
     } catch {
-      setError("Impossible d'initialiser le scanner");
+      setError("Impossible d'initialiser le scanner. Réessayez.");
+      scannerRef.current = null;
     }
   }, [onScan, onClose, stopScanner]);
 
@@ -93,16 +116,17 @@ export default function QRScanner({ open, onClose, onScan }: QRScannerProps) {
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          {/* The scanner injects a <video> inside this div — ensure it's visible */}
           <div
             id="qr-reader"
-            className="w-full rounded-lg overflow-hidden bg-muted min-h-[280px] flex items-center justify-center"
-          >
-            {!scanning && !error && (
-              <p className="text-sm text-muted-foreground">
-                Appuyez sur le bouton ci-dessous pour activer la caméra
-              </p>
-            )}
-          </div>
+            className="w-full rounded-lg overflow-hidden min-h-[300px] flex items-center justify-center"
+            style={{ backgroundColor: "#000" }}
+          />
+          {!scanning && !error && (
+            <p className="text-sm text-muted-foreground text-center">
+              Appuyez sur le bouton ci-dessous pour activer la caméra
+            </p>
+          )}
           {error && (
             <p className="text-sm text-destructive text-center">{error}</p>
           )}
