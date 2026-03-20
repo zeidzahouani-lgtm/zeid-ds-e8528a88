@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useLicenses } from "@/hooks/useLicenses";
 import { useScreens } from "@/hooks/useScreens";
 import { useEstablishments } from "@/hooks/useEstablishments";
@@ -17,6 +17,7 @@ import { Key, Plus, Trash2, Copy, Shield, ShieldOff, Monitor, Calendar, QrCode, 
 import QRScanner from "@/components/dashboard/QRScanner";
 
 export default function AdminLicenses() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { licenses, isLoading, createLicense, toggleLicense, deleteLicense, assignScreen, renewLicense } = useLicenses();
   const { screens } = useScreens();
@@ -97,9 +98,9 @@ export default function AdminLicenses() {
         open={scannerOpen}
         onClose={() => setScannerOpen(false)}
         onScan={(screenId) => {
-          setSelectedScreen(screenId);
           const screenName = screens.find((s: any) => s.id === screenId)?.name;
           toast.success(screenName ? `Écran détecté : ${screenName}` : "Écran détecté");
+          navigate(`/assign-license/${screenId}`);
         }}
       />
 
