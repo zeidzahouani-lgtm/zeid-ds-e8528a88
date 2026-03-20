@@ -422,6 +422,7 @@ function LicenseScreen({
   requestFullscreen,
   message,
   screenId,
+  screenName,
   onActivated,
   logoUrl,
   showLogo,
@@ -430,6 +431,7 @@ function LicenseScreen({
   requestFullscreen: () => void;
   message: string;
   screenId: string;
+  screenName: string;
   onActivated: () => void;
   logoUrl: string;
   showLogo: boolean;
@@ -460,6 +462,7 @@ function LicenseScreen({
           <ShieldOff style={{ height: 40, width: 40, color: "#ef4444" }} />
         </div>
         <h1 style={{ fontSize: 24, fontWeight: 700, color: "#ef4444", textTransform: "uppercase", letterSpacing: "0.1em" }}>Licence invalide</h1>
+        <p style={{ color: "#d1d5db", fontSize: 14, fontWeight: 500, marginTop: -8 }}>{screenName}</p>
         <p style={{ color: "#9ca3af" }}>{message}</p>
 
         <form onSubmit={handleSubmit} style={{ width: "100%", display: "flex", flexDirection: "column", gap: 12, marginTop: 8 }}>
@@ -724,6 +727,7 @@ export default function Player() {
         requestFullscreen={requestFullscreen}
         message={licenseMessage}
         screenId={screen.id}
+        screenName={screen.name}
         onActivated={() => setLicenseValid(true)}
         logoUrl={branding.logoUrl}
         showLogo={branding.showLogo}
