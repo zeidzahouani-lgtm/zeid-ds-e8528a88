@@ -8,7 +8,7 @@ export function useScreens() {
   const { currentEstablishmentId, isGlobalAdmin } = useEstablishmentContext();
 
   const { data: screens = [], isLoading } = useQuery({
-    queryKey: ["screens", currentEstablishmentId],
+    queryKey: ["screens", currentEstablishmentId, isGlobalAdmin],
     queryFn: async () => {
       let query = supabase
         .from("screens")
