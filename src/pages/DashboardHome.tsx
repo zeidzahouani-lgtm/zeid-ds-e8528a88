@@ -13,6 +13,9 @@ export default function DashboardHome() {
   const { screens } = useScreens();
   const { media } = useMedia();
   const { isGlobalAdmin, currentEstablishmentId, memberships, isLoading } = useEstablishmentContext();
+  const showingAllScreens = isGlobalAdmin && !currentEstablishmentId;
+  const screenIds = useMemo(() => screens.map((s: any) => s.id), [screens]);
+  const { data: licenseStatuses } = useScreenLicenses(screenIds);
 
   // Non-global-admin with an establishment: show establishment dashboard
   if (!isLoading && !isGlobalAdmin && currentEstablishmentId) {
@@ -29,9 +32,6 @@ export default function DashboardHome() {
     );
   }
 
-  const screenIds = useMemo(() => screens.map((s: any) => s.id), [screens]);
-  const { data: licenseStatuses } = useScreenLicenses(screenIds);
-
   const online = screens.filter((s: any) => s.status === "online").length;
   const offline = screens.length - online;
 
@@ -41,6 +41,8 @@ export default function DashboardHome() {
     { label: "Hors ligne", value: offline, icon: WifiOff, link: "/displays", glowClass: "", colorClass: "text-status-offline" },
     { label: "Médias", value: media.length, icon: Image, link: "/library", glowClass: "neon-glow-violet", colorClass: "text-accent" },
   ];
+
+  const displayedScreens = showingAllScreens ? screens : screens.slice(0, 6);
 
   return (
     <div className="space-y-8">
@@ -68,7 +70,7 @@ export default function DashboardHome() {
       </div>
 
       <div>
-        <h2 className="text-lg font-semibold mb-4 tracking-wider">Écrans récents</h2>
+        <h2 className="text-lg font-semibold mb-4 tracking-wider">{showingAllScreens ? "Tous les écrans" : "Écrans récents"}</h2>
         {screens.length === 0 ? (
           <Card className="p-8 text-center">
             <Tv className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
@@ -79,7 +81,7 @@ export default function DashboardHome() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 stagger-children">
-            {screens.slice(0, 6).map((screen: any) => (
+            {displayedScreens.map((screen: any) => (
               <Card key={screen.id} className="p-4">
                 <div className="flex items-center gap-3">
                   <Tv className="h-5 w-5 text-primary shrink-0 icon-neon" />
