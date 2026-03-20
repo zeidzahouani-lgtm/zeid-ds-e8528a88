@@ -76,24 +76,29 @@ export function EstablishmentProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  // Auto-select first establishment if none selected
+  // Restore from localStorage on mount
   useEffect(() => {
-    if (!currentEstablishmentId && memberships.length > 0 && !isGlobalAdmin) {
+    if (user?.id) {
+      const saved = localStorage.getItem(`est_${user.id}`);
+      if (saved === "__all__") {
+        setCurrentEstablishmentId(null);
+      } else if (saved) {
+        setCurrentEstablishmentId(saved);
+      }
+    }
+  }, [user?.id]);
+
+  // Auto-select first establishment if none selected (non-admins only)
+  useEffect(() => {
+    if (!currentEstablishmentId && memberships.length > 0 && !isGlobalAdmin && !loadingAdmin) {
       setCurrentEstablishmentId(memberships[0].establishment_id);
     }
-  }, [memberships, currentEstablishmentId, isGlobalAdmin]);
+  }, [memberships, currentEstablishmentId, isGlobalAdmin, loadingAdmin]);
 
   // Persist selection in localStorage
   useEffect(() => {
     if (user?.id) {
-      const saved = localStorage.getItem(`est_${user.id}`);
-      if (saved) setCurrentEstablishmentId(saved);
-    }
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (user?.id && currentEstablishmentId) {
-      localStorage.setItem(`est_${user.id}`, currentEstablishmentId);
+      localStorage.setItem(`est_${user.id}`, currentEstablishmentId || "__all__");
     }
   }, [user?.id, currentEstablishmentId]);
 
