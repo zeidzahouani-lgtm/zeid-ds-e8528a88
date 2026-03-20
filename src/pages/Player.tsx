@@ -498,10 +498,10 @@ function LicenseScreen({
         </form>
 
         <div style={{ width: "100%", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: 20, marginTop: 12, display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-          <p style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.1em" }}>ou scannez pour assigner depuis l'admin</p>
+          <p style={{ fontSize: 11, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.1em" }}>ou scannez pour choisir une licence</p>
           <div style={{ backgroundColor: "#fff", padding: 12, borderRadius: 12 }}>
             <QRCodeSVG
-              value={`${window.location.origin}/admin/licenses?screen=${screenId}`}
+              value={`${window.location.origin}/assign-license/${screenId}`}
               size={140}
               level="M"
             />
