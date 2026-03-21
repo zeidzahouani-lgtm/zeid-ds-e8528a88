@@ -5,8 +5,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MonitorPlay, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
+
+const SECTEURS = [
+  "Restauration",
+  "Hôtellerie",
+  "Commerce de détail",
+  "Grande surface",
+  "Santé / Clinique",
+  "Éducation",
+  "Services",
+  "Industrie",
+  "Autre",
+];
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -17,6 +30,11 @@ export default function Register() {
     phone: "",
     address: "",
     message: "",
+    matricule_fiscal: "",
+    registre_commerce: "",
+    code_tva: "",
+    code_categorie: "",
+    secteur_activite: "",
   });
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -37,6 +55,11 @@ export default function Register() {
           phone: form.phone || null,
           address: form.address || null,
           message: form.message || null,
+          matricule_fiscal: form.matricule_fiscal || null,
+          registre_commerce: form.registre_commerce || null,
+          code_tva: form.code_tva || null,
+          code_categorie: form.code_categorie || null,
+          secteur_activite: form.secteur_activite || null,
         } as any);
       if (error) throw error;
       setSent(true);
@@ -67,7 +90,7 @@ export default function Register() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-lg p-8 space-y-6">
+      <Card className="w-full max-w-2xl p-8 space-y-6">
         <div className="flex flex-col items-center gap-3">
           <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
             <MonitorPlay className="h-7 w-7 text-primary" />
@@ -79,6 +102,8 @@ export default function Register() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Informations personnelles */}
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider pt-2">Informations personnelles</p>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Nom complet *</label>
@@ -101,6 +126,31 @@ export default function Register() {
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Téléphone</label>
+              <Input
+                type="tel"
+                placeholder="+216 XX XXX XXX"
+                value={form.phone}
+                onChange={(e) => update("phone", e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Nombre d'écrans souhaité *</label>
+              <Input
+                type="number"
+                min={1}
+                max={100}
+                value={form.num_screens}
+                onChange={(e) => update("num_screens", parseInt(e.target.value) || 1)}
+                required
+              />
+            </div>
+          </div>
+
+          {/* Informations établissement */}
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider pt-4">Informations de l'établissement</p>
           <div className="space-y-2">
             <label className="text-sm font-medium">Nom de l'établissement *</label>
             <Input
@@ -113,37 +163,70 @@ export default function Register() {
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Nombre d'écrans souhaité *</label>
+              <label className="text-sm font-medium">Secteur d'activité</label>
+              <Select value={form.secteur_activite} onValueChange={(v) => update("secteur_activite", v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {SECTEURS.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Adresse</label>
               <Input
-                type="number"
-                min={1}
-                max={100}
-                value={form.num_screens}
-                onChange={(e) => update("num_screens", parseInt(e.target.value) || 1)}
-                required
+                placeholder="123 Rue de la Liberté, Tunis"
+                value={form.address}
+                onChange={(e) => update("address", e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Informations fiscales */}
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider pt-4">Informations fiscales</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Matricule fiscal (MF)</label>
+              <Input
+                placeholder="1234567A/B/C/000"
+                value={form.matricule_fiscal}
+                onChange={(e) => update("matricule_fiscal", e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Téléphone</label>
+              <label className="text-sm font-medium">Registre de commerce (RC)</label>
               <Input
-                type="tel"
-                placeholder="+33 6 12 34 56 78"
-                value={form.phone}
-                onChange={(e) => update("phone", e.target.value)}
+                placeholder="B0123456789"
+                value={form.registre_commerce}
+                onChange={(e) => update("registre_commerce", e.target.value)}
               />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Adresse</label>
-            <Input
-              placeholder="123 Rue de la Paix, Paris"
-              value={form.address}
-              onChange={(e) => update("address", e.target.value)}
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Code TVA</label>
+              <Input
+                placeholder="Ex: TVA123456"
+                value={form.code_tva}
+                onChange={(e) => update("code_tva", e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Code catégorie</label>
+              <Input
+                placeholder="Ex: CAT-001"
+                value={form.code_categorie}
+                onChange={(e) => update("code_categorie", e.target.value)}
+              />
+            </div>
           </div>
 
-          <div className="space-y-2">
+          {/* Message */}
+          <div className="space-y-2 pt-2">
             <label className="text-sm font-medium">Message (optionnel)</label>
             <Textarea
               placeholder="Décrivez votre projet ou vos besoins..."
