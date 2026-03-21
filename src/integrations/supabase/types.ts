@@ -757,47 +757,62 @@ export type Database = {
       registration_requests: {
         Row: {
           address: string | null
+          code_categorie: string | null
+          code_tva: string | null
           created_at: string
           display_name: string
           email: string
           establishment_name: string
           id: string
+          matricule_fiscal: string | null
           message: string | null
           num_screens: number
           phone: string | null
+          registre_commerce: string | null
           rejection_reason: string | null
           reviewed_at: string | null
           reviewed_by: string | null
+          secteur_activite: string | null
           status: string
         }
         Insert: {
           address?: string | null
+          code_categorie?: string | null
+          code_tva?: string | null
           created_at?: string
           display_name: string
           email: string
           establishment_name: string
           id?: string
+          matricule_fiscal?: string | null
           message?: string | null
           num_screens?: number
           phone?: string | null
+          registre_commerce?: string | null
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          secteur_activite?: string | null
           status?: string
         }
         Update: {
           address?: string | null
+          code_categorie?: string | null
+          code_tva?: string | null
           created_at?: string
           display_name?: string
           email?: string
           establishment_name?: string
           id?: string
+          matricule_fiscal?: string | null
           message?: string | null
           num_screens?: number
           phone?: string | null
+          registre_commerce?: string | null
           rejection_reason?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
+          secteur_activite?: string | null
           status?: string
         }
         Relationships: []
