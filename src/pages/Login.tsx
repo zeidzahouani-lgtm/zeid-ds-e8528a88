@@ -28,7 +28,7 @@ export default function Login() {
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!hasVideo || !video) return;
+    if (!hasMedia || isImageMedia || !video) return;
 
     setVideoError(false);
     video.muted = true;
@@ -53,7 +53,7 @@ export default function Login() {
     return () => {
       video.removeEventListener("canplay", onCanPlay);
     };
-  }, [hasVideo, settings.login_video_url]);
+  }, [hasMedia, isImageMedia, settings.login_video_url]);
 
   const handleManualPlay = async () => {
     const video = videoRef.current;
