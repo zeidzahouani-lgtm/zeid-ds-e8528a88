@@ -91,7 +91,7 @@ export default function Login() {
         {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
       </Button>
 
-      <div className={`relative flex items-center justify-center p-6 w-full ${hasVideo ? "md:w-1/2" : ""}`}>
+      <div className={`relative flex items-center justify-center p-6 w-full ${hasMedia ? "md:w-1/2" : ""}`}>
         <AnimatedBackground />
         <LoginParticles />
 
