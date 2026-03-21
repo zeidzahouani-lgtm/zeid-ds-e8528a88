@@ -23,7 +23,8 @@ export default function Login() {
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const hasVideo = !!settings.login_video_url;
+  const hasMedia = !!settings.login_video_url;
+  const isImageMedia = hasMedia && /\.(jpe?g|gif)(\?.*)?$/i.test(settings.login_video_url);
 
   useEffect(() => {
     const video = videoRef.current;
