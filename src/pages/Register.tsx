@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MonitorPlay, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
+import { z } from "zod";
 
 const SECTEURS = [
   "Restauration",
@@ -20,6 +21,27 @@ const SECTEURS = [
   "Industrie",
   "Autre",
 ];
+
+const registrationSchema = z.object({
+  email: z.string().trim().email("Adresse email invalide").max(255, "Email trop long"),
+  display_name: z.string().trim().min(2, "Le nom doit contenir au moins 2 caractères").max(100, "Nom trop long"),
+  establishment_name: z.string().trim().min(2, "Le nom de l'établissement doit contenir au moins 2 caractères").max(200, "Nom trop long"),
+  num_screens: z.number().int().min(1, "Minimum 1 écran").max(100, "Maximum 100 écrans"),
+  phone: z.string().regex(/^(\+?[0-9\s\-]{8,20})?$/, "Numéro de téléphone invalide (ex: +216 XX XXX XXX)").optional().or(z.literal("")),
+  address: z.string().max(500, "Adresse trop longue").optional().or(z.literal("")),
+  message: z.string().max(1000, "Message trop long").optional().or(z.literal("")),
+  matricule_fiscal: z.string()
+    .regex(/^(\d{7}[A-Z]\/[A-Z]\/[A-Z]\/\d{3})?$/, "Format invalide (ex: 1234567A/B/C/000)")
+    .optional().or(z.literal("")),
+  registre_commerce: z.string()
+    .regex(/^([A-Z]\d{5,15})?$/, "Format invalide (ex: B0123456789)")
+    .optional().or(z.literal("")),
+  code_tva: z.string().max(50, "Code TVA trop long").optional().or(z.literal("")),
+  code_categorie: z.string().max(50, "Code catégorie trop long").optional().or(z.literal("")),
+  secteur_activite: z.string().optional().or(z.literal("")),
+});
+
+type FieldErrors = Partial<Record<keyof z.infer<typeof registrationSchema>, string>>;
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -38,11 +60,32 @@ export default function Register() {
   });
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [errors, setErrors] = useState<FieldErrors>({});
 
-  const update = (key: string, value: any) => setForm((f) => ({ ...f, [key]: value }));
+  const update = (key: string, value: any) => {
+    setForm((f) => ({ ...f, [key]: value }));
+    // Clear error on change
+    if (errors[key as keyof FieldErrors]) {
+      setErrors((e) => ({ ...e, [key]: undefined }));
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({});
+
+    const result = registrationSchema.safeParse(form);
+    if (!result.success) {
+      const fieldErrors: FieldErrors = {};
+      for (const issue of result.error.issues) {
+        const key = issue.path[0] as keyof FieldErrors;
+        if (!fieldErrors[key]) fieldErrors[key] = issue.message;
+      }
+      setErrors(fieldErrors);
+      toast.error("Veuillez corriger les erreurs dans le formulaire");
+      return;
+    }
+
     setLoading(true);
     try {
       const { error } = await supabase
@@ -110,6 +153,9 @@ export default function Register() {
     );
   }
 
+  const FieldError = ({ field }: { field: keyof FieldErrors }) =>
+    errors[field] ? <p className="text-sm text-destructive mt-1">{errors[field]}</p> : null;
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-2xl p-8 space-y-6">
@@ -133,8 +179,10 @@ export default function Register() {
                 placeholder="Jean Dupont"
                 value={form.display_name}
                 onChange={(e) => update("display_name", e.target.value)}
+                className={errors.display_name ? "border-destructive" : ""}
                 required
               />
+              <FieldError field="display_name" />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Email *</label>
@@ -143,8 +191,10 @@ export default function Register() {
                 placeholder="vous@exemple.com"
                 value={form.email}
                 onChange={(e) => update("email", e.target.value)}
+                className={errors.email ? "border-destructive" : ""}
                 required
               />
+              <FieldError field="email" />
             </div>
           </div>
 
@@ -156,7 +206,9 @@ export default function Register() {
                 placeholder="+216 XX XXX XXX"
                 value={form.phone}
                 onChange={(e) => update("phone", e.target.value)}
+                className={errors.phone ? "border-destructive" : ""}
               />
+              <FieldError field="phone" />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Nombre d'écrans souhaité *</label>
@@ -166,8 +218,10 @@ export default function Register() {
                 max={100}
                 value={form.num_screens}
                 onChange={(e) => update("num_screens", parseInt(e.target.value) || 1)}
+                className={errors.num_screens ? "border-destructive" : ""}
                 required
               />
+              <FieldError field="num_screens" />
             </div>
           </div>
 
@@ -179,8 +233,10 @@ export default function Register() {
               placeholder="Restaurant Le Gourmet"
               value={form.establishment_name}
               onChange={(e) => update("establishment_name", e.target.value)}
+              className={errors.establishment_name ? "border-destructive" : ""}
               required
             />
+            <FieldError field="establishment_name" />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -203,7 +259,9 @@ export default function Register() {
                 placeholder="123 Rue de la Liberté, Tunis"
                 value={form.address}
                 onChange={(e) => update("address", e.target.value)}
+                className={errors.address ? "border-destructive" : ""}
               />
+              <FieldError field="address" />
             </div>
           </div>
 
@@ -215,16 +273,20 @@ export default function Register() {
               <Input
                 placeholder="1234567A/B/C/000"
                 value={form.matricule_fiscal}
-                onChange={(e) => update("matricule_fiscal", e.target.value)}
+                onChange={(e) => update("matricule_fiscal", e.target.value.toUpperCase())}
+                className={errors.matricule_fiscal ? "border-destructive" : ""}
               />
+              <FieldError field="matricule_fiscal" />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Registre de commerce (RC)</label>
               <Input
                 placeholder="B0123456789"
                 value={form.registre_commerce}
-                onChange={(e) => update("registre_commerce", e.target.value)}
+                onChange={(e) => update("registre_commerce", e.target.value.toUpperCase())}
+                className={errors.registre_commerce ? "border-destructive" : ""}
               />
+              <FieldError field="registre_commerce" />
             </div>
           </div>
 
@@ -235,7 +297,9 @@ export default function Register() {
                 placeholder="Ex: TVA123456"
                 value={form.code_tva}
                 onChange={(e) => update("code_tva", e.target.value)}
+                className={errors.code_tva ? "border-destructive" : ""}
               />
+              <FieldError field="code_tva" />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Code catégorie</label>
@@ -243,7 +307,9 @@ export default function Register() {
                 placeholder="Ex: CAT-001"
                 value={form.code_categorie}
                 onChange={(e) => update("code_categorie", e.target.value)}
+                className={errors.code_categorie ? "border-destructive" : ""}
               />
+              <FieldError field="code_categorie" />
             </div>
           </div>
 
