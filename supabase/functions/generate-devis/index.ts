@@ -14,9 +14,17 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const serviceRoleKey = Deno.env.get("SUPPORT_DRAVOX_SERVICE_ROLE_KEY");
+    const serviceRoleKey = Deno.env.get("SUPPORT_DRAVOX_SERVICE_ROLE_KEY")?.trim();
     if (!serviceRoleKey) {
       throw new Error("SUPPORT_DRAVOX_SERVICE_ROLE_KEY is not configured");
+    }
+
+    const looksLikeServiceKey =
+      serviceRoleKey.startsWith("eyJ") || serviceRoleKey.startsWith("sb_secret_");
+    if (!looksLikeServiceKey || serviceRoleKey === "SUPPORT_DRAVOX_SERVICE_ROLE_KEY") {
+      throw new Error(
+        "SUPPORT_DRAVOX_SERVICE_ROLE_KEY is invalid. Paste the actual support-dravox service_role key value from Settings > API (not the secret name)."
+      );
     }
 
     const body = await req.json();
