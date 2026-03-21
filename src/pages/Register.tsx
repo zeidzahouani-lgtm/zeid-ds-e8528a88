@@ -62,6 +62,28 @@ export default function Register() {
           secteur_activite: form.secteur_activite || null,
         } as any);
       if (error) throw error;
+
+      // Generate devis on support-dravox
+      try {
+        await supabase.functions.invoke("generate-devis", {
+          body: {
+            display_name: form.display_name,
+            email: form.email,
+            establishment_name: form.establishment_name,
+            num_screens: form.num_screens,
+            phone: form.phone,
+            address: form.address,
+            matricule_fiscal: form.matricule_fiscal,
+            registre_commerce: form.registre_commerce,
+            code_tva: form.code_tva,
+            code_categorie: form.code_categorie,
+            secteur_activite: form.secteur_activite,
+          },
+        });
+      } catch (devisErr) {
+        console.error("Devis generation failed (non-blocking):", devisErr);
+      }
+
       setSent(true);
       toast.success("Votre demande d'inscription a été envoyée");
     } catch (err: any) {
