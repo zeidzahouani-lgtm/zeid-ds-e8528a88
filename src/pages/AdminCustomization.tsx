@@ -273,24 +273,26 @@ export default function AdminCustomization() {
               <Input value={form.favicon_url} onChange={(e) => setForm({ ...form, favicon_url: e.target.value })} placeholder="https://example.com/favicon.ico" />
             </div>
             <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Vidéo de la page de connexion</Label>
-              <p className="text-[10px] text-muted-foreground normal-case">Uploadez une vidéo affichée à droite du formulaire de connexion. Laissez vide pour un login plein écran.</p>
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Média de la page de connexion</Label>
+              <p className="text-[10px] text-muted-foreground normal-case">Uploadez une vidéo, image JPG ou GIF animé affiché à droite du formulaire de connexion. Laissez vide pour un login plein écran.</p>
               <div className="flex gap-2">
-                <Input value={form.login_video_url || ""} onChange={(e) => setForm({ ...form, login_video_url: e.target.value })} placeholder="URL de la vidéo ou uploadez un fichier" className="flex-1" />
-                <input ref={videoInputRef} type="file" accept="video/mp4,video/webm" className="hidden" onChange={async (e) => {
+                <Input value={form.login_video_url || ""} onChange={(e) => setForm({ ...form, login_video_url: e.target.value })} placeholder="URL du média ou uploadez un fichier" className="flex-1" />
+                <input ref={videoInputRef} type="file" accept="video/mp4,video/webm,image/jpeg,image/jpg,image/gif" className="hidden" onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
-                  if (!file.type.startsWith("video/")) { toast.error("Veuillez sélectionner une vidéo"); return; }
+                  const isVideo = file.type.startsWith("video/");
+                  const isImage = file.type === "image/jpeg" || file.type === "image/gif";
+                  if (!isVideo && !isImage) { toast.error("Format accepté : MP4, WebM, JPG ou GIF"); return; }
                   setUploadingVideo(true);
                   try {
                     const ext = file.name.split(".").pop();
-                    const fileName = `branding/login-video-${Date.now()}.${ext}`;
+                    const fileName = `branding/login-media-${Date.now()}.${ext}`;
                     const { error } = await supabase.storage.from("media").upload(fileName, file, { upsert: true });
                     if (error) throw error;
                     const { data } = supabase.storage.from("media").getPublicUrl(fileName);
                     setForm({ ...form, login_video_url: data.publicUrl });
-                    toast.success("Vidéo uploadée avec succès");
-                  } catch { toast.error("Erreur lors de l'upload de la vidéo"); } finally {
+                    toast.success("Média uploadé avec succès");
+                  } catch { toast.error("Erreur lors de l'upload"); } finally {
                     setUploadingVideo(false);
                     if (videoInputRef.current) videoInputRef.current.value = "";
                   }
@@ -307,7 +309,11 @@ export default function AdminCustomization() {
               {uploadingVideo && <p className="text-xs text-primary animate-pulse normal-case">Upload en cours...</p>}
               {form.login_video_url && (
                 <div className="mt-2 rounded-lg overflow-hidden bg-secondary/50">
-                  <video src={form.login_video_url} className="w-full max-h-40 object-cover" muted autoPlay loop playsInline />
+                  {/\.(jpe?g|gif)(\?.*)?$/i.test(form.login_video_url) ? (
+                    <img src={form.login_video_url} alt="Aperçu média connexion" className="w-full max-h-40 object-cover" />
+                  ) : (
+                    <video src={form.login_video_url} className="w-full max-h-40 object-cover" muted autoPlay loop playsInline />
+                  )}
                 </div>
               )}
             </div>

@@ -23,11 +23,12 @@ export default function Login() {
   const navigate = useNavigate();
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const hasVideo = !!settings.login_video_url;
+  const hasMedia = !!settings.login_video_url;
+  const isImageMedia = hasMedia && /\.(jpe?g|gif)(\?.*)?$/i.test(settings.login_video_url);
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!hasVideo || !video) return;
+    if (!hasMedia || isImageMedia || !video) return;
 
     setVideoError(false);
     video.muted = true;
@@ -52,7 +53,7 @@ export default function Login() {
     return () => {
       video.removeEventListener("canplay", onCanPlay);
     };
-  }, [hasVideo, settings.login_video_url]);
+  }, [hasMedia, isImageMedia, settings.login_video_url]);
 
   const handleManualPlay = async () => {
     const video = videoRef.current;
@@ -90,7 +91,7 @@ export default function Login() {
         {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
       </Button>
 
-      <div className={`relative flex items-center justify-center p-6 w-full ${hasVideo ? "md:w-1/2" : ""}`}>
+      <div className={`relative flex items-center justify-center p-6 w-full ${hasMedia ? "md:w-1/2" : ""}`}>
         <AnimatedBackground />
         <LoginParticles />
 
@@ -191,42 +192,52 @@ export default function Login() {
         </Card>
       </div>
 
-      {hasVideo && (
+      {hasMedia && (
         <div className="hidden md:flex md:w-1/2 items-center justify-center p-8 bg-gradient-to-br from-background via-secondary/20 to-background">
           <div className="relative w-full max-w-3xl aspect-video rounded-2xl overflow-hidden bg-card/30 backdrop-blur-sm border border-primary/30 shadow-neon neon-border">
-            <video
-              ref={videoRef}
-              src={settings.login_video_url}
-              autoPlay
-              loop
-              muted
-              playsInline
-              preload="auto"
-              className="absolute inset-0 w-full h-full object-cover"
-              onLoadedData={() => setVideoError(false)}
-              onError={() => {
-                setVideoError(true);
-                setVideoBlocked(false);
-              }}
-            />
+            {isImageMedia ? (
+              <img
+                src={settings.login_video_url}
+                alt="Login media"
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            ) : (
+              <>
+                <video
+                  ref={videoRef}
+                  src={settings.login_video_url}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  preload="auto"
+                  className="absolute inset-0 w-full h-full object-cover"
+                  onLoadedData={() => setVideoError(false)}
+                  onError={() => {
+                    setVideoError(true);
+                    setVideoBlocked(false);
+                  }}
+                />
+
+                {videoBlocked && !videoError && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/60 backdrop-blur-sm">
+                    <p className="text-sm text-foreground font-medium">Lecture vidéo bloquée par le navigateur</p>
+                    <Button onClick={handleManualPlay} className="gap-2 gradient-primary text-primary-foreground">
+                      <Play className="h-4 w-4" />
+                      Lancer la vidéo
+                    </Button>
+                  </div>
+                )}
+
+                {videoError && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-background/70">
+                    <p className="text-sm text-muted-foreground">Impossible de charger la vidéo</p>
+                  </div>
+                )}
+              </>
+            )}
 
             <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-background/40 via-transparent to-background/20" />
-
-            {videoBlocked && !videoError && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/60 backdrop-blur-sm">
-                <p className="text-sm text-foreground font-medium">Lecture vidéo bloquée par le navigateur</p>
-                <Button onClick={handleManualPlay} className="gap-2 gradient-primary text-primary-foreground">
-                  <Play className="h-4 w-4" />
-                  Lancer la vidéo
-                </Button>
-              </div>
-            )}
-
-            {videoError && (
-              <div className="absolute inset-0 flex items-center justify-center bg-background/70">
-                <p className="text-sm text-muted-foreground">Impossible de charger la vidéo</p>
-              </div>
-            )}
           </div>
         </div>
       )}
