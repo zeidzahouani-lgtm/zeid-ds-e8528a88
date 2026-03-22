@@ -148,24 +148,34 @@ export default function AdminUsers() {
           establishment_name: est?.name || "",
         };
       });
+
+      // Also send establishments as clients
+      const establishmentsToSync = establishments.map((est: any) => ({
+        name: est.name || "",
+        email: est.email || "",
+        phone: est.phone || "",
+        address: est.address || "",
+      }));
+
       const res = await supabase.functions.invoke("sync-client-dravox", {
-        body: { users: usersToSync },
+        body: { users: usersToSync, establishments: establishmentsToSync },
       });
       if (res.error) throw res.error;
       if (res.data?.error) throw new Error(res.data.error);
       return res.data;
     },
     onSuccess: (data) => {
-      const created = data.results?.filter((r: any) => r.action === "created").length || 0;
-      const updated = data.results?.filter((r: any) => r.action === "updated").length || 0;
-      const errors = data.results?.filter((r: any) => r.action === "error").length || 0;
+      const summary = data.summary || {};
       queryClient.invalidateQueries({ queryKey: ["dravox_sync_status"] });
       toast({
         title: "Synchronisation terminée",
-        description: `${created} créé(s), ${updated} mis à jour, ${errors} erreur(s)`,
+        description: `${summary.created || 0} créé(s), ${summary.skipped || 0} déjà synchronisé(s), ${summary.errors || 0} erreur(s)`,
       });
     },
-    onError: (e) => toast({ title: "Erreur de synchronisation", description: e.message, variant: "destructive" }),
+    onError: (e: unknown) => {
+      const msg = e instanceof Error ? e.message : "Erreur inconnue";
+      toast({ title: "Erreur de synchronisation", description: msg, variant: "destructive" });
+    },
   });
 
   const handleAssignEstablishment = async (userId: string, establishmentId: string) => {

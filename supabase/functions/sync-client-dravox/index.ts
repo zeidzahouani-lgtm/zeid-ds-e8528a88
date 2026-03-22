@@ -8,6 +8,30 @@ const corsHeaders = {
 
 const WEBHOOK_URL = "https://okgmecbjvtmbzuyqwruu.supabase.co/functions/v1/receive-screenflow-data";
 
+async function checkClientExists(email: string, webhookSecret: string): Promise<boolean> {
+  try {
+    const res = await fetch(WEBHOOK_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-webhook-secret": webhookSecret,
+      },
+      body: JSON.stringify({
+        type: "check_client",
+        email,
+      }),
+    });
+    const data = await res.json();
+    // If the webhook returns success with action "exists" or "updated", the client exists
+    if (data.success && (data.action === "updated" || data.exists === true)) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -30,24 +54,96 @@ Deno.serve(async (req) => {
       const callerClient = createClient(supabaseUrl, anonKey, {
         global: { headers: { Authorization: authHeader } },
       });
-      const token = authHeader.replace("Bearer ", "");
-      const { data: claimsData, error: claimsError } = await callerClient.auth.getClaims(token);
-      if (claimsError || !claimsData?.claims) throw new Error("Not authenticated");
+      const { data: userData, error: userError } = await callerClient.auth.getUser();
+      if (userError || !userData?.user) throw new Error("Not authenticated");
 
-      const userId = claimsData.claims.sub;
+      const userId = userData.user.id;
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
       const { data: roleData } = await adminClient.from("user_roles").select("role").eq("user_id", userId).eq("role", "admin");
       if (!roleData || roleData.length === 0) throw new Error("Not admin");
     }
 
-    const { users, mode } = await req.json();
-    if (!Array.isArray(users) || users.length === 0) throw new Error("No users provided");
+    const { users, establishments, mode } = await req.json();
 
-    // Check mode: send each user as a "client" type to the webhook
+    // ============ CHECK MODE ============
+    // Just verify which emails are already synced (without creating/updating)
     if (mode === "check") {
+      if (!Array.isArray(users) || users.length === 0) {
+        return new Response(JSON.stringify({ success: true, syncedEmails: [] }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const syncedEmails: string[] = [];
       for (const u of users) {
         if (!u.email) continue;
+        const exists = await checkClientExists(u.email, webhookSecret);
+        if (exists) syncedEmails.push(u.email);
+      }
+
+      return new Response(JSON.stringify({ success: true, syncedEmails }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ============ SYNC MODE ============
+    const results: any[] = [];
+
+    // 1. Sync establishments as clients
+    if (Array.isArray(establishments) && establishments.length > 0) {
+      for (const est of establishments) {
+        if (!est.name) continue;
+
+        // Use email or generate a placeholder
+        const estEmail = est.email || "";
+
+        // Check if establishment already exists (by email if available)
+        if (estEmail) {
+          const exists = await checkClientExists(estEmail, webhookSecret);
+          if (exists) {
+            results.push({ type: "establishment", name: est.name, action: "already_synced" });
+            continue;
+          }
+        }
+
+        try {
+          const res = await fetch(WEBHOOK_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-webhook-secret": webhookSecret,
+            },
+            body: JSON.stringify({
+              type: "client",
+              nom: est.name,
+              societe: est.name,
+              email: estEmail,
+              telephone: est.phone || "",
+              adresse: est.address || "",
+              notes: `Établissement ScreenFlow`,
+            }),
+          });
+          const data = await res.json();
+          results.push({ type: "establishment", name: est.name, action: data.action || "synced" });
+        } catch (err) {
+          results.push({ type: "establishment", name: est.name, action: "error", error: String(err) });
+        }
+      }
+    }
+
+    // 2. Sync users (skip already synced ones)
+    if (Array.isArray(users) && users.length > 0) {
+      for (const u of users) {
+        if (!u.email) continue;
+
+        // Check if this user/client already exists on Dravox
+        const exists = await checkClientExists(u.email, webhookSecret);
+        if (exists) {
+          results.push({ type: "user", email: u.email, action: "already_synced" });
+          continue;
+        }
+
+        // Create client
         try {
           const res = await fetch(WEBHOOK_URL, {
             method: "POST",
@@ -60,94 +156,53 @@ Deno.serve(async (req) => {
               nom: u.display_name || u.email.split("@")[0],
               email: u.email,
               societe: u.establishment_name || "",
+              telephone: "",
+              adresse: "",
+              notes: `Compte ScreenFlow - ${u.establishment_name || ""}`.trim(),
             }),
           });
           const data = await res.json();
-          if (data.success && (data.action === "created" || data.action === "updated")) {
-            syncedEmails.push(u.email);
+          results.push({ type: "user", email: u.email, action: data.action || "created" });
+
+          // Also create vault entry for new users
+          try {
+            await fetch(WEBHOOK_URL, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "x-webhook-secret": webhookSecret,
+              },
+              body: JSON.stringify({
+                type: "vault",
+                nom: "ScreenFlow",
+                client_email: u.email,
+                type_equipement: "serveur",
+                adresse_ip: "screenflow-ds.com",
+                port: "443",
+                protocole: "HTTPS",
+                identifiant: u.email,
+                mot_de_passe: "",
+                notes: `Compte ScreenFlow`,
+              }),
+            });
+          } catch {
+            // vault error non-blocking
           }
-        } catch {
-          // skip
+        } catch (err) {
+          results.push({ type: "user", email: u.email, action: "error", error: String(err) });
         }
       }
-      return new Response(JSON.stringify({ success: true, syncedEmails }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
     }
 
-    // Sync mode - send clients via batch
-    const clientsPayload = users.map((u: any) => ({
-      nom: u.display_name || u.email?.split("@")[0] || "",
-      email: u.email || "",
-      societe: u.establishment_name || "",
-      telephone: u.phone || "",
-      adresse: u.address || "",
-      matricule_fiscal: u.matricule_fiscal || "",
-      registre_commerce: u.registre_commerce || "",
-      code_tva: u.code_tva || "",
-      code_categorie: u.code_categorie || "",
-      secteur_activite: u.secteur_activite || "",
-      notes: `Compte ScreenFlow - ${u.establishment_name || ""}`.trim(),
-    }));
+    const created = results.filter(r => r.action === "created").length;
+    const skipped = results.filter(r => r.action === "already_synced").length;
+    const errors = results.filter(r => r.action === "error").length;
 
-    // Send as batch
-    const batchRes = await fetch(WEBHOOK_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-webhook-secret": webhookSecret,
-      },
-      body: JSON.stringify({
-        type: "batch",
-        clients: clientsPayload,
-        vault_entries: [],
-      }),
-    });
-
-    const batchData = await batchRes.json();
-
-    if (!batchRes.ok) {
-      throw new Error(batchData.error || `Webhook returned ${batchRes.status}`);
-    }
-
-    // After batch sync, create vault entries for each client with password
-    const vaultResults: any[] = [];
-    for (const u of users) {
-      if (!u.email) continue;
-      try {
-        const vaultRes = await fetch(WEBHOOK_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-webhook-secret": webhookSecret,
-          },
-          body: JSON.stringify({
-            type: "vault",
-            nom: "ScreenFlow",
-            client_email: u.email,
-            type_equipement: "serveur",
-            adresse_ip: "screenflow-ds.com",
-            port: "443",
-            protocole: "HTTPS",
-            identifiant: u.email,
-            mot_de_passe: u.password || "",
-            notes: `Compte ScreenFlow - ${u.establishment_name || ""}`.trim(),
-          }),
-        });
-        const vaultData = await vaultRes.json();
-        vaultResults.push({ email: u.email, vault: vaultData });
-      } catch {
-        // skip vault errors
-      }
-    }
-
-    // Build results from batch response
-    const results = batchData.results || clientsPayload.map((c: any, i: number) => ({
-      email: users[i]?.email || "",
-      action: "synced",
-    }));
-
-    return new Response(JSON.stringify({ success: true, results }), {
+    return new Response(JSON.stringify({ 
+      success: true, 
+      results,
+      summary: { created, skipped, errors, total: results.length }
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
