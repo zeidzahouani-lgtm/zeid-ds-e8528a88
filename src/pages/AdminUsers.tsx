@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Users, Shield, ShieldCheck, UserPlus, Building2, X } from "lucide-react";
+import { Users, Shield, ShieldCheck, UserPlus, Building2, X, RefreshCw } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useEstablishments } from "@/hooks/useEstablishments";
@@ -109,6 +109,35 @@ export default function AdminUsers() {
     onError: (e) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
 
+  const syncToDravox = useMutation({
+    mutationFn: async () => {
+      const usersToSync = users.map((u) => {
+        const est = u.establishments[0];
+        return {
+          email: u.email || "",
+          display_name: u.display_name || "",
+          establishment_name: est?.name || "",
+        };
+      });
+      const res = await supabase.functions.invoke("sync-client-dravox", {
+        body: { users: usersToSync },
+      });
+      if (res.error) throw res.error;
+      if (res.data?.error) throw new Error(res.data.error);
+      return res.data;
+    },
+    onSuccess: (data) => {
+      const created = data.results?.filter((r: any) => r.action === "created").length || 0;
+      const updated = data.results?.filter((r: any) => r.action === "updated").length || 0;
+      const errors = data.results?.filter((r: any) => r.action === "error").length || 0;
+      toast({
+        title: "Synchronisation terminée",
+        description: `${created} créé(s), ${updated} mis à jour, ${errors} erreur(s)`,
+      });
+    },
+    onError: (e) => toast({ title: "Erreur de synchronisation", description: e.message, variant: "destructive" }),
+  });
+
   const handleAssignEstablishment = async (userId: string, establishmentId: string) => {
     try {
       await assignUserToEstablishment.mutateAsync({ userId, establishmentId });
@@ -156,6 +185,9 @@ export default function AdminUsers() {
         </div>
         <div className="flex gap-2">
           <Badge variant="secondary">{users.length} utilisateur(s)</Badge>
+          <Button size="sm" variant="outline" onClick={() => syncToDravox.mutate()} disabled={syncToDravox.isPending || users.length === 0}>
+            <RefreshCw className={`h-4 w-4 mr-1 ${syncToDravox.isPending ? "animate-spin" : ""}`} /> Sync Support
+          </Button>
           <Button size="sm" onClick={() => setShowAddDialog(true)}>
             <UserPlus className="h-4 w-4 mr-1" /> Ajouter
           </Button>

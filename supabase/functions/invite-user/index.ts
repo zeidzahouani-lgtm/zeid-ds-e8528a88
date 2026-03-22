@@ -70,6 +70,57 @@ Deno.serve(async (req) => {
 
     if (error) throw error;
 
+    // Sync to support-dravox (fire and forget)
+    try {
+      const dravoxServiceKey = Deno.env.get("SUPPORT_DRAVOX_SERVICE_ROLE_KEY");
+      if (dravoxServiceKey) {
+        const { createClient: createDravoxClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+        const dravoxClient = createDravoxClient("https://okgmecbjvtmbzuyqwruu.supabase.co", dravoxServiceKey);
+
+        // Check if client exists
+        const { data: existing } = await dravoxClient
+          .from("clients")
+          .select("id")
+          .eq("email", email)
+          .maybeSingle();
+
+        let clientId: string;
+        if (existing) {
+          clientId = existing.id;
+        } else {
+          const { data: newClient } = await dravoxClient
+            .from("clients")
+            .insert({
+              nom: display_name || email.split("@")[0],
+              email,
+            })
+            .select("id")
+            .single();
+          clientId = newClient?.id;
+        }
+
+        if (clientId) {
+          const { data: existingVault } = await dravoxClient
+            .from("vault_entries")
+            .select("id")
+            .eq("client_id", clientId)
+            .eq("nom", "ScreenFlow")
+            .maybeSingle();
+
+          if (!existingVault) {
+            await dravoxClient.from("vault_entries").insert({
+              nom: "ScreenFlow",
+              client_id: clientId,
+              type_equipement: "serveur",
+              identifiant: email,
+            });
+          }
+        }
+      }
+    } catch (syncErr) {
+      console.error("Sync to support-dravox failed:", syncErr);
+    }
+
     return new Response(JSON.stringify({ user: data.user }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
