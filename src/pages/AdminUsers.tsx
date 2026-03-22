@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Users, Shield, ShieldCheck, UserPlus, Building2, X, RefreshCw, CheckCircle2, CircleDashed, KeyRound } from "lucide-react";
+import { Users, Shield, ShieldCheck, UserPlus, Building2, X, RefreshCw, CheckCircle2, CircleDashed, KeyRound, Pencil, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useEstablishments } from "@/hooks/useEstablishments";
@@ -33,6 +34,10 @@ export default function AdminUsers() {
   const [showEstDialog, setShowEstDialog] = useState<string | null>(null);
   const [showPasswordDialog, setShowPasswordDialog] = useState<{ id: string; email: string; name: string } | null>(null);
   const [newPasswordValue, setNewPasswordValue] = useState("");
+  const [showEditDialog, setShowEditDialog] = useState<UserProfile | null>(null);
+  const [editDisplayName, setEditDisplayName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<UserProfile | null>(null);
 
   const { data: currentUserRoles = [] } = useQuery({
     queryKey: ["my_roles"],
@@ -205,6 +210,35 @@ export default function AdminUsers() {
     },
   });
 
+  const updateProfile = useMutation({
+    mutationFn: async ({ id, display_name, email }: { id: string; display_name: string; email: string }) => {
+      const { error } = await supabase.from("profiles").update({ display_name, email } as any).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin_users"] });
+      toast({ title: "Profil mis à jour" });
+      setShowEditDialog(null);
+    },
+    onError: () => toast({ title: "Erreur", variant: "destructive" }),
+  });
+
+  const deleteUser = useMutation({
+    mutationFn: async (userId: string) => {
+      // Remove from establishments first
+      await supabase.from("user_establishments").delete().eq("user_id", userId);
+      await supabase.from("user_roles").delete().eq("user_id", userId);
+      await supabase.from("profiles").delete().eq("id", userId);
+      // Note: auth user deletion requires service role, done via edge function if needed
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin_users"] });
+      toast({ title: "Utilisateur supprimé" });
+      setShowDeleteConfirm(null);
+    },
+    onError: () => toast({ title: "Erreur lors de la suppression", variant: "destructive" }),
+  });
+
   const handleAssignEstablishment = async (userId: string, establishmentId: string) => {
     try {
       await assignUserToEstablishment.mutateAsync({ userId, establishmentId });
@@ -305,9 +339,30 @@ export default function AdminUsers() {
                     variant="ghost"
                     size="sm"
                     className="gap-1.5 text-xs"
+                    onClick={() => {
+                      setEditDisplayName(u.display_name || "");
+                      setEditEmail(u.email || "");
+                      setShowEditDialog(u);
+                    }}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-xs"
                     onClick={() => setShowPasswordDialog({ id: u.id, email: u.email || "", name: u.display_name || "" })}
                   >
                     <KeyRound className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-xs text-destructive hover:text-destructive"
+                    onClick={() => setShowDeleteConfirm(u)}
+                    disabled={u.id === user?.id}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                   <Select
                     value={u.roles[0] || "user"}
@@ -462,6 +517,60 @@ export default function AdminUsers() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit user dialog */}
+      <Dialog open={!!showEditDialog} onOpenChange={() => setShowEditDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifier l'utilisateur</DialogTitle>
+            <DialogDescription>{showEditDialog?.email}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium">Nom d'affichage</label>
+              <Input value={editDisplayName} onChange={(e) => setEditDisplayName(e.target.value)} placeholder="Nom" className="mt-1" />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Email</label>
+              <Input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="email@exemple.com" className="mt-1" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(null)}>Annuler</Button>
+            <Button
+              onClick={() => {
+                if (showEditDialog) {
+                  updateProfile.mutate({ id: showEditDialog.id, display_name: editDisplayName.trim(), email: editEmail.trim() });
+                }
+              }}
+              disabled={!editDisplayName.trim() || !editEmail.trim() || updateProfile.isPending}
+            >
+              {updateProfile.isPending ? "En cours..." : "Sauvegarder"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete user confirmation */}
+      <AlertDialog open={!!showDeleteConfirm} onOpenChange={() => setShowDeleteConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer l'utilisateur ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action supprimera le profil de <strong>{showDeleteConfirm?.display_name || showDeleteConfirm?.email}</strong> ainsi que ses assignations. Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => showDeleteConfirm && deleteUser.mutate(showDeleteConfirm.id)}
+            >
+              {deleteUser.isPending ? "Suppression..." : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
