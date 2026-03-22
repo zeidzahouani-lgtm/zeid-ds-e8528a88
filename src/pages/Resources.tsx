@@ -7,7 +7,8 @@ import {
   Download, Monitor, Tv, Image, ListMusic, Clock, LayoutGrid,
   Sparkles, Shield, Cloud, Zap, Eye, Users, Settings, Mail,
   BookOpen, Rocket, Target, Layers, Globe, Lock,
-  ChevronRight, Play, Upload, Palette, Bell, Server
+  ChevronRight, Play, Upload, Palette, Bell, Server,
+  Smartphone, Wifi, RefreshCw, Volume2, AlertTriangle, CheckCircle2
 } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -163,8 +164,20 @@ const manualSections = [
     screenshotAlt: "Page du flux automatique avec historique des emails traités",
   },
   {
+    id: "fullykiosk",
+    title: "8. Configuration Android — Fully Kiosk Browser",
+    icon: Smartphone,
+    steps: [
+      "Téléchargez et installez l'APK Fully Kiosk Browser depuis le site officiel (fully-kiosk.com).",
+      "Lancez l'application et entrez l'URL Player de votre écran comme page de démarrage.",
+      "Accédez aux paramètres Fully Kiosk (glissez depuis le bord gauche ou tapez le mot de passe admin).",
+      "Activez le mode Kiosque pour verrouiller l'appareil sur l'application.",
+      "Configurez le redémarrage automatique et la gestion de l'écran selon vos besoins.",
+    ],
+  },
+  {
     id: "admin",
-    title: "8. Administration",
+    title: "9. Administration",
     icon: Settings,
     steps: [
       "Les administrateurs accèdent aux sections dédiées dans le menu 'Administration'.",
@@ -242,6 +255,9 @@ export default function Resources() {
           </TabsTrigger>
           <TabsTrigger value="manual" className="gap-1.5">
             <BookOpen className="h-4 w-4" /> Manuel d'Utilisation
+          </TabsTrigger>
+          <TabsTrigger value="fullykiosk" className="gap-1.5">
+            <Smartphone className="h-4 w-4" /> Fully Kiosk Browser
           </TabsTrigger>
         </TabsList>
 
@@ -388,12 +404,281 @@ export default function Resources() {
                           </li>
                         ))}
                       </ol>
-                      <ManualScreenshot src={section.screenshot} alt={section.screenshotAlt} />
+                      {section.screenshot && <ManualScreenshot src={section.screenshot} alt={section.screenshotAlt || ""} />}
                     </AccordionContent>
                   </AccordionItem>
                 ))}
               </Accordion>
             </div>
+          </div>
+        </TabsContent>
+
+        {/* ═══════ FULLY KIOSK TAB ═══════ */}
+        <TabsContent value="fullykiosk">
+          <div className="space-y-6">
+            {/* Hero */}
+            <Card className="overflow-hidden">
+              <div className="relative p-8 md:p-10 text-center space-y-4">
+                <div className="absolute inset-0 gradient-primary opacity-[0.07]" />
+                <div className="relative z-10 space-y-4">
+                  <div className="h-14 w-14 rounded-2xl gradient-primary flex items-center justify-center mx-auto shadow-glow-blue">
+                    <Smartphone className="h-7 w-7 text-white" />
+                  </div>
+                  <h2 className="text-2xl md:text-3xl font-bold gradient-primary-text">Guide Fully Kiosk Browser</h2>
+                  <p className="text-muted-foreground max-w-2xl mx-auto text-sm">
+                    Configuration complète pour transformer une tablette ou un boîtier Android en écran d'affichage dynamique professionnel.
+                  </p>
+                </div>
+              </div>
+            </Card>
+
+            {/* Prérequis */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl gradient-primary flex items-center justify-center shadow-glow-blue">
+                    <CheckCircle2 className="h-5 w-5 text-white" />
+                  </div>
+                  <CardTitle>Prérequis</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2">
+                  {[
+                    "Appareil Android (tablette, boîtier TV, écran interactif) avec Android 5.0 ou supérieur.",
+                    "Connexion Wi-Fi ou Ethernet stable.",
+                    "APK Fully Kiosk Browser (téléchargeable sur fully-kiosk.com — version gratuite ou licence Plus).",
+                    "URL Player de votre écran (disponible dans la section 'Écrans' du tableau de bord).",
+                  ].map((item, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <ChevronRight className="h-4 w-4 text-primary/60 mt-0.5 shrink-0" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+
+            {/* Étape 1 : Installation */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl gradient-primary flex items-center justify-center shadow-glow-blue">
+                    <Download className="h-5 w-5 text-white" />
+                  </div>
+                  <CardTitle>Étape 1 — Installation de l'APK</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <ol className="space-y-3">
+                  {[
+                    "Sur l'appareil Android, ouvrez le navigateur et rendez-vous sur fully-kiosk.com.",
+                    "Téléchargez la dernière version de l'APK « Fully Kiosk Browser & Lockdown ».",
+                    "Si demandé, autorisez l'installation depuis des sources inconnues dans Paramètres → Sécurité.",
+                    "Ouvrez le fichier APK téléchargé et appuyez sur « Installer ».",
+                    "Une fois installé, lancez Fully Kiosk Browser.",
+                  ].map((step, i) => (
+                    <li key={i} className="flex gap-3 text-sm text-muted-foreground">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0">{i + 1}</span>
+                      <span className="pt-0.5">{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              </CardContent>
+            </Card>
+
+            {/* Étape 2 : URL de démarrage */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl gradient-primary flex items-center justify-center shadow-glow-blue">
+                    <Globe className="h-5 w-5 text-white" />
+                  </div>
+                  <CardTitle>Étape 2 — Configurer l'URL de démarrage</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <ol className="space-y-3">
+                  {[
+                    "Au premier lancement, Fully Kiosk vous demande l'URL de la page de démarrage.",
+                    "Collez l'URL Player de votre écran (ex : https://zeid-ds.lovable.app/player/mon-ecran).",
+                    "Appuyez sur « Use this URL » pour valider.",
+                    "L'écran affichera immédiatement le contenu assigné.",
+                  ].map((step, i) => (
+                    <li key={i} className="flex gap-3 text-sm text-muted-foreground">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0">{i + 1}</span>
+                      <span className="pt-0.5">{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              </CardContent>
+            </Card>
+
+            {/* Étape 3 : Mode Kiosque */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl gradient-primary flex items-center justify-center shadow-glow-blue">
+                    <Lock className="h-5 w-5 text-white" />
+                  </div>
+                  <CardTitle>Étape 3 — Activer le Mode Kiosque</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  Le mode Kiosque verrouille l'appareil sur Fully Kiosk et empêche les utilisateurs d'accéder aux autres applications ou paramètres système.
+                </p>
+                <ol className="space-y-3">
+                  {[
+                    "Accédez aux paramètres : glissez depuis le bord gauche de l'écran ou tapez 3 fois rapidement dans un coin.",
+                    "Allez dans « Kiosk Mode (PLUS) » dans le menu de gauche.",
+                    "Activez « Enable Kiosk Mode ».",
+                    "Définissez un mot de passe administrateur (« Kiosk Mode PIN ») — notez-le précieusement !",
+                    "Activez « Disable Status Bar » et « Disable Navigation Bar » pour un affichage plein écran.",
+                    "Activez « Disable Volume Buttons » si vous ne souhaitez pas que le volume soit modifiable.",
+                  ].map((step, i) => (
+                    <li key={i} className="flex gap-3 text-sm text-muted-foreground">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold shrink-0">{i + 1}</span>
+                      <span className="pt-0.5">{step}</span>
+                    </li>
+                  ))}
+                </ol>
+              </CardContent>
+            </Card>
+
+            {/* Étape 4 : Paramètres recommandés */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl gradient-primary flex items-center justify-center shadow-glow-blue">
+                    <Settings className="h-5 w-5 text-white" />
+                  </div>
+                  <CardTitle>Étape 4 — Paramètres Recommandés</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {[
+                    {
+                      icon: RefreshCw,
+                      title: "Redémarrage Automatique",
+                      items: [
+                        "Web Auto Reload → activer avec intervalle (ex : 3600 sec)",
+                        "Scheduled Restart → activer et définir l'heure (ex : 04:00)",
+                        "Restart on Crash → activer",
+                        "Restart on Internet Reconnect → activer",
+                      ],
+                    },
+                    {
+                      icon: Monitor,
+                      title: "Gestion de l'Écran",
+                      items: [
+                        "Screen On/Off Schedule → définir les horaires d'allumage/extinction",
+                        "Keep Screen On → activer pendant les heures d'affichage",
+                        "Screen Brightness → ajuster selon l'emplacement",
+                        "Screensaver → désactiver",
+                      ],
+                    },
+                    {
+                      icon: Wifi,
+                      title: "Réseau & Connectivité",
+                      items: [
+                        "Wifi Settings → configurer la reconnexion automatique",
+                        "Load Current Page on Reconnect → activer",
+                        "Show Offline Message → activer en cas de coupure",
+                        "Cache → activer pour mode offline partiel",
+                      ],
+                    },
+                    {
+                      icon: Volume2,
+                      title: "Audio & Médias",
+                      items: [
+                        "Autoplay Videos → activer",
+                        "Enable JavaScript → activer (obligatoire)",
+                        "Media Volume → ajuster selon besoin",
+                        "Enable Fullscreen Videos → activer",
+                      ],
+                    },
+                  ].map((section) => (
+                    <Card key={section.title} className="border-primary/10">
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <section.icon className="h-5 w-5 text-primary" />
+                          <h4 className="font-semibold text-foreground text-sm">{section.title}</h4>
+                        </div>
+                        <ul className="space-y-1.5">
+                          {section.items.map((item) => (
+                            <li key={item} className="flex items-start gap-2 text-xs text-muted-foreground">
+                              <ChevronRight className="h-3 w-3 text-primary/60 mt-0.5 shrink-0" /> {item}
+                            </li>
+                          ))}
+                        </ul>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Étape 5 : Dépannage */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl gradient-primary flex items-center justify-center shadow-glow-blue">
+                    <AlertTriangle className="h-5 w-5 text-white" />
+                  </div>
+                  <CardTitle>Dépannage & Astuces</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {[
+                    { q: "Écran noir après le démarrage", a: "Vérifiez que l'URL Player est correcte. Assurez-vous que l'appareil est connecté à Internet. Essayez de recharger la page via les paramètres Fully." },
+                    { q: "L'écran reste sur « Aucune licence »", a: "Activez la licence depuis le tableau de bord ou scannez le QR code affiché sur l'écran. Vérifiez que la licence est valide et associée au bon établissement." },
+                    { q: "Les vidéos ne se lancent pas", a: "Activez « Autoplay Videos » et « Enable JavaScript » dans les paramètres Web Content de Fully. Vérifiez que le format vidéo est supporté (MP4 H.264 recommandé)." },
+                    { q: "Comment sortir du mode Kiosque", a: "Tapez 3 fois rapidement dans un coin de l'écran, puis entrez le PIN administrateur. Vous pouvez aussi utiliser Fully Remote Admin si configuré." },
+                    { q: "L'application plante ou se fige", a: "Activez « Restart on Crash » dans les paramètres. Planifiez un redémarrage quotidien automatique. Vérifiez que l'appareil dispose de suffisamment de mémoire." },
+                  ].map((item, i) => (
+                    <div key={i} className="border border-primary/10 rounded-lg p-4 space-y-1.5">
+                      <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                        <AlertTriangle className="h-3.5 w-3.5 text-yellow-500" />
+                        {item.q}
+                      </h4>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{item.a}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Bonnes pratiques */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl gradient-primary flex items-center justify-center shadow-glow-blue">
+                    <CheckCircle2 className="h-5 w-5 text-white" />
+                  </div>
+                  <CardTitle>Bonnes Pratiques</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2">
+                  {[
+                    "Utilisez un compte Google dédié à l'affichage pour éviter les notifications personnelles.",
+                    "Désactivez les mises à jour automatiques du système pour éviter les redémarrages imprévus.",
+                    "Branchez l'appareil sur une prise avec minuterie pour un cycle jour/nuit physique.",
+                    "Activez Fully Remote Admin pour gérer l'appareil à distance (nécessite licence Plus).",
+                    "Testez l'URL Player dans Chrome avant de la configurer dans Fully pour vérifier la compatibilité.",
+                    "Prévoyez un câble Ethernet (via adaptateur USB) pour une connexion plus stable qu'en Wi-Fi.",
+                  ].map((tip, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
+                      <span>{tip}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
       </Tabs>
