@@ -40,8 +40,35 @@ Deno.serve(async (req) => {
     const password = typeof payload?.password === "string" ? payload.password : "";
     const displayName = typeof payload?.display_name === "string" ? payload.display_name.trim() : "";
     const updatePassword = payload?.update_password === true;
+    const deleteUserFlag = payload?.delete_user === true;
 
     const email = rawEmail.trim().toLowerCase();
+
+    // ============ DELETE USER ============
+    if (deleteUserFlag) {
+      if (!email) throw new Error("Email required for deletion");
+
+      const adminClient = createClient(supabaseUrl, serviceRoleKey);
+      const { data: { users }, error: listError } = await adminClient.auth.admin.listUsers();
+      if (listError) throw listError;
+
+      const targetUser = users.find((u: any) => (u.email || "").toLowerCase() === email);
+      if (!targetUser) throw new Error("Utilisateur introuvable");
+
+      // Delete profile, roles, establishments (cascade should handle some, but be explicit)
+      await adminClient.from("user_establishments").delete().eq("user_id", targetUser.id);
+      await adminClient.from("user_roles").delete().eq("user_id", targetUser.id);
+      await adminClient.from("profiles").delete().eq("id", targetUser.id);
+
+      // Delete auth user
+      const { error: deleteError } = await adminClient.auth.admin.deleteUser(targetUser.id);
+      if (deleteError) throw deleteError;
+
+      return new Response(JSON.stringify({ success: true, deleted: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (!email || !password) throw new Error("Email and password required");
     if (password.length < 6) throw new Error("Password must be at least 6 characters");
 
