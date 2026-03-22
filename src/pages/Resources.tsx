@@ -256,6 +256,9 @@ export default function Resources() {
           <TabsTrigger value="manual" className="gap-1.5">
             <BookOpen className="h-4 w-4" /> Manuel d'Utilisation
           </TabsTrigger>
+          <TabsTrigger value="fullykiosk" className="gap-1.5">
+            <Smartphone className="h-4 w-4" /> Fully Kiosk Browser
+          </TabsTrigger>
         </TabsList>
 
         {/* ═══════ PRESENTATION TAB ═══════ */}
