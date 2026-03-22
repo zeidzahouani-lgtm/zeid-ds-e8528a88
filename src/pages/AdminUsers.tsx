@@ -564,7 +564,7 @@ export default function AdminUsers() {
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => showDeleteConfirm && deleteUser.mutate(showDeleteConfirm.id)}
+              onClick={() => showDeleteConfirm && deleteUser.mutate({ id: showDeleteConfirm.id, email: showDeleteConfirm.email || "" })}
             >
               {deleteUser.isPending ? "Suppression..." : "Supprimer"}
             </AlertDialogAction>
