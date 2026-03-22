@@ -398,6 +398,45 @@ export default function AdminUsers() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Password change dialog */}
+      <Dialog open={!!showPasswordDialog} onOpenChange={() => { setShowPasswordDialog(null); setNewPasswordValue(""); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifier le mot de passe</DialogTitle>
+            <DialogDescription>
+              {showPasswordDialog?.name || showPasswordDialog?.email}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium">Nouveau mot de passe</label>
+              <Input
+                type="password"
+                value={newPasswordValue}
+                onChange={(e) => setNewPasswordValue(e.target.value)}
+                placeholder="Min. 6 caractères"
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowPasswordDialog(null); setNewPasswordValue(""); }}>
+              Annuler
+            </Button>
+            <Button
+              onClick={() => {
+                if (showPasswordDialog?.email && newPasswordValue.length >= 6) {
+                  updatePassword.mutate({ email: showPasswordDialog.email, password: newPasswordValue });
+                }
+              }}
+              disabled={newPasswordValue.length < 6 || updatePassword.isPending}
+            >
+              {updatePassword.isPending ? "Mise à jour..." : "Mettre à jour"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
