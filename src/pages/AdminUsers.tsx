@@ -66,6 +66,20 @@ export default function AdminUsers() {
     },
   });
 
+  // Check sync status with support-dravox
+  const { data: syncedEmails = [] } = useQuery({
+    queryKey: ["dravox_sync_status", users.map((u) => u.email)],
+    enabled: isAdmin && users.length > 0,
+    queryFn: async () => {
+      const emails = users.map((u) => ({ email: u.email || "" })).filter((u) => u.email);
+      const res = await supabase.functions.invoke("sync-client-dravox", {
+        body: { users: emails, mode: "check" },
+      });
+      if (res.error) throw res.error;
+      return (res.data?.syncedEmails as string[]) || [];
+    },
+    staleTime: 60_000,
+  });
   const updateRole = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
       await supabase.from("user_roles").delete().eq("user_id", userId);
