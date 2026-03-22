@@ -210,6 +210,35 @@ export default function AdminUsers() {
     },
   });
 
+  const updateProfile = useMutation({
+    mutationFn: async ({ id, display_name, email }: { id: string; display_name: string; email: string }) => {
+      const { error } = await supabase.from("profiles").update({ display_name, email } as any).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin_users"] });
+      toast({ title: "Profil mis à jour" });
+      setShowEditDialog(null);
+    },
+    onError: () => toast({ title: "Erreur", variant: "destructive" }),
+  });
+
+  const deleteUser = useMutation({
+    mutationFn: async (userId: string) => {
+      // Remove from establishments first
+      await supabase.from("user_establishments").delete().eq("user_id", userId);
+      await supabase.from("user_roles").delete().eq("user_id", userId);
+      await supabase.from("profiles").delete().eq("id", userId);
+      // Note: auth user deletion requires service role, done via edge function if needed
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin_users"] });
+      toast({ title: "Utilisateur supprimé" });
+      setShowDeleteConfirm(null);
+    },
+    onError: () => toast({ title: "Erreur lors de la suppression", variant: "destructive" }),
+  });
+
   const handleAssignEstablishment = async (userId: string, establishmentId: string) => {
     try {
       await assignUserToEstablishment.mutateAsync({ userId, establishmentId });
