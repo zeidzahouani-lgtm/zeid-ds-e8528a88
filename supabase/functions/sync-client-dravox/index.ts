@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
       const syncedEmails: string[] = [];
       for (const u of users) {
         if (!u.email) continue;
-        const exists = await checkClientExists(u.email, webhookSecret);
+        const exists = await checkClientExists(webhookSecret, u.email);
         if (exists) syncedEmails.push(u.email);
       }
 
