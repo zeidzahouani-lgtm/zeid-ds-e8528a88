@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAutoLogout } from "@/hooks/useAutoLogout";
+
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { EstablishmentProvider } from "@/contexts/EstablishmentContext";
