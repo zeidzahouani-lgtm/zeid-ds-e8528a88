@@ -140,7 +140,7 @@ Deno.serve(async (req) => {
         if (!u.email) continue;
 
         // Check if this user/client already exists on Dravox
-        const exists = await checkClientExists(u.email, webhookSecret);
+        const exists = await checkClientExists(webhookSecret, u.email);
         if (exists) {
           results.push({ type: "user", email: u.email, action: "already_synced" });
           continue;
