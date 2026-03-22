@@ -180,6 +180,26 @@ export default function AdminUsers() {
     },
   });
 
+  const updatePassword = useMutation({
+    mutationFn: async ({ email, password }: { email: string; password: string }) => {
+      const res = await supabase.functions.invoke("invite-user", {
+        body: { email, password, update_password: true },
+      });
+      if (res.error) throw res.error;
+      if (res.data?.error) throw new Error(res.data.error);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast({ title: "Mot de passe mis à jour avec succès" });
+      setShowPasswordDialog(null);
+      setNewPasswordValue("");
+    },
+    onError: (e: unknown) => {
+      const msg = e instanceof Error ? e.message : "Erreur inconnue";
+      toast({ title: "Erreur", description: msg, variant: "destructive" });
+    },
+  });
+
   const handleAssignEstablishment = async (userId: string, establishmentId: string) => {
     try {
       await assignUserToEstablishment.mutateAsync({ userId, establishmentId });
