@@ -41,27 +41,29 @@ Deno.serve(async (req) => {
     const displayName = typeof payload?.display_name === "string" ? payload.display_name.trim() : "";
     const updatePassword = payload?.update_password === true;
     const deleteUserFlag = payload?.delete_user === true;
+    const deleteUserId = typeof payload?.user_id === "string" ? payload.user_id : "";
 
     const email = rawEmail.trim().toLowerCase();
 
     // ============ DELETE USER ============
     if (deleteUserFlag) {
-      if (!email) throw new Error("Email required for deletion");
-
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
-      const { data: { users }, error: listError } = await adminClient.auth.admin.listUsers();
-      if (listError) throw listError;
 
-      const targetUser = users.find((u: any) => (u.email || "").toLowerCase() === email);
-      if (!targetUser) throw new Error("Utilisateur introuvable");
+      // Find user by ID or by email
+      let targetUserId = deleteUserId;
+      if (!targetUserId && email) {
+        const { data: profile } = await adminClient.from("profiles").select("id").eq("email", email).maybeSingle();
+        if (profile) targetUserId = profile.id;
+      }
+      if (!targetUserId) throw new Error("Utilisateur introuvable: ID ou email requis");
 
       // Delete profile, roles, establishments (cascade should handle some, but be explicit)
-      await adminClient.from("user_establishments").delete().eq("user_id", targetUser.id);
-      await adminClient.from("user_roles").delete().eq("user_id", targetUser.id);
-      await adminClient.from("profiles").delete().eq("id", targetUser.id);
+      await adminClient.from("user_establishments").delete().eq("user_id", targetUserId);
+      await adminClient.from("user_roles").delete().eq("user_id", targetUserId);
+      await adminClient.from("profiles").delete().eq("id", targetUserId);
 
       // Delete auth user
-      const { error: deleteError } = await adminClient.auth.admin.deleteUser(targetUser.id);
+      const { error: deleteError } = await adminClient.auth.admin.deleteUser(targetUserId);
       if (deleteError) throw deleteError;
 
       return new Response(JSON.stringify({ success: true, deleted: true }), {
