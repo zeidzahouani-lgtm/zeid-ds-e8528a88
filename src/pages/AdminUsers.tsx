@@ -228,9 +228,9 @@ export default function AdminUsers() {
                     <div className="flex items-center gap-1.5">
                       <p className="text-sm font-medium">{u.display_name || "Sans nom"}</p>
                       {u.email && syncedEmails.includes(u.email) ? (
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" title="Synchronisé avec Support" />
+                        <span className="inline-flex" aria-label="Synchronisé avec Support"><CheckCircle2 className="h-3.5 w-3.5 text-green-500" /></span>
                       ) : (
-                        <CircleDashed className="h-3.5 w-3.5 text-muted-foreground/40" title="Non synchronisé" />
+                        <span className="inline-flex" aria-label="Non synchronisé"><CircleDashed className="h-3.5 w-3.5 text-muted-foreground/40" /></span>
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground">{u.email}</p>
