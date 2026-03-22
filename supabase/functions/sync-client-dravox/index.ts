@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SUPPORT_DRAVOX_URL = "https://okgmecbjvtmbzuyqwruu.supabase.co";
+const WEBHOOK_URL = "https://okgmecbjvtmbzuyqwruu.supabase.co/functions/v1/receive-screenflow-data";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -14,19 +14,18 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Auth check - only admins or service role
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Missing authorization");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const dravoxServiceKey = Deno.env.get("SUPPORT_DRAVOX_SERVICE_ROLE_KEY");
+    const webhookSecret = Deno.env.get("DEVIS_WEBHOOK_SECRET");
 
-    if (!dravoxServiceKey) throw new Error("SUPPORT_DRAVOX_SERVICE_ROLE_KEY not configured");
+    if (!webhookSecret) throw new Error("DEVIS_WEBHOOK_SECRET not configured");
 
+    // Auth check
     const isServiceRole = authHeader === `Bearer ${serviceRoleKey}`;
-
     if (!isServiceRole) {
       const callerClient = createClient(supabaseUrl, anonKey, {
         global: { headers: { Authorization: authHeader } },
@@ -42,94 +41,108 @@ Deno.serve(async (req) => {
     }
 
     const { users, mode } = await req.json();
-
     if (!Array.isArray(users) || users.length === 0) throw new Error("No users provided");
 
-    const dravoxClient = createClient(SUPPORT_DRAVOX_URL, dravoxServiceKey);
-
-    // Check mode: just return which emails exist in support-dravox
+    // Check mode: send each user as a "client" type to the webhook and see if they exist
     if (mode === "check") {
-      const emails = users.map((u: any) => u.email).filter(Boolean);
-      const { data: existingClients } = await dravoxClient
-        .from("clients")
-        .select("email")
-        .in("email", emails);
-
-      const syncedEmails = (existingClients || []).map((c: any) => c.email);
+      const syncedEmails: string[] = [];
+      for (const u of users) {
+        if (!u.email) continue;
+        try {
+          // Try to send as client - if it returns "updated", the client exists
+          const res = await fetch(WEBHOOK_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-webhook-secret": webhookSecret,
+            },
+            body: JSON.stringify({
+              type: "client",
+              nom: u.display_name || u.email.split("@")[0],
+              email: u.email,
+              societe: u.establishment_name || "",
+            }),
+          });
+          const data = await res.json();
+          if (data.success && (data.action === "created" || data.action === "updated")) {
+            syncedEmails.push(u.email);
+          }
+        } catch {
+          // skip
+        }
+      }
       return new Response(JSON.stringify({ success: true, syncedEmails }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Sync mode
-    const results: any[] = [];
+    // Sync mode - send clients via batch
+    const clientsPayload = users.map((u: any) => ({
+      nom: u.display_name || u.email?.split("@")[0] || "",
+      email: u.email || "",
+      societe: u.establishment_name || "",
+      telephone: u.phone || "",
+      adresse: u.address || "",
+      matricule_fiscal: u.matricule_fiscal || "",
+      registre_commerce: u.registre_commerce || "",
+      code_tva: u.code_tva || "",
+      code_categorie: u.code_categorie || "",
+      secteur_activite: u.secteur_activite || "",
+      notes: `Compte ScreenFlow - ${u.establishment_name || ""}`.trim(),
+    }));
 
+    // Send as batch
+    const batchRes = await fetch(WEBHOOK_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-webhook-secret": webhookSecret,
+      },
+      body: JSON.stringify({
+        type: "batch",
+        clients: clientsPayload,
+        vault_entries: [],
+      }),
+    });
+
+    const batchData = await batchRes.json();
+
+    if (!batchRes.ok) {
+      throw new Error(batchData.error || `Webhook returned ${batchRes.status}`);
+    }
+
+    // After batch sync, create vault entries for each client
+    const vaultResults: any[] = [];
     for (const u of users) {
+      if (!u.email) continue;
       try {
-        const { data: existing } = await dravoxClient
-          .from("clients")
-          .select("id")
-          .eq("email", u.email)
-          .maybeSingle();
-
-        let clientId: string;
-
-        if (existing) {
-          clientId = existing.id;
-          await dravoxClient.from("clients").update({
-            nom: u.display_name || u.email.split("@")[0],
-            societe: u.establishment_name || "",
-            telephone: u.phone || "",
-            adresse: u.address || "",
-            matricule_fiscal: u.matricule_fiscal || "",
-            registre_commerce: u.registre_commerce || "",
-            code_tva: u.code_tva || "",
-            code_categorie: u.code_categorie || "",
-            secteur_activite: u.secteur_activite || "",
-          }).eq("id", clientId);
-          results.push({ email: u.email, action: "updated", clientId });
-        } else {
-          const { data: newClient, error: clientError } = await dravoxClient
-            .from("clients")
-            .insert({
-              nom: u.display_name || u.email.split("@")[0],
-              email: u.email,
-              societe: u.establishment_name || "",
-              telephone: u.phone || "",
-              adresse: u.address || "",
-              matricule_fiscal: u.matricule_fiscal || "",
-              registre_commerce: u.registre_commerce || "",
-              code_tva: u.code_tva || "",
-              code_categorie: u.code_categorie || "",
-              secteur_activite: u.secteur_activite || "",
-            })
-            .select("id")
-            .single();
-          if (clientError) throw clientError;
-          clientId = newClient.id;
-          results.push({ email: u.email, action: "created", clientId });
-        }
-
-        const { data: existingVault } = await dravoxClient
-          .from("vault_entries")
-          .select("id")
-          .eq("client_id", clientId)
-          .eq("nom", "ScreenFlow")
-          .maybeSingle();
-
-        if (!existingVault) {
-          await dravoxClient.from("vault_entries").insert({
+        const vaultRes = await fetch(WEBHOOK_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-webhook-secret": webhookSecret,
+          },
+          body: JSON.stringify({
+            type: "vault",
             nom: "ScreenFlow",
-            client_id: clientId,
+            client_email: u.email,
             type_equipement: "serveur",
             identifiant: u.email,
             notes: `Compte ScreenFlow - ${u.establishment_name || ""}`.trim(),
-          });
-        }
-      } catch (err: any) {
-        results.push({ email: u.email, action: "error", error: err.message });
+          }),
+        });
+        const vaultData = await vaultRes.json();
+        vaultResults.push({ email: u.email, vault: vaultData });
+      } catch {
+        // skip vault errors
       }
     }
+
+    // Build results from batch response
+    const results = batchData.results || clientsPayload.map((c: any, i: number) => ({
+      email: users[i]?.email || "",
+      action: "synced",
+    }));
 
     return new Response(JSON.stringify({ success: true, results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
