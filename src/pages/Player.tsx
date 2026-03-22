@@ -164,7 +164,6 @@ function MediaRenderer({ media, playlistLength }: { media: { id: string; name: s
         src={media.url}
         style={{ width: "100%", height: "100%", objectFit: "cover" }}
         autoPlay
-        muted
         loop={!playlistLength || playlistLength <= 1}
         playsInline
       />
