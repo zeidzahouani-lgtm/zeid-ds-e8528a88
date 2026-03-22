@@ -8,21 +8,26 @@ const corsHeaders = {
 
 const WEBHOOK_URL = "https://okgmecbjvtmbzuyqwruu.supabase.co/functions/v1/receive-screenflow-data";
 
-async function checkClientExists(email: string, webhookSecret: string): Promise<boolean> {
+async function checkClientExists(webhookSecret: string, email?: string, nom?: string): Promise<boolean> {
   try {
+    const payload: Record<string, string> = { type: "check_client" };
+    if (email) {
+      payload.email = email;
+    } else if (nom) {
+      payload.nom = nom;
+    } else {
+      return false;
+    }
+
     const res = await fetch(WEBHOOK_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "x-webhook-secret": webhookSecret,
       },
-      body: JSON.stringify({
-        type: "check_client",
-        email,
-      }),
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
-    // If the webhook returns success with action "exists" or "updated", the client exists
     if (data.success && (data.action === "updated" || data.exists === true)) {
       return true;
     }
