@@ -34,6 +34,10 @@ export default function AdminUsers() {
   const [showEstDialog, setShowEstDialog] = useState<string | null>(null);
   const [showPasswordDialog, setShowPasswordDialog] = useState<{ id: string; email: string; name: string } | null>(null);
   const [newPasswordValue, setNewPasswordValue] = useState("");
+  const [showEditDialog, setShowEditDialog] = useState<UserProfile | null>(null);
+  const [editDisplayName, setEditDisplayName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<UserProfile | null>(null);
 
   const { data: currentUserRoles = [] } = useQuery({
     queryKey: ["my_roles"],
