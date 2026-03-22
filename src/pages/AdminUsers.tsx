@@ -339,9 +339,30 @@ export default function AdminUsers() {
                     variant="ghost"
                     size="sm"
                     className="gap-1.5 text-xs"
+                    onClick={() => {
+                      setEditDisplayName(u.display_name || "");
+                      setEditEmail(u.email || "");
+                      setShowEditDialog(u);
+                    }}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-xs"
                     onClick={() => setShowPasswordDialog({ id: u.id, email: u.email || "", name: u.display_name || "" })}
                   >
                     <KeyRound className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-xs text-destructive hover:text-destructive"
+                    onClick={() => setShowDeleteConfirm(u)}
+                    disabled={u.id === user?.id}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                   <Select
                     value={u.roles[0] || "user"}
