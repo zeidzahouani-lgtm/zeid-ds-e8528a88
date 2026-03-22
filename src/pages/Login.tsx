@@ -208,7 +208,6 @@ export default function Login() {
                   src={settings.login_video_url}
                   autoPlay
                   loop
-                  muted
                   playsInline
                   preload="auto"
                   className="absolute inset-0 w-full h-full object-cover"
