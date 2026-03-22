@@ -247,6 +247,22 @@ export default function Establishments() {
                       )}
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>
+                              {syncedEstablishments.includes(est.name) ? (
+                                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                              ) : (
+                                <CircleDashed className="h-4 w-4 text-muted-foreground/40" />
+                              )}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {syncedEstablishments.includes(est.name) ? "Synchronisé avec Support Dravox" : "Non synchronisé"}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       <Badge variant="outline" className="text-[10px] gap-1">
                         <Tv className="h-3 w-3" /> {screenCount}/{est.max_screens || "∞"}
                       </Badge>
