@@ -517,6 +517,60 @@ export default function AdminUsers() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit user dialog */}
+      <Dialog open={!!showEditDialog} onOpenChange={() => setShowEditDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifier l'utilisateur</DialogTitle>
+            <DialogDescription>{showEditDialog?.email}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium">Nom d'affichage</label>
+              <Input value={editDisplayName} onChange={(e) => setEditDisplayName(e.target.value)} placeholder="Nom" className="mt-1" />
+            </div>
+            <div>
+              <label className="text-sm font-medium">Email</label>
+              <Input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder="email@exemple.com" className="mt-1" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(null)}>Annuler</Button>
+            <Button
+              onClick={() => {
+                if (showEditDialog) {
+                  updateProfile.mutate({ id: showEditDialog.id, display_name: editDisplayName.trim(), email: editEmail.trim() });
+                }
+              }}
+              disabled={!editDisplayName.trim() || !editEmail.trim() || updateProfile.isPending}
+            >
+              {updateProfile.isPending ? "En cours..." : "Sauvegarder"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete user confirmation */}
+      <AlertDialog open={!!showDeleteConfirm} onOpenChange={() => setShowDeleteConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer l'utilisateur ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action supprimera le profil de <strong>{showDeleteConfirm?.display_name || showDeleteConfirm?.email}</strong> ainsi que ses assignations. Cette action est irréversible.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => showDeleteConfirm && deleteUser.mutate(showDeleteConfirm.id)}
+            >
+              {deleteUser.isPending ? "Suppression..." : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
