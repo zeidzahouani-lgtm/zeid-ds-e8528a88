@@ -35,16 +35,26 @@ Deno.serve(async (req) => {
       if (!roleData || roleData.length === 0) throw new Error("Not admin");
     }
 
-    const { email, password, display_name, update_password } = await req.json();
+    const payload = await req.json();
+    const rawEmail = typeof payload?.email === "string" ? payload.email : "";
+    const password = typeof payload?.password === "string" ? payload.password : "";
+    const displayName = typeof payload?.display_name === "string" ? payload.display_name.trim() : "";
+    const updatePassword = payload?.update_password === true;
+
+    const email = rawEmail.trim().toLowerCase();
     if (!email || !password) throw new Error("Email and password required");
+    if (password.length < 6) throw new Error("Password must be at least 6 characters");
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) throw new Error("Invalid email format");
 
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-    if (update_password) {
+    if (updatePassword) {
       const { data: { users }, error: listError } = await adminClient.auth.admin.listUsers();
       if (listError) throw listError;
 
-      const targetUser = users.find((u: any) => u.email === email);
+      const targetUser = users.find((u: any) => (u.email || "").toLowerCase() === email);
       if (!targetUser) throw new Error("Utilisateur introuvable");
 
       const { error: updateError } = await adminClient.auth.admin.updateUserById(targetUser.id, {
@@ -90,7 +100,7 @@ Deno.serve(async (req) => {
       email,
       password,
       email_confirm: true,
-      user_metadata: { display_name: display_name || email.split("@")[0] },
+      user_metadata: { display_name: displayName || email.split("@")[0] },
     });
 
     if (error) throw error;
@@ -108,7 +118,7 @@ Deno.serve(async (req) => {
           },
           body: JSON.stringify({
             type: "client",
-            nom: display_name || email.split("@")[0],
+            nom: displayName || email.split("@")[0],
             email,
           }),
         });
