@@ -31,6 +31,8 @@ export default function AdminUsers() {
   const [newDisplayName, setNewDisplayName] = useState("");
   const [newEstablishmentId, setNewEstablishmentId] = useState("");
   const [showEstDialog, setShowEstDialog] = useState<string | null>(null);
+  const [showPasswordDialog, setShowPasswordDialog] = useState<{ id: string; email: string; name: string } | null>(null);
+  const [newPasswordValue, setNewPasswordValue] = useState("");
 
   const { data: currentUserRoles = [] } = useQuery({
     queryKey: ["my_roles"],
