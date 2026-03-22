@@ -102,13 +102,11 @@ Deno.serve(async (req) => {
         // Use email or generate a placeholder
         const estEmail = est.email || "";
 
-        // Check if establishment already exists (by email if available)
-        if (estEmail) {
-          const exists = await checkClientExists(estEmail, webhookSecret);
-          if (exists) {
-            results.push({ type: "establishment", name: est.name, action: "already_synced" });
-            continue;
-          }
+        // Check if establishment already exists (by email or by name)
+        const exists = await checkClientExists(webhookSecret, estEmail || undefined, est.name);
+        if (exists) {
+          results.push({ type: "establishment", name: est.name, action: "already_synced" });
+          continue;
         }
 
         try {
