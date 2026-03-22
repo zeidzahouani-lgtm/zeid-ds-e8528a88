@@ -95,8 +95,20 @@ export default function AdminUsers() {
 
   const inviteUser = useMutation({
     mutationFn: async () => {
+      const email = newEmail.trim().toLowerCase();
+      const password = newPassword.trim();
+      const displayName = newDisplayName.trim();
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        throw new Error("Veuillez saisir un email valide (ex: nom@domaine.com)");
+      }
+      if (password.length < 6) {
+        throw new Error("Le mot de passe doit contenir au moins 6 caractères");
+      }
+
       const res = await supabase.functions.invoke("invite-user", {
-        body: { email: newEmail, password: newPassword, display_name: newDisplayName },
+        body: { email, password, display_name: displayName },
       });
       if (res.error) throw res.error;
       if (res.data?.error) throw new Error(res.data.error);
@@ -120,7 +132,10 @@ export default function AdminUsers() {
       setNewDisplayName("");
       setNewEstablishmentId("");
     },
-    onError: (e) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
+    onError: (e: unknown) => {
+      const description = e instanceof Error ? e.message : "Erreur inconnue";
+      toast({ title: "Erreur", description, variant: "destructive" });
+    },
   });
 
   const syncToDravox = useMutation({
