@@ -7,7 +7,8 @@ import {
   Download, Monitor, Tv, Image, ListMusic, Clock, LayoutGrid,
   Sparkles, Shield, Cloud, Zap, Eye, Users, Settings, Mail,
   BookOpen, Rocket, Target, Layers, Globe, Lock,
-  ChevronRight, Play, Upload, Palette, Bell, Server
+  ChevronRight, Play, Upload, Palette, Bell, Server,
+  Smartphone, Wifi, RefreshCw, Volume2, AlertTriangle, CheckCircle2
 } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
