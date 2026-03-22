@@ -8,21 +8,26 @@ const corsHeaders = {
 
 const WEBHOOK_URL = "https://okgmecbjvtmbzuyqwruu.supabase.co/functions/v1/receive-screenflow-data";
 
-async function checkClientExists(email: string, webhookSecret: string): Promise<boolean> {
+async function checkClientExists(webhookSecret: string, email?: string, nom?: string): Promise<boolean> {
   try {
+    const payload: Record<string, string> = { type: "check_client" };
+    if (email) {
+      payload.email = email;
+    } else if (nom) {
+      payload.nom = nom;
+    } else {
+      return false;
+    }
+
     const res = await fetch(WEBHOOK_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "x-webhook-secret": webhookSecret,
       },
-      body: JSON.stringify({
-        type: "check_client",
-        email,
-      }),
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
-    // If the webhook returns success with action "exists" or "updated", the client exists
     if (data.success && (data.action === "updated" || data.exists === true)) {
       return true;
     }
@@ -77,7 +82,7 @@ Deno.serve(async (req) => {
       const syncedEmails: string[] = [];
       for (const u of users) {
         if (!u.email) continue;
-        const exists = await checkClientExists(u.email, webhookSecret);
+        const exists = await checkClientExists(webhookSecret, u.email);
         if (exists) syncedEmails.push(u.email);
       }
 
@@ -97,13 +102,11 @@ Deno.serve(async (req) => {
         // Use email or generate a placeholder
         const estEmail = est.email || "";
 
-        // Check if establishment already exists (by email if available)
-        if (estEmail) {
-          const exists = await checkClientExists(estEmail, webhookSecret);
-          if (exists) {
-            results.push({ type: "establishment", name: est.name, action: "already_synced" });
-            continue;
-          }
+        // Check if establishment already exists (by email or by name)
+        const exists = await checkClientExists(webhookSecret, estEmail || undefined, est.name);
+        if (exists) {
+          results.push({ type: "establishment", name: est.name, action: "already_synced" });
+          continue;
         }
 
         try {
@@ -137,7 +140,7 @@ Deno.serve(async (req) => {
         if (!u.email) continue;
 
         // Check if this user/client already exists on Dravox
-        const exists = await checkClientExists(u.email, webhookSecret);
+        const exists = await checkClientExists(webhookSecret, u.email);
         if (exists) {
           results.push({ type: "user", email: u.email, action: "already_synced" });
           continue;
