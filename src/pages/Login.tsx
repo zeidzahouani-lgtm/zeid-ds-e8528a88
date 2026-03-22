@@ -31,7 +31,6 @@ export default function Login() {
     if (!hasMedia || isImageMedia || !video) return;
 
     setVideoError(false);
-    video.muted = true;
     video.playsInline = true;
 
     const tryPlay = async () => {
