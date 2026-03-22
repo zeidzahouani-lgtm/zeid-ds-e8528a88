@@ -89,7 +89,20 @@ export default function Establishments() {
     },
   });
 
-  if (!isGlobalAdmin) {
+  // Check sync status with Support Dravox
+  const { data: syncedEstablishments = [] } = useQuery({
+    queryKey: ["dravox_est_sync_status", establishments.map((e: any) => e.name)],
+    enabled: isGlobalAdmin && establishments.length > 0,
+    queryFn: async () => {
+      const ests = establishments.map((e: any) => ({ name: e.name, email: e.email || "" }));
+      const res = await supabase.functions.invoke("sync-client-dravox", {
+        body: { establishments: ests, mode: "check" },
+      });
+      if (res.error) throw res.error;
+      return (res.data?.syncedEstablishments as string[]) || [];
+    },
+    staleTime: 60_000,
+  });
     return (
       <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
         <Building2 className="h-12 w-12 mb-3 opacity-30" />
