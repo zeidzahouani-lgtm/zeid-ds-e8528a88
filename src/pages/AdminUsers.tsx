@@ -224,12 +224,12 @@ export default function AdminUsers() {
   });
 
   const deleteUser = useMutation({
-    mutationFn: async (userId: string) => {
-      // Remove from establishments first
-      await supabase.from("user_establishments").delete().eq("user_id", userId);
-      await supabase.from("user_roles").delete().eq("user_id", userId);
-      await supabase.from("profiles").delete().eq("id", userId);
-      // Note: auth user deletion requires service role, done via edge function if needed
+    mutationFn: async ({ id, email }: { id: string; email: string }) => {
+      const res = await supabase.functions.invoke("invite-user", {
+        body: { email, delete_user: true },
+      });
+      if (res.error) throw res.error;
+      if (res.data?.error) throw new Error(res.data.error);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin_users"] });
@@ -564,7 +564,7 @@ export default function AdminUsers() {
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={() => showDeleteConfirm && deleteUser.mutate(showDeleteConfirm.id)}
+              onClick={() => showDeleteConfirm && deleteUser.mutate({ id: showDeleteConfirm.id, email: showDeleteConfirm.email || "" })}
             >
               {deleteUser.isPending ? "Suppression..." : "Supprimer"}
             </AlertDialogAction>
