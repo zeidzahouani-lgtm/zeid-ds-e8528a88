@@ -103,6 +103,8 @@ export default function Establishments() {
     },
     staleTime: 60_000,
   });
+
+  if (!isGlobalAdmin) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
         <Building2 className="h-12 w-12 mb-3 opacity-30" />
