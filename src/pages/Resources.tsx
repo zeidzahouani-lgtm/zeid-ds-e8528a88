@@ -404,7 +404,7 @@ export default function Resources() {
                           </li>
                         ))}
                       </ol>
-                      <ManualScreenshot src={section.screenshot} alt={section.screenshotAlt} />
+                      {section.screenshot && <ManualScreenshot src={section.screenshot} alt={section.screenshotAlt || ""} />}
                     </AccordionContent>
                   </AccordionItem>
                 ))}
