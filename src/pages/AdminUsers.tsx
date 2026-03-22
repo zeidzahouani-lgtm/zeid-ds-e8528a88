@@ -144,6 +144,7 @@ export default function AdminUsers() {
       const created = data.results?.filter((r: any) => r.action === "created").length || 0;
       const updated = data.results?.filter((r: any) => r.action === "updated").length || 0;
       const errors = data.results?.filter((r: any) => r.action === "error").length || 0;
+      queryClient.invalidateQueries({ queryKey: ["dravox_sync_status"] });
       toast({
         title: "Synchronisation terminée",
         description: `${created} créé(s), ${updated} mis à jour, ${errors} erreur(s)`,
