@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Users, Shield, ShieldCheck, UserPlus, Building2, X, RefreshCw } from "lucide-react";
+import { Users, Shield, ShieldCheck, UserPlus, Building2, X, RefreshCw, CheckCircle2, CircleDashed } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useEstablishments } from "@/hooks/useEstablishments";
@@ -66,6 +66,20 @@ export default function AdminUsers() {
     },
   });
 
+  // Check sync status with support-dravox
+  const { data: syncedEmails = [] } = useQuery({
+    queryKey: ["dravox_sync_status", users.map((u) => u.email)],
+    enabled: isAdmin && users.length > 0,
+    queryFn: async () => {
+      const emails = users.map((u) => ({ email: u.email || "" })).filter((u) => u.email);
+      const res = await supabase.functions.invoke("sync-client-dravox", {
+        body: { users: emails, mode: "check" },
+      });
+      if (res.error) throw res.error;
+      return (res.data?.syncedEmails as string[]) || [];
+    },
+    staleTime: 60_000,
+  });
   const updateRole = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
       await supabase.from("user_roles").delete().eq("user_id", userId);
@@ -130,6 +144,7 @@ export default function AdminUsers() {
       const created = data.results?.filter((r: any) => r.action === "created").length || 0;
       const updated = data.results?.filter((r: any) => r.action === "updated").length || 0;
       const errors = data.results?.filter((r: any) => r.action === "error").length || 0;
+      queryClient.invalidateQueries({ queryKey: ["dravox_sync_status"] });
       toast({
         title: "Synchronisation terminée",
         description: `${created} créé(s), ${updated} mis à jour, ${errors} erreur(s)`,
@@ -210,7 +225,14 @@ export default function AdminUsers() {
                     )}
                   </div>
                   <div>
-                    <p className="text-sm font-medium">{u.display_name || "Sans nom"}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium">{u.display_name || "Sans nom"}</p>
+                      {u.email && syncedEmails.includes(u.email) ? (
+                        <span className="inline-flex" aria-label="Synchronisé avec Support"><CheckCircle2 className="h-3.5 w-3.5 text-green-500" /></span>
+                      ) : (
+                        <span className="inline-flex" aria-label="Non synchronisé"><CircleDashed className="h-3.5 w-3.5 text-muted-foreground/40" /></span>
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground">{u.email}</p>
                   </div>
                 </div>

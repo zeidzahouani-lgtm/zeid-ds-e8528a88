@@ -41,17 +41,31 @@ Deno.serve(async (req) => {
       if (!roleData || roleData.length === 0) throw new Error("Not admin");
     }
 
-    const { users } = await req.json();
-    // users: array of { email, display_name, phone?, address?, establishment_name?, matricule_fiscal?, registre_commerce?, code_tva?, code_categorie?, secteur_activite? }
+    const { users, mode } = await req.json();
 
     if (!Array.isArray(users) || users.length === 0) throw new Error("No users provided");
 
     const dravoxClient = createClient(SUPPORT_DRAVOX_URL, dravoxServiceKey);
+
+    // Check mode: just return which emails exist in support-dravox
+    if (mode === "check") {
+      const emails = users.map((u: any) => u.email).filter(Boolean);
+      const { data: existingClients } = await dravoxClient
+        .from("clients")
+        .select("email")
+        .in("email", emails);
+
+      const syncedEmails = (existingClients || []).map((c: any) => c.email);
+      return new Response(JSON.stringify({ success: true, syncedEmails }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Sync mode
     const results: any[] = [];
 
     for (const u of users) {
       try {
-        // Check if client already exists by email
         const { data: existing } = await dravoxClient
           .from("clients")
           .select("id")
@@ -62,7 +76,6 @@ Deno.serve(async (req) => {
 
         if (existing) {
           clientId = existing.id;
-          // Update existing client
           await dravoxClient.from("clients").update({
             nom: u.display_name || u.email.split("@")[0],
             societe: u.establishment_name || "",
@@ -74,10 +87,8 @@ Deno.serve(async (req) => {
             code_categorie: u.code_categorie || "",
             secteur_activite: u.secteur_activite || "",
           }).eq("id", clientId);
-
           results.push({ email: u.email, action: "updated", clientId });
         } else {
-          // Create new client
           const { data: newClient, error: clientError } = await dravoxClient
             .from("clients")
             .insert({
@@ -94,13 +105,11 @@ Deno.serve(async (req) => {
             })
             .select("id")
             .single();
-
           if (clientError) throw clientError;
           clientId = newClient.id;
           results.push({ email: u.email, action: "created", clientId });
         }
 
-        // Check if vault entry already exists for this client with nom "ScreenFlow"
         const { data: existingVault } = await dravoxClient
           .from("vault_entries")
           .select("id")
@@ -109,7 +118,6 @@ Deno.serve(async (req) => {
           .maybeSingle();
 
         if (!existingVault) {
-          // Create vault entry
           await dravoxClient.from("vault_entries").insert({
             nom: "ScreenFlow",
             client_id: clientId,
