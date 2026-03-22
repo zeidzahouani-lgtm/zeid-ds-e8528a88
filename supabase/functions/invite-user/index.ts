@@ -41,6 +41,7 @@ Deno.serve(async (req) => {
     const displayName = typeof payload?.display_name === "string" ? payload.display_name.trim() : "";
     const updatePassword = payload?.update_password === true;
     const deleteUserFlag = payload?.delete_user === true;
+    const deleteUserId = typeof payload?.user_id === "string" ? payload.user_id : "";
 
     const email = rawEmail.trim().toLowerCase();
 
