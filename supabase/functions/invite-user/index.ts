@@ -58,12 +58,12 @@ Deno.serve(async (req) => {
       if (!targetUserId) throw new Error("Utilisateur introuvable: ID ou email requis");
 
       // Delete profile, roles, establishments (cascade should handle some, but be explicit)
-      await adminClient.from("user_establishments").delete().eq("user_id", targetUser.id);
-      await adminClient.from("user_roles").delete().eq("user_id", targetUser.id);
-      await adminClient.from("profiles").delete().eq("id", targetUser.id);
+      await adminClient.from("user_establishments").delete().eq("user_id", targetUserId);
+      await adminClient.from("user_roles").delete().eq("user_id", targetUserId);
+      await adminClient.from("profiles").delete().eq("id", targetUserId);
 
       // Delete auth user
-      const { error: deleteError } = await adminClient.auth.admin.deleteUser(targetUser.id);
+      const { error: deleteError } = await adminClient.auth.admin.deleteUser(targetUserId);
       if (deleteError) throw deleteError;
 
       return new Response(JSON.stringify({ success: true, deleted: true }), {
