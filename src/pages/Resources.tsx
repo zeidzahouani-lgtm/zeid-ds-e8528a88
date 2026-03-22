@@ -164,8 +164,20 @@ const manualSections = [
     screenshotAlt: "Page du flux automatique avec historique des emails traités",
   },
   {
+    id: "fullykiosk",
+    title: "8. Configuration Android — Fully Kiosk Browser",
+    icon: Smartphone,
+    steps: [
+      "Téléchargez et installez l'APK Fully Kiosk Browser depuis le site officiel (fully-kiosk.com).",
+      "Lancez l'application et entrez l'URL Player de votre écran comme page de démarrage.",
+      "Accédez aux paramètres Fully Kiosk (glissez depuis le bord gauche ou tapez le mot de passe admin).",
+      "Activez le mode Kiosque pour verrouiller l'appareil sur l'application.",
+      "Configurez le redémarrage automatique et la gestion de l'écran selon vos besoins.",
+    ],
+  },
+  {
     id: "admin",
-    title: "8. Administration",
+    title: "9. Administration",
     icon: Settings,
     steps: [
       "Les administrateurs accèdent aux sections dédiées dans le menu 'Administration'.",
