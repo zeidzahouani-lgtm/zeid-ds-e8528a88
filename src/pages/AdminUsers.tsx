@@ -109,6 +109,35 @@ export default function AdminUsers() {
     onError: (e) => toast({ title: "Erreur", description: e.message, variant: "destructive" }),
   });
 
+  const syncToDravox = useMutation({
+    mutationFn: async () => {
+      const usersToSync = users.map((u) => {
+        const est = u.establishments[0];
+        return {
+          email: u.email || "",
+          display_name: u.display_name || "",
+          establishment_name: est?.name || "",
+        };
+      });
+      const res = await supabase.functions.invoke("sync-client-dravox", {
+        body: { users: usersToSync },
+      });
+      if (res.error) throw res.error;
+      if (res.data?.error) throw new Error(res.data.error);
+      return res.data;
+    },
+    onSuccess: (data) => {
+      const created = data.results?.filter((r: any) => r.action === "created").length || 0;
+      const updated = data.results?.filter((r: any) => r.action === "updated").length || 0;
+      const errors = data.results?.filter((r: any) => r.action === "error").length || 0;
+      toast({
+        title: "Synchronisation terminée",
+        description: `${created} créé(s), ${updated} mis à jour, ${errors} erreur(s)`,
+      });
+    },
+    onError: (e) => toast({ title: "Erreur de synchronisation", description: e.message, variant: "destructive" }),
+  });
+
   const handleAssignEstablishment = async (userId: string, establishmentId: string) => {
     try {
       await assignUserToEstablishment.mutateAsync({ userId, establishmentId });
