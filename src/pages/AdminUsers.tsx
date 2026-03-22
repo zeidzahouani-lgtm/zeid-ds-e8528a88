@@ -276,6 +276,14 @@ export default function AdminUsers() {
                   <span className="text-xs text-muted-foreground">
                     {new Date(u.created_at).toLocaleDateString("fr-FR")}
                   </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-xs"
+                    onClick={() => setShowPasswordDialog({ id: u.id, email: u.email || "", name: u.display_name || "" })}
+                  >
+                    <KeyRound className="h-3.5 w-3.5" />
+                  </Button>
                   <Select
                     value={u.roles[0] || "user"}
                     onValueChange={(role) => updateRole.mutate({ userId: u.id, role })}
