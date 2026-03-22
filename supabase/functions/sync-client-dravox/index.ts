@@ -43,13 +43,12 @@ Deno.serve(async (req) => {
     const { users, mode } = await req.json();
     if (!Array.isArray(users) || users.length === 0) throw new Error("No users provided");
 
-    // Check mode: send each user as a "client" type to the webhook and see if they exist
+    // Check mode: send each user as a "client" type to the webhook
     if (mode === "check") {
       const syncedEmails: string[] = [];
       for (const u of users) {
         if (!u.email) continue;
         try {
-          // Try to send as client - if it returns "updated", the client exists
           const res = await fetch(WEBHOOK_URL, {
             method: "POST",
             headers: {
@@ -111,7 +110,7 @@ Deno.serve(async (req) => {
       throw new Error(batchData.error || `Webhook returned ${batchRes.status}`);
     }
 
-    // After batch sync, create vault entries for each client
+    // After batch sync, create vault entries for each client with password
     const vaultResults: any[] = [];
     for (const u of users) {
       if (!u.email) continue;
@@ -127,7 +126,11 @@ Deno.serve(async (req) => {
             nom: "ScreenFlow",
             client_email: u.email,
             type_equipement: "serveur",
+            adresse_ip: "screenflow-ds.com",
+            port: "443",
+            protocole: "HTTPS",
             identifiant: u.email,
+            mot_de_passe: u.password || "",
             notes: `Compte ScreenFlow - ${u.establishment_name || ""}`.trim(),
           }),
         });

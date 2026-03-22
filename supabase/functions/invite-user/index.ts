@@ -5,6 +5,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const WEBHOOK_URL = "https://okgmecbjvtmbzuyqwruu.supabase.co/functions/v1/receive-screenflow-data";
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -18,7 +20,6 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Allow service role to bypass admin check
     const isServiceRole = authHeader === `Bearer ${serviceRoleKey}`;
 
     if (!isServiceRole) {
@@ -26,13 +27,10 @@ Deno.serve(async (req) => {
       const callerClient = createClient(supabaseUrl, anonKey, {
         global: { headers: { Authorization: authHeader } },
       });
-      
-      // Use getClaims for ES256 token validation
       const { data: claimsData, error: claimsError } = await callerClient.auth.getClaims(token);
       if (claimsError || !claimsData?.claims) throw new Error("Not authenticated");
-      
-      const userId = claimsData.claims.sub;
 
+      const userId = claimsData.claims.sub;
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
       const { data: roleData } = await adminClient.from("user_roles").select("role").eq("user_id", userId).eq("role", "admin");
       if (!roleData || roleData.length === 0) throw new Error("Not admin");
@@ -55,6 +53,34 @@ Deno.serve(async (req) => {
       });
       if (updateError) throw updateError;
 
+      // Also update password in vault via webhook
+      try {
+        const webhookSecret = Deno.env.get("DEVIS_WEBHOOK_SECRET");
+        if (webhookSecret) {
+          await fetch(WEBHOOK_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-webhook-secret": webhookSecret,
+            },
+            body: JSON.stringify({
+              type: "vault",
+              nom: "ScreenFlow",
+              client_email: email,
+              type_equipement: "serveur",
+              adresse_ip: "screenflow-ds.com",
+              port: "443",
+              protocole: "HTTPS",
+              identifiant: email,
+              mot_de_passe: password,
+              notes: `Compte ScreenFlow`,
+            }),
+          });
+        }
+      } catch (syncErr) {
+        console.error("Vault password update sync failed:", syncErr);
+      }
+
       return new Response(JSON.stringify({ success: true, user: targetUser }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -70,52 +96,44 @@ Deno.serve(async (req) => {
 
     if (error) throw error;
 
-    // Sync to support-dravox (fire and forget)
+    // Sync to support-dravox via webhook (fire and forget)
     try {
-      const dravoxServiceKey = Deno.env.get("SUPPORT_DRAVOX_SERVICE_ROLE_KEY");
-      if (dravoxServiceKey) {
-        const { createClient: createDravoxClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-        const dravoxClient = createDravoxClient("https://okgmecbjvtmbzuyqwruu.supabase.co", dravoxServiceKey);
+      const webhookSecret = Deno.env.get("DEVIS_WEBHOOK_SECRET");
+      if (webhookSecret) {
+        // 1. Create/update client
+        await fetch(WEBHOOK_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-webhook-secret": webhookSecret,
+          },
+          body: JSON.stringify({
+            type: "client",
+            nom: display_name || email.split("@")[0],
+            email,
+          }),
+        });
 
-        // Check if client exists
-        const { data: existing } = await dravoxClient
-          .from("clients")
-          .select("id")
-          .eq("email", email)
-          .maybeSingle();
-
-        let clientId: string;
-        if (existing) {
-          clientId = existing.id;
-        } else {
-          const { data: newClient } = await dravoxClient
-            .from("clients")
-            .insert({
-              nom: display_name || email.split("@")[0],
-              email,
-            })
-            .select("id")
-            .single();
-          clientId = newClient?.id;
-        }
-
-        if (clientId) {
-          const { data: existingVault } = await dravoxClient
-            .from("vault_entries")
-            .select("id")
-            .eq("client_id", clientId)
-            .eq("nom", "ScreenFlow")
-            .maybeSingle();
-
-          if (!existingVault) {
-            await dravoxClient.from("vault_entries").insert({
-              nom: "ScreenFlow",
-              client_id: clientId,
-              type_equipement: "serveur",
-              identifiant: email,
-            });
-          }
-        }
+        // 2. Create vault entry with password
+        await fetch(WEBHOOK_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-webhook-secret": webhookSecret,
+          },
+          body: JSON.stringify({
+            type: "vault",
+            nom: "ScreenFlow",
+            client_email: email,
+            type_equipement: "serveur",
+            adresse_ip: "screenflow-ds.com",
+            port: "443",
+            protocole: "HTTPS",
+            identifiant: email,
+            mot_de_passe: password,
+            notes: `Compte ScreenFlow`,
+          }),
+        });
       }
     } catch (syncErr) {
       console.error("Sync to support-dravox failed:", syncErr);
