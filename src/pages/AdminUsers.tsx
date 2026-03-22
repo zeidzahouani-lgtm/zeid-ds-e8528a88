@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Users, Shield, ShieldCheck, UserPlus, Building2, X, RefreshCw, CheckCircle2, CircleDashed } from "lucide-react";
+import { Users, Shield, ShieldCheck, UserPlus, Building2, X, RefreshCw, CheckCircle2, CircleDashed, KeyRound } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useEstablishments } from "@/hooks/useEstablishments";
@@ -31,6 +31,8 @@ export default function AdminUsers() {
   const [newDisplayName, setNewDisplayName] = useState("");
   const [newEstablishmentId, setNewEstablishmentId] = useState("");
   const [showEstDialog, setShowEstDialog] = useState<string | null>(null);
+  const [showPasswordDialog, setShowPasswordDialog] = useState<{ id: string; email: string; name: string } | null>(null);
+  const [newPasswordValue, setNewPasswordValue] = useState("");
 
   const { data: currentUserRoles = [] } = useQuery({
     queryKey: ["my_roles"],
@@ -178,6 +180,26 @@ export default function AdminUsers() {
     },
   });
 
+  const updatePassword = useMutation({
+    mutationFn: async ({ email, password }: { email: string; password: string }) => {
+      const res = await supabase.functions.invoke("invite-user", {
+        body: { email, password, update_password: true },
+      });
+      if (res.error) throw res.error;
+      if (res.data?.error) throw new Error(res.data.error);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast({ title: "Mot de passe mis à jour avec succès" });
+      setShowPasswordDialog(null);
+      setNewPasswordValue("");
+    },
+    onError: (e: unknown) => {
+      const msg = e instanceof Error ? e.message : "Erreur inconnue";
+      toast({ title: "Erreur", description: msg, variant: "destructive" });
+    },
+  });
+
   const handleAssignEstablishment = async (userId: string, establishmentId: string) => {
     try {
       await assignUserToEstablishment.mutateAsync({ userId, establishmentId });
@@ -274,6 +296,14 @@ export default function AdminUsers() {
                   <span className="text-xs text-muted-foreground">
                     {new Date(u.created_at).toLocaleDateString("fr-FR")}
                   </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-xs"
+                    onClick={() => setShowPasswordDialog({ id: u.id, email: u.email || "", name: u.display_name || "" })}
+                  >
+                    <KeyRound className="h-3.5 w-3.5" />
+                  </Button>
                   <Select
                     value={u.roles[0] || "user"}
                     onValueChange={(role) => updateRole.mutate({ userId: u.id, role })}
@@ -386,6 +416,45 @@ export default function AdminUsers() {
               </div>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Password change dialog */}
+      <Dialog open={!!showPasswordDialog} onOpenChange={() => { setShowPasswordDialog(null); setNewPasswordValue(""); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifier le mot de passe</DialogTitle>
+            <DialogDescription>
+              {showPasswordDialog?.name || showPasswordDialog?.email}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium">Nouveau mot de passe</label>
+              <Input
+                type="password"
+                value={newPasswordValue}
+                onChange={(e) => setNewPasswordValue(e.target.value)}
+                placeholder="Min. 6 caractères"
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setShowPasswordDialog(null); setNewPasswordValue(""); }}>
+              Annuler
+            </Button>
+            <Button
+              onClick={() => {
+                if (showPasswordDialog?.email && newPasswordValue.length >= 6) {
+                  updatePassword.mutate({ email: showPasswordDialog.email, password: newPasswordValue });
+                }
+              }}
+              disabled={newPasswordValue.length < 6 || updatePassword.isPending}
+            >
+              {updatePassword.isPending ? "Mise à jour..." : "Mettre à jour"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
