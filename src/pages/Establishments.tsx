@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Plus, Tv, Users, Trash2, MapPin, X, Shield, Key, Phone, AtSign, Edit, Upload, ImageIcon } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { Building2, Plus, Tv, Users, Trash2, MapPin, X, Shield, Key, Phone, AtSign, Edit, Upload, ImageIcon, CheckCircle2, CircleDashed } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useEstablishments } from "@/hooks/useEstablishments";
@@ -86,6 +87,21 @@ export default function Establishments() {
       });
       return counts;
     },
+  });
+
+  // Check sync status with Support Dravox
+  const { data: syncedEstablishments = [] } = useQuery({
+    queryKey: ["dravox_est_sync_status", establishments.map((e: any) => e.name)],
+    enabled: isGlobalAdmin && establishments.length > 0,
+    queryFn: async () => {
+      const ests = establishments.map((e: any) => ({ name: e.name, email: e.email || "" }));
+      const res = await supabase.functions.invoke("sync-client-dravox", {
+        body: { establishments: ests, mode: "check" },
+      });
+      if (res.error) throw res.error;
+      return (res.data?.syncedEstablishments as string[]) || [];
+    },
+    staleTime: 60_000,
   });
 
   if (!isGlobalAdmin) {
@@ -231,6 +247,22 @@ export default function Establishments() {
                       )}
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>
+                              {syncedEstablishments.includes(est.name) ? (
+                                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                              ) : (
+                                <CircleDashed className="h-4 w-4 text-muted-foreground/40" />
+                              )}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {syncedEstablishments.includes(est.name) ? "Synchronisé avec Support Dravox" : "Non synchronisé"}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                       <Badge variant="outline" className="text-[10px] gap-1">
                         <Tv className="h-3 w-3" /> {screenCount}/{est.max_screens || "∞"}
                       </Badge>

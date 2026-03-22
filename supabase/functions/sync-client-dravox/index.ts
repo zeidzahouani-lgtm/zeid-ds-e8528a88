@@ -71,22 +71,31 @@ Deno.serve(async (req) => {
     const { users, establishments, mode } = await req.json();
 
     // ============ CHECK MODE ============
-    // Just verify which emails are already synced (without creating/updating)
+    // Verify which emails/establishments are already synced (without creating/updating)
     if (mode === "check") {
-      if (!Array.isArray(users) || users.length === 0) {
-        return new Response(JSON.stringify({ success: true, syncedEmails: [] }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
       const syncedEmails: string[] = [];
-      for (const u of users) {
-        if (!u.email) continue;
-        const exists = await checkClientExists(webhookSecret, u.email);
-        if (exists) syncedEmails.push(u.email);
+      const syncedEstablishments: string[] = [];
+
+      // Check users by email
+      if (Array.isArray(users) && users.length > 0) {
+        for (const u of users) {
+          if (!u.email) continue;
+          const exists = await checkClientExists(webhookSecret, u.email);
+          if (exists) syncedEmails.push(u.email);
+        }
       }
 
-      return new Response(JSON.stringify({ success: true, syncedEmails }), {
+      // Check establishments by email or name
+      if (Array.isArray(establishments) && establishments.length > 0) {
+        for (const est of establishments) {
+          if (!est.name) continue;
+          const estEmail = est.email || "";
+          const exists = await checkClientExists(webhookSecret, estEmail || undefined, est.name);
+          if (exists) syncedEstablishments.push(est.name);
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true, syncedEmails, syncedEstablishments }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
