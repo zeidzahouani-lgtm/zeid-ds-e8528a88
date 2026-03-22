@@ -270,8 +270,36 @@ export default function AdminCustomization() {
               )}
             </div>
             <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">URL du favicon</Label>
-              <Input value={form.favicon_url} onChange={(e) => setForm({ ...form, favicon_url: e.target.value })} placeholder="https://example.com/favicon.ico" />
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Favicon</Label>
+              <div className="flex gap-2">
+                <Input value={form.favicon_url} onChange={(e) => setForm({ ...form, favicon_url: e.target.value })} placeholder="URL du favicon ou uploadez un fichier" className="flex-1" />
+                <input ref={faviconInputRef} type="file" accept="image/*,.ico" className="hidden" onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setUploading(true);
+                  try {
+                    const ext = file.name.split(".").pop();
+                    const fileName = `branding/favicon-${Date.now()}.${ext}`;
+                    const { error } = await supabase.storage.from("media").upload(fileName, file, { upsert: true });
+                    if (error) throw error;
+                    const { data } = supabase.storage.from("media").getPublicUrl(fileName);
+                    setForm({ ...form, favicon_url: data.publicUrl });
+                    toast.success("Favicon uploadé avec succès");
+                  } catch { toast.error("Erreur lors de l'upload du favicon"); } finally {
+                    setUploading(false);
+                    if (faviconInputRef.current) faviconInputRef.current.value = "";
+                  }
+                }} />
+                <Button variant="outline" size="icon" onClick={() => faviconInputRef.current?.click()} disabled={uploading} className="shrink-0">
+                  <Upload className="h-4 w-4" />
+                </Button>
+              </div>
+              {form.favicon_url && (
+                <div className="mt-2 p-3 rounded-lg bg-secondary/50 flex items-center gap-3">
+                  <img src={form.favicon_url} alt="Aperçu favicon" className="h-8 w-8 object-contain" />
+                  <span className="text-xs text-muted-foreground truncate">{form.favicon_url}</span>
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">Média de la page de connexion</Label>
