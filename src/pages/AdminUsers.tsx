@@ -185,6 +185,9 @@ export default function AdminUsers() {
         </div>
         <div className="flex gap-2">
           <Badge variant="secondary">{users.length} utilisateur(s)</Badge>
+          <Button size="sm" variant="outline" onClick={() => syncToDravox.mutate()} disabled={syncToDravox.isPending || users.length === 0}>
+            <RefreshCw className={`h-4 w-4 mr-1 ${syncToDravox.isPending ? "animate-spin" : ""}`} /> Sync Support
+          </Button>
           <Button size="sm" onClick={() => setShowAddDialog(true)}>
             <UserPlus className="h-4 w-4 mr-1" /> Ajouter
           </Button>
