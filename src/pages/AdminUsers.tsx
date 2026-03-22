@@ -226,7 +226,7 @@ export default function AdminUsers() {
   const deleteUser = useMutation({
     mutationFn: async ({ id, email }: { id: string; email: string }) => {
       const res = await supabase.functions.invoke("invite-user", {
-        body: { email, delete_user: true },
+        body: { email, user_id: id, delete_user: true },
       });
       if (res.error) throw res.error;
       if (res.data?.error) throw new Error(res.data.error);
