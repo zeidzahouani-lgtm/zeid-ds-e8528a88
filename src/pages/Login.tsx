@@ -191,6 +191,7 @@ export default function Login() {
             </Link>
           </div>
         </Card>
+        </CursorGlow>
       </div>
 
       {hasMedia && (
