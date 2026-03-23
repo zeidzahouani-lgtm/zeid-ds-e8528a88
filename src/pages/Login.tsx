@@ -10,6 +10,7 @@ import { MonitorPlay, Moon, Play, Sun, BookOpen, Download } from "lucide-react";
 import { toast } from "sonner";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
 import { LoginParticles } from "@/components/LoginParticles";
+import { CursorGlow } from "@/components/CursorGlow";
 
 export default function Login() {
   const [email, setEmail] = useState("");
