@@ -10,6 +10,7 @@ import { MonitorPlay, Moon, Play, Sun, BookOpen, Download } from "lucide-react";
 import { toast } from "sonner";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
 import { LoginParticles } from "@/components/LoginParticles";
+import { CursorGlow } from "@/components/CursorGlow";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -94,7 +95,8 @@ export default function Login() {
         <AnimatedBackground />
         <LoginParticles />
 
-        <Card className="login-card w-full max-w-md p-8 space-y-6 relative z-10 border-primary/10 shadow-glow-blue">
+        <CursorGlow className="w-full max-w-md">
+        <Card className="login-card w-full p-8 space-y-6 relative z-10 border-primary/10 shadow-glow-blue">
           <div className="absolute inset-0 rounded-[inherit] p-px bg-gradient-to-br from-primary/20 via-transparent to-accent/20 pointer-events-none -z-[1]" />
 
           <div className="flex flex-col items-center gap-3 login-header">
@@ -189,6 +191,7 @@ export default function Login() {
             </Link>
           </div>
         </Card>
+        </CursorGlow>
       </div>
 
       {hasMedia && (
