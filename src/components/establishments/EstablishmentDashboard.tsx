@@ -133,8 +133,8 @@ export function EstablishmentDashboard({ establishmentId }: Props) {
                   <span>{s.name}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Badge variant={s.status === "online" ? "default" : "secondary"} className="text-[10px]">
-                    {s.status === "online" ? "En ligne" : "Hors ligne"}
+                  <Badge variant={isScreenReallyOnline(s) ? "default" : "secondary"} className="text-[10px]">
+                    {isScreenReallyOnline(s) ? "En ligne" : "Hors ligne"}
                   </Badge>
                   {licenseStatuses && !licenseStatuses[s.id]?.valid && (
                     <Badge variant="outline" className="text-destructive border-destructive/30 gap-1 text-[10px]">
