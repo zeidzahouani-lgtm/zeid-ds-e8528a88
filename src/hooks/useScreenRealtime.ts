@@ -470,7 +470,7 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
       if (heartbeatRef.current) clearInterval(heartbeatRef.current);
       const apiKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/screens?id=eq.${realId}&player_session_id=eq.${SESSION_ID}&apikey=${apiKey}`;
-      const body = JSON.stringify({ status: "offline", player_session_id: null, player_heartbeat_at: null, player_user_agent: null, player_ip: null });
+      const body = JSON.stringify({ status: "offline", player_session_id: null, player_heartbeat_at: null, player_user_agent: null, player_ip: null, player_lan_ip: null });
       try {
         fetch(url, {
           method: 'PATCH',
