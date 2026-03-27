@@ -206,6 +206,8 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
       const staleThreshold = new Date(Date.now() - SESSION_TIMEOUT).toISOString();
 
       let playerIp: string | null = null;
+      let playerLanIp: string | null = null;
+
       const resolvePlayerIp = async (): Promise<string | null> => {
         const providers = [
           "https://api64.ipify.org?format=json",
@@ -232,21 +234,107 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
         return null;
       };
 
-      const tryResolvePlayerIp = async () => {
-        if (playerIp) return playerIp;
-        playerIp = await resolvePlayerIp();
-        return playerIp;
+      const resolveLanIp = async (): Promise<string | null> => {
+        try {
+          const RTC = (window as any).RTCPeerConnection || (window as any).webkitRTCPeerConnection || (window as any).mozRTCPeerConnection;
+          if (!RTC) return null;
+
+          const isPrivateIpv4 = (ip: string) =>
+            ip.startsWith("10.") ||
+            ip.startsWith("192.168.") ||
+            /^172\.(1[6-9]|2\d|3[0-1])\./.test(ip);
+
+          return await new Promise<string | null>((resolve) => {
+            let settled = false;
+            let timeout: ReturnType<typeof setTimeout> | null = null;
+            const pc = new RTC({ iceServers: [] });
+
+            const finish = (value: string | null) => {
+              if (settled) return;
+              settled = true;
+              if (timeout) clearTimeout(timeout);
+              try { pc.onicecandidate = null; pc.close(); } catch (_) {}
+              resolve(value);
+            };
+
+            const parseCandidate = (candidate: string) => {
+              const matches = candidate.match(/(?:\d{1,3}\.){3}\d{1,3}/g) || [];
+              for (const ip of matches) {
+                if (isPrivateIpv4(ip)) {
+                  finish(ip);
+                  return;
+                }
+              }
+            };
+
+            pc.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
+              if (event.candidate?.candidate) {
+                parseCandidate(event.candidate.candidate);
+                return;
+              }
+              if (!event.candidate) finish(null);
+            };
+
+            timeout = setTimeout(() => finish(null), 1600);
+            pc.createDataChannel("lan-ip");
+            pc.createOffer()
+              .then((offer: RTCSessionDescriptionInit) => pc.setLocalDescription(offer))
+              .catch(() => finish(null));
+          });
+        } catch (_) {
+          return null;
+        }
       };
 
-      await tryResolvePlayerIp();
+      const tryResolveIpData = async () => {
+        if (playerIp && playerLanIp) return;
+        const [publicIp, lanIp] = await Promise.all([
+          playerIp ? Promise.resolve(playerIp) : resolvePlayerIp(),
+          playerLanIp ? Promise.resolve(playerLanIp) : resolveLanIp(),
+        ]);
+        if (publicIp) playerIp = publicIp;
+        if (lanIp) playerLanIp = lanIp;
+      };
+
+      await tryResolveIpData();
 
       const makeUpdatePayload = () => ({
         player_session_id: SESSION_ID,
         player_heartbeat_at: new Date().toISOString(),
         player_user_agent: userAgent,
         ...(playerIp ? { player_ip: playerIp } : {}),
+        ...(playerLanIp ? { player_lan_ip: playerLanIp } : {}),
         status: "online",
       } as any);
+
+      const claimSession = async (id: string) => {
+        let claimRes = await supabase
+          .from("screens")
+          .update(makeUpdatePayload())
+          .eq("id", id)
+          .is("player_session_id", null)
+          .select("id");
+
+        if (!claimRes.data || claimRes.data.length === 0) {
+          claimRes = await supabase
+            .from("screens")
+            .update(makeUpdatePayload())
+            .eq("id", id)
+            .eq("player_session_id", SESSION_ID)
+            .select("id");
+        }
+
+        if (!claimRes.data || claimRes.data.length === 0) {
+          claimRes = await supabase
+            .from("screens")
+            .update(makeUpdatePayload())
+            .eq("id", id)
+            .lt("player_heartbeat_at", staleThreshold)
+            .select("id");
+        }
+
+        return !!(claimRes.data && claimRes.data.length > 0);
+      };
 
       const activateSession = async (activeScreenData: ScreenData) => {
         if (heartbeatRef.current) clearInterval(heartbeatRef.current);
@@ -254,17 +342,23 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
           const realId = realScreenIdRef.current;
           if (!realId) return;
           try {
-            if (!playerIp) await tryResolvePlayerIp();
+            if (!playerIp || !playerLanIp) await tryResolveIpData();
             const heartbeatPayload: any = {
               player_heartbeat_at: new Date().toISOString(),
               player_user_agent: userAgent,
               status: "online",
             };
             if (playerIp) heartbeatPayload.player_ip = playerIp;
+            if (playerLanIp) heartbeatPayload.player_lan_ip = playerLanIp;
 
-            await (supabase.from("screens").update(heartbeatPayload) as any)
+            const hbRes = await (supabase.from("screens").update(heartbeatPayload) as any)
               .eq("id", realId)
-              .eq("player_session_id", SESSION_ID);
+              .eq("player_session_id", SESSION_ID)
+              .select("id");
+
+            if (!hbRes?.data || hbRes.data.length === 0) {
+              await claimSession(realId);
+            }
           } catch (_) {}
         }, HEARTBEAT_INTERVAL);
 
@@ -293,21 +387,7 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
         setLoading(false);
       };
 
-      // Try claim: no session
-      let claimRes = await supabase.from("screens").update(makeUpdatePayload())
-        .eq("id", screenData.id).is("player_session_id", null).select("id");
-
-      // Try claim: same session (page reload)
-      if (!claimRes.data || claimRes.data.length === 0) {
-        claimRes = await supabase.from("screens").update(makeUpdatePayload())
-          .eq("id", screenData.id).eq("player_session_id", SESSION_ID).select("id");
-      }
-
-      // Try claim: stale session (heartbeat expired)
-      if (!claimRes.data || claimRes.data.length === 0) {
-        claimRes = await supabase.from("screens").update(makeUpdatePayload())
-          .eq("id", screenData.id).lt("player_heartbeat_at", staleThreshold).select("id");
-      }
+      await claimSession(screenData.id);
 
       const { data: verifyData } = await supabase
         .from("screens")
@@ -390,7 +470,7 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
       if (heartbeatRef.current) clearInterval(heartbeatRef.current);
       const apiKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/screens?id=eq.${realId}&player_session_id=eq.${SESSION_ID}&apikey=${apiKey}`;
-      const body = JSON.stringify({ status: "offline", player_session_id: null, player_heartbeat_at: null, player_user_agent: null, player_ip: null });
+      const body = JSON.stringify({ status: "offline", player_session_id: null, player_heartbeat_at: null, player_user_agent: null, player_ip: null, player_lan_ip: null });
       try {
         fetch(url, {
           method: 'PATCH',
@@ -504,15 +584,21 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
     const realId = realScreenIdRef.current;
     if (!realId) return;
     await supabase.from("screens").update({
-      player_session_id: SESSION_ID, player_heartbeat_at: new Date().toISOString(),
-      player_user_agent: navigator.userAgent, status: "online",
+      player_session_id: SESSION_ID,
+      player_heartbeat_at: new Date().toISOString(),
+      player_user_agent: navigator.userAgent,
+      status: "online",
     } as any).eq("id", realId);
     setSessionBlocked(false);
     if (heartbeatRef.current) clearInterval(heartbeatRef.current);
     heartbeatRef.current = setInterval(async () => {
       if (!realScreenIdRef.current) return;
       try {
-        await (supabase.from("screens").update({ player_heartbeat_at: new Date().toISOString() } as any) as any).eq("id", realScreenIdRef.current).eq("player_session_id", SESSION_ID);
+        await (supabase.from("screens").update({
+          player_heartbeat_at: new Date().toISOString(),
+          player_user_agent: navigator.userAgent,
+          status: "online",
+        } as any) as any).eq("id", realScreenIdRef.current).eq("player_session_id", SESSION_ID);
       } catch (_) {}
     }, HEARTBEAT_INTERVAL);
     const s = screenRef.current;

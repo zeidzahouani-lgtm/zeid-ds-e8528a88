@@ -140,7 +140,8 @@ export function ScreenManager() {
   const [newName, setNewName] = useState("");
   const [playlistScreenId, setPlaylistScreenId] = useState<string | null>(null);
   const [previewScreen, setPreviewScreen] = useState<{ id: string; slug: string | null; name: string } | null>(null);
-  const [detailScreen, setDetailScreen] = useState<any | null>(null);
+  const [detailScreenId, setDetailScreenId] = useState<string | null>(null);
+  const detailScreen = useMemo(() => screens.find((s: any) => s.id === detailScreenId) ?? null, [screens, detailScreenId]);
 
   const handleAdd = async () => {
     if (!newName.trim()) return;
@@ -193,7 +194,7 @@ export function ScreenManager() {
             const orientationPreview = getOrientationPreview(screen.orientation);
 
             return (
-            <Card key={screen.id} className="glass-panel p-4 cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all" onClick={() => setDetailScreen(screen)}>
+            <Card key={screen.id} className="glass-panel p-4 cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all" onClick={() => setDetailScreenId(screen.id)}>
               <div className="flex flex-col lg:flex-row lg:items-center gap-4">
                 {/* Thumbnail */}
                 <div className="relative w-24 h-16 rounded-md border border-border bg-muted/30 overflow-hidden shrink-0 flex items-center justify-center">
@@ -434,7 +435,7 @@ export function ScreenManager() {
         assignedLayout={detailScreen ? layouts.find((l) => l.id === detailScreen.layout_id) : null}
         assignedPlaylist={detailScreen ? playlists.find((p) => p.id === detailScreen.playlist_id) : null}
         assignedProgram={detailScreen ? programs.find((p) => p.id === detailScreen.program_id) : null}
-        onClose={() => setDetailScreen(null)}
+        onClose={() => setDetailScreenId(null)}
       />
     </div>
   );

@@ -4,19 +4,21 @@
  */
 
 /** A screen is considered stale (offline) if its heartbeat is older than this. */
-export const HEARTBEAT_STALE_MS = 60_000; // 60 seconds — generous for TV hardware
+export const HEARTBEAT_STALE_MS = 120_000; // 120s to reduce false offline on TV hardware
 
 /**
- * Returns true only when the screen has status "online" AND a recent heartbeat.
- * Works with any object that has `status` and `player_heartbeat_at` fields.
+ * Primary source of truth is heartbeat recency.
+ * If heartbeat exists and is recent, screen is online even if `status` temporarily lags.
  */
 export function isScreenReallyOnline(screen: {
   status?: string;
   player_heartbeat_at?: string | null;
 }): boolean {
-  if (screen.status !== "online") return false;
   const hb = screen.player_heartbeat_at;
-  if (!hb) return false;
-  const age = Date.now() - new Date(hb).getTime();
-  return age < HEARTBEAT_STALE_MS;
+  if (hb) {
+    const age = Date.now() - new Date(hb).getTime();
+    return age < HEARTBEAT_STALE_MS;
+  }
+
+  return screen.status === "online";
 }

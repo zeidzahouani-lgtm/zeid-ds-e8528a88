@@ -132,7 +132,8 @@ export default function ScreenDetailDialog({ screen, licenseStatus, assignedMedi
             <Row label="Type" icon={deviceInfo.icon} value={deviceInfo.device} />
             <Row label="Navigateur" icon={<Globe className="h-3.5 w-3.5" />} value={deviceInfo.browser} />
             <Row label="Système" icon={<Cpu className="h-3.5 w-3.5" />} value={deviceInfo.os} />
-            <Row label="Adresse IP" icon={<Globe className="h-3.5 w-3.5" />} value={screen.player_ip || "Non disponible"} />
+            <Row label="IP publique" icon={<Globe className="h-3.5 w-3.5" />} value={screen.player_ip || "Non disponible"} />
+            <Row label="IP locale (LAN)" icon={<Globe className="h-3.5 w-3.5" />} value={screen.player_lan_ip || "Non disponible"} />
             <Row label="Orientation" icon={<Monitor className="h-3.5 w-3.5" />} value={screen.orientation || "landscape"} />
             <Row
               label="Résolution"
