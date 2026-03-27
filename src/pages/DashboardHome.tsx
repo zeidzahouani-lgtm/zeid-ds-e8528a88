@@ -32,7 +32,9 @@ export default function DashboardHome() {
     );
   }
 
-  const online = screens.filter((s: any) => s.status === "online").length;
+  const HEARTBEAT_STALE_MS = 30_000;
+  const isReallyOnline = (s: any) => s.status === "online" && s.player_heartbeat_at && (Date.now() - new Date(s.player_heartbeat_at).getTime()) < HEARTBEAT_STALE_MS;
+  const online = screens.filter(isReallyOnline).length;
   const offline = screens.length - online;
 
   const stats = [
@@ -88,7 +90,7 @@ export default function DashboardHome() {
                   <div className="min-w-0">
                     <p className="font-medium truncate normal-case">{screen.name}</p>
                     <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                      {screen.status === "online" ? (
+                      {isReallyOnline(screen) ? (
                         <span className="text-xs text-status-online flex items-center gap-1 normal-case">
                           <span className="h-1.5 w-1.5 rounded-full bg-status-online neon-pulse-online inline-block" />
                           En ligne
