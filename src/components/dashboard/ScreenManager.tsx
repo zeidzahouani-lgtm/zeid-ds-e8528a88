@@ -266,6 +266,7 @@ export function ScreenManager() {
                   </div>
                 </div>
 
+                <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-3 flex-wrap">
                 {/* Orientation */}
                 <Select
                   value={screen.orientation}
