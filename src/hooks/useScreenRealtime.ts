@@ -387,7 +387,7 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
         setLoading(false);
       };
 
-      const claimed = await claimSession(screenData.id);
+      await claimSession(screenData.id);
 
       const { data: verifyData } = await supabase
         .from("screens")
