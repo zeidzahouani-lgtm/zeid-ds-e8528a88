@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import ScreenDetailDialog from "@/components/dashboard/ScreenDetailDialog";
 import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock, RefreshCw, Tv, Power, Eye, ShieldAlert, ShieldOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -139,6 +140,7 @@ export function ScreenManager() {
   const [newName, setNewName] = useState("");
   const [playlistScreenId, setPlaylistScreenId] = useState<string | null>(null);
   const [previewScreen, setPreviewScreen] = useState<{ id: string; slug: string | null; name: string } | null>(null);
+  const [detailScreen, setDetailScreen] = useState<any | null>(null);
 
   const handleAdd = async () => {
     if (!newName.trim()) return;
@@ -191,7 +193,7 @@ export function ScreenManager() {
             const orientationPreview = getOrientationPreview(screen.orientation);
 
             return (
-            <Card key={screen.id} className="glass-panel p-4">
+            <Card key={screen.id} className="glass-panel p-4 cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all" onClick={() => setDetailScreen(screen)}>
               <div className="flex flex-col lg:flex-row lg:items-center gap-4">
                 {/* Thumbnail */}
                 <div className="relative w-24 h-16 rounded-md border border-border bg-muted/30 overflow-hidden shrink-0 flex items-center justify-center">
@@ -264,6 +266,7 @@ export function ScreenManager() {
                   </div>
                 </div>
 
+                <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-3 flex-wrap">
                 {/* Orientation */}
                 <Select
                   value={screen.orientation}
@@ -317,9 +320,10 @@ export function ScreenManager() {
                     ))}
                   </SelectContent>
                 </Select>
+                </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-2 ml-auto">
+                <div className="flex items-center gap-2 ml-auto" onClick={(e) => e.stopPropagation()}>
                   <Button
                     variant="outline"
                     size="icon"
@@ -422,6 +426,16 @@ export function ScreenManager() {
           </div>
         </DialogContent>
       </Dialog>
+      {/* Screen detail dialog */}
+      <ScreenDetailDialog
+        screen={detailScreen}
+        licenseStatus={detailScreen && licenseStatuses ? licenseStatuses[detailScreen.id] : null}
+        assignedMedia={detailScreen ? media.find((m) => m.id === detailScreen.current_media_id) : null}
+        assignedLayout={detailScreen ? layouts.find((l) => l.id === detailScreen.layout_id) : null}
+        assignedPlaylist={detailScreen ? playlists.find((p) => p.id === detailScreen.playlist_id) : null}
+        assignedProgram={detailScreen ? programs.find((p) => p.id === detailScreen.program_id) : null}
+        onClose={() => setDetailScreen(null)}
+      />
     </div>
   );
 }
