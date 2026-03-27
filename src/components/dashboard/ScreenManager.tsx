@@ -435,7 +435,7 @@ export function ScreenManager() {
         assignedLayout={detailScreen ? layouts.find((l) => l.id === detailScreen.layout_id) : null}
         assignedPlaylist={detailScreen ? playlists.find((p) => p.id === detailScreen.playlist_id) : null}
         assignedProgram={detailScreen ? programs.find((p) => p.id === detailScreen.program_id) : null}
-        onClose={() => setDetailScreen(null)}
+        onClose={() => setDetailScreenId(null)}
       />
     </div>
   );
