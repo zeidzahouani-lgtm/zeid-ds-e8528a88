@@ -140,6 +140,7 @@ export function ScreenManager() {
   const [newName, setNewName] = useState("");
   const [playlistScreenId, setPlaylistScreenId] = useState<string | null>(null);
   const [previewScreen, setPreviewScreen] = useState<{ id: string; slug: string | null; name: string } | null>(null);
+  const [detailScreen, setDetailScreen] = useState<any | null>(null);
 
   const handleAdd = async () => {
     if (!newName.trim()) return;
