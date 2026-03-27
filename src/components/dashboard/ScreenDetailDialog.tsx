@@ -83,7 +83,7 @@ export default function ScreenDetailDialog({ screen, licenseStatus, assignedMedi
 
   return (
     <Dialog open={!!screen} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Monitor className="h-5 w-5 text-primary" />
