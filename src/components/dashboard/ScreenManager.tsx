@@ -230,7 +230,7 @@ export function ScreenManager() {
                   <div>
                     <p className="font-medium">{screen.name}</p>
                     <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                      {screen.status === 'online' ? (
+                      {isScreenReallyOnline(screen) ? (
                         <>
                           <Badge variant="outline" className="text-status-online border-status-online/30 gap-1 text-xs">
                             <Wifi className="h-3 w-3" /> En ligne
