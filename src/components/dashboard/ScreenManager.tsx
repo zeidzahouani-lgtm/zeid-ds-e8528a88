@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import ScreenDetailDialog from "@/components/dashboard/ScreenDetailDialog";
 import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock, RefreshCw, Tv, Power, Eye, ShieldAlert, ShieldOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
