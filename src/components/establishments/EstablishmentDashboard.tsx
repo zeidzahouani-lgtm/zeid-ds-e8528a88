@@ -14,6 +14,7 @@ interface Props {
 export function EstablishmentDashboard({ establishmentId }: Props) {
   const { data: screens = [] } = useQuery({
     queryKey: ["est_dashboard_screens", establishmentId],
+    refetchInterval: 10_000,
     queryFn: async () => {
       const { data } = await supabase
         .from("screens")
