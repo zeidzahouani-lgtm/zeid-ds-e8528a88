@@ -8,6 +8,7 @@ import { Link, Navigate } from "react-router-dom";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import { EstablishmentDashboard } from "@/components/establishments/EstablishmentDashboard";
 import { useScreenLicenses } from "@/hooks/useScreenLicenses";
+import { isScreenReallyOnline } from "@/lib/screen-utils";
 
 export default function DashboardHome() {
   const { screens } = useScreens();
