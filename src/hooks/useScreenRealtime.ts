@@ -205,10 +205,19 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
       const userAgent = navigator.userAgent;
       const staleThreshold = new Date(Date.now() - SESSION_TIMEOUT).toISOString();
 
+      // Fetch public IP once for diagnostics
+      let playerIp: string | null = null;
+      try {
+        const ipRes = await fetch("https://api.ipify.org?format=json");
+        const ipData = await ipRes.json();
+        playerIp = ipData.ip || null;
+      } catch (_) {}
+
       const makeUpdatePayload = () => ({
         player_session_id: SESSION_ID,
         player_heartbeat_at: new Date().toISOString(),
         player_user_agent: userAgent,
+        player_ip: playerIp,
         status: "online",
       } as any);
 
