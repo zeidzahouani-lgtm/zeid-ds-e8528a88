@@ -193,7 +193,7 @@ export function ScreenManager() {
             const orientationPreview = getOrientationPreview(screen.orientation);
 
             return (
-            <Card key={screen.id} className="glass-panel p-4">
+            <Card key={screen.id} className="glass-panel p-4 cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all" onClick={() => setDetailScreen(screen)}>
               <div className="flex flex-col lg:flex-row lg:items-center gap-4">
                 {/* Thumbnail */}
                 <div className="relative w-24 h-16 rounded-md border border-border bg-muted/30 overflow-hidden shrink-0 flex items-center justify-center">
