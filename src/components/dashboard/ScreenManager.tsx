@@ -140,7 +140,8 @@ export function ScreenManager() {
   const [newName, setNewName] = useState("");
   const [playlistScreenId, setPlaylistScreenId] = useState<string | null>(null);
   const [previewScreen, setPreviewScreen] = useState<{ id: string; slug: string | null; name: string } | null>(null);
-  const [detailScreen, setDetailScreen] = useState<any | null>(null);
+  const [detailScreenId, setDetailScreenId] = useState<string | null>(null);
+  const detailScreen = useMemo(() => screens.find((s: any) => s.id === detailScreenId) ?? null, [screens, detailScreenId]);
 
   const handleAdd = async () => {
     if (!newName.trim()) return;
