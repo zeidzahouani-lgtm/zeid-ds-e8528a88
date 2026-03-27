@@ -205,19 +205,46 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
       const userAgent = navigator.userAgent;
       const staleThreshold = new Date(Date.now() - SESSION_TIMEOUT).toISOString();
 
-      // Fetch public IP once for diagnostics
       let playerIp: string | null = null;
-      try {
-        const ipRes = await fetch("https://api.ipify.org?format=json");
-        const ipData = await ipRes.json();
-        playerIp = ipData.ip || null;
-      } catch (_) {}
+      const resolvePlayerIp = async (): Promise<string | null> => {
+        const providers = [
+          "https://api64.ipify.org?format=json",
+          "https://api.ipify.org?format=json",
+          "https://ifconfig.co/json",
+          "https://ipapi.co/json/",
+        ];
+
+        for (const provider of providers) {
+          try {
+            const res = await fetch(provider);
+            if (!res.ok) continue;
+            const data = await res.json();
+            const ip =
+              data && typeof data.ip === "string" ? data.ip :
+              data && typeof data.ip_address === "string" ? data.ip_address :
+              null;
+            if (ip) return ip;
+          } catch (_) {
+            // try next provider
+          }
+        }
+
+        return null;
+      };
+
+      const tryResolvePlayerIp = async () => {
+        if (playerIp) return playerIp;
+        playerIp = await resolvePlayerIp();
+        return playerIp;
+      };
+
+      await tryResolvePlayerIp();
 
       const makeUpdatePayload = () => ({
         player_session_id: SESSION_ID,
         player_heartbeat_at: new Date().toISOString(),
         player_user_agent: userAgent,
-        player_ip: playerIp,
+        ...(playerIp ? { player_ip: playerIp } : {}),
         status: "online",
       } as any);
 
@@ -227,7 +254,15 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
           const realId = realScreenIdRef.current;
           if (!realId) return;
           try {
-            await (supabase.from("screens").update({ player_heartbeat_at: new Date().toISOString() } as any) as any)
+            if (!playerIp) await tryResolvePlayerIp();
+            const heartbeatPayload: any = {
+              player_heartbeat_at: new Date().toISOString(),
+              player_user_agent: userAgent,
+              status: "online",
+            };
+            if (playerIp) heartbeatPayload.player_ip = playerIp;
+
+            await (supabase.from("screens").update(heartbeatPayload) as any)
               .eq("id", realId)
               .eq("player_session_id", SESSION_ID);
           } catch (_) {}
