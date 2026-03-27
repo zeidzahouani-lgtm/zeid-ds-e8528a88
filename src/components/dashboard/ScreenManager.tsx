@@ -39,10 +39,9 @@ function parseUserAgent(ua: string | null): { device: string; icon: React.ReactN
   if (!ua) return { device: "Inconnu", icon: <Monitor className="h-3 w-3" /> };
   const lower = ua.toLowerCase();
   // Smart TVs
-  if (lower.includes("webos") || lower.includes("lgwebos") || lower.includes("lg netcast"))
-    return { device: "LG WebOS", icon: <Tv className="h-3 w-3" /> };
-  // LG TVs with Fully Kiosk or generic Chrome — detect by "lg" brand patterns
-  if (/\blg[- ]/.test(lower) || lower.includes("lg/") || lower.includes("lge"))
+  if (lower.includes("webos") || lower.includes("lgwebos") || lower.includes("lg netcast") || lower.includes("netcast") || lower.includes("smarttv"))
+    return { device: "LG Smart TV", icon: <Tv className="h-3 w-3" /> };
+  if (/\blg[- ]/.test(lower) || lower.includes("lg/") || lower.includes("lge") || lower.includes("colt/"))
     return { device: "LG Smart TV", icon: <Tv className="h-3 w-3" /> };
   if (lower.includes("tizen") || lower.includes("samsung"))
     return { device: "Samsung Tizen", icon: <Tv className="h-3 w-3" /> };
