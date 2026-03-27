@@ -584,15 +584,21 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
     const realId = realScreenIdRef.current;
     if (!realId) return;
     await supabase.from("screens").update({
-      player_session_id: SESSION_ID, player_heartbeat_at: new Date().toISOString(),
-      player_user_agent: navigator.userAgent, status: "online",
+      player_session_id: SESSION_ID,
+      player_heartbeat_at: new Date().toISOString(),
+      player_user_agent: navigator.userAgent,
+      status: "online",
     } as any).eq("id", realId);
     setSessionBlocked(false);
     if (heartbeatRef.current) clearInterval(heartbeatRef.current);
     heartbeatRef.current = setInterval(async () => {
       if (!realScreenIdRef.current) return;
       try {
-        await (supabase.from("screens").update({ player_heartbeat_at: new Date().toISOString() } as any) as any).eq("id", realScreenIdRef.current).eq("player_session_id", SESSION_ID);
+        await (supabase.from("screens").update({
+          player_heartbeat_at: new Date().toISOString(),
+          player_user_agent: navigator.userAgent,
+          status: "online",
+        } as any) as any).eq("id", realScreenIdRef.current).eq("player_session_id", SESSION_ID);
       } catch (_) {}
     }, HEARTBEAT_INTERVAL);
     const s = screenRef.current;
