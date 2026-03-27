@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tv, Image, Key, Activity, Wifi, WifiOff, LayoutGrid, ListMusic, Clock, ShieldAlert, ShieldOff } from "lucide-react";
 import { useScreenLicenses } from "@/hooks/useScreenLicenses";
+import { isScreenReallyOnline } from "@/lib/screen-utils";
 
 interface Props {
   establishmentId: string;
