@@ -424,6 +424,16 @@ export function ScreenManager() {
           </div>
         </DialogContent>
       </Dialog>
+      {/* Screen detail dialog */}
+      <ScreenDetailDialog
+        screen={detailScreen}
+        licenseStatus={detailScreen && licenseStatuses ? licenseStatuses[detailScreen.id] : null}
+        assignedMedia={detailScreen ? media.find((m) => m.id === detailScreen.current_media_id) : null}
+        assignedLayout={detailScreen ? layouts.find((l) => l.id === detailScreen.layout_id) : null}
+        assignedPlaylist={detailScreen ? playlists.find((p) => p.id === detailScreen.playlist_id) : null}
+        assignedProgram={detailScreen ? programs.find((p) => p.id === detailScreen.program_id) : null}
+        onClose={() => setDetailScreen(null)}
+      />
     </div>
   );
 }
