@@ -33,19 +33,35 @@ const ORIENTATION_PREVIEWS: Record<string, OrientationPreview> = {
 const getOrientationPreview = (orientation: string): OrientationPreview =>
   ORIENTATION_PREVIEWS[orientation] ?? ORIENTATION_PREVIEWS.landscape;
 
+/** Heartbeat older than this = consider offline */
+const HEARTBEAT_STALE_MS = 30_000; // 30 seconds
+
+function isScreenReallyOnline(screen: any): boolean {
+  if (screen.status !== "online") return false;
+  const hb = screen.player_heartbeat_at;
+  if (!hb) return false;
+  const age = Date.now() - new Date(hb).getTime();
+  return age < HEARTBEAT_STALE_MS;
+}
+
 function parseUserAgent(ua: string | null): { device: string; icon: React.ReactNode } {
   if (!ua) return { device: "Inconnu", icon: <Monitor className="h-3 w-3" /> };
   const lower = ua.toLowerCase();
   // Smart TVs
   if (lower.includes("webos") || lower.includes("lgwebos") || lower.includes("lg netcast"))
     return { device: "LG WebOS", icon: <Tv className="h-3 w-3" /> };
+  // LG TVs with Fully Kiosk or generic Chrome — detect by "lg" brand patterns
+  if (/\blg[- ]/.test(lower) || lower.includes("lg/") || lower.includes("lge"))
+    return { device: "LG Smart TV", icon: <Tv className="h-3 w-3" /> };
   if (lower.includes("tizen") || lower.includes("samsung"))
     return { device: "Samsung Tizen", icon: <Tv className="h-3 w-3" /> };
   if (lower.includes("philips") || lower.includes("nettv") || lower.includes("saphi"))
     return { device: "Philips", icon: <Tv className="h-3 w-3" /> };
   if (lower.includes("android tv") || lower.includes("androidtv") || lower.includes("googletv"))
     return { device: "Android TV", icon: <Tv className="h-3 w-3" /> };
-  if (lower.includes("firetv") || lower.includes("fire tv") || lower.includes("silk") && lower.includes("fire"))
+  if (lower.includes("fully kiosk") || lower.includes("fullykiosk"))
+    return { device: "Fully Kiosk", icon: <Tv className="h-3 w-3" /> };
+  if (lower.includes("firetv") || lower.includes("fire tv") || (lower.includes("silk") && lower.includes("fire")))
     return { device: "Fire TV", icon: <Tv className="h-3 w-3" /> };
   if (lower.includes("chromecast") || lower.includes("crkey"))
     return { device: "Chromecast", icon: <Tv className="h-3 w-3" /> };
