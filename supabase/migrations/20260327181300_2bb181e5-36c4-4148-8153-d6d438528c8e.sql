@@ -1,0 +1,1 @@
+ALTER TABLE public.screens ADD COLUMN IF NOT EXISTS player_ip text DEFAULT NULL;

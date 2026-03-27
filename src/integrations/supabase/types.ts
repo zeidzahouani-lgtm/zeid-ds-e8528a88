@@ -885,6 +885,7 @@ export type Database = {
           name: string
           orientation: string
           player_heartbeat_at: string | null
+          player_ip: string | null
           player_session_id: string | null
           player_user_agent: string | null
           playlist_id: string | null
@@ -903,6 +904,7 @@ export type Database = {
           name: string
           orientation?: string
           player_heartbeat_at?: string | null
+          player_ip?: string | null
           player_session_id?: string | null
           player_user_agent?: string | null
           playlist_id?: string | null
@@ -921,6 +923,7 @@ export type Database = {
           name?: string
           orientation?: string
           player_heartbeat_at?: string | null
+          player_ip?: string | null
           player_session_id?: string | null
           player_user_agent?: string | null
           playlist_id?: string | null
