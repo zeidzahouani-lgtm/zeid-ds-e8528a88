@@ -32,9 +32,7 @@ export default function DashboardHome() {
     );
   }
 
-  const HEARTBEAT_STALE_MS = 30_000;
-  const isReallyOnline = (s: any) => s.status === "online" && s.player_heartbeat_at && (Date.now() - new Date(s.player_heartbeat_at).getTime()) < HEARTBEAT_STALE_MS;
-  const online = screens.filter(isReallyOnline).length;
+  const online = screens.filter((s: any) => isScreenReallyOnline(s)).length;
   const offline = screens.length - online;
 
   const stats = [
