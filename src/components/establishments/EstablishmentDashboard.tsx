@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tv, Image, Key, Activity, Wifi, WifiOff, LayoutGrid, ListMusic, Clock, ShieldAlert, ShieldOff } from "lucide-react";
 import { useScreenLicenses } from "@/hooks/useScreenLicenses";
+import { isScreenReallyOnline } from "@/lib/screen-utils";
 
 interface Props {
   establishmentId: string;
@@ -13,6 +14,7 @@ interface Props {
 export function EstablishmentDashboard({ establishmentId }: Props) {
   const { data: screens = [] } = useQuery({
     queryKey: ["est_dashboard_screens", establishmentId],
+    refetchInterval: 10_000,
     queryFn: async () => {
       const { data } = await supabase
         .from("screens")
@@ -69,7 +71,7 @@ export function EstablishmentDashboard({ establishmentId }: Props) {
   const screenIds = useMemo(() => screens.map((s: any) => s.id), [screens]);
   const { data: licenseStatuses } = useScreenLicenses(screenIds);
 
-  const onlineScreens = screens.filter((s: any) => s.status === "online").length;
+  const onlineScreens = screens.filter((s: any) => isScreenReallyOnline(s)).length;
   const offlineScreens = screens.length - onlineScreens;
 
   // Last activity: most recent heartbeat or updated_at
@@ -132,8 +134,8 @@ export function EstablishmentDashboard({ establishmentId }: Props) {
                   <span>{s.name}</span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Badge variant={s.status === "online" ? "default" : "secondary"} className="text-[10px]">
-                    {s.status === "online" ? "En ligne" : "Hors ligne"}
+                  <Badge variant={isScreenReallyOnline(s) ? "default" : "secondary"} className="text-[10px]">
+                    {isScreenReallyOnline(s) ? "En ligne" : "Hors ligne"}
                   </Badge>
                   {licenseStatuses && !licenseStatuses[s.id]?.valid && (
                     <Badge variant="outline" className="text-destructive border-destructive/30 gap-1 text-[10px]">
