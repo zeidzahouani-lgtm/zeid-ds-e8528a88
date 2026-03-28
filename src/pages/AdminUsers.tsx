@@ -372,7 +372,7 @@ export default function AdminUsers() {
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                   <Select
-                    value={u.roles[0] || "user"}
+                    value={u.roles.includes("admin") ? "admin" : "user"}
                     onValueChange={(role) => updateRole.mutate({ userId: u.id, role })}
                     disabled={u.id === user?.id}
                   >
