@@ -38,11 +38,11 @@ const mainItems = [
 ];
 
 const establishmentAdminItems = [
-  { title: "Utilisateurs", url: "/admin/users", icon: Users },
-  { title: "Personnalisation", url: "/admin/customization", icon: Palette },
-  { title: "Email", url: "/admin/email", icon: AtSign },
-  { title: "Config. Établissement", url: "/admin/establishment-settings", icon: Settings },
-  { title: "Ressources", url: "/admin/resources", icon: BookOpen },
+  { title: "Utilisateurs", url: "/admin/users", icon: Users, adminOnly: true },
+  { title: "Personnalisation", url: "/admin/customization", icon: Palette, adminOnly: true },
+  { title: "Email", url: "/admin/email", icon: AtSign, adminOnly: true },
+  { title: "Config. Établissement", url: "/admin/establishment-settings", icon: Settings, adminOnly: false },
+  { title: "Ressources", url: "/admin/resources", icon: BookOpen, adminOnly: false },
 ];
 
 const globalAdminItems = [
@@ -60,7 +60,7 @@ export function AppSidebar() {
   const { isGlobalAdmin, isEstablishmentAdmin, currentEstablishmentId, memberships } = useEstablishmentContext();
   const { getSetting } = useEstablishmentSettings(currentEstablishmentId);
 
-  const showAdminSection = isGlobalAdmin || isEstablishmentAdmin;
+  const showAdminSection = isGlobalAdmin || isEstablishmentAdmin || !!currentEstablishmentId;
 
   // Pending requests count for badge
   const { data: pendingRequestsCount = 0 } = useQuery({
@@ -155,7 +155,9 @@ export function AppSidebar() {
             <SidebarGroupLabel className="text-muted-foreground/50 uppercase tracking-widest text-[10px] font-medium">Administration</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="space-y-0.5">
-                {(isEstablishmentAdmin || isGlobalAdmin) && establishmentAdminItems.map((item) => renderNavItem(item, true))}
+                {establishmentAdminItems
+                  .filter(item => !item.adminOnly || isEstablishmentAdmin || isGlobalAdmin)
+                  .map((item) => renderNavItem(item, true))}
                 {isGlobalAdmin && globalAdminItems.map((item) => {
                   if (item.url === "/admin/requests" && pendingRequestsCount > 0) {
                     return (

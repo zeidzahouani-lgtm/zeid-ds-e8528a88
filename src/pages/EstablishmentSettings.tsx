@@ -52,14 +52,7 @@ export default function EstablishmentSettings() {
     );
   }
 
-  if (!isEstablishmentAdmin) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-        <Settings className="h-12 w-12 mb-3 opacity-30" />
-        <p className="font-medium">Accès refusé — réservé aux administrateurs</p>
-      </div>
-    );
-  }
+  // All establishment members can access settings (not just admins)
 
   const saveMultiple = async (pairs: { key: string; value: string }[]) => {
     try {
