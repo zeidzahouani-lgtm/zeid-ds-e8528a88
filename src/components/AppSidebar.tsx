@@ -48,6 +48,7 @@ const establishmentAdminItems = [
 const globalAdminItems = [
   { title: "Établissements", url: "/admin/establishments", icon: Building2 },
   { title: "Licences", url: "/admin/licenses", icon: Key },
+  { title: "Statistiques", url: "/admin/stats", icon: BarChart3 },
   { title: "Demandes", url: "/admin/requests", icon: ClipboardList },
 ];
 
