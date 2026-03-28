@@ -241,6 +241,13 @@ export default function AdminUsers() {
 
   const handleAssignEstablishment = async (userId: string, establishmentId: string) => {
     try {
+      // Check if non-admin user already has an establishment
+      const user = users.find(u => u.id === userId);
+      const isUserAdmin = user?.roles?.includes("admin");
+      if (!isUserAdmin && user?.establishments && user.establishments.length > 0) {
+        toast({ title: "Un compte utilisateur ne peut avoir qu'un seul établissement. Retirez l'établissement actuel d'abord.", variant: "destructive" });
+        return;
+      }
       await assignUserToEstablishment.mutateAsync({ userId, establishmentId });
       queryClient.invalidateQueries({ queryKey: ["admin_users"] });
       toast({ title: "Établissement assigné" });
