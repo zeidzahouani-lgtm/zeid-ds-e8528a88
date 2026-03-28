@@ -224,9 +224,7 @@ export default function AdminStats() {
               const estScreens = screens.filter(
                 (s) => s.establishment_id === est.id
               );
-              const estOnline = estScreens.filter((s) =>
-                isScreenReallyOnline(s.status, s.player_heartbeat_at)
-              );
+              const estOnline = estScreens.filter((s) => isScreenReallyOnline(s));
               const estLicenses = activeLicenses.filter(
                 (l) => l.establishment_id === est.id
               );
