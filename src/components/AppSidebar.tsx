@@ -38,11 +38,11 @@ const mainItems = [
 ];
 
 const establishmentAdminItems = [
-  { title: "Utilisateurs", url: "/admin/users", icon: Users },
-  { title: "Personnalisation", url: "/admin/customization", icon: Palette },
-  { title: "Email", url: "/admin/email", icon: AtSign },
-  { title: "Config. Établissement", url: "/admin/establishment-settings", icon: Settings },
-  { title: "Ressources", url: "/admin/resources", icon: BookOpen },
+  { title: "Utilisateurs", url: "/admin/users", icon: Users, adminOnly: true },
+  { title: "Personnalisation", url: "/admin/customization", icon: Palette, adminOnly: true },
+  { title: "Email", url: "/admin/email", icon: AtSign, adminOnly: true },
+  { title: "Config. Établissement", url: "/admin/establishment-settings", icon: Settings, adminOnly: false },
+  { title: "Ressources", url: "/admin/resources", icon: BookOpen, adminOnly: false },
 ];
 
 const globalAdminItems = [
