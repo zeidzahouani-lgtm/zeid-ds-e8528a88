@@ -60,7 +60,7 @@ export function AppSidebar() {
   const { isGlobalAdmin, isEstablishmentAdmin, currentEstablishmentId, memberships } = useEstablishmentContext();
   const { getSetting } = useEstablishmentSettings(currentEstablishmentId);
 
-  const showAdminSection = isGlobalAdmin || isEstablishmentAdmin;
+  const showAdminSection = isGlobalAdmin || isEstablishmentAdmin || !!currentEstablishmentId;
 
   // Pending requests count for badge
   const { data: pendingRequestsCount = 0 } = useQuery({
