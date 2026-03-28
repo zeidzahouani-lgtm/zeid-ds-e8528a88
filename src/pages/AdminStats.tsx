@@ -73,12 +73,8 @@ export default function AdminStats() {
     );
   }
 
-  const onlineScreens = screens.filter((s) =>
-    isScreenReallyOnline(s.status, s.player_heartbeat_at)
-  );
-  const offlineScreens = screens.filter(
-    (s) => !isScreenReallyOnline(s.status, s.player_heartbeat_at)
-  );
+  const onlineScreens = screens.filter((s) => isScreenReallyOnline(s));
+  const offlineScreens = screens.filter((s) => !isScreenReallyOnline(s));
 
   const now = new Date();
   const activeLicenses = licenses.filter(
