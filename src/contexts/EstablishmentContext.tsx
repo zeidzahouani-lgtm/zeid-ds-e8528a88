@@ -88,12 +88,23 @@ export function EstablishmentProvider({ children }: { children: ReactNode }) {
     }
   }, [user?.id]);
 
-  // Auto-select first establishment if none selected (non-admins only)
+  // Ensure selected establishment is always valid for the current non-admin user
   useEffect(() => {
-    if (!currentEstablishmentId && memberships.length > 0 && !isGlobalAdmin && !loadingAdmin) {
+    if (loadingAdmin || loadingMemberships || isGlobalAdmin) return;
+
+    if (memberships.length === 0) {
+      if (currentEstablishmentId !== null) setCurrentEstablishmentId(null);
+      return;
+    }
+
+    const hasAccessToCurrent = currentEstablishmentId
+      ? memberships.some((m) => m.establishment_id === currentEstablishmentId)
+      : false;
+
+    if (!currentEstablishmentId || !hasAccessToCurrent) {
       setCurrentEstablishmentId(memberships[0].establishment_id);
     }
-  }, [memberships, currentEstablishmentId, isGlobalAdmin, loadingAdmin]);
+  }, [memberships, currentEstablishmentId, isGlobalAdmin, loadingAdmin, loadingMemberships]);
 
   // Persist selection in localStorage
   useEffect(() => {
