@@ -155,7 +155,9 @@ export function AppSidebar() {
             <SidebarGroupLabel className="text-muted-foreground/50 uppercase tracking-widest text-[10px] font-medium">Administration</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu className="space-y-0.5">
-                {(isEstablishmentAdmin || isGlobalAdmin) && establishmentAdminItems.map((item) => renderNavItem(item, true))}
+                {establishmentAdminItems
+                  .filter(item => !item.adminOnly || isEstablishmentAdmin || isGlobalAdmin)
+                  .map((item) => renderNavItem(item, true))}
                 {isGlobalAdmin && globalAdminItems.map((item) => {
                   if (item.url === "/admin/requests" && pendingRequestsCount > 0) {
                     return (
