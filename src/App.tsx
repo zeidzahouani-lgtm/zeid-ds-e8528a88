@@ -38,6 +38,7 @@ const AdminRequests = lazy(() => import("./pages/AdminRequests"));
 const UploadPage = lazy(() => import("./pages/UploadPage"));
 const EstablishmentSettings = lazy(() => import("./pages/EstablishmentSettings"));
 const Resources = lazy(() => import("./pages/Resources"));
+const AdminStats = lazy(() => import("./pages/AdminStats"));
 const AssignLicense = lazy(() => import("./pages/AssignLicense"));
 
 const queryClient = new QueryClient();
