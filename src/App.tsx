@@ -38,6 +38,7 @@ const AdminRequests = lazy(() => import("./pages/AdminRequests"));
 const UploadPage = lazy(() => import("./pages/UploadPage"));
 const EstablishmentSettings = lazy(() => import("./pages/EstablishmentSettings"));
 const Resources = lazy(() => import("./pages/Resources"));
+const AdminStats = lazy(() => import("./pages/AdminStats"));
 const AssignLicense = lazy(() => import("./pages/AssignLicense"));
 
 const queryClient = new QueryClient();
@@ -97,6 +98,7 @@ const App = () => (
                 <Route path="/admin/requests" element={<AdminRequests />} />
                 <Route path="/admin/establishment-settings" element={<EstablishmentSettings />} />
                 <Route path="/admin/resources" element={<Resources />} />
+                <Route path="/admin/stats" element={<AdminStats />} />
                 <Route path="/setup" element={<ScreenSetup />} />
                 <Route path="/ai-assistant" element={<AIAssistant />} />
                 <Route path="/auto-flow" element={<AutoFlow />} />
