@@ -396,6 +396,23 @@ function LayoutRenderer({
 
   const rotationStyle = getOrientationStyle(screenOrientation);
 
+  // If all regions are empty (no widget and no media), show fallback
+  const allRegionsEmpty = regions.length === 0 || regions.every(r => !r.widget_type && !r.media);
+  if (allRegionsEmpty) {
+    return (
+      <div style={{ width: "100%", height: "100%", position: "relative" }}>
+        <FallbackErrorBoundary screenName={screenName} screenId={screenId}>
+          <FallbackScreen
+            screenName={screenName}
+            screenId={screenId}
+            logoUrl={logoUrl}
+            showLogo={showLogo}
+          />
+        </FallbackErrorBoundary>
+      </div>
+    );
+  }
+
   return (
     <div style={{
       width: "100%", height: "100%", position: "relative",
