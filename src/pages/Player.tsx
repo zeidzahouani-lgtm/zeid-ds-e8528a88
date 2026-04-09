@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useScreenRealtime } from "@/hooks/useScreenRealtime";
 import { MonitorPlay, ShieldOff, KeyRound, MonitorX } from "lucide-react";
-import { useEffect, useState, useRef, useCallback, Component, type ErrorInfo, type ReactNode } from "react";
+import React, { useEffect, useState, useRef, useCallback, Component, type ErrorInfo, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import WidgetRenderer from "@/components/widgets/WidgetRenderer";
 import { validateLicense, activateLicenseByKey } from "@/hooks/useLicenses";
@@ -83,6 +83,29 @@ interface RegionErrorBoundaryProps {
 
 interface RegionErrorBoundaryState {
   hasError: boolean;
+}
+
+/** Error boundary for FallbackScreen – minimal fallback if QRCodeSVG crashes on old browsers (LG webOS) */
+class FallbackErrorBoundary extends React.Component<
+  { screenName: string; screenId: string; children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: any) { super(props); this.state = { hasError: false }; }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(err: any) { console.warn("[FallbackErrorBoundary]", err); }
+  render() {
+    if (this.state.hasError) {
+      const uploadUrl = (typeof window !== "undefined" ? window.location.origin : "") + "/upload/" + this.props.screenId;
+      return (
+        <div style={{ width: "100%", height: "100%", backgroundColor: "#0a0e17", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#cbd5e1" }}>
+          <p style={{ fontSize: 32, fontWeight: 200 }}>{this.props.screenName}</p>
+          <p style={{ marginTop: 16, fontSize: 14, opacity: 0.5 }}>Scannez le QR ou visitez :</p>
+          <p style={{ marginTop: 8, fontSize: 12, opacity: 0.4, wordBreak: "break-all", maxWidth: "80%" }}>{uploadUrl}</p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 class RegionErrorBoundary extends Component<RegionErrorBoundaryProps, RegionErrorBoundaryState> {
@@ -774,12 +797,14 @@ export default function Player() {
             opacity: hasContent ? 0 : 1,
             pointerEvents: hasContent ? "none" : "auto",
           }}>
-            <FallbackScreen
-              screenName={screen.name}
-              screenId={screen.id}
-              logoUrl={branding.logoUrl}
-              showLogo={branding.showLogo}
-            />
+            <FallbackErrorBoundary screenName={screen.name} screenId={screen.id}>
+              <FallbackScreen
+                screenName={screen.name}
+                screenId={screen.id}
+                logoUrl={branding.logoUrl}
+                showLogo={branding.showLogo}
+              />
+            </FallbackErrorBoundary>
           </div>
 
           {/* Actual content */}
