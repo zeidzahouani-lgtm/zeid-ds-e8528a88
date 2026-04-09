@@ -85,6 +85,29 @@ interface RegionErrorBoundaryState {
   hasError: boolean;
 }
 
+/** Error boundary for FallbackScreen – minimal fallback if QRCodeSVG crashes on old browsers (LG webOS) */
+class FallbackErrorBoundary extends React.Component<
+  { screenName: string; screenId: string; children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: any) { super(props); this.state = { hasError: false }; }
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(err: any) { console.warn("[FallbackErrorBoundary]", err); }
+  render() {
+    if (this.state.hasError) {
+      const uploadUrl = (typeof window !== "undefined" ? window.location.origin : "") + "/upload/" + this.props.screenId;
+      return (
+        <div style={{ width: "100%", height: "100%", backgroundColor: "#0a0e17", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#cbd5e1" }}>
+          <p style={{ fontSize: 32, fontWeight: 200 }}>{this.props.screenName}</p>
+          <p style={{ marginTop: 16, fontSize: 14, opacity: 0.5 }}>Scannez le QR ou visitez :</p>
+          <p style={{ marginTop: 8, fontSize: 12, opacity: 0.4, wordBreak: "break-all", maxWidth: "80%" }}>{uploadUrl}</p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 class RegionErrorBoundary extends Component<RegionErrorBoundaryProps, RegionErrorBoundaryState> {
   state: RegionErrorBoundaryState = { hasError: false };
 
