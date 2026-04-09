@@ -138,9 +138,10 @@ export function useLayoutRegions(layoutId: string | undefined) {
 
   const addRegion = useMutation({
     mutationFn: async (params: Partial<LayoutRegion> & { layout_id: string }) => {
+      const { media, ...dbParams } = params as any;
       const { data, error } = await supabase
         .from("layout_regions")
-        .insert(params)
+        .insert(dbParams)
         .select("*, media:media_id(id, name, type, url)")
         .single();
       if (error) throw error;
