@@ -49,7 +49,8 @@ export function useSchedules(programId?: string) {
 
   const updateSchedule = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Schedule> & { id: string }) => {
-      const { error } = await supabase.from("schedules").update(updates).eq("id", id);
+      const { media, ...dbUpdates } = updates as any;
+      const { error } = await supabase.from("schedules").update(dbUpdates).eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
