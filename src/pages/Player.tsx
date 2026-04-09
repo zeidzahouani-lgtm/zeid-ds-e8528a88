@@ -774,12 +774,14 @@ export default function Player() {
             opacity: hasContent ? 0 : 1,
             pointerEvents: hasContent ? "none" : "auto",
           }}>
-            <FallbackScreen
-              screenName={screen.name}
-              screenId={screen.id}
-              logoUrl={branding.logoUrl}
-              showLogo={branding.showLogo}
-            />
+            <FallbackErrorBoundary screenName={screen.name} screenId={screen.id}>
+              <FallbackScreen
+                screenName={screen.name}
+                screenId={screen.id}
+                logoUrl={branding.logoUrl}
+                showLogo={branding.showLogo}
+              />
+            </FallbackErrorBoundary>
           </div>
 
           {/* Actual content */}
