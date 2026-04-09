@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useScreenRealtime } from "@/hooks/useScreenRealtime";
 import { MonitorPlay, ShieldOff, KeyRound, MonitorX } from "lucide-react";
-import { useEffect, useState, useRef, useCallback, Component, type ErrorInfo, type ReactNode } from "react";
+import React, { useEffect, useState, useRef, useCallback, Component, type ErrorInfo, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import WidgetRenderer from "@/components/widgets/WidgetRenderer";
 import { validateLicense, activateLicenseByKey } from "@/hooks/useLicenses";
