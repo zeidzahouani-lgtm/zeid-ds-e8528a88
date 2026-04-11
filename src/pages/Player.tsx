@@ -177,22 +177,51 @@ function getOrientationStyle(orientation: string): React.CSSProperties {
 }
 
 function MediaRenderer({ media, playlistLength }: { media: { id: string; name: string; type: string; url: string }; playlistLength?: number }) {
+  const containerStyle: React.CSSProperties = {
+    position: "relative",
+    width: "100%",
+    height: "100%",
+    overflow: "hidden",
+    backgroundColor: "#000",
+  };
+
+  const mediaStyle: React.CSSProperties = {
+    position: "absolute",
+    inset: 0,
+    width: "100%",
+    height: "100%",
+    display: "block",
+    objectFit: "cover",
+    objectPosition: "center center",
+    backgroundColor: "#000",
+  };
+
   if (media.type === "image") {
-    return <img src={media.url} alt={media.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />;
+    return (
+      <div style={containerStyle}>
+        <img src={media.url} alt={media.name} style={mediaStyle} />
+      </div>
+    );
   }
   if (media.type === "video") {
     return (
-      <video
-        key={media.id}
-        src={media.url}
-        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-        autoPlay
-        loop={!playlistLength || playlistLength <= 1}
-        playsInline
-      />
+      <div style={containerStyle}>
+        <video
+          key={media.id}
+          src={media.url}
+          style={mediaStyle}
+          autoPlay
+          loop={!playlistLength || playlistLength <= 1}
+          playsInline
+        />
+      </div>
     );
   }
-  return <iframe src={media.url} style={{ width: "100%", height: "100%", border: "none" }} allowFullScreen title={media.name} />;
+  return (
+    <div style={containerStyle}>
+      <iframe src={media.url} style={{ ...mediaStyle, border: "none" }} allowFullScreen title={media.name} />
+    </div>
+  );
 }
 
 function usePlayerBranding(screenId?: string): PlayerBranding {
@@ -581,19 +610,19 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Arra
   const rotationStyle = getOrientationStyle(contentOrientation);
 
   return (
-    <div style={{ width: "100%", height: "100%", ...rotationStyle }}>
+    <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", backgroundColor: "#000", ...rotationStyle }}>
       {contentType === "video" ? (
         <video
           key={current.id}
           src={current.image_url}
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center center", display: "block", backgroundColor: "#000" }}
           autoPlay
           playsInline
           onEnded={contents.length > 1 ? advance : undefined}
           loop={contents.length <= 1}
         />
       ) : (
-        <img src={current.image_url} alt={current.title || ""} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <img src={current.image_url} alt={current.title || ""} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center center", display: "block", backgroundColor: "#000" }} />
       )}
     </div>
   );
@@ -773,7 +802,7 @@ export default function Player() {
     );
   }
 
-  if (layoutId) {
+  if (layoutId && !media && activeContents.length === 0) {
     return (
       <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", inset: 0, overflow: "hidden", cursor: "none" }} onClick={requestFullscreen}>
         {debugMode && <DiagnosticOverlay screenId={screen.id} screenName={screen.name} screenStatus={screen.status} mediaId={null} mediaType={null} mediaUrl={null} layoutId={layoutId} playlistLength={playlistLength} currentIndex={currentIndex} sessionBlocked={sessionBlocked} licenseValid={licenseValid} orientation={screen.orientation} />}

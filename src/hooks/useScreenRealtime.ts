@@ -484,6 +484,61 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
     return () => { setOffline(); window.removeEventListener("beforeunload", setOffline); };
   }, [screenId, previewOnly, resolveMedia]);
 
+  useEffect(() => {
+    if (!screenId || previewOnly) return;
+
+    const syncScreenState = async () => {
+      const realId = realScreenIdRef.current;
+      if (!realId) return;
+
+      const { data } = await supabase
+        .from("screens")
+        .select("*")
+        .eq("id", realId)
+        .maybeSingle();
+
+      const nextScreen = data as ScreenData | null;
+      if (!nextScreen) return;
+
+      const previousScreen = screenRef.current;
+      const relevantChange = !previousScreen ||
+        nextScreen.current_media_id !== previousScreen.current_media_id ||
+        nextScreen.layout_id !== previousScreen.layout_id ||
+        nextScreen.playlist_id !== previousScreen.playlist_id ||
+        nextScreen.program_id !== previousScreen.program_id ||
+        nextScreen.orientation !== previousScreen.orientation;
+
+      setScreen(nextScreen);
+      screenRef.current = nextScreen;
+
+      if (!relevantChange) return;
+
+      if (nextScreen.current_media_id) {
+        const { data: mediaData } = await supabase
+          .from("media")
+          .select("*")
+          .eq("id", nextScreen.current_media_id)
+          .maybeSingle();
+
+        setMedia((mediaData as MediaData | null) ?? null);
+      } else {
+        setMedia(null);
+      }
+
+      const [pl, sch] = await Promise.all([fetchPlaylist(nextScreen), fetchSchedules(nextScreen)]);
+      updatePlaylist(pl);
+      schedulesRef.current = sch;
+      setCurrentIndex(0);
+      resolveMedia(nextScreen, pl, 0, { skipDbUpdate: true });
+    };
+
+    const interval = setInterval(() => {
+      syncScreenState().catch(() => {});
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [screenId, previewOnly, fetchPlaylist, fetchSchedules, resolveMedia, updatePlaylist]);
+
   // Playlist advancement timer — only in NORMAL mode (not preview)
   useEffect(() => {
     if (previewOnly) return; // Preview follows DB state, no local timer
