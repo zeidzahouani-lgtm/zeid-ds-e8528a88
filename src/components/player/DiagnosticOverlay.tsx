@@ -330,10 +330,6 @@ function DiagnosticHUD(props: DiagnosticProps) {
 }
 
 export default function DiagnosticOverlay(props: DiagnosticProps) {
-  if (props.mode === "hud") {
-    return <DiagnosticHUD {...props} />;
-  }
-
   var info = getBrowserInfo();
   var features = checkFeatureSupport();
   var logsRef = useRef<LogEntry[]>([]);
@@ -442,6 +438,10 @@ export default function DiagnosticOverlay(props: DiagnosticProps) {
   };
 
   var memInfo = (performance as any).memory;
+
+  if (props.mode === "hud") {
+    return <DiagnosticHUD {...props} />;
+  }
 
   return (
     <div style={panelStyle}>
