@@ -631,6 +631,7 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Arra
 export default function Player() {
   const { id } = useParams<{ id: string }>();
   const debugMode = typeof window !== "undefined" && window.location.search.indexOf("debug=1") >= 0;
+  const hudMode = typeof window !== "undefined" && window.location.search.indexOf("debug=2") >= 0;
   const previewMode = typeof window !== "undefined" && window.location.search.indexOf("preview=1") >= 0;
   const { screen, media, loading, sessionBlocked, forceTakeover, playlistLength, currentIndex, currentDuration, layoutId } = useScreenRealtime(id, { previewOnly: previewMode });
   const activeContents = useActiveContents(screen?.id);
@@ -723,10 +724,28 @@ export default function Player() {
 
   const playerBgStyle: React.CSSProperties = { backgroundColor: branding.bgColor };
 
+  // Build enriched diagnostic props
+  const diagBaseProps = {
+    screenId: screen?.id, screenName: screen?.name, screenStatus: screen?.status,
+    mediaId: media ? media.id : null, mediaType: media ? media.type : null,
+    mediaUrl: media ? media.url : null, layoutId: layoutId,
+    playlistLength: playlistLength, currentIndex: currentIndex,
+    sessionBlocked: sessionBlocked, licenseValid: licenseValid,
+    orientation: screen?.orientation,
+    activeContentsCount: activeContents.length,
+    layoutRegionsEmpty: null as boolean | null,
+    hasPlaylist: !!(screen as any)?.playlist_id,
+    hasProgram: !!(screen as any)?.program_id,
+    currentMediaId: (screen as any)?.current_media_id ?? null,
+    playlistId: (screen as any)?.playlist_id ?? null,
+    programId: (screen as any)?.program_id ?? null,
+  };
+
   if (loading) {
     return (
       <div style={{ ...playerBgStyle, position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        {debugMode && <DiagnosticOverlay screenId={id} screenName={undefined} screenStatus={undefined} mediaId={null} mediaType={null} mediaUrl={null} layoutId={null} playlistLength={0} currentIndex={0} sessionBlocked={false} licenseValid={null} orientation={undefined} />}
+        {debugMode && <DiagnosticOverlay {...diagBaseProps} />}
+        {hudMode && <DiagnosticOverlay {...diagBaseProps} mode="hud" />}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
           <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} />
           <MonitorPlay style={{ height: 48, width: 48, color: "#3b82f6" }} />
@@ -805,7 +824,8 @@ export default function Player() {
   if (layoutId && !media && activeContents.length === 0) {
     return (
       <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", inset: 0, overflow: "hidden", cursor: "none" }} onClick={requestFullscreen}>
-        {debugMode && <DiagnosticOverlay screenId={screen.id} screenName={screen.name} screenStatus={screen.status} mediaId={null} mediaType={null} mediaUrl={null} layoutId={layoutId} playlistLength={playlistLength} currentIndex={currentIndex} sessionBlocked={sessionBlocked} licenseValid={licenseValid} orientation={screen.orientation} />}
+        {debugMode && <DiagnosticOverlay {...diagBaseProps} />}
+        {hudMode && <DiagnosticOverlay {...diagBaseProps} mode="hud" />}
         <LayoutRenderer
           layoutId={layoutId}
           screenOrientation={screen.orientation}
@@ -822,18 +842,10 @@ export default function Player() {
 
   const rotationStyle = getOrientationStyle(screen.orientation);
 
-  var diagProps = {
-    screenId: screen.id, screenName: screen.name, screenStatus: screen.status,
-    mediaId: media ? media.id : null, mediaType: media ? media.type : null,
-    mediaUrl: media ? media.url : null, layoutId: layoutId,
-    playlistLength: playlistLength, currentIndex: currentIndex,
-    sessionBlocked: sessionBlocked, licenseValid: licenseValid,
-    orientation: screen.orientation,
-  };
-
   return (
     <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", inset: 0, overflow: "hidden", cursor: "none" }} onClick={requestFullscreen}>
-      {debugMode && <DiagnosticOverlay {...diagProps} />}
+      {debugMode && <DiagnosticOverlay {...diagBaseProps} />}
+      {hudMode && <DiagnosticOverlay {...diagBaseProps} mode="hud" />}
       <div style={{ width: "100%", height: "100%", transition: "transform 0.7s ease-in-out", ...rotationStyle }}>
         <div style={{ width: "100%", height: "100%", transition: "opacity 0.5s ease-in-out", opacity: visible ? 1 : 0 }}>
           {/* Fallback screen */}
