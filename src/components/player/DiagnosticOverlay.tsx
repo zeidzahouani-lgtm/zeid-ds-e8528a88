@@ -13,12 +13,122 @@ interface DiagnosticProps {
   sessionBlocked: boolean;
   licenseValid: boolean | null;
   orientation: string | undefined;
+  // Fallback decision context
+  activeContentsCount?: number;
+  layoutRegionsEmpty?: boolean | null;
+  hasPlaylist?: boolean;
+  hasProgram?: boolean;
+  currentMediaId?: string | null;
+  playlistId?: string | null;
+  programId?: string | null;
+  mode?: "full" | "hud";
 }
 
 interface LogEntry {
   time: string;
   level: "info" | "warn" | "error";
   msg: string;
+}
+
+interface FallbackDecisionStep {
+  label: string;
+  value: string;
+  status: "ok" | "warn" | "error" | "info" | "active";
+  detail?: string;
+}
+
+function buildFallbackDecisionTree(props: DiagnosticProps): { steps: FallbackDecisionStep[]; verdict: string; verdictColor: string } {
+  const steps: FallbackDecisionStep[] = [];
+
+  // Step 1: License
+  steps.push({
+    label: "Licence valide",
+    value: props.licenseValid === null ? "En vérification..." : props.licenseValid ? "Oui" : "Non",
+    status: props.licenseValid === null ? "warn" : props.licenseValid ? "ok" : "error",
+    detail: !props.licenseValid && props.licenseValid !== null ? "→ Écran de licence affiché, pas de contenu" : undefined,
+  });
+
+  if (props.licenseValid === false) {
+    return { steps, verdict: "Écran de licence (licence invalide)", verdictColor: "#ef4444" };
+  }
+
+  // Step 2: Session
+  steps.push({
+    label: "Session non bloquée",
+    value: props.sessionBlocked ? "Bloquée" : "OK",
+    status: props.sessionBlocked ? "error" : "ok",
+    detail: props.sessionBlocked ? "→ Écran 'déjà actif' affiché" : undefined,
+  });
+
+  if (props.sessionBlocked) {
+    return { steps, verdict: "Écran bloqué (session active ailleurs)", verdictColor: "#ef4444" };
+  }
+
+  // Step 3: Layout assigned?
+  const hasLayout = !!props.layoutId;
+  const hasMedia = !!props.mediaId;
+  const hasActiveContents = (props.activeContentsCount ?? 0) > 0;
+
+  steps.push({
+    label: "Layout assigné",
+    value: hasLayout ? `Oui (${props.layoutId?.slice(0, 8)}...)` : "Non",
+    status: hasLayout ? "info" : "info",
+    detail: hasLayout ? "Le layout est prioritaire quand aucun média/contenu direct" : undefined,
+  });
+
+  // Step 4: Media/playlist/contents
+  steps.push({
+    label: "Média direct (current_media)",
+    value: props.currentMediaId ? `${props.currentMediaId.slice(0, 8)}...` : "Aucun",
+    status: props.currentMediaId ? "ok" : "warn",
+  });
+
+  steps.push({
+    label: "Playlist assignée",
+    value: props.hasPlaylist ? `Oui (${props.playlistLength} item(s))` : "Non",
+    status: props.hasPlaylist ? "ok" : "warn",
+  });
+
+  steps.push({
+    label: "Programme/planification",
+    value: props.hasProgram ? "Oui" : "Non",
+    status: props.hasProgram ? "ok" : "warn",
+  });
+
+  steps.push({
+    label: "Contenus actifs (upload QR)",
+    value: `${props.activeContentsCount ?? 0}`,
+    status: hasActiveContents ? "ok" : "warn",
+  });
+
+  // Step 5: Resolved media
+  steps.push({
+    label: "Média résolu pour affichage",
+    value: hasMedia ? `${props.mediaType} — ${props.mediaId?.slice(0, 8)}...` : "Aucun",
+    status: hasMedia ? "ok" : "error",
+    detail: hasMedia ? undefined : "Aucun contenu résolu → fallback activé",
+  });
+
+  // Step 6: Layout regions check
+  if (hasLayout && !hasMedia && !hasActiveContents) {
+    steps.push({
+      label: "Régions du layout",
+      value: props.layoutRegionsEmpty === null ? "Chargement..." : props.layoutRegionsEmpty ? "Toutes vides" : "Avec contenu",
+      status: props.layoutRegionsEmpty ? "error" : "ok",
+      detail: props.layoutRegionsEmpty ? "Toutes les zones sont vides → fallback QR" : "Le layout s'affiche avec ses zones",
+    });
+  }
+
+  // Verdict
+  if (hasMedia || hasActiveContents) {
+    return { steps, verdict: "✓ Contenu affiché normalement", verdictColor: "#22c55e" };
+  }
+
+  if (hasLayout && props.layoutRegionsEmpty === false) {
+    return { steps, verdict: "✓ Layout affiché avec zones actives", verdictColor: "#22c55e" };
+  }
+
+  return { steps, verdict: "↳ FALLBACK activé — QR code affiché", verdictColor: "#f59e0b" };
 }
 
 function getBrowserInfo() {
@@ -122,6 +232,102 @@ var badgeWarn: React.CSSProperties = {
   color: "#f59e0b",
   fontWeight: 700,
 };
+
+function DiagnosticHUD(props: DiagnosticProps) {
+  const { verdict, verdictColor } = buildFallbackDecisionTree(props);
+  const [expanded, setExpanded] = useState(false);
+
+  const hudStyle: React.CSSProperties = {
+    position: "fixed",
+    top: 8,
+    right: 8,
+    zIndex: 99999,
+    fontFamily: "monospace",
+    fontSize: 11,
+    userSelect: "none",
+  };
+
+  const badgeStyle: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "6px 12px",
+    borderRadius: 6,
+    backgroundColor: "rgba(0,0,0,0.85)",
+    border: `1px solid ${verdictColor}40`,
+    color: verdictColor,
+    fontWeight: 700,
+    cursor: "pointer",
+    backdropFilter: "blur(8px)",
+  };
+
+  if (!expanded) {
+    return (
+      <div style={hudStyle}>
+        <div style={badgeStyle} onClick={() => setExpanded(true)}>
+          <span style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: verdictColor, display: "inline-block" }} />
+          {props.mediaId ? "LIVE" : "FALLBACK"}
+          <span style={{ color: "#6b7280", fontWeight: 400, marginLeft: 4 }}>▼</span>
+        </div>
+      </div>
+    );
+  }
+
+  const { steps } = buildFallbackDecisionTree(props);
+  const statusColors: Record<string, string> = { ok: "#22c55e", warn: "#f59e0b", error: "#ef4444", info: "#60a5fa", active: "#a78bfa" };
+
+  return (
+    <div style={hudStyle}>
+      <div style={{
+        backgroundColor: "rgba(0,0,0,0.92)",
+        border: "1px solid rgba(255,255,255,0.1)",
+        borderRadius: 8,
+        padding: 12,
+        minWidth: 320,
+        maxWidth: 420,
+        backdropFilter: "blur(12px)",
+        color: "#e5e7eb",
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#f59e0b" }}>🔍 DIAGNOSTIC FALLBACK</span>
+          <span style={{ cursor: "pointer", color: "#6b7280", fontSize: 14 }} onClick={() => setExpanded(false)}>✕</span>
+        </div>
+
+        {steps.map((step, i) => (
+          <div key={i} style={{ padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ color: "#9ca3af" }}>{step.label}</span>
+              <span style={{ color: statusColors[step.status] || "#e5e7eb", fontWeight: 600 }}>{step.value}</span>
+            </div>
+            {step.detail && (
+              <div style={{ fontSize: 10, color: statusColors[step.status] || "#6b7280", marginTop: 2, paddingLeft: 8 }}>
+                {step.detail}
+              </div>
+            )}
+          </div>
+        ))}
+
+        <div style={{
+          marginTop: 10,
+          padding: "8px 10px",
+          borderRadius: 6,
+          backgroundColor: `${verdictColor}15`,
+          border: `1px solid ${verdictColor}30`,
+          color: verdictColor,
+          fontWeight: 700,
+          fontSize: 12,
+          textAlign: "center",
+        }}>
+          {verdict}
+        </div>
+
+        <div style={{ marginTop: 8, fontSize: 10, color: "#6b7280", textAlign: "center" }}>
+          {props.screenName} • {props.orientation} • Uptime {new Date().toLocaleTimeString()}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function DiagnosticOverlay(props: DiagnosticProps) {
   var info = getBrowserInfo();
@@ -233,6 +439,10 @@ export default function DiagnosticOverlay(props: DiagnosticProps) {
 
   var memInfo = (performance as any).memory;
 
+  if (props.mode === "hud") {
+    return <DiagnosticHUD {...props} />;
+  }
+
   return (
     <div style={panelStyle}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -326,6 +536,45 @@ export default function DiagnosticOverlay(props: DiagnosticProps) {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Fallback Decision Tree */}
+      <div style={sectionStyle}>
+        <div style={headingStyle}>🔍 Arbre de décision Fallback</div>
+        {(() => {
+          const { steps, verdict, verdictColor } = buildFallbackDecisionTree(props);
+          const statusColors: Record<string, string> = { ok: "#22c55e", warn: "#f59e0b", error: "#ef4444", info: "#60a5fa", active: "#a78bfa" };
+          return (
+            <>
+              {steps.map((step, i) => (
+                <div key={i}>
+                  <div style={rowStyle}>
+                    <span>{step.label}</span>
+                    <span style={{ color: statusColors[step.status] || "#e5e7eb", fontWeight: 700 }}>{step.value}</span>
+                  </div>
+                  {step.detail && (
+                    <div style={{ fontSize: 10, color: statusColors[step.status] || "#6b7280", paddingLeft: 12, paddingBottom: 4 }}>
+                      {step.detail}
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div style={{
+                marginTop: 10,
+                padding: "8px 12px",
+                borderRadius: 6,
+                backgroundColor: `${verdictColor}20`,
+                border: `1px solid ${verdictColor}40`,
+                color: verdictColor,
+                fontWeight: 700,
+                fontSize: 13,
+                textAlign: "center",
+              }}>
+                {verdict}
+              </div>
+            </>
+          );
+        })()}
       </div>
 
       {/* Feature Support */}
