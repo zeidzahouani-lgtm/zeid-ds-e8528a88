@@ -881,6 +881,8 @@ export type Database = {
           current_media_id: string | null
           debug_mode: number
           establishment_id: string | null
+          fallback_notified: boolean
+          fallback_since: string | null
           id: string
           layout_id: string | null
           name: string
@@ -902,6 +904,8 @@ export type Database = {
           current_media_id?: string | null
           debug_mode?: number
           establishment_id?: string | null
+          fallback_notified?: boolean
+          fallback_since?: string | null
           id?: string
           layout_id?: string | null
           name: string
@@ -923,6 +927,8 @@ export type Database = {
           current_media_id?: string | null
           debug_mode?: number
           establishment_id?: string | null
+          fallback_notified?: boolean
+          fallback_since?: string | null
           id?: string
           layout_id?: string | null
           name?: string
@@ -1032,6 +1038,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_fallback_alerts: { Args: never; Returns: undefined }
       establishment_role: {
         Args: { _establishment_id: string; _user_id: string }
         Returns: string
