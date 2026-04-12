@@ -632,11 +632,11 @@ export default function Player() {
   const { id } = useParams<{ id: string }>();
   const urlDebug1 = typeof window !== "undefined" && window.location.search.indexOf("debug=1") >= 0;
   const urlDebug2 = typeof window !== "undefined" && window.location.search.indexOf("debug=2") >= 0;
+  const previewMode = typeof window !== "undefined" && window.location.search.indexOf("preview=1") >= 0;
+  const { screen, media, loading, sessionBlocked, forceTakeover, playlistLength, currentIndex, currentDuration, layoutId } = useScreenRealtime(id, { previewOnly: previewMode });
   const remoteDebugMode = (screen as any)?.debug_mode ?? 0;
   const debugMode = urlDebug1 || remoteDebugMode === 1;
   const hudMode = urlDebug2 || remoteDebugMode === 2;
-  const previewMode = typeof window !== "undefined" && window.location.search.indexOf("preview=1") >= 0;
-  const { screen, media, loading, sessionBlocked, forceTakeover, playlistLength, currentIndex, currentDuration, layoutId } = useScreenRealtime(id, { previewOnly: previewMode });
   const activeContents = useActiveContents(screen?.id);
   const branding = usePlayerBranding(screen?.id);
   const [visible, setVisible] = useState(true);
