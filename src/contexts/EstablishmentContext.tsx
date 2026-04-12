@@ -14,19 +14,13 @@ interface EstablishmentMembership {
 }
 
 interface EstablishmentContextType {
-  /** The currently active establishment ID */
   currentEstablishmentId: string | null;
-  /** Set the active establishment */
   setCurrentEstablishmentId: (id: string | null) => void;
-  /** All establishments the user belongs to */
   memberships: EstablishmentMembership[];
-  /** Whether the user is a global admin */
   isGlobalAdmin: boolean;
-  /** Whether the user is an admin of the current establishment */
   isEstablishmentAdmin: boolean;
-  /** The role in the current establishment */
+  isMarketing: boolean;
   currentRole: string | null;
-  /** Loading state */
   isLoading: boolean;
 }
 
@@ -36,6 +30,7 @@ const EstablishmentContext = createContext<EstablishmentContextType>({
   memberships: [],
   isGlobalAdmin: false,
   isEstablishmentAdmin: false,
+  isMarketing: false,
   currentRole: null,
   isLoading: true,
 });
@@ -44,19 +39,21 @@ export function EstablishmentProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [currentEstablishmentId, setCurrentEstablishmentId] = useState<string | null>(null);
 
-  // Check global admin role
-  const { data: isGlobalAdmin = false, isLoading: loadingAdmin } = useQuery({
-    queryKey: ["global_admin_check", user?.id],
+  // Check global roles
+  const { data: userGlobalRoles = [], isLoading: loadingAdmin } = useQuery({
+    queryKey: ["global_roles_check", user?.id],
     enabled: !!user,
     queryFn: async () => {
       const { data } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", user!.id)
-        .eq("role", "admin");
-      return (data?.length ?? 0) > 0;
+        .eq("user_id", user!.id);
+      return (data || []).map(r => r.role);
     },
   });
+
+  const isGlobalAdmin = userGlobalRoles.includes("admin");
+  const isMarketing = userGlobalRoles.includes("marketing" as any);
 
   // Fetch user's establishment memberships
   const { data: memberships = [], isLoading: loadingMemberships } = useQuery({
@@ -125,6 +122,7 @@ export function EstablishmentProvider({ children }: { children: ReactNode }) {
         memberships,
         isGlobalAdmin,
         isEstablishmentAdmin,
+        isMarketing,
         currentRole,
         isLoading: loadingAdmin || loadingMemberships,
       }}
