@@ -2,10 +2,11 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { MonitorPlay } from "lucide-react";
 import { toast } from "sonner";
+import { PasswordInput } from "@/components/PasswordInput";
+import { validatePassword } from "@/lib/password-validation";
 
 export default function ResetPassword() {
   const [password, setPassword] = useState("");
@@ -22,6 +23,11 @@ export default function ResetPassword() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const pwCheck = validatePassword(password);
+    if (!pwCheck.valid) {
+      toast.error("Mot de passe invalide : " + pwCheck.errors.join(", "));
+      return;
+    }
     setLoading(true);
     try {
       const { error } = await supabase.auth.updateUser({ password });
@@ -46,15 +52,8 @@ export default function ResetPassword() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            type="password"
-            placeholder="Nouveau mot de passe"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-          />
-          <Button type="submit" className="w-full" disabled={loading}>
+          <PasswordInput value={password} onChange={setPassword} />
+          <Button type="submit" className="w-full" disabled={loading || !validatePassword(password).valid}>
             {loading ? "Mise à jour..." : "Mettre à jour"}
           </Button>
         </form>

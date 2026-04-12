@@ -5,6 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/PasswordInput";
+import { validatePassword } from "@/lib/password-validation";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Users, Shield, ShieldCheck, UserPlus, Building2, X, RefreshCw, CheckCircle2, CircleDashed, KeyRound, Pencil, Trash2, Megaphone } from "lucide-react";
@@ -115,8 +117,9 @@ export default function AdminUsers() {
       if (!emailRegex.test(email)) {
         throw new Error("Veuillez saisir un email valide (ex: nom@domaine.com)");
       }
-      if (password.length < 6) {
-        throw new Error("Le mot de passe doit contenir au moins 6 caractères");
+      const pwValidation = validatePassword(password);
+      if (!pwValidation.valid) {
+        throw new Error("Mot de passe invalide : " + pwValidation.errors.join(", "));
       }
 
       const res = await supabase.functions.invoke("invite-user", {
@@ -412,7 +415,9 @@ export default function AdminUsers() {
             </div>
             <div>
               <label className="text-sm font-medium">Mot de passe</label>
-              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Min. 6 caractères" className="mt-1" />
+              <div className="mt-1">
+                <PasswordInput value={newPassword} onChange={setNewPassword} />
+              </div>
             </div>
             <div>
               <label className="text-sm font-medium">Établissement (optionnel)</label>
@@ -501,13 +506,9 @@ export default function AdminUsers() {
           <div className="space-y-3">
             <div>
               <label className="text-sm font-medium">Nouveau mot de passe</label>
-              <Input
-                type="password"
-                value={newPasswordValue}
-                onChange={(e) => setNewPasswordValue(e.target.value)}
-                placeholder="Min. 6 caractères"
-                className="mt-1"
-              />
+              <div className="mt-1">
+                <PasswordInput value={newPasswordValue} onChange={setNewPasswordValue} />
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -516,11 +517,11 @@ export default function AdminUsers() {
             </Button>
             <Button
               onClick={() => {
-                if (showPasswordDialog?.email && newPasswordValue.length >= 6) {
+                if (showPasswordDialog?.email && validatePassword(newPasswordValue).valid) {
                   updatePassword.mutate({ email: showPasswordDialog.email, password: newPasswordValue });
                 }
               }}
-              disabled={newPasswordValue.length < 6 || updatePassword.isPending}
+              disabled={!validatePassword(newPasswordValue).valid || updatePassword.isPending}
             >
               {updatePassword.isPending ? "Mise à jour..." : "Mettre à jour"}
             </Button>

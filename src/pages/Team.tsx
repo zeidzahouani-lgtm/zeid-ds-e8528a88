@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/PasswordInput";
+import { validatePassword } from "@/lib/password-validation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
@@ -90,6 +92,11 @@ export default function Team() {
   const handleInvite = async () => {
     if (!email || !password) {
       toast({ title: "Champs requis", description: "Email et mot de passe sont obligatoires.", variant: "destructive" });
+      return;
+    }
+    const pwCheck = validatePassword(password);
+    if (!pwCheck.valid) {
+      toast({ title: "Mot de passe invalide", description: pwCheck.errors.join(", "), variant: "destructive" });
       return;
     }
     setInviting(true);
@@ -183,7 +190,7 @@ export default function Team() {
             </div>
             <div className="space-y-2">
               <Label>Mot de passe</Label>
-              <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min. 6 caractères" />
+              <PasswordInput value={password} onChange={setPassword} />
             </div>
           </div>
           <DialogFooter>
