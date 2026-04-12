@@ -1,0 +1,3 @@
+ALTER TABLE public.schedules
+  ADD COLUMN IF NOT EXISTS start_date date DEFAULT NULL,
+  ADD COLUMN IF NOT EXISTS end_date date DEFAULT NULL;

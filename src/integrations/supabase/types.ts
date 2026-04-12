@@ -822,33 +822,39 @@ export type Database = {
           active: boolean
           created_at: string
           days_of_week: number[]
+          end_date: string | null
           end_time: string
           id: string
           media_id: string | null
           program_id: string | null
           screen_id: string | null
+          start_date: string | null
           start_time: string
         }
         Insert: {
           active?: boolean
           created_at?: string
           days_of_week?: number[]
+          end_date?: string | null
           end_time?: string
           id?: string
           media_id?: string | null
           program_id?: string | null
           screen_id?: string | null
+          start_date?: string | null
           start_time?: string
         }
         Update: {
           active?: boolean
           created_at?: string
           days_of_week?: number[]
+          end_date?: string | null
           end_time?: string
           id?: string
           media_id?: string | null
           program_id?: string | null
           screen_id?: string | null
+          start_date?: string | null
           start_time?: string
         }
         Relationships: [
