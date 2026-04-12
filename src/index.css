@@ -8,52 +8,52 @@
   :root {
     /* === MODERN LIGHT BRIGHT === */
     --background: 220 20% 97%;
-    --foreground: 220 25% 18%;
+    --foreground: 220 30% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 25% 18%;
+    --card-foreground: 220 30% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 25% 18%;
+    --popover-foreground: 220 30% 12%;
 
-    --primary: 210 85% 55%;
+    --primary: 210 85% 50%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 220 18% 93%;
-    --secondary-foreground: 220 20% 30%;
+    --secondary-foreground: 220 25% 22%;
 
     --muted: 220 16% 94%;
-    --muted-foreground: 220 10% 48%;
+    --muted-foreground: 220 12% 40%;
 
-    --accent: 174 60% 45%;
+    --accent: 174 60% 40%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 55%;
+    --destructive: 0 72% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 14% 90%;
-    --input: 220 14% 90%;
-    --ring: 210 85% 55%;
+    --border: 220 14% 88%;
+    --input: 220 14% 88%;
+    --ring: 210 85% 50%;
 
     --radius: 0.75rem;
 
     /* Gradient tokens */
-    --gradient-start: 210 85% 55%;
-    --gradient-end: 174 60% 45%;
+    --gradient-start: 210 85% 50%;
+    --gradient-end: 174 60% 40%;
 
     /* Sidebar */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 220 15% 42%;
-    --sidebar-primary: 210 85% 55%;
+    --sidebar-foreground: 220 20% 32%;
+    --sidebar-primary: 210 85% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 174 60% 45%;
+    --sidebar-accent: 174 60% 40%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 220 14% 92%;
-    --sidebar-ring: 210 85% 55%;
+    --sidebar-border: 220 14% 90%;
+    --sidebar-ring: 210 85% 50%;
 
     /* Status */
-    --status-online: 152 65% 42%;
-    --status-offline: 220 10% 65%;
+    --status-online: 152 65% 38%;
+    --status-offline: 220 10% 60%;
     --surface-elevated: 0 0% 100%;
 
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
