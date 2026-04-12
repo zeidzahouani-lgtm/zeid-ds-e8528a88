@@ -197,6 +197,83 @@ export function ScheduleCalendar({ schedules, media, onAdd, onDelete, onUpdate, 
 
   // Custom day rendering for drop targets
   const calendarContainerRef = useRef<HTMLDivElement>(null);
+  const [hoveredDropDay, setHoveredDropDay] = useState<string | null>(null);
+
+  // Find the date from a day button element in the calendar
+  const getDateFromDayButton = useCallback((element: HTMLElement): string | null => {
+    const button = element.closest("button[name='day']") as HTMLButtonElement | null;
+    if (!button) return null;
+    // react-day-picker stores the date in aria-label or we can parse from the button's text + current month
+    // More reliable: traverse up to find the table cell, check the date from the grid position
+    const dateAttr = button.getAttribute("aria-label");
+    if (dateAttr) {
+      try {
+        // Parse French date from aria-label (e.g., "lundi 13 avril 2026")
+        const parsed = parseFrenchDate(dateAttr);
+        if (parsed) return parsed;
+      } catch {}
+    }
+    return null;
+  }, []);
+
+  // Parse a French date string from aria-label
+  const parseFrenchDate = (label: string): string | null => {
+    const months: Record<string, number> = {
+      "janvier": 0, "février": 1, "mars": 2, "avril": 3, "mai": 4, "juin": 5,
+      "juillet": 6, "août": 7, "septembre": 8, "octobre": 9, "novembre": 10, "décembre": 11,
+    };
+    // Pattern: "day_name DD month YYYY"
+    const match = label.match(/(\d{1,2})\s+([\wéû]+)\s+(\d{4})/);
+    if (!match) return null;
+    const day = parseInt(match[1], 10);
+    const monthStr = match[2].toLowerCase();
+    const year = parseInt(match[3], 10);
+    const monthNum = months[monthStr];
+    if (monthNum === undefined) return null;
+    const d = new Date(year, monthNum, day);
+    return format(d, "yyyy-MM-dd");
+  };
+
+  // Attach dragover/drop listeners to the calendar container
+  useEffect(() => {
+    const container = calendarContainerRef.current;
+    if (!container) return;
+
+    const handleContainerDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+      const target = e.target as HTMLElement;
+      const dateStr = getDateFromDayButton(target);
+      setHoveredDropDay(dateStr);
+    };
+
+    const handleContainerDragLeave = (e: DragEvent) => {
+      // Only reset if leaving the container entirely
+      if (!container.contains(e.relatedTarget as Node)) {
+        setHoveredDropDay(null);
+      }
+    };
+
+    const handleContainerDrop = (e: DragEvent) => {
+      e.preventDefault();
+      const target = e.target as HTMLElement;
+      const dateStr = getDateFromDayButton(target);
+      if (dateStr && draggedSchedule) {
+        handleDrop(dateStr);
+      }
+      setHoveredDropDay(null);
+    };
+
+    container.addEventListener("dragover", handleContainerDragOver);
+    container.addEventListener("dragleave", handleContainerDragLeave);
+    container.addEventListener("drop", handleContainerDrop);
+
+    return () => {
+      container.removeEventListener("dragover", handleContainerDragOver);
+      container.removeEventListener("dragleave", handleContainerDragLeave);
+      container.removeEventListener("drop", handleContainerDrop);
+    };
+  }, [draggedSchedule, handleDrop, getDateFromDayButton]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr] gap-6">
@@ -207,12 +284,7 @@ export function ScheduleCalendar({ schedules, media, onAdd, onDelete, onUpdate, 
             mode="single"
             selected={selectedDate}
             onSelect={(date) => {
-              // If we're in a drag operation and dropping on a calendar day
-              if (draggedSchedule && date) {
-                const dateStr = format(date, "yyyy-MM-dd");
-                handleDrop(dateStr);
-                return;
-              }
+              if (draggedSchedule) return; // Ignore clicks during drag
               setSelectedDate(date);
             }}
             locale={fr}
@@ -225,9 +297,11 @@ export function ScheduleCalendar({ schedules, media, onAdd, onDelete, onUpdate, 
             }}
           />
           {draggedSchedule && (
-            <div className="absolute inset-0 bg-primary/5 rounded-lg border-2 border-dashed border-primary/30 pointer-events-none flex items-end justify-center pb-2">
-              <p className="text-xs text-primary font-medium bg-background/90 px-2 py-1 rounded">
-                Déposez sur un jour du calendrier
+            <div className="absolute inset-0 rounded-lg border-2 border-dashed border-primary/30 pointer-events-none flex items-end justify-center pb-2">
+              <p className="text-xs text-primary font-medium bg-background/90 px-2 py-1 rounded shadow-sm">
+                {hoveredDropDay
+                  ? `Déposer sur le ${hoveredDropDay.split("-").reverse().join("/")}`
+                  : "Déposez sur un jour du calendrier"}
               </p>
             </div>
           )}
