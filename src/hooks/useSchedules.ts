@@ -9,6 +9,8 @@ export interface Schedule {
   start_time: string;
   end_time: string;
   days_of_week: number[];
+  start_date: string | null;
+  end_date: string | null;
   active: boolean;
   created_at: string;
   media?: { id: string; name: string; type: string; url: string } | null;
@@ -38,10 +40,12 @@ export function useSchedules(programId?: string) {
       start_time: string;
       end_time: string;
       days_of_week: number[];
+      start_date?: string | null;
+      end_date?: string | null;
     }) => {
       const { error } = await supabase
         .from("schedules")
-        .insert({ ...schedule, program_id: programId! });
+        .insert({ ...schedule, program_id: programId! } as any);
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
