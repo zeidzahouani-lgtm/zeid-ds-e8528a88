@@ -287,14 +287,32 @@ function AdminDashboardContent() {
               <p className="text-xs text-muted-foreground text-center py-4">Aucun écran</p>
             ) : (
               <div className="space-y-1">
-                {stats.screenUptimeRanking.slice(0, 6).map((screen, i) => (
+                {stats.screenUptimeRanking.slice(0, 6).map((screen, i) => {
+                  // Uptime: time since last seen (proxy for availability)
+                  const uptimeLabel = screen.lastSeen
+                    ? (() => {
+                        const diffMs = Date.now() - new Date(screen.lastSeen).getTime();
+                        if (diffMs < 120_000) return "Actif maintenant";
+                        const mins = Math.floor(diffMs / 60_000);
+                        if (mins < 60) return `Vu il y a ${mins}min`;
+                        const hrs = Math.floor(mins / 60);
+                        if (hrs < 24) return `Vu il y a ${hrs}h`;
+                        const days = Math.floor(hrs / 24);
+                        return `Vu il y a ${days}j`;
+                      })()
+                    : "Jamais connecté";
+
+                  return (
                   <div key={screen.id} className="flex items-center gap-3 py-1.5 px-2 rounded-lg bg-secondary/20 hover:bg-secondary/40 transition-colors">
                     <span className={`text-xs font-bold font-mono w-5 text-center ${i === 0 ? "text-yellow-500" : i === 1 ? "text-muted-foreground" : i === 2 ? "text-amber-700" : "text-muted-foreground/50"}`}>
                       #{i + 1}
                     </span>
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <Tv className="h-3.5 w-3.5 text-primary shrink-0" />
-                      <span className="text-sm truncate">{screen.name}</span>
+                      <div className="min-w-0">
+                        <span className="text-sm truncate block">{screen.name}</span>
+                        <span className="text-[9px] text-muted-foreground">{uptimeLabel}</span>
+                      </div>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       {screen.fallbackSince ? (
@@ -313,7 +331,8 @@ function AdminDashboardContent() {
                       )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
