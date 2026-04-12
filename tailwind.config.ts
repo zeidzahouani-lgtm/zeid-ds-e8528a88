@@ -14,8 +14,18 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Plus Jakarta Sans", "system-ui", "-apple-system", "sans-serif"],
+        sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
         mono: ["JetBrains Mono", "monospace"],
+      },
+      fontSize: {
+        xs: ["0.8125rem", { lineHeight: "1.5" }],
+        sm: ["0.9rem", { lineHeight: "1.55" }],
+        base: ["1rem", { lineHeight: "1.6" }],
+        lg: ["1.125rem", { lineHeight: "1.5" }],
+        xl: ["1.25rem", { lineHeight: "1.4" }],
+        "2xl": ["1.5rem", { lineHeight: "1.35" }],
+        "3xl": ["1.875rem", { lineHeight: "1.3" }],
+        "4xl": ["2.25rem", { lineHeight: "1.2" }],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -81,6 +91,10 @@ export default {
         xl: "calc(var(--radius) + 4px)",
         "2xl": "calc(var(--radius) + 8px)",
       },
+      spacing: {
+        "4.5": "1.125rem",
+        "18": "4.5rem",
+      },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },
@@ -116,13 +130,16 @@ export default {
         "shimmer": "shimmer 2s linear infinite",
       },
       boxShadow: {
-        "neon-cyan": "0 0 16px hsl(192 95% 55% / 0.2), 0 0 32px hsl(192 95% 55% / 0.08)",
-        "neon-violet": "0 0 16px hsl(210 100% 56% / 0.2), 0 0 32px hsl(210 100% 56% / 0.08)",
-        "neon-pink": "0 0 16px hsl(192 95% 55% / 0.2), 0 0 32px hsl(192 95% 55% / 0.08)",
-        "glass": "0 8px 32px hsl(222 47% 5% / 0.3), inset 0 1px 0 hsl(213 20% 90% / 0.04)",
-        "glass-lg": "0 16px 48px hsl(222 47% 5% / 0.4), inset 0 1px 0 hsl(213 20% 90% / 0.05)",
-        "glow-blue": "0 0 20px hsl(210 100% 56% / 0.25), 0 0 40px hsl(210 100% 56% / 0.1)",
-        "glow-cyan": "0 0 20px hsl(192 95% 55% / 0.25), 0 0 40px hsl(192 95% 55% / 0.1)",
+        "soft": "0 1px 3px hsl(220 20% 50% / 0.06), 0 4px 16px hsl(220 20% 50% / 0.04)",
+        "soft-md": "0 2px 8px hsl(220 20% 50% / 0.08), 0 8px 24px hsl(220 20% 50% / 0.05)",
+        "soft-lg": "0 4px 12px hsl(220 20% 50% / 0.1), 0 16px 40px hsl(220 20% 50% / 0.06)",
+        "neon-cyan": "0 0 16px hsl(174 55% 48% / 0.15), 0 0 32px hsl(174 55% 48% / 0.06)",
+        "neon-violet": "0 0 16px hsl(210 85% 55% / 0.15), 0 0 32px hsl(210 85% 55% / 0.06)",
+        "neon-pink": "0 0 16px hsl(174 55% 48% / 0.15), 0 0 32px hsl(174 55% 48% / 0.06)",
+        "glass": "0 4px 24px hsl(220 20% 50% / 0.08), inset 0 1px 0 hsl(0 0% 100% / 0.5)",
+        "glass-lg": "0 8px 32px hsl(220 20% 50% / 0.1), inset 0 1px 0 hsl(0 0% 100% / 0.5)",
+        "glow-blue": "0 0 20px hsl(210 85% 55% / 0.18), 0 0 40px hsl(210 85% 55% / 0.08)",
+        "glow-cyan": "0 0 20px hsl(174 60% 45% / 0.18), 0 0 40px hsl(174 60% 45% / 0.08)",
       },
     },
   },
