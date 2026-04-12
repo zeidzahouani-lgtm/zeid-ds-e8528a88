@@ -1,0 +1,1 @@
+ALTER TABLE public.screens ADD COLUMN debug_mode smallint NOT NULL DEFAULT 0;
