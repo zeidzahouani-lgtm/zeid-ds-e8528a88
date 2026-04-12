@@ -11,7 +11,7 @@ import { useEstablishmentSettings } from "@/hooks/useEstablishmentSettings";
 import BrandingTab from "@/components/settings/BrandingTab";
 
 export default function EstablishmentSettings() {
-  const { currentEstablishmentId, isEstablishmentAdmin, memberships } = useEstablishmentContext();
+  const { currentEstablishmentId, isEstablishmentAdmin, isMarketing, memberships } = useEstablishmentContext();
   const { settings, isLoading, getSetting, upsertSetting } = useEstablishmentSettings();
 
   const currentEst = memberships.find(m => m.establishment_id === currentEstablishmentId);
@@ -48,6 +48,16 @@ export default function EstablishmentSettings() {
       <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
         <Building2 className="h-12 w-12 mb-3 opacity-30" />
         <p className="font-medium">Sélectionnez un établissement</p>
+      </div>
+    );
+  }
+
+  if (isMarketing && !isEstablishmentAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
+        <Settings className="h-12 w-12 mb-3 opacity-30" />
+        <p className="font-medium">Accès restreint</p>
+        <p className="text-sm">Les utilisateurs marketing n'ont pas accès à la personnalisation de l'établissement.</p>
       </div>
     );
   }

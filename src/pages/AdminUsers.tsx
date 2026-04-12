@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { Users, Shield, ShieldCheck, UserPlus, Building2, X, RefreshCw, CheckCircle2, CircleDashed, KeyRound, Pencil, Trash2 } from "lucide-react";
+import { Users, Shield, ShieldCheck, UserPlus, Building2, X, RefreshCw, CheckCircle2, CircleDashed, KeyRound, Pencil, Trash2, Megaphone } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -313,6 +313,8 @@ export default function AdminUsers() {
                   <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
                     {u.roles.includes("admin") ? (
                       <ShieldCheck className="h-4 w-4 text-primary" />
+                    ) : u.roles.includes("marketing") ? (
+                      <Megaphone className="h-4 w-4 text-orange-500" />
                     ) : (
                       <Users className="h-4 w-4 text-muted-foreground" />
                     )}
@@ -372,15 +374,16 @@ export default function AdminUsers() {
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                   <Select
-                    value={u.roles.includes("admin") ? "admin" : "user"}
+                    value={u.roles.includes("admin") ? "admin" : u.roles.includes("marketing") ? "marketing" : "user"}
                     onValueChange={(role) => updateRole.mutate({ userId: u.id, role })}
                     disabled={u.id === user?.id}
                   >
-                    <SelectTrigger className="w-28 h-8 text-xs">
+                    <SelectTrigger className="w-32 h-8 text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="user">Utilisateur</SelectItem>
+                      <SelectItem value="marketing">Marketing</SelectItem>
                       <SelectItem value="admin">Admin</SelectItem>
                     </SelectContent>
                   </Select>
