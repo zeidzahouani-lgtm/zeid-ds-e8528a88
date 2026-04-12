@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import ScreenDetailDialog from "@/components/dashboard/ScreenDetailDialog";
-import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock, RefreshCw, Tv, Power, Eye, ShieldAlert, ShieldOff } from "lucide-react";
+import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock, RefreshCw, Tv, Power, Eye, ShieldAlert, ShieldOff, Bug } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -366,6 +367,29 @@ export function ScreenManager() {
                       <Power className="h-4 w-4" />
                     </Button>
                   )}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        title="Mode diagnostic"
+                        className={((screen as any).debug_mode ?? 0) > 0 ? "text-amber-500 border-amber-500/30 hover:bg-amber-500/10" : ""}
+                      >
+                        <Bug className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => updateScreen.mutate({ id: screen.id, debug_mode: 0 } as any)}>
+                        {((screen as any).debug_mode ?? 0) === 0 && "✓ "}Désactivé
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => updateScreen.mutate({ id: screen.id, debug_mode: 2 } as any)}>
+                        {(screen as any).debug_mode === 2 && "✓ "}HUD discret
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => updateScreen.mutate({ id: screen.id, debug_mode: 1 } as any)}>
+                        {(screen as any).debug_mode === 1 && "✓ "}Complet
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   <Button
                     variant="outline"
                     size="icon"

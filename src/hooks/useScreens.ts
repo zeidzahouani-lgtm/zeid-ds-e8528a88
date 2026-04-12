@@ -75,7 +75,7 @@ export function useScreens() {
   });
 
   const updateScreen = useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string; name?: string; slug?: string; orientation?: string; current_media_id?: string | null; status?: string; layout_id?: string | null }) => {
+    mutationFn: async ({ id, ...updates }: { id: string; name?: string; slug?: string; orientation?: string; current_media_id?: string | null; status?: string; layout_id?: string | null; debug_mode?: number }) => {
       const { error } = await supabase.from("screens").update(updates).eq("id", id);
       if (error) throw error;
     },

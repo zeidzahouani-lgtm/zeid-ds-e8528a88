@@ -879,6 +879,7 @@ export type Database = {
         Row: {
           created_at: string
           current_media_id: string | null
+          debug_mode: number
           establishment_id: string | null
           id: string
           layout_id: string | null
@@ -899,6 +900,7 @@ export type Database = {
         Insert: {
           created_at?: string
           current_media_id?: string | null
+          debug_mode?: number
           establishment_id?: string | null
           id?: string
           layout_id?: string | null
@@ -919,6 +921,7 @@ export type Database = {
         Update: {
           created_at?: string
           current_media_id?: string | null
+          debug_mode?: number
           establishment_id?: string | null
           id?: string
           layout_id?: string | null
