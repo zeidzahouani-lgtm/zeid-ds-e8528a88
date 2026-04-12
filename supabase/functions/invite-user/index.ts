@@ -22,6 +22,9 @@ Deno.serve(async (req) => {
 
     const isServiceRole = authHeader === `Bearer ${serviceRoleKey}`;
 
+    let callerIsAdmin = isServiceRole;
+    let callerUserId: string | null = null;
+
     if (!isServiceRole) {
       const callerClient = createClient(supabaseUrl, anonKey, {
         global: { headers: { Authorization: authHeader } },
@@ -29,10 +32,10 @@ Deno.serve(async (req) => {
       const { data: userData, error: userError } = await callerClient.auth.getUser();
       if (userError || !userData?.user) throw new Error("Not authenticated");
 
-      const userId = userData.user.id;
+      callerUserId = userData.user.id;
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
-      const { data: roleData } = await adminClient.from("user_roles").select("role").eq("user_id", userId).eq("role", "admin");
-      if (!roleData || roleData.length === 0) throw new Error("Not admin");
+      const { data: roleData } = await adminClient.from("user_roles").select("role").eq("user_id", callerUserId).eq("role", "admin");
+      callerIsAdmin = !!(roleData && roleData.length > 0);
     }
 
     const payload = await req.json();
@@ -42,14 +45,16 @@ Deno.serve(async (req) => {
     const updatePassword = payload?.update_password === true;
     const deleteUserFlag = payload?.delete_user === true;
     const deleteUserId = typeof payload?.user_id === "string" ? payload.user_id : "";
+    const requestedRole = typeof payload?.role === "string" ? payload.role : null;
+    const establishmentId = typeof payload?.establishment_id === "string" ? payload.establishment_id : null;
 
     const email = rawEmail.trim().toLowerCase();
 
     // ============ DELETE USER ============
     if (deleteUserFlag) {
+      if (!callerIsAdmin) throw new Error("Not admin");
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-      // Find user by ID or by email
       let targetUserId = deleteUserId;
       if (!targetUserId && email) {
         const { data: profile } = await adminClient.from("profiles").select("id").eq("email", email).maybeSingle();
@@ -57,12 +62,10 @@ Deno.serve(async (req) => {
       }
       if (!targetUserId) throw new Error("Utilisateur introuvable: ID ou email requis");
 
-      // Delete profile, roles, establishments (cascade should handle some, but be explicit)
       await adminClient.from("user_establishments").delete().eq("user_id", targetUserId);
       await adminClient.from("user_roles").delete().eq("user_id", targetUserId);
       await adminClient.from("profiles").delete().eq("id", targetUserId);
 
-      // Delete auth user
       const { error: deleteError } = await adminClient.auth.admin.deleteUser(targetUserId);
       if (deleteError) throw deleteError;
 
@@ -80,6 +83,7 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
     if (updatePassword) {
+      if (!callerIsAdmin) throw new Error("Not admin");
       const { data: { users }, error: listError } = await adminClient.auth.admin.listUsers();
       if (listError) throw listError;
 
@@ -91,7 +95,6 @@ Deno.serve(async (req) => {
       });
       if (updateError) throw updateError;
 
-      // Also update password in vault via webhook
       try {
         const webhookSecret = Deno.env.get("DEVIS_WEBHOOK_SECRET");
         if (webhookSecret) {
@@ -124,6 +127,26 @@ Deno.serve(async (req) => {
       });
     }
 
+    // === Non-admin users can only create marketing accounts for their establishment ===
+    if (!callerIsAdmin) {
+      if (requestedRole !== "marketing") {
+        throw new Error("Seuls les comptes marketing peuvent être créés par un utilisateur non-admin");
+      }
+      if (!establishmentId || !callerUserId) {
+        throw new Error("Établissement requis pour créer un compte marketing");
+      }
+      // Verify caller is member of this establishment
+      const { data: membership } = await adminClient
+        .from("user_establishments")
+        .select("id")
+        .eq("user_id", callerUserId)
+        .eq("establishment_id", establishmentId)
+        .maybeSingle();
+      if (!membership) {
+        throw new Error("Vous n'êtes pas membre de cet établissement");
+      }
+    }
+
     // Create new user
     const { data, error } = await adminClient.auth.admin.createUser({
       email,
@@ -134,11 +157,24 @@ Deno.serve(async (req) => {
 
     if (error) throw error;
 
+    // If a specific role is requested (e.g. marketing), update the role
+    if (requestedRole === "marketing" && data.user) {
+      await adminClient.from("user_roles").update({ role: requestedRole }).eq("user_id", data.user.id);
+    }
+
+    // If establishment_id provided, assign the new user to it
+    if (establishmentId && data.user) {
+      await adminClient.from("user_establishments").insert({
+        user_id: data.user.id,
+        establishment_id: establishmentId,
+        role: "member",
+      });
+    }
+
     // Sync to support-dravox via webhook (fire and forget)
     try {
       const webhookSecret = Deno.env.get("DEVIS_WEBHOOK_SECRET");
       if (webhookSecret) {
-        // 1. Create/update client
         await fetch(WEBHOOK_URL, {
           method: "POST",
           headers: {
@@ -152,7 +188,6 @@ Deno.serve(async (req) => {
           }),
         });
 
-        // 2. Create vault entry with password
         await fetch(WEBHOOK_URL, {
           method: "POST",
           headers: {
