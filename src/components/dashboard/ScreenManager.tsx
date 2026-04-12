@@ -243,6 +243,11 @@ export function ScreenManager() {
                           <WifiOff className="h-3 w-3" /> Hors ligne
                         </Badge>
                       )}
+                      {(screen as any).fallback_since && isScreenReallyOnline(screen) && (
+                        <Badge variant="outline" className="text-yellow-500 border-yellow-500/30 gap-1 text-xs animate-pulse">
+                          <AlertTriangle className="h-3 w-3" /> En fallback
+                        </Badge>
+                      )}
                       {licenseStatuses && !licenseStatuses[screen.id]?.valid && (
                         <Badge variant="outline" className="text-destructive border-destructive/30 gap-1 text-xs">
                           {licenseStatuses[screen.id]?.expired ? (
