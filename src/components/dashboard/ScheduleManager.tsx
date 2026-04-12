@@ -166,6 +166,7 @@ export function ScheduleManager() {
               media={media}
               onAdd={handleCalendarAdd}
               onDelete={(id) => deleteSchedule.mutate(id)}
+              onUpdate={(id, updates) => updateSchedule.mutate({ id, ...updates } as any)}
             />
           </TabsContent>
 
