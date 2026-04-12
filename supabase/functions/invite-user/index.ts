@@ -75,7 +75,11 @@ Deno.serve(async (req) => {
     }
 
     if (!email || !password) throw new Error("Email and password required");
-    if (password.length < 6) throw new Error("Password must be at least 6 characters");
+    if (password.length < 8) throw new Error("Le mot de passe doit contenir au moins 8 caractères");
+    if (!/[A-Z]/.test(password)) throw new Error("Le mot de passe doit contenir au moins une majuscule");
+    if (!/[a-z]/.test(password)) throw new Error("Le mot de passe doit contenir au moins une minuscule");
+    if (!/[0-9]/.test(password)) throw new Error("Le mot de passe doit contenir au moins un chiffre");
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password)) throw new Error("Le mot de passe doit contenir au moins un symbole");
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) throw new Error("Invalid email format");
