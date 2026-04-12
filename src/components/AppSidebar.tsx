@@ -38,11 +38,11 @@ const mainItems = [
 ];
 
 const establishmentAdminItems = [
-  { title: "Utilisateurs", url: "/admin/users", icon: Users, adminOnly: true },
-  { title: "Personnalisation", url: "/admin/customization", icon: Palette, adminOnly: true },
-  { title: "Email", url: "/admin/email", icon: AtSign, adminOnly: true },
-  { title: "Config. Établissement", url: "/admin/establishment-settings", icon: Settings, adminOnly: false },
-  { title: "Ressources", url: "/admin/resources", icon: BookOpen, adminOnly: false },
+  { title: "Utilisateurs", url: "/admin/users", icon: Users, adminOnly: true, hideForMarketing: false },
+  { title: "Personnalisation", url: "/admin/customization", icon: Palette, adminOnly: true, hideForMarketing: true },
+  { title: "Email", url: "/admin/email", icon: AtSign, adminOnly: true, hideForMarketing: true },
+  { title: "Config. Établissement", url: "/admin/establishment-settings", icon: Settings, adminOnly: false, hideForMarketing: true },
+  { title: "Ressources", url: "/admin/resources", icon: BookOpen, adminOnly: false, hideForMarketing: false },
 ];
 
 const globalAdminItems = [
@@ -58,7 +58,7 @@ export function AppSidebar() {
   const location = useLocation();
   const { user, signOut } = useAuth();
   const { settings } = useAppSettings();
-  const { isGlobalAdmin, isEstablishmentAdmin, currentEstablishmentId, memberships } = useEstablishmentContext();
+  const { isGlobalAdmin, isEstablishmentAdmin, isMarketing, currentEstablishmentId, memberships } = useEstablishmentContext();
   const { getSetting } = useEstablishmentSettings(currentEstablishmentId);
 
   const showAdminSection = isGlobalAdmin || isEstablishmentAdmin || !!currentEstablishmentId;
@@ -158,6 +158,7 @@ export function AppSidebar() {
               <SidebarMenu className="space-y-0.5">
                 {establishmentAdminItems
                   .filter(item => !item.adminOnly || isEstablishmentAdmin || isGlobalAdmin)
+                  .filter(item => !item.hideForMarketing || !isMarketing || isGlobalAdmin)
                   .map((item) => renderNavItem(item, true))}
                 {isGlobalAdmin && globalAdminItems.map((item) => {
                   if (item.url === "/admin/requests" && pendingRequestsCount > 0) {
