@@ -1,17 +1,19 @@
 import { useState } from "react";
-import { Clock, Plus, Trash2, ToggleLeft, ToggleRight, Tv, FolderPlus } from "lucide-react";
+import { Clock, Plus, Trash2, ToggleLeft, ToggleRight, Tv, FolderPlus, CalendarDays, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePrograms } from "@/hooks/usePrograms";
 import { useSchedules } from "@/hooks/useSchedules";
 import { useMedia } from "@/hooks/useMedia";
 import { useScreens } from "@/hooks/useScreens";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { ScheduleCalendar } from "./ScheduleCalendar";
 
 const DAYS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 
@@ -58,6 +60,22 @@ export function ScheduleManager() {
       });
       toast.success("Programmation ajoutée");
       setFormMedia("");
+    } catch {
+      toast.error("Erreur");
+    }
+  };
+
+  const handleCalendarAdd = async (schedule: {
+    media_id: string;
+    start_time: string;
+    end_time: string;
+    days_of_week: number[];
+    start_date?: string | null;
+    end_date?: string | null;
+  }) => {
+    try {
+      await addSchedule.mutateAsync(schedule);
+      toast.success("Programmation planifiée");
     } catch {
       toast.error("Erreur");
     }
@@ -128,136 +146,171 @@ export function ScheduleManager() {
       </div>
 
       {selectedProgram && (
-        <>
-          {/* Add schedule entry */}
-          <Card className="p-4 space-y-4 border-border/50">
-            <p className="text-sm font-medium text-foreground">Nouvelle programmation</p>
-            <div className="flex flex-wrap gap-3 items-end">
-              <Select value={formMedia} onValueChange={setFormMedia}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Média" />
-                </SelectTrigger>
-                <SelectContent>
-                  {media.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Début</label>
-                <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-[130px]" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Fin</label>
-                <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="w-[130px]" />
-              </div>
-              <Button onClick={handleAdd} disabled={!formMedia} className="gap-2">
-                <Plus className="h-4 w-4" /> Ajouter
-              </Button>
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {DAYS.map((label, i) => (
-                <label key={i} className="flex items-center gap-1.5 cursor-pointer">
-                  <Checkbox checked={days.includes(i)} onCheckedChange={() => toggleDay(i)} />
-                  <span className="text-xs text-foreground">{label}</span>
-                </label>
-              ))}
-            </div>
-          </Card>
+        <Tabs defaultValue="calendar" className="space-y-4">
+          <TabsList className="bg-secondary/50">
+            <TabsTrigger value="calendar" className="gap-2">
+              <CalendarDays className="h-4 w-4" /> Calendrier
+            </TabsTrigger>
+            <TabsTrigger value="list" className="gap-2">
+              <List className="h-4 w-4" /> Liste
+            </TabsTrigger>
+            <TabsTrigger value="screens" className="gap-2">
+              <Tv className="h-4 w-4" /> Écrans
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Schedule list */}
-          {isLoading ? (
-            <p className="text-muted-foreground">Chargement...</p>
-          ) : schedules.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Aucune programmation dans ce programme.</p>
-          ) : (
-            <div className="space-y-2">
-              {schedules.map((sch) => (
-                <Card key={sch.id} className="p-3 border-border/50">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <Clock className="h-4 w-4 text-primary shrink-0" />
-                    <span className="font-medium truncate">
-                      {sch.media?.name ?? "Média supprimé"}
-                    </span>
-                    <Badge variant="outline" className="text-xs">
-                      {sch.start_time.slice(0, 5)} – {sch.end_time.slice(0, 5)}
-                    </Badge>
-                    <div className="flex gap-1">
-                      {DAYS.map((label, i) => (
-                        <Badge
-                          key={i}
-                          variant={sch.days_of_week.includes(i) ? "default" : "outline"}
-                          className="text-[10px] px-1.5 py-0"
-                        >
-                          {label.charAt(0)}
+          {/* Calendar view */}
+          <TabsContent value="calendar">
+            <ScheduleCalendar
+              schedules={schedules}
+              media={media}
+              onAdd={handleCalendarAdd}
+              onDelete={(id) => deleteSchedule.mutate(id)}
+            />
+          </TabsContent>
+
+          {/* List view */}
+          <TabsContent value="list" className="space-y-4">
+            {/* Add schedule entry */}
+            <Card className="p-4 space-y-4 border-border/50">
+              <p className="text-sm font-medium text-foreground">Nouvelle programmation</p>
+              <div className="flex flex-wrap gap-3 items-end">
+                <Select value={formMedia} onValueChange={setFormMedia}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Média" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {media.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Début</label>
+                  <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-[130px]" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Fin</label>
+                  <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="w-[130px]" />
+                </div>
+                <Button onClick={handleAdd} disabled={!formMedia} className="gap-2">
+                  <Plus className="h-4 w-4" /> Ajouter
+                </Button>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {DAYS.map((label, i) => (
+                  <label key={i} className="flex items-center gap-1.5 cursor-pointer">
+                    <Checkbox checked={days.includes(i)} onCheckedChange={() => toggleDay(i)} />
+                    <span className="text-xs text-foreground">{label}</span>
+                  </label>
+                ))}
+              </div>
+            </Card>
+
+            {/* Schedule list */}
+            {isLoading ? (
+              <p className="text-muted-foreground">Chargement...</p>
+            ) : schedules.length === 0 ? (
+              <p className="text-muted-foreground text-sm">Aucune programmation dans ce programme.</p>
+            ) : (
+              <div className="space-y-2">
+                {schedules.map((sch) => (
+                  <Card key={sch.id} className="p-3 border-border/50">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <Clock className="h-4 w-4 text-primary shrink-0" />
+                      <span className="font-medium truncate">
+                        {sch.media?.name ?? "Média supprimé"}
+                      </span>
+                      <Badge variant="outline" className="text-xs">
+                        {sch.start_time.slice(0, 5)} – {sch.end_time.slice(0, 5)}
+                      </Badge>
+                      <div className="flex gap-1">
+                        {DAYS.map((label, i) => (
+                          <Badge
+                            key={i}
+                            variant={sch.days_of_week.includes(i) ? "default" : "outline"}
+                            className="text-[10px] px-1.5 py-0"
+                          >
+                            {label.charAt(0)}
+                          </Badge>
+                        ))}
+                      </div>
+                      {(sch as any).start_date && (
+                        <Badge variant="secondary" className="text-[10px]">
+                          {(sch as any).start_date}
+                          {(sch as any).end_date && (sch as any).end_date !== (sch as any).start_date
+                            ? ` → ${(sch as any).end_date}`
+                            : ""}
                         </Badge>
-                      ))}
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 ml-auto"
-                      onClick={() => updateSchedule.mutate({ id: sch.id, active: !sch.active })}
-                      title={sch.active ? "Désactiver" : "Activer"}
-                    >
-                      {sch.active ? (
-                        <ToggleRight className="h-4 w-4 text-status-online" />
-                      ) : (
-                        <ToggleLeft className="h-4 w-4 text-status-offline" />
                       )}
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => deleteSchedule.mutate(sch.id)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-
-          {/* Assign screens */}
-          <Card className="p-4 space-y-3 border-border/50">
-            <p className="text-sm font-medium text-foreground flex items-center gap-2">
-              <Tv className="h-4 w-4" /> Écrans assignés
-            </p>
-            {assignedScreens.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {assignedScreens.map((s: any) => (
-                  <Badge key={s.id} variant="secondary" className="gap-1 pr-1">
-                    {s.name}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-5 w-5 ml-1"
-                      onClick={() => handleUnassignScreen(s.id)}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </Badge>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 ml-auto"
+                        onClick={() => updateSchedule.mutate({ id: sch.id, active: !sch.active })}
+                        title={sch.active ? "Désactiver" : "Activer"}
+                      >
+                        {sch.active ? (
+                          <ToggleRight className="h-4 w-4 text-status-online" />
+                        ) : (
+                          <ToggleLeft className="h-4 w-4 text-status-offline" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="h-7 w-7"
+                        onClick={() => deleteSchedule.mutate(sch.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </Card>
                 ))}
               </div>
             )}
-            <div className="flex gap-2">
-              <Select onValueChange={handleAssignScreen}>
-                <SelectTrigger className="w-[220px]">
-                  <SelectValue placeholder="Assigner un écran" />
-                </SelectTrigger>
-                <SelectContent>
-                  {screens
-                    .filter((s: any) => s.program_id !== selectedProgram)
-                    .map((s) => (
-                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </Card>
-        </>
+          </TabsContent>
+
+          {/* Screens tab */}
+          <TabsContent value="screens">
+            <Card className="p-4 space-y-3 border-border/50">
+              <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                <Tv className="h-4 w-4" /> Écrans assignés
+              </p>
+              {assignedScreens.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {assignedScreens.map((s: any) => (
+                    <Badge key={s.id} variant="secondary" className="gap-1 pr-1">
+                      {s.name}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 ml-1"
+                        onClick={() => handleUnassignScreen(s.id)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Select onValueChange={handleAssignScreen}>
+                  <SelectTrigger className="w-[220px]">
+                    <SelectValue placeholder="Assigner un écran" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {screens
+                      .filter((s: any) => s.program_id !== selectedProgram)
+                      .map((s) => (
+                        <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </Card>
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );
