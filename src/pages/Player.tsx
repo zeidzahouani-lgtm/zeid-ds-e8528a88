@@ -708,6 +708,24 @@ export default function Player() {
     setHasContent(nowHasContent);
   }, [media, activeContents]);
 
+  // Track fallback state in DB for alerting
+  useEffect(() => {
+    if (!screen?.id || previewMode) return;
+    const inFallback = !hasContent && licenseValid === true && !loading;
+    
+    if (inFallback) {
+      supabase.from("screens").update({
+        fallback_since: new Date().toISOString(),
+        fallback_notified: false,
+      } as any).eq("id", screen.id).then();
+    } else {
+      supabase.from("screens").update({
+        fallback_since: null,
+        fallback_notified: false,
+      } as any).eq("id", screen.id).then();
+    }
+  }, [hasContent, screen?.id, licenseValid, loading, previewMode]);
+
   useEffect(() => {
     if (!currentDuration || currentDuration <= 0 || layoutId) {
       setProgress(0);
