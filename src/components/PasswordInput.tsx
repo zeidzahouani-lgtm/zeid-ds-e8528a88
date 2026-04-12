@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { validatePassword, getPasswordStrength } from "@/lib/password-validation";
-import { Eye, EyeOff, Check, X } from "lucide-react";
+import { Eye, EyeOff, Check, X, Shuffle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface PasswordInputProps {
   value: string;
@@ -18,6 +19,24 @@ const rules = [
   { test: (p: string) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(p), label: "Un symbole (!@#$%...)" },
 ];
 
+function generateSecurePassword(length = 16): string {
+  const upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const lower = "abcdefghijklmnopqrstuvwxyz";
+  const digits = "0123456789";
+  const symbols = "!@#$%&*?+-_";
+  const all = upper + lower + digits + symbols;
+  const mandatory = [
+    upper[Math.floor(Math.random() * upper.length)],
+    lower[Math.floor(Math.random() * lower.length)],
+    digits[Math.floor(Math.random() * digits.length)],
+    symbols[Math.floor(Math.random() * symbols.length)],
+  ];
+  const rest = Array.from({ length: length - mandatory.length }, () =>
+    all[Math.floor(Math.random() * all.length)]
+  );
+  return [...mandatory, ...rest].sort(() => Math.random() - 0.5).join("");
+}
+
 export function PasswordInput({ value, onChange, placeholder = "Min. 8 caractères", showRules = true }: PasswordInputProps) {
   const [showPassword, setShowPassword] = useState(false);
   const strength = getPasswordStrength(value);
@@ -30,15 +49,33 @@ export function PasswordInput({ value, onChange, placeholder = "Min. 8 caractèr
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="pr-10"
+          className="pr-20"
         />
-        <button
-          type="button"
-          onClick={() => setShowPassword(!showPassword)}
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-        >
-          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-        </button>
+        <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => {
+                  const pw = generateSecurePassword();
+                  onChange(pw);
+                  setShowPassword(true);
+                }}
+                className="text-muted-foreground hover:text-primary transition-colors"
+              >
+                <Shuffle className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top"><p>Générer un mot de passe</p></TooltipContent>
+          </Tooltip>
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
 
       {showRules && value.length > 0 && (
