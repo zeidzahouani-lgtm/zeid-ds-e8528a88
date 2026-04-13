@@ -78,9 +78,9 @@ function AdminDashboardContent() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-widest neon-glow-cyan text-primary">Tableau de bord</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-widest neon-glow-cyan text-primary">Tableau de bord</h1>
           <p className="text-muted-foreground text-sm mt-1 normal-case tracking-normal">
             Vue d'ensemble de votre affichage dynamique
           </p>
@@ -94,7 +94,7 @@ function AdminDashboardContent() {
       </div>
 
       {/* KPI Cards - Row 1 */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 stagger-children">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 stagger-children">
         <KpiCard icon={Tv} label="Écrans" value={stats.totalScreens} link="/displays" color="text-primary" />
         <KpiCard icon={Wifi} label="En ligne" value={stats.onlineScreens} link="/displays" color="text-status-online" />
         <KpiCard icon={WifiOff} label="Hors ligne" value={stats.offlineScreens} link="/displays" color="text-status-offline" />

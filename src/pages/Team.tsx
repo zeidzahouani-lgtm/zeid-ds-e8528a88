@@ -119,14 +119,15 @@ export default function Team() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Équipe</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Équipe</h1>
           <p className="text-sm text-muted-foreground mt-1">Gérez les membres marketing de votre établissement</p>
         </div>
-        <Button onClick={() => setShowInvite(true)} className="gap-2">
+        <Button onClick={() => setShowInvite(true)} className="gap-2" size="sm">
           <UserPlus className="h-4 w-4" />
-          Inviter un marketing
+          <span className="hidden sm:inline">Inviter un marketing</span>
+          <span className="sm:hidden">Inviter</span>
         </Button>
       </div>
 
@@ -143,7 +144,7 @@ export default function Team() {
         <div className="grid gap-3">
           {members.map((member) => (
             <Card key={member.user_id}>
-              <CardContent className="flex items-center justify-between p-4">
+              <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4">
                 <div className="flex items-center gap-3">
                   <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
                     {member.roles.includes("marketing") ? (

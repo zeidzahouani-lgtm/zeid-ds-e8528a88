@@ -157,30 +157,32 @@ export function ScreenManager() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <h2 className="text-xl font-semibold text-foreground">Gestion des Écrans</h2>
+      <div className="flex flex-wrap items-center gap-3">
+        <h2 className="text-lg sm:text-xl font-semibold text-foreground">Gestion des Écrans</h2>
         <span className="text-sm text-muted-foreground">({screens.length})</span>
         <Button variant="outline" size="icon" onClick={handleRefresh} title="Actualiser les écrans" className="ml-auto">
           <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
         </Button>
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-3">
         <Input
           placeholder="Nom du nouvel écran"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-          className="max-w-xs"
+          className="sm:max-w-xs"
         />
-        <Button onClick={handleAdd} disabled={quotaReached} className="gap-2">
-          <Plus className="h-4 w-4" /> Ajouter
-        </Button>
-        {maxScreens != null && maxScreens > 0 && (
-          <Badge variant={quotaReached ? "destructive" : "secondary"} className="text-sm px-3 py-1">
-            {screens.length}/{maxScreens} écrans
-          </Badge>
-        )}
+        <div className="flex gap-3 items-center">
+          <Button onClick={handleAdd} disabled={quotaReached} className="gap-2">
+            <Plus className="h-4 w-4" /> Ajouter
+          </Button>
+          {maxScreens != null && maxScreens > 0 && (
+            <Badge variant={quotaReached ? "destructive" : "secondary"} className="text-sm px-3 py-1">
+              {screens.length}/{maxScreens} écrans
+            </Badge>
+          )}
+        </div>
       </div>
 
       {isLoading ? (
@@ -273,13 +275,13 @@ export function ScreenManager() {
                   </div>
                 </div>
 
-                <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-3 flex-wrap">
+                <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-2 sm:gap-3 flex-wrap w-full lg:w-auto">
                 {/* Orientation */}
                 <Select
                   value={screen.orientation}
                   onValueChange={(val) => updateScreen.mutate({ id: screen.id, orientation: val })}
                 >
-                  <SelectTrigger className="w-[150px]">
+                  <SelectTrigger className="w-[130px] sm:w-[150px]">
                     <RotateCcw className="h-4 w-4 mr-2" />
                     <SelectValue />
                   </SelectTrigger>
@@ -298,7 +300,7 @@ export function ScreenManager() {
                     updateScreen.mutate({ id: screen.id, current_media_id: val === "none" ? null : val })
                   }
                 >
-                  <SelectTrigger className="w-[200px]">
+                  <SelectTrigger className="w-[140px] sm:w-[200px]">
                     <SelectValue placeholder="Sélectionner un média" />
                   </SelectTrigger>
                   <SelectContent>
@@ -316,7 +318,7 @@ export function ScreenManager() {
                     updateScreen.mutate({ id: screen.id, layout_id: val === "none" ? null : val } as any)
                   }
                 >
-                  <SelectTrigger className="w-[200px]">
+                  <SelectTrigger className="w-[140px] sm:w-[200px]">
                     <LayoutGrid className="h-4 w-4 mr-2" />
                     <SelectValue placeholder="Layout" />
                   </SelectTrigger>
@@ -330,7 +332,7 @@ export function ScreenManager() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-2 ml-auto" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-2 ml-auto flex-wrap" onClick={(e) => e.stopPropagation()}>
                   <Button
                     variant="outline"
                     size="icon"

@@ -85,16 +85,16 @@ export default function Library() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Bibliothèque</h1>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Bibliothèque</h1>
           <p className="text-muted-foreground text-sm mt-1">{media.length} médias</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => fileRef.current?.click()} className="gap-2">
+          <Button onClick={() => fileRef.current?.click()} className="gap-2" size="sm">
             <Upload className="h-4 w-4" /> Upload
           </Button>
-          <Button variant="outline" onClick={() => setShowIframe(!showIframe)} className="gap-2">
+          <Button variant="outline" onClick={() => setShowIframe(!showIframe)} className="gap-2" size="sm">
             <Link className="h-4 w-4" /> iFrame
           </Button>
           <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" multiple className="hidden" onChange={handleUpload} />
@@ -122,8 +122,8 @@ export default function Library() {
       )}
 
       {/* Filters */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div className="relative flex-1 sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Rechercher..."
@@ -132,24 +132,26 @@ export default function Library() {
             className="pl-9"
           />
         </div>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-[130px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tous les types</SelectItem>
-            <SelectItem value="image">Images</SelectItem>
-            <SelectItem value="video">Vidéos</SelectItem>
-            <SelectItem value="iframe">Web / iFrame</SelectItem>
-          </SelectContent>
-        </Select>
-        <div className="flex border border-border rounded-md">
-          <Button variant={viewMode === "grid" ? "secondary" : "ghost"} size="icon" className="h-9 w-9 rounded-r-none" onClick={() => setViewMode("grid")}>
-            <Grid className="h-4 w-4" />
-          </Button>
-          <Button variant={viewMode === "list" ? "secondary" : "ghost"} size="icon" className="h-9 w-9 rounded-l-none" onClick={() => setViewMode("list")}>
-            <List className="h-4 w-4" />
-          </Button>
+        <div className="flex items-center gap-3">
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-[130px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les types</SelectItem>
+              <SelectItem value="image">Images</SelectItem>
+              <SelectItem value="video">Vidéos</SelectItem>
+              <SelectItem value="iframe">Web / iFrame</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="flex border border-border rounded-md">
+            <Button variant={viewMode === "grid" ? "secondary" : "ghost"} size="icon" className="h-9 w-9 rounded-r-none" onClick={() => setViewMode("grid")}>
+              <Grid className="h-4 w-4" />
+            </Button>
+            <Button variant={viewMode === "list" ? "secondary" : "ghost"} size="icon" className="h-9 w-9 rounded-l-none" onClick={() => setViewMode("list")}>
+              <List className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -161,7 +163,7 @@ export default function Library() {
           <p className="text-muted-foreground">Aucun média trouvé</p>
         </Card>
       ) : viewMode === "grid" ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
           {filtered.map((item) => (
             <Card key={item.id} className="glass-panel overflow-hidden group cursor-pointer" onClick={() => setPreview(item)}>
               <div className="aspect-video bg-secondary relative">
