@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { validatePassword, getPasswordStrength } from "@/lib/password-validation";
-import { Eye, EyeOff, Check, X, Shuffle } from "lucide-react";
+import { Eye, EyeOff, Check, X, Shuffle, Copy } from "lucide-react";
+import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface PasswordInputProps {
