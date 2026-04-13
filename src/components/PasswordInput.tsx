@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { validatePassword, getPasswordStrength } from "@/lib/password-validation";
-import { Eye, EyeOff, Check, X, Shuffle } from "lucide-react";
+import { Eye, EyeOff, Check, X, Shuffle, Copy } from "lucide-react";
+import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface PasswordInputProps {
@@ -52,6 +53,23 @@ export function PasswordInput({ value, onChange, placeholder = "Min. 8 caractèr
           className="pr-20"
         />
         <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          {value.length > 0 && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(value);
+                    toast.success("Mot de passe copié !");
+                  }}
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                >
+                  <Copy className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top"><p>Copier</p></TooltipContent>
+            </Tooltip>
+          )}
           <Tooltip>
             <TooltipTrigger asChild>
               <button
