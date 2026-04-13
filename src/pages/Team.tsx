@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/PasswordInput";
 import { validatePassword } from "@/lib/password-validation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { UserPlus, Users, Mail, Trash2, Megaphone, ShieldAlert } from "lucide-react";
@@ -22,6 +23,7 @@ export default function Team() {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [inviting, setInviting] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<{ user_id: string; email: string; display_name: string } | null>(null);
 
   // Fetch team members for this establishment
   const { data: members = [], isLoading } = useQuery({
@@ -89,6 +91,25 @@ export default function Team() {
     },
   });
 
+  const removeMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase
+        .from("user_establishments")
+        .delete()
+        .eq("user_id", userId)
+        .eq("establishment_id", currentEstablishmentId!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Membre retiré", description: `${memberToRemove?.display_name || memberToRemove?.email} a été retiré de l'équipe.` });
+      queryClient.invalidateQueries({ queryKey: ["team_members"] });
+      setMemberToRemove(null);
+    },
+    onError: (err: any) => {
+      toast({ title: "Erreur", description: err.message, variant: "destructive" });
+    },
+  });
+
   const handleInvite = async () => {
     if (!email || !password) {
       toast({ title: "Champs requis", description: "Email et mot de passe sont obligatoires.", variant: "destructive" });
@@ -142,32 +163,49 @@ export default function Team() {
         </Card>
       ) : (
         <div className="grid gap-3">
-          {members.map((member) => (
-            <Card key={member.user_id}>
-              <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center">
-                    {member.roles.includes("marketing") ? (
-                      <Megaphone className="h-4 w-4 text-primary" />
-                    ) : (
-                      <Users className="h-4 w-4 text-primary" />
+          {members.map((member) => {
+            const isMarketing = member.roles.includes("marketing");
+            const isAdmin = member.roles.includes("admin");
+            const canRemove = isMarketing && !isAdmin;
+
+            return (
+              <Card key={member.user_id}>
+                <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      {isMarketing ? (
+                        <Megaphone className="h-4 w-4 text-primary" />
+                      ) : (
+                        <Users className="h-4 w-4 text-primary" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{member.display_name || member.email}</p>
+                      <p className="text-xs text-muted-foreground">{member.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {isAdmin && <Badge variant="default">Admin</Badge>}
+                    {isMarketing && <Badge variant="secondary">Marketing</Badge>}
+                    {member.roles.includes("user") && !isAdmin && !isMarketing && (
+                      <Badge variant="outline">Utilisateur</Badge>
+                    )}
+                    {canRemove && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setMemberToRemove({ user_id: member.user_id, email: member.email, display_name: member.display_name })}
+                        title="Retirer de l'équipe"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     )}
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{member.display_name || member.email}</p>
-                    <p className="text-xs text-muted-foreground">{member.email}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {member.roles.includes("admin") && <Badge variant="default">Admin</Badge>}
-                  {member.roles.includes("marketing") && <Badge variant="secondary">Marketing</Badge>}
-                  {member.roles.includes("user") && !member.roles.includes("admin") && !member.roles.includes("marketing") && (
-                    <Badge variant="outline">Utilisateur</Badge>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
@@ -202,6 +240,27 @@ export default function Team() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Remove confirmation dialog */}
+      <AlertDialog open={!!memberToRemove} onOpenChange={(open) => !open && setMemberToRemove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Retirer ce membre ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{memberToRemove?.display_name || memberToRemove?.email}</strong> sera retiré de l'équipe de cet établissement. Son compte ne sera pas supprimé.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => memberToRemove && removeMutation.mutate(memberToRemove.user_id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Retirer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
