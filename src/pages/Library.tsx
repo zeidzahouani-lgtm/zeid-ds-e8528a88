@@ -163,7 +163,7 @@ export default function Library() {
           <p className="text-muted-foreground">Aucun média trouvé</p>
         </Card>
       ) : viewMode === "grid" ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
           {filtered.map((item) => (
             <Card key={item.id} className="glass-panel overflow-hidden group cursor-pointer" onClick={() => setPreview(item)}>
               <div className="aspect-video bg-secondary relative">
