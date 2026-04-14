@@ -1313,6 +1313,13 @@ export default function LayoutEditor() {
                             })}
                           </div>
                         )}
+                        <div>
+                          <label className="text-xs text-muted-foreground">🎨 Couleur du texte</label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <input type="color" value={(selectedRegion as any).widget_config?.textColor || "#ffffff"} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, textColor: e.target.value } } as any)} className="w-10 h-8 rounded border border-border cursor-pointer" />
+                            <Input value={(selectedRegion as any).widget_config?.textColor || "#ffffff"} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, textColor: e.target.value } } as any)} className="h-8 text-xs flex-1" placeholder="#ffffff" />
+                          </div>
+                        </div>
                       </div>
                     )}
 
@@ -1363,6 +1370,13 @@ export default function LayoutEditor() {
                         <div>
                           <label className="text-xs text-muted-foreground">Couleur d'accent</label>
                           <input type="color" value={(selectedRegion as any).widget_config?.accentColor || "#3b82f6"} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, accentColor: e.target.value } } as any)} className="w-full h-8 mt-1 rounded border border-border cursor-pointer" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">🎨 Couleur du texte</label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <input type="color" value={(selectedRegion as any).widget_config?.textColor || "#ffffff"} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, textColor: e.target.value } } as any)} className="w-10 h-8 rounded border border-border cursor-pointer" />
+                            <Input value={(selectedRegion as any).widget_config?.textColor || "#ffffff"} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, textColor: e.target.value } } as any)} className="h-8 text-xs flex-1" placeholder="#ffffff" />
+                          </div>
                         </div>
                       </div>
                     )}
