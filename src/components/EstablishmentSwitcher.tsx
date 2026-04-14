@@ -16,7 +16,7 @@ export const EstablishmentSwitcher = React.forwardRef<HTMLDivElement, React.HTML
   if (items.length === 0 && !isGlobalAdmin) return null;
 
   return (
-    <div className="px-3 pb-2">
+    <div ref={ref} className="px-3 pb-2" {..._props}>
       <Select value={currentEstablishmentId || "all"} onValueChange={(v) => setCurrentEstablishmentId(v === "all" ? null : v)}>
         <SelectTrigger className="w-full h-8 text-xs bg-secondary/30 border-border/50">
           <Building2 className="h-3 w-3 mr-1.5 text-primary/60" />
