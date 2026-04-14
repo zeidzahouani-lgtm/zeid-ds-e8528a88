@@ -77,18 +77,27 @@ export default function ClockWidget({ config }: ClockWidgetProps) {
     ? `GMT${gmtOffset >= 0 ? "+" : ""}${gmtOffset % 1 === 0 ? gmtOffset : gmtOffset.toFixed(1).replace(".", ":")}`
     : null;
 
+  // Detect if parent background is light by checking transparentBg
+  // When transparent, use a text color with shadow that works on both light and dark
+  const textStyle: React.CSSProperties = config?.transparentBg
+    ? { color: "#1a1a2e", textShadow: "0 0 8px rgba(255,255,255,0.6)" }
+    : {};
+
   return (
-    <div className={`flex flex-col items-center justify-center h-full w-full text-white p-4 ${config?.transparentBg ? '' : 'bg-black/80'}`}>
+    <div
+      className={`flex flex-col items-center justify-center h-full w-full p-4 ${config?.transparentBg ? '' : 'bg-black/80 text-white'}`}
+      style={config?.transparentBg ? textStyle : undefined}
+    >
       <div className="text-4xl font-bold font-mono tracking-wider">
         {String(hours).padStart(2, "0")}:{mins}
         {showSeconds && <span className="text-2xl opacity-70">:{secs}</span>}
         {ampm && <span className="text-lg ml-2 opacity-70">{ampm}</span>}
       </div>
       {offsetLabel && (
-        <p className="text-[10px] opacity-50 mt-0.5 font-mono">{offsetLabel}</p>
+        <p className="text-[10px] opacity-60 mt-0.5 font-mono">{offsetLabel}</p>
       )}
       {showDate && (
-        <p className="text-sm opacity-60 mt-2 capitalize">{dateStr}</p>
+        <p className="text-sm opacity-70 mt-2 capitalize">{dateStr}</p>
       )}
     </div>
   );

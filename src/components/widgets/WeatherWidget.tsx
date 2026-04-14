@@ -150,13 +150,21 @@ export default function WeatherWidget({ config }: WeatherWidgetProps) {
   const condition = realtime?.condition || config?.condition || "sunny";
   const Icon = icons[condition as keyof typeof icons] || Sun;
 
+  // When transparent, use dark text with subtle shadow for readability on any bg
+  const transparentTextStyle: React.CSSProperties = config?.transparentBg
+    ? { color: "#1a1a2e", textShadow: "0 0 8px rgba(255,255,255,0.6)" }
+    : {};
+
   return (
-    <div className={`flex flex-col items-center justify-center h-full w-full text-white p-4 relative ${config?.transparentBg ? '' : 'bg-gradient-to-br from-blue-900 to-blue-700'}`}>
+    <div
+      className={`flex flex-col items-center justify-center h-full w-full p-4 relative ${config?.transparentBg ? '' : 'bg-gradient-to-br from-blue-900 to-blue-700 text-white'}`}
+      style={config?.transparentBg ? transparentTextStyle : undefined}
+    >
       {loading && !realtime && (
         <Loader2 className="h-8 w-8 animate-spin opacity-60" />
       )}
       {error && (
-        <p className="text-[10px] text-red-300 absolute top-1 left-1">{error}</p>
+        <p className="text-[10px] text-red-500 absolute top-1 left-1">{error}</p>
       )}
       {useRealtime && realtime && (
         <div className="absolute top-1 right-1">
@@ -167,12 +175,12 @@ export default function WeatherWidget({ config }: WeatherWidgetProps) {
       <p className="text-3xl font-bold">{temp}°C</p>
       <p className="text-sm opacity-80 mt-1">{labels[condition] || condition}</p>
       {realtime && (
-        <div className="flex items-center gap-3 mt-1 text-[10px] opacity-60">
+        <div className="flex items-center gap-3 mt-1 text-[10px] opacity-70">
           <span className="flex items-center gap-0.5"><Wind className="h-2.5 w-2.5" /> {realtime.windSpeed} km/h</span>
           <span>💧 {realtime.humidity}%</span>
         </div>
       )}
-      <p className="text-xs opacity-60 mt-1 flex items-center gap-1">
+      <p className="text-xs opacity-70 mt-1 flex items-center gap-1">
         <MapPin className="h-3 w-3" /> {city}{countryInfo ? `, ${countryInfo.flag}` : ""}
       </p>
     </div>
