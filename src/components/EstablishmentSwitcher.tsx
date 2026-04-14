@@ -1,9 +1,10 @@
+import React from "react";
 import { Building2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import { useEstablishments } from "@/hooks/useEstablishments";
 
-export function EstablishmentSwitcher() {
+export const EstablishmentSwitcher = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>((_props, ref) => {
   const { memberships, currentEstablishmentId, setCurrentEstablishmentId, isGlobalAdmin } = useEstablishmentContext();
   const { establishments } = useEstablishments();
 
@@ -15,7 +16,7 @@ export function EstablishmentSwitcher() {
   if (items.length === 0 && !isGlobalAdmin) return null;
 
   return (
-    <div className="px-3 pb-2">
+    <div ref={ref} className="px-3 pb-2" {..._props}>
       <Select value={currentEstablishmentId || "all"} onValueChange={(v) => setCurrentEstablishmentId(v === "all" ? null : v)}>
         <SelectTrigger className="w-full h-8 text-xs bg-secondary/30 border-border/50">
           <Building2 className="h-3 w-3 mr-1.5 text-primary/60" />
@@ -32,4 +33,6 @@ export function EstablishmentSwitcher() {
       </Select>
     </div>
   );
-}
+});
+
+EstablishmentSwitcher.displayName = "EstablishmentSwitcher";
