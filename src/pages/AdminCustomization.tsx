@@ -497,6 +497,7 @@ export default function AdminCustomization() {
           </CardContent>
         </Card>
 
+        <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-sm">
               <Bot className="h-4 w-4 text-primary icon-neon" />
