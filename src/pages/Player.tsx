@@ -708,9 +708,9 @@ export default function Player() {
   }, [media?.id, currentIndex, layoutId]);
 
   useEffect(() => {
-    const nowHasContent = !!(media || activeContents.length > 0);
+    const nowHasContent = !!(media || activeContents.length > 0 || layoutId);
     setHasContent(nowHasContent);
-  }, [media, activeContents]);
+  }, [media, activeContents, layoutId]);
 
   // Track fallback state in DB for alerting
   useEffect(() => {
@@ -859,24 +859,6 @@ export default function Player() {
           logoUrl={branding.logoUrl}
           showLogo={branding.showLogo}
         />
-        {/* QR upload overlay – always visible when no media is playing */}
-        <div style={{
-          position: "absolute", bottom: 24, right: 24, zIndex: 100,
-          display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
-          opacity: 0.7,
-        }}>
-          <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.15em", color: "rgba(255,255,255,0.5)" }}>
-            Scannez pour diffuser
-          </p>
-          <div style={{ backgroundColor: "rgba(255,255,255,0.92)", padding: 10, borderRadius: 10 }}>
-            <QRCodeSVG
-              value={`${window.location.origin}/upload/${screen.id}`}
-              size={100}
-              level="M"
-              bgColor="transparent"
-            />
-          </div>
-        </div>
         <Watermark text={branding.watermark} />
         <PlayerSignature show={branding.showSignatureOnPlayer} />
       </div>
