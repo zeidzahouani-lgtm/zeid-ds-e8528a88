@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useAppSettings } from "@/hooks/useAppSettings";
 
 interface ClockWidgetProps {
   config?: {
@@ -43,10 +44,17 @@ export const GMT_OFFSETS = [
 
 export default function ClockWidget({ config }: ClockWidgetProps) {
   const [now, setNow] = useState(new Date());
+  const { settings } = useAppSettings();
   const format = config?.format || "24h";
   const showDate = config?.showDate !== false;
   const showSeconds = config?.showSeconds !== false;
-  const gmtOffset = config?.gmtOffset;
+
+  // Use widget-specific gmtOffset, fallback to global setting
+  const gmtOffset = config?.gmtOffset !== undefined && config?.gmtOffset !== null
+    ? config.gmtOffset
+    : settings.default_gmt_offset
+      ? parseFloat(settings.default_gmt_offset)
+      : undefined;
 
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 1000);
