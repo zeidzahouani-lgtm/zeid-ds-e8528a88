@@ -4,9 +4,89 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { LayoutGrid, Plus, Trash2, Edit, Monitor } from "lucide-react";
+import { LayoutGrid, Plus, Trash2, Edit } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+
+interface MiniRegion {
+  id: string;
+  layout_id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  widget_type?: string | null;
+  media?: { type: string; url: string } | null;
+}
+
+function LayoutMiniPreview({ layout }: { layout: { id: string; width: number; height: number; background_color: string; bg_type: string; bg_image_url: string | null } }) {
+  const { data: regions = [] } = useQuery({
+    queryKey: ["layout_regions_mini", layout.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("layout_regions")
+        .select("id, layout_id, x, y, width, height, widget_type, media:media_id(type, url)")
+        .eq("layout_id", layout.id)
+        .order("z_index", { ascending: true });
+      if (error) throw error;
+      return data as MiniRegion[];
+    },
+    staleTime: 1000 * 60 * 2,
+  });
+
+  const bgStyle: React.CSSProperties = {};
+  if (layout.bg_type === "image" && layout.bg_image_url) {
+    bgStyle.backgroundImage = `url(${layout.bg_image_url})`;
+    bgStyle.backgroundSize = "cover";
+    bgStyle.backgroundPosition = "center";
+  } else {
+    bgStyle.backgroundColor = layout.background_color || "#1a1a2e";
+  }
+
+  return (
+    <div
+      className="rounded border border-border/50 overflow-hidden relative"
+      style={{ aspectRatio: `${layout.width}/${layout.height}`, ...bgStyle }}
+    >
+      {regions.map((r) => {
+        const left = `${(r.x / layout.width) * 100}%`;
+        const top = `${(r.y / layout.height) * 100}%`;
+        const w = `${(r.width / layout.width) * 100}%`;
+        const h = `${(r.height / layout.height) * 100}%`;
+
+        const isImage = r.media?.type?.startsWith("image");
+        const isVideo = r.media?.type?.startsWith("video");
+
+        return (
+          <div
+            key={r.id}
+            className="absolute border border-primary/30 rounded-sm overflow-hidden"
+            style={{ left, top, width: w, height: h }}
+          >
+            {isImage && r.media?.url ? (
+              <img src={r.media.url} alt="" className="w-full h-full object-cover" loading="lazy" />
+            ) : isVideo && r.media?.url ? (
+              <video src={r.media.url} className="w-full h-full object-cover" muted />
+            ) : r.widget_type ? (
+              <div className="w-full h-full bg-primary/10 flex items-center justify-center">
+                <span className="text-[8px] text-primary/60 uppercase font-medium">{r.widget_type}</span>
+              </div>
+            ) : (
+              <div className="w-full h-full bg-muted/30" />
+            )}
+          </div>
+        );
+      })}
+      {regions.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <LayoutGrid className="h-6 w-6 text-muted-foreground/20" />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Layouts() {
   const { layouts, isLoading, addLayout, deleteLayout } = useLayouts();
@@ -85,11 +165,10 @@ export default function Layouts() {
               </CardHeader>
               <CardContent>
                 <div
-                  className="bg-muted/50 rounded border border-border/50 flex items-center justify-center cursor-pointer hover:bg-muted transition-colors"
-                  style={{ aspectRatio: `${layout.width}/${layout.height}` }}
+                  className="cursor-pointer hover:ring-2 hover:ring-primary/30 rounded transition-all"
                   onClick={() => navigate(`/layouts/${layout.id}`)}
                 >
-                  <Monitor className="h-8 w-8 text-muted-foreground/30" />
+                  <LayoutMiniPreview layout={layout} />
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
                   {layout.width} × {layout.height}px
