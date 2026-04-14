@@ -33,4 +33,6 @@ export const EstablishmentSwitcher = React.forwardRef<HTMLDivElement, React.HTML
       </Select>
     </div>
   );
-}
+});
+
+EstablishmentSwitcher.displayName = "EstablishmentSwitcher";
