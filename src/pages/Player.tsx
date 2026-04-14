@@ -163,16 +163,17 @@ function getOrientationStyle(orientation: string): React.CSSProperties {
     left: "50%",
     marginTop: "calc(-50vw)",
     marginLeft: "calc(-50vh)",
+    overflow: "hidden",
   };
   switch (orientation) {
     case "portrait":
       return { ...swappedBase, transform: "rotate(90deg)" };
     case "landscape-flipped":
-      return { transform: "rotate(180deg)", width: "100%", height: "100%" };
+      return { transform: "rotate(180deg)", width: "100%", height: "100%", overflow: "hidden" };
     case "portrait-flipped":
       return { ...swappedBase, transform: "rotate(270deg)" };
     default:
-      return {};
+      return { width: "100%", height: "100%", overflow: "hidden" };
   }
 }
 
@@ -183,6 +184,9 @@ function MediaRenderer({ media, playlistLength }: { media: { id: string; name: s
     height: "100%",
     overflow: "hidden",
     backgroundColor: "#000",
+    /* Ensure no sub-pixel gaps on LG WebOS */
+    margin: 0,
+    padding: 0,
   };
 
   const mediaStyle: React.CSSProperties = {
