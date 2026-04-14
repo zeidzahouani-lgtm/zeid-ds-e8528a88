@@ -12,12 +12,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import {
   ArrowLeft, Plus, Trash2, Save, Move, Maximize2, Image, Video, Globe, Clock, Cloud, Type,
   Monitor, Smartphone, LayoutGrid, Columns, PanelLeft, Square, Eye, QrCode, Palette, AlignLeft,
-  ImageIcon, Check,
+  ImageIcon, Check, ArrowUpDown, Rss,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import WidgetRenderer from "@/components/widgets/WidgetRenderer";
 import { COUNTRY_LIST } from "@/components/widgets/WeatherWidget";
 import { GMT_OFFSETS } from "@/components/widgets/ClockWidget";
+import { POPULAR_CURRENCIES } from "@/components/widgets/CurrencyWidget";
 import { QR_CODE_TYPES, type QRCodeType } from "@/components/widgets/QRCodeWidget";
 
 type DragMode = "move" | "resize" | null;
@@ -39,6 +40,8 @@ const WIDGET_TYPES = [
   { value: "marquee", label: "Texte défilant", icon: Type },
   { value: "fixedtext", label: "Texte fixe", icon: AlignLeft },
   { value: "qrcode", label: "QR Code", icon: QrCode },
+  { value: "currency", label: "Cours devises", icon: ArrowUpDown },
+  { value: "rss", label: "Flux RSS", icon: Rss },
 ];
 
 interface PresetTemplate {
@@ -109,6 +112,8 @@ const DEFAULT_WIDGET_CONFIGS: Record<string, any> = {
   marquee: { text: "Bienvenue ! Ceci est un message défilant.", speed: 80, backgroundColor: "#1a1a2e", textColor: "#ffffff", fontSize: 24 },
   fixedtext: { text: "Texte fixe", fontSize: 24, textColor: "#ffffff", backgroundColor: "transparent", textAlign: "center", fontWeight: "bold" },
   qrcode: { qrType: "url", url: "https://example.com", label: "Scannez-moi", bgColor: "#ffffff", fgColor: "#000000" },
+  currency: { mode: "auto", baseCurrency: "EUR", targetCurrencies: ["USD", "TND", "GBP"], manualRates: {} },
+  rss: { feedUrl: "", maxItems: 5, showDescription: false, scrollSpeed: 30, accentColor: "#3b82f6" },
 };
 
 export default function LayoutEditor() {
