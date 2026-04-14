@@ -12,6 +12,7 @@ export interface AppSettings {
   welcome_message: string;
   page_title: string;
   login_video_url: string;
+  default_gmt_offset: string;
 }
 
 const defaultSettings: AppSettings = {
