@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Palette, Type, Image, Globe, Save, RotateCcw, Upload, Bot, Eye, EyeOff, BarChart3, Zap, CheckCircle, XCircle, Loader2, Monitor } from "lucide-react";
+import { Palette, Type, Image, Globe, Save, RotateCcw, Upload, Bot, Eye, EyeOff, BarChart3, Zap, CheckCircle, XCircle, Loader2, Monitor, Clock } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
@@ -437,6 +437,65 @@ export default function AdminCustomization() {
           </CardContent>
         </Card>
 
+        {/* Timezone / Clock */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Clock className="h-4 w-4 text-primary icon-neon" />
+              Fuseau horaire
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Décalage GMT par défaut</Label>
+              <Select
+                value={form.default_gmt_offset || "auto"}
+                onValueChange={(v) => setForm({ ...form, default_gmt_offset: v === "auto" ? "" : v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Automatique (heure locale)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">Automatique (heure locale)</SelectItem>
+                  {[
+                    { value: "-12", label: "GMT-12" },
+                    { value: "-11", label: "GMT-11" },
+                    { value: "-10", label: "GMT-10 (Hawaii)" },
+                    { value: "-9", label: "GMT-9 (Alaska)" },
+                    { value: "-8", label: "GMT-8 (Los Angeles)" },
+                    { value: "-7", label: "GMT-7 (Denver)" },
+                    { value: "-6", label: "GMT-6 (Chicago)" },
+                    { value: "-5", label: "GMT-5 (New York)" },
+                    { value: "-4", label: "GMT-4 (Santiago)" },
+                    { value: "-3", label: "GMT-3 (São Paulo)" },
+                    { value: "-2", label: "GMT-2" },
+                    { value: "-1", label: "GMT-1 (Açores)" },
+                    { value: "0", label: "GMT+0 (Londres, Casablanca)" },
+                    { value: "1", label: "GMT+1 (Paris, Alger)" },
+                    { value: "2", label: "GMT+2 (Le Caire)" },
+                    { value: "3", label: "GMT+3 (Riyad, Moscou)" },
+                    { value: "3.5", label: "GMT+3:30 (Téhéran)" },
+                    { value: "4", label: "GMT+4 (Dubaï)" },
+                    { value: "5", label: "GMT+5 (Karachi)" },
+                    { value: "5.5", label: "GMT+5:30 (Mumbai)" },
+                    { value: "6", label: "GMT+6 (Dacca)" },
+                    { value: "7", label: "GMT+7 (Bangkok)" },
+                    { value: "8", label: "GMT+8 (Pékin, Singapour)" },
+                    { value: "9", label: "GMT+9 (Tokyo)" },
+                    { value: "10", label: "GMT+10 (Sydney)" },
+                    { value: "11", label: "GMT+11" },
+                    { value: "12", label: "GMT+12 (Auckland)" },
+                  ].map((tz) => (
+                    <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground normal-case">
+                Ce fuseau horaire sera utilisé par défaut pour les widgets horloge sur tous les écrans (sauf si un widget a un réglage spécifique).
+              </p>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="lg:col-span-2">
           <CardHeader>
