@@ -7,6 +7,7 @@ interface ClockWidgetProps {
     showSeconds?: boolean;
     gmtOffset?: number;
     transparentBg?: boolean;
+    textColor?: string;
   };
 }
 

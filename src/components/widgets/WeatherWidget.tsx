@@ -9,6 +9,7 @@ interface WeatherWidgetProps {
     condition?: "sunny" | "cloudy" | "rainy" | "snowy";
     useRealtime?: boolean;
     transparentBg?: boolean;
+    textColor?: string;
   };
 }
 
