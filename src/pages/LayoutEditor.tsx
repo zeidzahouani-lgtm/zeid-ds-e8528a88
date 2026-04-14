@@ -1222,7 +1222,131 @@ export default function LayoutEditor() {
                       </div>
                     )}
 
-                    {/* Media preview */}
+                    {(selectedRegion as any).widget_type === "currency" && (
+                      <div className="space-y-2 border-t border-border pt-3">
+                        <p className="text-xs font-medium">Configuration Cours de devises</p>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Mode</label>
+                          <Select value={(selectedRegion as any).widget_config?.mode || "auto"} onValueChange={(v) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, mode: v } } as any)}>
+                            <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="auto">🌐 Automatique (Internet)</SelectItem>
+                              <SelectItem value="manual">✏️ Manuel</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Devise de base</label>
+                          <Select value={(selectedRegion as any).widget_config?.baseCurrency || "EUR"} onValueChange={(v) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, baseCurrency: v } } as any)}>
+                            <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {POPULAR_CURRENCIES.map((c) => (
+                                <SelectItem key={c.code} value={c.code}>{c.flag} {c.code} — {c.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Devises cibles</label>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {POPULAR_CURRENCIES.filter(c => c.code !== ((selectedRegion as any).widget_config?.baseCurrency || "EUR")).map((c) => {
+                              const targets: string[] = (selectedRegion as any).widget_config?.targetCurrencies || ["USD", "TND", "GBP"];
+                              const isSelected = targets.includes(c.code);
+                              return (
+                                <button
+                                  key={c.code}
+                                  type="button"
+                                  className={`px-1.5 py-0.5 rounded text-[10px] border transition-colors ${isSelected ? "bg-primary text-primary-foreground border-primary" : "bg-secondary border-border text-muted-foreground hover:border-primary/50"}`}
+                                  onClick={() => {
+                                    const newTargets = isSelected ? targets.filter(t => t !== c.code) : [...targets, c.code];
+                                    updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, targetCurrencies: newTargets } } as any);
+                                  }}
+                                >
+                                  {c.flag} {c.code}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {(selectedRegion as any).widget_config?.mode === "manual" && (
+                          <div className="space-y-1.5">
+                            <label className="text-xs text-muted-foreground">Taux manuels</label>
+                            {((selectedRegion as any).widget_config?.targetCurrencies || ["USD", "TND", "GBP"]).map((code: string) => {
+                              const info = POPULAR_CURRENCIES.find(c => c.code === code);
+                              return (
+                                <div key={code} className="flex items-center gap-2">
+                                  <span className="text-xs w-16">{info?.flag} {code}</span>
+                                  <Input
+                                    type="number"
+                                    step="0.0001"
+                                    value={(selectedRegion as any).widget_config?.manualRates?.[code] || ""}
+                                    onChange={(e) => {
+                                      const newRates = { ...((selectedRegion as any).widget_config?.manualRates || {}), [code]: parseFloat(e.target.value) || 0 };
+                                      updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, manualRates: newRates } } as any);
+                                    }}
+                                    className="h-7 text-xs flex-1"
+                                    placeholder="0.0000"
+                                  />
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {(selectedRegion as any).widget_type === "rss" && (
+                      <div className="space-y-2 border-t border-border pt-3">
+                        <p className="text-xs font-medium">Configuration Flux RSS</p>
+                        <div>
+                          <label className="text-xs text-muted-foreground">URL du flux</label>
+                          <Input
+                            value={(selectedRegion as any).widget_config?.feedUrl || ""}
+                            onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, feedUrl: e.target.value } } as any)}
+                            className="h-8 text-sm mt-1"
+                            placeholder="https://example.com/rss.xml"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-xs text-muted-foreground">Nb articles</label>
+                            <Input
+                              type="number"
+                              min={1}
+                              max={20}
+                              value={(selectedRegion as any).widget_config?.maxItems || 5}
+                              onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, maxItems: +e.target.value } } as any)}
+                              className="h-8 text-sm mt-1"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground">Vitesse</label>
+                            <Input
+                              type="number"
+                              min={10}
+                              max={100}
+                              value={(selectedRegion as any).widget_config?.scrollSpeed || 30}
+                              onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, scrollSpeed: +e.target.value } } as any)}
+                              className="h-8 text-sm mt-1"
+                            />
+                          </div>
+                        </div>
+                        <label className="text-xs text-muted-foreground flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={(selectedRegion as any).widget_config?.showDescription === true}
+                            onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, showDescription: e.target.checked } } as any)}
+                          />
+                          Afficher les descriptions
+                        </label>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Couleur d'accent</label>
+                          <input type="color" value={(selectedRegion as any).widget_config?.accentColor || "#3b82f6"} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, accentColor: e.target.value } } as any)} className="w-full h-8 mt-1 rounded border border-border cursor-pointer" />
+                        </div>
+                      </div>
+                    )}
+
                     {selectedRegion.media && !(selectedRegion as any).widget_type && (
                       <div className="border rounded-md overflow-hidden">
                         {selectedRegion.media.type?.startsWith("image") ? (
