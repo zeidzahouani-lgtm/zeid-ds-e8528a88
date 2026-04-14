@@ -984,6 +984,17 @@ export default function LayoutEditor() {
                           <label className="text-xs text-muted-foreground">Vitesse</label>
                           <Input type="number" value={(selectedRegion as any).widget_config?.speed || 80} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, speed: +e.target.value } } as any)} className="h-8 text-sm mt-1" />
                         </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">🎨 Couleur du texte</label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <input type="color" value={(selectedRegion as any).widget_config?.textColor || "#ffffff"} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, textColor: e.target.value } } as any)} className="w-10 h-8 rounded border border-border cursor-pointer" />
+                            <Input value={(selectedRegion as any).widget_config?.textColor || "#ffffff"} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, textColor: e.target.value } } as any)} className="h-8 text-xs flex-1" placeholder="#ffffff" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">Taille du texte (px)</label>
+                          <Input type="number" value={(selectedRegion as any).widget_config?.fontSize || 24} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, fontSize: +e.target.value } } as any)} className="h-8 text-sm mt-1" />
+                        </div>
                       </div>
                     )}
 
@@ -1238,6 +1249,14 @@ export default function LayoutEditor() {
                             <label className="text-xs text-muted-foreground">QR</label>
                             <input type="color" value={(selectedRegion as any).widget_config?.fgColor || "#000000"} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, fgColor: e.target.value } } as any)} className="w-full h-8 mt-1 rounded border border-border cursor-pointer" />
                           </div>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">🎨 Couleur du label</label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <input type="color" value={(selectedRegion as any).widget_config?.fgColor || "#000000"} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, fgColor: e.target.value } } as any)} className="w-10 h-8 rounded border border-border cursor-pointer" />
+                            <Input value={(selectedRegion as any).widget_config?.fgColor || "#000000"} onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, fgColor: e.target.value } } as any)} className="h-8 text-xs flex-1" placeholder="#000000" />
+                          </div>
+                          <p className="text-[9px] text-muted-foreground mt-0.5">Utilisée pour le QR et le label</p>
                         </div>
                       </div>
                     )}
