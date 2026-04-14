@@ -1,9 +1,10 @@
+import React from "react";
 import { Building2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import { useEstablishments } from "@/hooks/useEstablishments";
 
-export function EstablishmentSwitcher() {
+export const EstablishmentSwitcher = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>((_props, ref) => {
   const { memberships, currentEstablishmentId, setCurrentEstablishmentId, isGlobalAdmin } = useEstablishmentContext();
   const { establishments } = useEstablishments();
 
