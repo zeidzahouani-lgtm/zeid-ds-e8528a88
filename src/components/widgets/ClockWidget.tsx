@@ -7,6 +7,7 @@ interface ClockWidgetProps {
     showSeconds?: boolean;
     gmtOffset?: number;
     transparentBg?: boolean;
+    textColor?: string;
   };
 }
 
@@ -77,16 +78,17 @@ export default function ClockWidget({ config }: ClockWidgetProps) {
     ? `GMT${gmtOffset >= 0 ? "+" : ""}${gmtOffset % 1 === 0 ? gmtOffset : gmtOffset.toFixed(1).replace(".", ":")}`
     : null;
 
-  // Detect if parent background is light by checking transparentBg
-  // When transparent, use a text color with shadow that works on both light and dark
-  const textStyle: React.CSSProperties = config?.transparentBg
-    ? { color: "#1a1a2e", textShadow: "0 0 8px rgba(255,255,255,0.6)" }
-    : {};
+  const customColor = config?.textColor;
+  const textStyle: React.CSSProperties = customColor
+    ? { color: customColor, textShadow: config?.transparentBg ? "0 0 8px rgba(0,0,0,0.3)" : undefined }
+    : config?.transparentBg
+      ? { color: "#1a1a2e", textShadow: "0 0 8px rgba(255,255,255,0.6)" }
+      : {};
 
   return (
     <div
-      className={`flex flex-col items-center justify-center h-full w-full p-4 ${config?.transparentBg ? '' : 'bg-black/80 text-white'}`}
-      style={config?.transparentBg ? textStyle : undefined}
+      className={`flex flex-col items-center justify-center h-full w-full p-4 ${config?.transparentBg ? '' : customColor ? '' : 'bg-black/80 text-white'}`}
+      style={{ ...(config?.transparentBg || customColor ? textStyle : {}), backgroundColor: !config?.transparentBg && customColor ? 'rgba(0,0,0,0.8)' : undefined }}
     >
       <div className="text-4xl font-bold font-mono tracking-wider">
         {String(hours).padStart(2, "0")}:{mins}

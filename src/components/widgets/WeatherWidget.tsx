@@ -9,6 +9,7 @@ interface WeatherWidgetProps {
     condition?: "sunny" | "cloudy" | "rainy" | "snowy";
     useRealtime?: boolean;
     transparentBg?: boolean;
+    textColor?: string;
   };
 }
 
@@ -150,15 +151,17 @@ export default function WeatherWidget({ config }: WeatherWidgetProps) {
   const condition = realtime?.condition || config?.condition || "sunny";
   const Icon = icons[condition as keyof typeof icons] || Sun;
 
-  // When transparent, use dark text with subtle shadow for readability on any bg
-  const transparentTextStyle: React.CSSProperties = config?.transparentBg
-    ? { color: "#1a1a2e", textShadow: "0 0 8px rgba(255,255,255,0.6)" }
-    : {};
+  const customColor = config?.textColor;
+  const textStyle: React.CSSProperties = customColor
+    ? { color: customColor, textShadow: config?.transparentBg ? "0 0 8px rgba(0,0,0,0.3)" : undefined }
+    : config?.transparentBg
+      ? { color: "#1a1a2e", textShadow: "0 0 8px rgba(255,255,255,0.6)" }
+      : {};
 
   return (
     <div
-      className={`flex flex-col items-center justify-center h-full w-full p-4 relative ${config?.transparentBg ? '' : 'bg-gradient-to-br from-blue-900 to-blue-700 text-white'}`}
-      style={config?.transparentBg ? transparentTextStyle : undefined}
+      className={`flex flex-col items-center justify-center h-full w-full p-4 relative ${config?.transparentBg ? '' : customColor ? '' : 'bg-gradient-to-br from-blue-900 to-blue-700 text-white'}`}
+      style={{ ...(config?.transparentBg || customColor ? textStyle : {}), backgroundColor: !config?.transparentBg && customColor ? 'hsl(220 60% 20%)' : undefined }}
     >
       {loading && !realtime && (
         <Loader2 className="h-8 w-8 animate-spin opacity-60" />

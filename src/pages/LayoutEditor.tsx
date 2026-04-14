@@ -939,16 +939,36 @@ export default function LayoutEditor() {
 
                     {/* Transparent background toggle for all widgets */}
                     {(selectedRegion as any).widget_type && (
-                      <div className="border-t border-border pt-3">
-                        <label className="text-xs text-muted-foreground flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={(selectedRegion as any).widget_config?.transparentBg === true}
-                            onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, transparentBg: e.target.checked } } as any)}
-                          />
-                          🪟 Fond transparent
-                        </label>
-                        <p className="text-[10px] text-muted-foreground mt-0.5 ml-5">Rend le fond du widget transparent</p>
+                      <div className="border-t border-border pt-3 space-y-3">
+                        <div>
+                          <label className="text-xs text-muted-foreground flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={(selectedRegion as any).widget_config?.transparentBg === true}
+                              onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, transparentBg: e.target.checked } } as any)}
+                            />
+                            🪟 Fond transparent
+                          </label>
+                          <p className="text-[10px] text-muted-foreground mt-0.5 ml-5">Rend le fond du widget transparent</p>
+                        </div>
+                        <div>
+                          <label className="text-xs text-muted-foreground">🎨 Couleur du texte</label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <input
+                              type="color"
+                              value={(selectedRegion as any).widget_config?.textColor || "#ffffff"}
+                              onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, textColor: e.target.value } } as any)}
+                              className="w-8 h-8 rounded border border-border cursor-pointer"
+                            />
+                            <input
+                              type="text"
+                              value={(selectedRegion as any).widget_config?.textColor || "#ffffff"}
+                              onChange={(e) => updateRegion.mutate({ id: selectedRegion.id, widget_config: { ...(selectedRegion as any).widget_config, textColor: e.target.value } } as any)}
+                              className="flex-1 bg-muted border border-border rounded px-2 py-1 text-xs font-mono"
+                              placeholder="#ffffff"
+                            />
+                          </div>
+                        </div>
                       </div>
                     )}
 
