@@ -163,16 +163,17 @@ function getOrientationStyle(orientation: string): React.CSSProperties {
     left: "50%",
     marginTop: "calc(-50vw)",
     marginLeft: "calc(-50vh)",
+    overflow: "hidden",
   };
   switch (orientation) {
     case "portrait":
       return { ...swappedBase, transform: "rotate(90deg)" };
     case "landscape-flipped":
-      return { transform: "rotate(180deg)", width: "100%", height: "100%" };
+      return { transform: "rotate(180deg)", width: "100%", height: "100%", overflow: "hidden" };
     case "portrait-flipped":
       return { ...swappedBase, transform: "rotate(270deg)" };
     default:
-      return {};
+      return { width: "100%", height: "100%", overflow: "hidden" };
   }
 }
 
@@ -183,6 +184,9 @@ function MediaRenderer({ media, playlistLength }: { media: { id: string; name: s
     height: "100%",
     overflow: "hidden",
     backgroundColor: "#000",
+    /* Ensure no sub-pixel gaps on LG WebOS */
+    margin: 0,
+    padding: 0,
   };
 
   const mediaStyle: React.CSSProperties = {
@@ -743,7 +747,7 @@ export default function Player() {
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [media?.id, currentIndex, currentDuration, layoutId]);
 
-  const playerBgStyle: React.CSSProperties = { backgroundColor: branding.bgColor };
+  const playerBgStyle: React.CSSProperties = { backgroundColor: branding.bgColor || "#000" };
 
   // Build enriched diagnostic props
   const diagBaseProps = {
@@ -844,7 +848,7 @@ export default function Player() {
 
   if (layoutId && !media && activeContents.length === 0) {
     return (
-      <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", inset: 0, overflow: "hidden", cursor: "none" }} onClick={requestFullscreen}>
+      <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", inset: 0, width: "100vw", height: "100vh", overflow: "hidden", cursor: "none" }} onClick={requestFullscreen}>
         {debugMode && <DiagnosticOverlay {...diagBaseProps} />}
         {hudMode && <DiagnosticOverlay {...diagBaseProps} mode="hud" />}
         <LayoutRenderer
@@ -855,6 +859,24 @@ export default function Player() {
           logoUrl={branding.logoUrl}
           showLogo={branding.showLogo}
         />
+        {/* QR upload overlay – always visible when no media is playing */}
+        <div style={{
+          position: "absolute", bottom: 24, right: 24, zIndex: 100,
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
+          opacity: 0.7,
+        }}>
+          <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.15em", color: "rgba(255,255,255,0.5)" }}>
+            Scannez pour diffuser
+          </p>
+          <div style={{ backgroundColor: "rgba(255,255,255,0.92)", padding: 10, borderRadius: 10 }}>
+            <QRCodeSVG
+              value={`${window.location.origin}/upload/${screen.id}`}
+              size={100}
+              level="M"
+              bgColor="transparent"
+            />
+          </div>
+        </div>
         <Watermark text={branding.watermark} />
         <PlayerSignature show={branding.showSignatureOnPlayer} />
       </div>
@@ -864,7 +886,7 @@ export default function Player() {
   const rotationStyle = getOrientationStyle(screen.orientation);
 
   return (
-    <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", inset: 0, overflow: "hidden", cursor: "none" }} onClick={requestFullscreen}>
+    <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", inset: 0, width: "100vw", height: "100vh", overflow: "hidden", cursor: "none" }} onClick={requestFullscreen}>
       {debugMode && <DiagnosticOverlay {...diagBaseProps} />}
       {hudMode && <DiagnosticOverlay {...diagBaseProps} mode="hud" />}
       <div style={{ width: "100%", height: "100%", transition: "transform 0.7s ease-in-out", ...rotationStyle }}>

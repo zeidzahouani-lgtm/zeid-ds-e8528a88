@@ -32,7 +32,7 @@ export default function FallbackScreen({ screenName, screenId, logoUrl, showLogo
   });
 
   return (
-    <div className="w-full h-full relative overflow-hidden" style={{ backgroundColor: "#0a0e17" }}>
+    <div className="w-full h-full relative overflow-hidden" style={{ backgroundColor: "#0a0e17", width: "100%", height: "100%", minWidth: "100vw", minHeight: "100vh" }}>
       {/* Pure CSS animated background - no canvas for device compatibility */}
       <div style={{
         position: "absolute", inset: 0,
@@ -91,12 +91,13 @@ export default function FallbackScreen({ screenName, screenId, logoUrl, showLogo
           <p style={{ fontSize: "min(1vw, 11px)", textTransform: "uppercase", letterSpacing: "0.2em", color: "hsl(213,15%,35%)" }}>
             Scannez pour diffuser
           </p>
-          <div style={{ backgroundColor: "rgba(255,255,255,0.9)", padding: 12, borderRadius: 12 }}>
+          <div style={{ backgroundColor: "rgba(255,255,255,0.9)", padding: 12, borderRadius: 12, width: 144, height: 144, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <QRCodeSVG
               value={`${window.location.origin}/upload/${screenId}`}
               size={120}
               level="M"
               bgColor="transparent"
+              style={{ display: "block", width: 120, height: 120 }}
             />
           </div>
         </div>
