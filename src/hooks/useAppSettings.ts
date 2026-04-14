@@ -25,6 +25,7 @@ const defaultSettings: AppSettings = {
   welcome_message: "Connectez-vous à votre tableau de bord",
   page_title: "ScreenFlow by Dravox — Digital Signage CMS",
   login_video_url: "",
+  default_gmt_offset: "",
 };
 
 async function fetchSettings(): Promise<AppSettings> {
