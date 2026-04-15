@@ -215,6 +215,7 @@ function MediaRenderer({ media, playlistLength }: { media: { id: string; name: s
           src={media.url}
           style={mediaStyle}
           autoPlay
+          muted
           loop={!playlistLength || playlistLength <= 1}
           playsInline
         />
