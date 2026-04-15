@@ -622,6 +622,7 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Arra
           src={current.image_url}
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center center", display: "block", backgroundColor: "#000" }}
           autoPlay
+          muted
           playsInline
           onEnded={contents.length > 1 ? advance : undefined}
           loop={contents.length <= 1}
