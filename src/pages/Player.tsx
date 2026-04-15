@@ -215,6 +215,7 @@ function MediaRenderer({ media, playlistLength }: { media: { id: string; name: s
           src={media.url}
           style={mediaStyle}
           autoPlay
+          muted
           loop={!playlistLength || playlistLength <= 1}
           playsInline
         />
@@ -621,6 +622,7 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Arra
           src={current.image_url}
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center center", display: "block", backgroundColor: "#000" }}
           autoPlay
+          muted
           playsInline
           onEnded={contents.length > 1 ? advance : undefined}
           loop={contents.length <= 1}
@@ -691,7 +693,10 @@ export default function Player() {
   }, [previewMode]);
 
   useEffect(() => {
-    if (previewMode) return; // No auto-fullscreen in preview
+    if (previewMode) return;
+    // Try fullscreen immediately on load (works on LG webOS)
+    requestFullscreen();
+    // Fallback: also listen for first click
     const handler = () => {
       requestFullscreen();
       document.removeEventListener("click", handler);
