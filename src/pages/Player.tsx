@@ -693,7 +693,10 @@ export default function Player() {
   }, [previewMode]);
 
   useEffect(() => {
-    if (previewMode) return; // No auto-fullscreen in preview
+    if (previewMode) return;
+    // Try fullscreen immediately on load (works on LG webOS)
+    requestFullscreen();
+    // Fallback: also listen for first click
     const handler = () => {
       requestFullscreen();
       document.removeEventListener("click", handler);
