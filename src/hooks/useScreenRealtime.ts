@@ -31,25 +31,29 @@ interface PlaylistItem {
 interface ScheduleRow {
   id: string;
   media_id: string | null;
+  playlist_id: string | null;
   start_time: string;
   end_time: string;
   days_of_week: number[];
   active: boolean;
   media: MediaData | null;
+  playlist_items?: PlaylistItem[];
 }
 
-function getActiveScheduleMedia(schedules: ScheduleRow[]): MediaData | null {
+/** Returns the currently active schedule (media or playlist) for the current day/time. */
+function getActiveSchedule(schedules: ScheduleRow[]): ScheduleRow | null {
   const now = new Date();
   const currentTime = now.toTimeString().slice(0, 5);
   const currentDay = now.getDay();
 
   for (const sch of schedules) {
-    if (!sch.active || !sch.media) continue;
+    if (!sch.active) continue;
     if (!sch.days_of_week.includes(currentDay)) continue;
     const start = sch.start_time.slice(0, 5);
     const end = sch.end_time.slice(0, 5);
     if (currentTime >= start && currentTime <= end) {
-      return sch.media;
+      if (sch.media) return sch;
+      if (sch.playlist_id && sch.playlist_items && sch.playlist_items.length > 0) return sch;
     }
   }
   return null;
