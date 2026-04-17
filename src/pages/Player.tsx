@@ -325,8 +325,6 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
           .select("logo_url, updated_at")
           .eq("id", screenData.establishment_id)
           .single();
-        if (estData?.logo_url) logoUrl = estData.logo_url;
-        if (estData?.updated_at) logoVersion = estData.updated_at;
 
         const { data: estSettings } = await supabase
           .from("establishment_settings")
@@ -334,17 +332,25 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
           .eq("establishment_id", screenData.establishment_id)
           .in("key", ["brand_show_logo_player", "brand_player_bg_color", "brand_player_watermark", "brand_logo_url"]);
 
+        const settingsMap: Record<string, { value: string; updated_at?: string }> = {};
         if (estSettings) {
-          const settingsMap: Record<string, string> = {};
           estSettings.forEach((s: any) => {
-            if (s.value) settingsMap[s.key] = s.value;
-            if (s.key === "brand_logo_url" && s.updated_at) logoVersion = s.updated_at;
+            if (s.value) settingsMap[s.key] = { value: s.value, updated_at: s.updated_at };
           });
-          if (settingsMap.brand_logo_url && !logoUrl) logoUrl = settingsMap.brand_logo_url;
-          if (settingsMap.brand_show_logo_player === "false") showLogo = false;
-          if (settingsMap.brand_player_bg_color) bgColor = settingsMap.brand_player_bg_color;
-          if (settingsMap.brand_player_watermark) watermark = settingsMap.brand_player_watermark;
         }
+
+        // PRIORITY: brand_logo_url (from BrandingTab) overrides establishments.logo_url
+        if (settingsMap.brand_logo_url) {
+          logoUrl = settingsMap.brand_logo_url.value;
+          logoVersion = settingsMap.brand_logo_url.updated_at || Date.now().toString();
+        } else if (estData?.logo_url) {
+          logoUrl = estData.logo_url;
+          logoVersion = estData.updated_at || Date.now().toString();
+        }
+
+        if (settingsMap.brand_show_logo_player?.value === "false") showLogo = false;
+        if (settingsMap.brand_player_bg_color?.value) bgColor = settingsMap.brand_player_bg_color.value;
+        if (settingsMap.brand_player_watermark?.value) watermark = settingsMap.brand_player_watermark.value;
       }
 
       // Check global setting for signature on player
