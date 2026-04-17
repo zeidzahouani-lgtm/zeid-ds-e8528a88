@@ -32,7 +32,7 @@ export default function FallbackScreen({ screenName, screenId, logoUrl, showLogo
   });
 
   return (
-    <div className="w-full h-full relative overflow-hidden" style={{ backgroundColor: "#0a0e17", width: "100%", height: "100%", minWidth: "100vw", minHeight: "100vh" }}>
+    <div className="relative overflow-hidden" style={{ backgroundColor: "#0a0e17", width: "100%", height: "100%" }}>
       {/* Pure CSS animated background - no canvas for device compatibility */}
       <div style={{
         position: "absolute", inset: 0,
