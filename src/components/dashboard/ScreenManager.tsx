@@ -428,6 +428,35 @@ export function ScreenManager() {
                   <Button
                     variant="outline"
                     size="icon"
+                    title="Forcer le rafraîchissement (recharge la page sur la TV)"
+                    className="text-blue-500 border-blue-500/30 hover:bg-blue-500/10"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        const channel = supabase.channel(`screen-control-${screen.id}`);
+                        await new Promise<void>((resolve) => {
+                          channel.subscribe((status) => {
+                            if (status === "SUBSCRIBED") resolve();
+                          });
+                          setTimeout(resolve, 1500);
+                        });
+                        await channel.send({
+                          type: "broadcast",
+                          event: "force_refresh",
+                          payload: { at: Date.now() },
+                        });
+                        toast.success(`Signal envoyé à "${screen.name}"`);
+                        setTimeout(() => supabase.removeChannel(channel), 1000);
+                      } catch {
+                        toast.error("Erreur d'envoi du signal");
+                      }
+                    }}
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
                     onClick={() => window.open(`/player/${(screen as any).slug || screen.id}`, '_blank')}
                     title="Ouvrir le player"
                   >
