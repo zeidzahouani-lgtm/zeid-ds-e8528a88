@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import ScreenDetailDialog from "@/components/dashboard/ScreenDetailDialog";
-import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock, RefreshCw, Tv, Power, Eye, ShieldAlert, ShieldOff, Bug, AlertTriangle } from "lucide-react";
+import { QuickPlaylistDialog } from "@/components/dashboard/QuickPlaylistDialog";
+import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock, RefreshCw, Tv, Power, Eye, ShieldAlert, ShieldOff, Bug, AlertTriangle, Sparkles } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -140,6 +141,7 @@ export function ScreenManager() {
   const quotaReached = maxScreens != null && maxScreens > 0 && screens.length >= maxScreens;
   const [newName, setNewName] = useState("");
   const [playlistScreenId, setPlaylistScreenId] = useState<string | null>(null);
+  const [quickPlaylistScreen, setQuickPlaylistScreen] = useState<{ id: string; name: string } | null>(null);
   const [previewScreen, setPreviewScreen] = useState<{ id: string; slug: string | null; name: string } | null>(null);
   const [detailScreenId, setDetailScreenId] = useState<string | null>(null);
   const detailScreen = useMemo(() => screens.find((s: any) => s.id === detailScreenId) ?? null, [screens, detailScreenId]);
@@ -373,9 +375,18 @@ export function ScreenManager() {
                     variant="outline"
                     size="icon"
                     onClick={() => setPlaylistScreenId(screen.id)}
-                    title="Gérer la playlist"
+                    title="Gérer la playlist (legacy)"
                   >
                     <ListMusic className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setQuickPlaylistScreen({ id: screen.id, name: screen.name })}
+                    title="Créer une playlist rapide pour cet écran"
+                    className="text-primary border-primary/30 hover:bg-primary/10"
+                  >
+                    <Sparkles className="h-4 w-4" />
                   </Button>
                   {screen.status === 'online' && (
                     <Button
@@ -524,6 +535,14 @@ export function ScreenManager() {
         assignedPlaylist={detailScreen ? playlists.find((p) => p.id === detailScreen.playlist_id) : null}
         assignedProgram={detailScreen ? programs.find((p) => p.id === detailScreen.program_id) : null}
         onClose={() => setDetailScreenId(null)}
+      />
+
+      {/* Quick playlist creation dialog */}
+      <QuickPlaylistDialog
+        open={!!quickPlaylistScreen}
+        onOpenChange={(o) => !o && setQuickPlaylistScreen(null)}
+        screenId={quickPlaylistScreen?.id}
+        screenName={quickPlaylistScreen?.name}
       />
     </div>
   );

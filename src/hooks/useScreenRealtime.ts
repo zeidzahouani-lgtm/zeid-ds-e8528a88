@@ -31,25 +31,29 @@ interface PlaylistItem {
 interface ScheduleRow {
   id: string;
   media_id: string | null;
+  playlist_id: string | null;
   start_time: string;
   end_time: string;
   days_of_week: number[];
   active: boolean;
   media: MediaData | null;
+  playlist_items?: PlaylistItem[];
 }
 
-function getActiveScheduleMedia(schedules: ScheduleRow[]): MediaData | null {
+/** Returns the currently active schedule (media or playlist) for the current day/time. */
+function getActiveSchedule(schedules: ScheduleRow[]): ScheduleRow | null {
   const now = new Date();
   const currentTime = now.toTimeString().slice(0, 5);
   const currentDay = now.getDay();
 
   for (const sch of schedules) {
-    if (!sch.active || !sch.media) continue;
+    if (!sch.active) continue;
     if (!sch.days_of_week.includes(currentDay)) continue;
     const start = sch.start_time.slice(0, 5);
     const end = sch.end_time.slice(0, 5);
     if (currentTime >= start && currentTime <= end) {
-      return sch.media;
+      if (sch.media) return sch;
+      if (sch.playlist_id && sch.playlist_items && sch.playlist_items.length > 0) return sch;
     }
   }
   return null;
@@ -108,31 +112,110 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
   }, []);
 
   const fetchSchedules = useCallback(async (screenData: ScreenData) => {
+    let rows: any[] = [];
     if (screenData.program_id) {
       const { data } = await supabase
         .from("schedules")
         .select("*, media:media_id(id, name, type, url, duration)")
         .eq("program_id", screenData.program_id)
         .eq("active", true);
-      return (data ?? []) as ScheduleRow[];
+      rows = data ?? [];
+    } else {
+      const { data } = await supabase
+        .from("schedules")
+        .select("*, media:media_id(id, name, type, url, duration)")
+        .eq("screen_id", screenData.id)
+        .eq("active", true);
+      rows = data ?? [];
     }
-    const { data } = await supabase
-      .from("schedules")
-      .select("*, media:media_id(id, name, type, url, duration)")
-      .eq("screen_id", screenData.id)
-      .eq("active", true);
-    return (data ?? []) as ScheduleRow[];
+
+    // Load playlist_items for any schedule that targets a playlist
+    const playlistIds = Array.from(
+      new Set(rows.filter((r) => r.playlist_id).map((r) => r.playlist_id as string))
+    );
+    if (playlistIds.length > 0) {
+      const { data: items } = await supabase
+        .from("playlist_items")
+        .select("*, media:media_id(id, name, type, url, duration)")
+        .in("playlist_id", playlistIds)
+        .order("position", { ascending: true });
+      const itemsByPlaylist: Record<string, PlaylistItem[]> = {};
+      (items ?? []).forEach((it: any) => {
+        const pid = it.playlist_id as string;
+        if (!itemsByPlaylist[pid]) itemsByPlaylist[pid] = [];
+        itemsByPlaylist[pid].push(it as PlaylistItem);
+      });
+      rows = rows.map((r) =>
+        r.playlist_id ? { ...r, playlist_items: itemsByPlaylist[r.playlist_id] ?? [] } : r
+      );
+    }
+
+    return rows as ScheduleRow[];
   }, []);
+
+  // Track the active schedule's playlist (so we know when to swap rotation)
+  const activeSchedulePlaylistRef = useRef<string | null>(null);
 
   const resolveMedia = useCallback(
     (screenData: ScreenData | null, pl: PlaylistItem[], idx: number, opts?: { skipDbUpdate?: boolean }) => {
-      const scheduled = getActiveScheduleMedia(schedulesRef.current);
-      if (scheduled) { setMedia(scheduled); return; }
+      const activeSch = getActiveSchedule(schedulesRef.current);
+
+      // Case 1: Schedule with single media — show it directly
+      if (activeSch && activeSch.media && !activeSch.playlist_id) {
+        if (activeSchedulePlaylistRef.current !== null) {
+          activeSchedulePlaylistRef.current = null;
+        }
+        setMedia(activeSch.media);
+        return;
+      }
+
+      // Case 2: Schedule with playlist — swap rotation to that playlist
+      if (activeSch && activeSch.playlist_id && activeSch.playlist_items && activeSch.playlist_items.length > 0) {
+        const schedPl = activeSch.playlist_items;
+        // If we just entered this schedule's playlist, reset playlist + index
+        if (activeSchedulePlaylistRef.current !== activeSch.playlist_id) {
+          activeSchedulePlaylistRef.current = activeSch.playlist_id;
+          playlistRef.current = schedPl;
+          setPlaylistVersion((v) => v + 1);
+          setCurrentIndex(0);
+          const first = schedPl[0]?.media ?? null;
+          setMedia(first);
+          if (first && !previewOnly && !opts?.skipDbUpdate) {
+            const realId = realScreenIdRef.current;
+            if (realId) {
+              supabase.from("screens").update({ current_media_id: first.id } as any)
+                .eq("id", realId).then(() => {});
+            }
+          }
+          return;
+        }
+        // Already in this playlist — continue rotation
+        const item = schedPl[idx % schedPl.length];
+        const mediaItem = item?.media ?? null;
+        setMedia(mediaItem);
+        if (mediaItem && !previewOnly && !opts?.skipDbUpdate) {
+          const realId = realScreenIdRef.current;
+          if (realId) {
+            supabase.from("screens").update({ current_media_id: mediaItem.id } as any)
+              .eq("id", realId).then(() => {});
+          }
+        }
+        return;
+      }
+
+      // Case 3: No active schedule — fall back to screen's playlist
+      if (activeSchedulePlaylistRef.current !== null) {
+        // Just exited a schedule playlist — restore the screen's own playlist
+        activeSchedulePlaylistRef.current = null;
+        playlistRef.current = pl;
+        setPlaylistVersion((v) => v + 1);
+        setCurrentIndex(0);
+        idx = 0;
+      }
       if (pl.length > 0) {
         const item = pl[idx % pl.length];
         const mediaItem = item?.media ?? null;
         setMedia(mediaItem);
-        // In normal mode, write current_media_id to DB so preview stays in sync
         if (mediaItem && !previewOnly && !opts?.skipDbUpdate) {
           const realId = realScreenIdRef.current;
           if (realId) {
