@@ -1,0 +1,1 @@
+ALTER TABLE public.screens ADD COLUMN IF NOT EXISTS resolution text NOT NULL DEFAULT 'auto';
