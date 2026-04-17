@@ -797,12 +797,17 @@ export default function Player() {
     };
   }, [screen?.id]);
 
+  // Toast overlay shown briefly before remote-triggered reload
+  const [refreshToast, setRefreshToast] = useState<string | null>(null);
+
   // Listen for remote refresh signal — forces full page reload (bypasses HTTP cache on Smart TVs)
   useEffect(() => {
     if (!screen?.id || previewMode) return;
     const channel = supabase
       .channel(`screen-control-${screen.id}`)
       .on("broadcast", { event: "force_refresh" }, () => {
+        // Show on-screen notification so operator sees the action
+        setRefreshToast("Mise à jour en cours...");
         try {
           if ("caches" in window) {
             caches.keys().then((keys) => keys.forEach((k) => caches.delete(k))).catch(() => {});
@@ -812,7 +817,7 @@ export default function Player() {
           const url = new URL(window.location.href);
           url.searchParams.set("_r", Date.now().toString());
           window.location.replace(url.toString());
-        }, 200);
+        }, 1000);
       })
       .subscribe();
     return () => {
