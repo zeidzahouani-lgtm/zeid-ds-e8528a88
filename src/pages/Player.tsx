@@ -957,19 +957,23 @@ export default function Player() {
     );
   }
 
+  const screenResolution = (screen as any)?.resolution as string | undefined;
+
   if (layoutId && !media && activeContents.length === 0) {
     return (
       <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", inset: 0, width: "100vw", height: "100vh", overflow: "hidden", cursor: "none" }} onClick={requestFullscreen}>
         {debugMode && <DiagnosticOverlay {...diagBaseProps} />}
         {hudMode && <DiagnosticOverlay {...diagBaseProps} mode="hud" />}
-        <LayoutRenderer
-          layoutId={layoutId}
-          screenOrientation={screen.orientation}
-          screenName={screen.name}
-          screenId={screen.id}
-          logoUrl={branding.logoUrl}
-          showLogo={branding.showLogo}
-        />
+        <ResolutionFrame resolution={screenResolution}>
+          <LayoutRenderer
+            layoutId={layoutId}
+            screenOrientation={screen.orientation}
+            screenName={screen.name}
+            screenId={screen.id}
+            logoUrl={branding.logoUrl}
+            showLogo={branding.showLogo}
+          />
+        </ResolutionFrame>
         <Watermark text={branding.watermark} />
         <PlayerSignature show={branding.showSignatureOnPlayer} />
       </div>
@@ -982,6 +986,7 @@ export default function Player() {
     <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", inset: 0, width: "100vw", height: "100vh", overflow: "hidden", cursor: "none" }} onClick={requestFullscreen}>
       {debugMode && <DiagnosticOverlay {...diagBaseProps} />}
       {hudMode && <DiagnosticOverlay {...diagBaseProps} mode="hud" />}
+      <ResolutionFrame resolution={screenResolution}>
       <div style={{ width: "100%", height: "100%", transition: "transform 0.7s ease-in-out", ...rotationStyle }}>
         <div style={{ width: "100%", height: "100%", transition: "opacity 0.5s ease-in-out", opacity: visible ? 1 : 0 }}>
           {/* Fallback screen */}
@@ -1035,6 +1040,7 @@ export default function Player() {
           </div>
         )}
       </div>
+      </ResolutionFrame>
       <Watermark text={branding.watermark} />
       <PlayerSignature show={branding.showSignatureOnPlayer} />
     </div>
