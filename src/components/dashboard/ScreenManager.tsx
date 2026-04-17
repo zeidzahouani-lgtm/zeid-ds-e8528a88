@@ -332,6 +332,31 @@ export function ScreenManager() {
                     ))}
                   </SelectContent>
                 </Select>
+
+                {/* Resolution selector — works on Android, LG, Samsung, Philips */}
+                <Select
+                  value={(screen as any).resolution ?? "auto"}
+                  onValueChange={(val) =>
+                    updateScreen.mutate({ id: screen.id, resolution: val })
+                  }
+                >
+                  <SelectTrigger className="w-[140px] sm:w-[170px]" title="Forcer une résolution de rendu sur l'écran">
+                    <Tv className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Résolution" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Auto (natif)</SelectItem>
+                    <SelectItem value="3840x2160">4K UHD — 3840×2160</SelectItem>
+                    <SelectItem value="2560x1440">QHD — 2560×1440</SelectItem>
+                    <SelectItem value="1920x1080">Full HD — 1920×1080</SelectItem>
+                    <SelectItem value="1366x768">HD — 1366×768</SelectItem>
+                    <SelectItem value="1280x720">HD — 1280×720</SelectItem>
+                    <SelectItem value="1024x768">XGA — 1024×768</SelectItem>
+                    <SelectItem value="2160x3840">4K Portrait — 2160×3840</SelectItem>
+                    <SelectItem value="1080x1920">FHD Portrait — 1080×1920</SelectItem>
+                    <SelectItem value="720x1280">HD Portrait — 720×1280</SelectItem>
+                  </SelectContent>
+                </Select>
                 </div>
 
                 {/* Actions */}
