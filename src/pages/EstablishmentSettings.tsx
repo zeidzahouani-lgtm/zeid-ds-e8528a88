@@ -70,6 +70,14 @@ export default function EstablishmentSettings() {
       for (const pair of pairs) {
         await upsertSetting.mutateAsync(pair);
       }
+      // Sync brand_logo_url -> establishments.logo_url (single source of truth)
+      const logoPair = pairs.find(p => p.key === "brand_logo_url");
+      if (logoPair && currentEstablishmentId) {
+        await supabase
+          .from("establishments")
+          .update({ logo_url: logoPair.value || null, updated_at: new Date().toISOString() })
+          .eq("id", currentEstablishmentId);
+      }
       toast({ title: "Configuration sauvegardée" });
     } catch {
       toast({ title: "Erreur lors de la sauvegarde", variant: "destructive" });
