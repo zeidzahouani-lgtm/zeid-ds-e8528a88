@@ -177,6 +177,57 @@ function getOrientationStyle(orientation: string): React.CSSProperties {
   }
 }
 
+/**
+ * Forces a virtual rendering resolution and scales it to fit the physical screen.
+ * Works on Android, LG webOS, Samsung Tizen, Philips, and standard browsers.
+ * `resolution` format: "WIDTHxHEIGHT" or "auto".
+ */
+function ResolutionFrame({ resolution, children }: { resolution?: string | null; children: React.ReactNode }) {
+  const parsed = (() => {
+    if (!resolution || resolution === "auto") return null;
+    const m = /^(\d+)x(\d+)$/.exec(resolution);
+    if (!m) return null;
+    return { w: parseInt(m[1], 10), h: parseInt(m[2], 10) };
+  })();
+
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    if (!parsed) return;
+    const update = () => {
+      setScale(Math.min(window.innerWidth / parsed.w, window.innerHeight / parsed.h));
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+    };
+  }, [parsed?.w, parsed?.h]);
+
+  if (!parsed) return <>{children}</>;
+
+  return (
+    <div style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", backgroundColor: "#000" }}>
+      <div
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          width: parsed.w,
+          height: parsed.h,
+          transform: `translate(-50%, -50%) scale(${scale})`,
+          transformOrigin: "center center",
+          overflow: "hidden",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function MediaRenderer({ media, playlistLength }: { media: { id: string; name: string; type: string; url: string }; playlistLength?: number }) {
   const containerStyle: React.CSSProperties = {
     position: "relative",
