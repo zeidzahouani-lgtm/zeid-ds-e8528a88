@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Clock, Plus, Trash2, ToggleLeft, ToggleRight, Tv, FolderPlus, CalendarDays, List } from "lucide-react";
+import { Clock, Plus, Trash2, ToggleLeft, ToggleRight, Tv, FolderPlus, CalendarDays, List, ListMusic, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { usePrograms } from "@/hooks/usePrograms";
 import { useSchedules } from "@/hooks/useSchedules";
 import { useMedia } from "@/hooks/useMedia";
 import { useScreens } from "@/hooks/useScreens";
+import { usePlaylists } from "@/hooks/usePlaylists";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ScheduleCalendar } from "./ScheduleCalendar";
@@ -20,10 +21,13 @@ const DAYS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 export function ScheduleManager() {
   const { programs, isLoading: loadingPrograms, addProgram, deleteProgram } = usePrograms();
   const { media } = useMedia();
-  const { screens, updateScreen } = useScreens();
+  const { screens } = useScreens();
+  const { playlists } = usePlaylists();
   const [selectedProgram, setSelectedProgram] = useState("");
   const [newName, setNewName] = useState("");
+  const [contentType, setContentType] = useState<"media" | "playlist">("media");
   const [formMedia, setFormMedia] = useState("");
+  const [formPlaylist, setFormPlaylist] = useState("");
   const [startTime, setStartTime] = useState("08:00");
   const [endTime, setEndTime] = useState("18:00");
   const [days, setDays] = useState<number[]>([1, 2, 3, 4, 5]);
@@ -50,17 +54,22 @@ export function ScheduleManager() {
   };
 
   const handleAdd = async () => {
-    if (!formMedia || !selectedProgram) return;
+    if (!selectedProgram) return;
+    if (contentType === "media" && !formMedia) return;
+    if (contentType === "playlist" && !formPlaylist) return;
     try {
       await addSchedule.mutateAsync({
-        media_id: formMedia,
+        media_id: contentType === "media" ? formMedia : null,
+        playlist_id: contentType === "playlist" ? formPlaylist : null,
         start_time: startTime,
         end_time: endTime,
         days_of_week: days,
       });
       toast.success("Programmation ajoutée");
       setFormMedia("");
-    } catch {
+      setFormPlaylist("");
+    } catch (e) {
+      console.error(e);
       toast.error("Erreur");
     }
   };
@@ -146,7 +155,7 @@ export function ScheduleManager() {
       </div>
 
       {selectedProgram && (
-        <Tabs defaultValue="calendar" className="space-y-4">
+        <Tabs defaultValue="list" className="space-y-4">
           <TabsList className="bg-secondary/50">
             <TabsTrigger value="calendar" className="gap-2">
               <CalendarDays className="h-4 w-4" /> Calendrier
@@ -162,7 +171,7 @@ export function ScheduleManager() {
           {/* Calendar view */}
           <TabsContent value="calendar">
             <ScheduleCalendar
-              schedules={schedules}
+              schedules={schedules as any}
               media={media}
               onAdd={handleCalendarAdd}
               onDelete={(id) => deleteSchedule.mutate(id)}
@@ -175,17 +184,63 @@ export function ScheduleManager() {
             {/* Add schedule entry */}
             <Card className="p-4 space-y-4 border-border/50">
               <p className="text-sm font-medium text-foreground">Nouvelle programmation</p>
+
+              {/* Type toggle */}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setContentType("media")}
+                  className={`flex-1 max-w-[180px] flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 text-sm font-medium transition-colors ${
+                    contentType === "media"
+                      ? "border-primary bg-primary/5 text-primary"
+                      : "border-border text-muted-foreground hover:border-primary/50"
+                  }`}
+                >
+                  <ImageIcon className="h-4 w-4" /> Média unique
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setContentType("playlist")}
+                  className={`flex-1 max-w-[180px] flex items-center justify-center gap-2 px-3 py-2 rounded-lg border-2 text-sm font-medium transition-colors ${
+                    contentType === "playlist"
+                      ? "border-primary bg-primary/5 text-primary"
+                      : "border-border text-muted-foreground hover:border-primary/50"
+                  }`}
+                >
+                  <ListMusic className="h-4 w-4" /> Playlist
+                </button>
+              </div>
+
               <div className="flex flex-wrap gap-3 items-end">
-                <Select value={formMedia} onValueChange={setFormMedia}>
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Média" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {media.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {contentType === "media" ? (
+                  <Select value={formMedia} onValueChange={setFormMedia}>
+                    <SelectTrigger className="w-[220px]">
+                      <SelectValue placeholder="Choisir un média" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {media.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Select value={formPlaylist} onValueChange={setFormPlaylist}>
+                    <SelectTrigger className="w-[220px]">
+                      <SelectValue placeholder="Choisir une playlist" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {playlists.length === 0 ? (
+                        <div className="px-2 py-3 text-xs text-muted-foreground">
+                          Aucune playlist. Créez-en une dans l'onglet Playlists.
+                        </div>
+                      ) : (
+                        playlists.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
                 <div className="space-y-1">
                   <label className="text-xs text-muted-foreground">Début</label>
                   <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-[130px]" />
@@ -194,7 +249,11 @@ export function ScheduleManager() {
                   <label className="text-xs text-muted-foreground">Fin</label>
                   <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="w-[130px]" />
                 </div>
-                <Button onClick={handleAdd} disabled={!formMedia} className="gap-2">
+                <Button
+                  onClick={handleAdd}
+                  disabled={contentType === "media" ? !formMedia : !formPlaylist}
+                  className="gap-2"
+                >
                   <Plus className="h-4 w-4" /> Ajouter
                 </Button>
               </div>
@@ -215,59 +274,69 @@ export function ScheduleManager() {
               <p className="text-muted-foreground text-sm">Aucune programmation dans ce programme.</p>
             ) : (
               <div className="space-y-2">
-                {schedules.map((sch) => (
-                  <Card key={sch.id} className="p-3 border-border/50">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <Clock className="h-4 w-4 text-primary shrink-0" />
-                      <span className="font-medium truncate">
-                        {sch.media?.name ?? "Média supprimé"}
-                      </span>
-                      <Badge variant="outline" className="text-xs">
-                        {sch.start_time.slice(0, 5)} – {sch.end_time.slice(0, 5)}
-                      </Badge>
-                      <div className="flex gap-1">
-                        {DAYS.map((label, i) => (
-                          <Badge
-                            key={i}
-                            variant={sch.days_of_week.includes(i) ? "default" : "outline"}
-                            className="text-[10px] px-1.5 py-0"
-                          >
-                            {label.charAt(0)}
-                          </Badge>
-                        ))}
-                      </div>
-                      {(sch as any).start_date && (
-                        <Badge variant="secondary" className="text-[10px]">
-                          {(sch as any).start_date}
-                          {(sch as any).end_date && (sch as any).end_date !== (sch as any).start_date
-                            ? ` → ${(sch as any).end_date}`
-                            : ""}
-                        </Badge>
-                      )}
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 ml-auto"
-                        onClick={() => updateSchedule.mutate({ id: sch.id, active: !sch.active })}
-                        title={sch.active ? "Désactiver" : "Activer"}
-                      >
-                        {sch.active ? (
-                          <ToggleRight className="h-4 w-4 text-status-online" />
+                {schedules.map((sch: any) => {
+                  const isPlaylist = !!sch.playlist_id;
+                  return (
+                    <Card key={sch.id} className="p-3 border-border/50">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        {isPlaylist ? (
+                          <ListMusic className="h-4 w-4 text-primary shrink-0" />
                         ) : (
-                          <ToggleLeft className="h-4 w-4 text-status-offline" />
+                          <Clock className="h-4 w-4 text-primary shrink-0" />
                         )}
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => deleteSchedule.mutate(sch.id)}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </Card>
-                ))}
+                        <span className="font-medium truncate">
+                          {isPlaylist
+                            ? sch.playlist?.name ?? "Playlist supprimée"
+                            : sch.media?.name ?? "Média supprimé"}
+                        </span>
+                        <Badge variant={isPlaylist ? "default" : "secondary"} className="text-[10px]">
+                          {isPlaylist ? "Playlist" : "Média"}
+                        </Badge>
+                        <Badge variant="outline" className="text-xs">
+                          {sch.start_time.slice(0, 5)} – {sch.end_time.slice(0, 5)}
+                        </Badge>
+                        <div className="flex gap-1">
+                          {DAYS.map((label, i) => (
+                            <Badge
+                              key={i}
+                              variant={sch.days_of_week.includes(i) ? "default" : "outline"}
+                              className="text-[10px] px-1.5 py-0"
+                            >
+                              {label.charAt(0)}
+                            </Badge>
+                          ))}
+                        </div>
+                        {sch.start_date && (
+                          <Badge variant="secondary" className="text-[10px]">
+                            {sch.start_date}
+                            {sch.end_date && sch.end_date !== sch.start_date ? ` → ${sch.end_date}` : ""}
+                          </Badge>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 ml-auto"
+                          onClick={() => updateSchedule.mutate({ id: sch.id, active: !sch.active })}
+                          title={sch.active ? "Désactiver" : "Activer"}
+                        >
+                          {sch.active ? (
+                            <ToggleRight className="h-4 w-4 text-status-online" />
+                          ) : (
+                            <ToggleLeft className="h-4 w-4 text-status-offline" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="h-7 w-7"
+                          onClick={() => deleteSchedule.mutate(sch.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </TabsContent>
