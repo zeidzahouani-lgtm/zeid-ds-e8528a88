@@ -900,6 +900,7 @@ export type Database = {
           player_user_agent: string | null
           playlist_id: string | null
           program_id: string | null
+          resolution: string
           slug: string | null
           status: string
           updated_at: string
@@ -923,6 +924,7 @@ export type Database = {
           player_user_agent?: string | null
           playlist_id?: string | null
           program_id?: string | null
+          resolution?: string
           slug?: string | null
           status?: string
           updated_at?: string
@@ -946,6 +948,7 @@ export type Database = {
           player_user_agent?: string | null
           playlist_id?: string | null
           program_id?: string | null
+          resolution?: string
           slug?: string | null
           status?: string
           updated_at?: string

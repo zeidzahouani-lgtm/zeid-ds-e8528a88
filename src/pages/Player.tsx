@@ -177,6 +177,57 @@ function getOrientationStyle(orientation: string): React.CSSProperties {
   }
 }
 
+/**
+ * Forces a virtual rendering resolution and scales it to fit the physical screen.
+ * Works on Android, LG webOS, Samsung Tizen, Philips, and standard browsers.
+ * `resolution` format: "WIDTHxHEIGHT" or "auto".
+ */
+function ResolutionFrame({ resolution, children }: { resolution?: string | null; children: React.ReactNode }) {
+  const parsed = (() => {
+    if (!resolution || resolution === "auto") return null;
+    const m = /^(\d+)x(\d+)$/.exec(resolution);
+    if (!m) return null;
+    return { w: parseInt(m[1], 10), h: parseInt(m[2], 10) };
+  })();
+
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    if (!parsed) return;
+    const update = () => {
+      setScale(Math.min(window.innerWidth / parsed.w, window.innerHeight / parsed.h));
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+    };
+  }, [parsed?.w, parsed?.h]);
+
+  if (!parsed) return <>{children}</>;
+
+  return (
+    <div style={{ width: "100%", height: "100%", position: "relative", overflow: "hidden", backgroundColor: "#000" }}>
+      <div
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          width: parsed.w,
+          height: parsed.h,
+          transform: `translate(-50%, -50%) scale(${scale})`,
+          transformOrigin: "center center",
+          overflow: "hidden",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function MediaRenderer({ media, playlistLength }: { media: { id: string; name: string; type: string; url: string }; playlistLength?: number }) {
   const containerStyle: React.CSSProperties = {
     position: "relative",
@@ -229,6 +280,16 @@ function MediaRenderer({ media, playlistLength }: { media: { id: string; name: s
   );
 }
 
+function withCacheBust(url: string, version?: string | number | null): string {
+  if (!url) return url;
+  const v = version ? String(version) : Date.now().toString();
+  const sep = url.includes("?") ? "&" : "?";
+  // Strip any existing v= param to avoid stacking
+  const clean = url.replace(/([?&])v=[^&]*(&|$)/, (_, p1, p2) => (p2 ? p1 : "")).replace(/[?&]$/, "");
+  const sep2 = clean.includes("?") ? "&" : "?";
+  return `${clean}${sep2}v=${encodeURIComponent(v)}`;
+}
+
 function usePlayerBranding(screenId?: string): PlayerBranding {
   const [branding, setBranding] = useState<PlayerBranding>({
     logoUrl: "",
@@ -240,6 +301,8 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
 
   useEffect(() => {
     if (!screenId) return;
+    let cancelled = false;
+    let establishmentId: string | null = null;
 
     const fetchBranding = async () => {
       const { data: screenData } = await supabase
@@ -249,28 +312,34 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
         .single();
 
       let logoUrl = "";
+      let logoVersion: string | null = null;
       let showLogo = true;
       let bgColor = "#000000";
       let watermark = "";
       let showSignatureOnPlayer = false;
 
       if (screenData?.establishment_id) {
+        establishmentId = screenData.establishment_id;
         const { data: estData } = await supabase
           .from("establishments")
-          .select("logo_url")
+          .select("logo_url, updated_at")
           .eq("id", screenData.establishment_id)
           .single();
         if (estData?.logo_url) logoUrl = estData.logo_url;
+        if (estData?.updated_at) logoVersion = estData.updated_at;
 
         const { data: estSettings } = await supabase
           .from("establishment_settings")
-          .select("key, value")
+          .select("key, value, updated_at")
           .eq("establishment_id", screenData.establishment_id)
           .in("key", ["brand_show_logo_player", "brand_player_bg_color", "brand_player_watermark", "brand_logo_url"]);
 
         if (estSettings) {
           const settingsMap: Record<string, string> = {};
-          estSettings.forEach((s: any) => { if (s.value) settingsMap[s.key] = s.value; });
+          estSettings.forEach((s: any) => {
+            if (s.value) settingsMap[s.key] = s.value;
+            if (s.key === "brand_logo_url" && s.updated_at) logoVersion = s.updated_at;
+          });
           if (settingsMap.brand_logo_url && !logoUrl) logoUrl = settingsMap.brand_logo_url;
           if (settingsMap.brand_show_logo_player === "false") showLogo = false;
           if (settingsMap.brand_player_bg_color) bgColor = settingsMap.brand_player_bg_color;
@@ -281,20 +350,57 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
       // Check global setting for signature on player
       const { data: globalSettings } = await supabase
         .from("app_settings")
-        .select("key, value")
+        .select("key, value, updated_at")
         .in("key", ["logo_url", "show_signature_on_player"]);
 
       if (globalSettings) {
         globalSettings.forEach((s: any) => {
-          if (s.key === "logo_url" && s.value && !logoUrl) logoUrl = s.value;
+          if (s.key === "logo_url" && s.value && !logoUrl) {
+            logoUrl = s.value;
+            if (s.updated_at) logoVersion = s.updated_at;
+          }
           if (s.key === "show_signature_on_player" && s.value === "true") showSignatureOnPlayer = true;
         });
       }
 
-      setBranding({ logoUrl, showLogo, bgColor, watermark, showSignatureOnPlayer });
+      if (cancelled) return;
+      setBranding({
+        logoUrl: logoUrl ? withCacheBust(logoUrl, logoVersion) : "",
+        showLogo,
+        bgColor,
+        watermark,
+        showSignatureOnPlayer,
+      });
     };
 
     fetchBranding();
+
+    // Realtime: refresh branding when establishment or its settings change
+    const estChannel = supabase
+      .channel(`branding-${screenId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "establishments" }, (payload: any) => {
+        if (!establishmentId || payload?.new?.id === establishmentId || payload?.old?.id === establishmentId) {
+          fetchBranding();
+        }
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "establishment_settings" }, (payload: any) => {
+        if (!establishmentId || payload?.new?.establishment_id === establishmentId || payload?.old?.establishment_id === establishmentId) {
+          fetchBranding();
+        }
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "app_settings" }, () => {
+        fetchBranding();
+      })
+      .subscribe();
+
+    // Safety net: also refetch every 60s
+    const poll = setInterval(fetchBranding, 60000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(poll);
+      supabase.removeChannel(estChannel);
+    };
   }, [screenId]);
 
   return branding;
@@ -851,19 +957,23 @@ export default function Player() {
     );
   }
 
+  const screenResolution = (screen as any)?.resolution as string | undefined;
+
   if (layoutId && !media && activeContents.length === 0) {
     return (
       <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", inset: 0, width: "100vw", height: "100vh", overflow: "hidden", cursor: "none" }} onClick={requestFullscreen}>
         {debugMode && <DiagnosticOverlay {...diagBaseProps} />}
         {hudMode && <DiagnosticOverlay {...diagBaseProps} mode="hud" />}
-        <LayoutRenderer
-          layoutId={layoutId}
-          screenOrientation={screen.orientation}
-          screenName={screen.name}
-          screenId={screen.id}
-          logoUrl={branding.logoUrl}
-          showLogo={branding.showLogo}
-        />
+        <ResolutionFrame resolution={screenResolution}>
+          <LayoutRenderer
+            layoutId={layoutId}
+            screenOrientation={screen.orientation}
+            screenName={screen.name}
+            screenId={screen.id}
+            logoUrl={branding.logoUrl}
+            showLogo={branding.showLogo}
+          />
+        </ResolutionFrame>
         <Watermark text={branding.watermark} />
         <PlayerSignature show={branding.showSignatureOnPlayer} />
       </div>
@@ -876,6 +986,7 @@ export default function Player() {
     <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", inset: 0, width: "100vw", height: "100vh", overflow: "hidden", cursor: "none" }} onClick={requestFullscreen}>
       {debugMode && <DiagnosticOverlay {...diagBaseProps} />}
       {hudMode && <DiagnosticOverlay {...diagBaseProps} mode="hud" />}
+      <ResolutionFrame resolution={screenResolution}>
       <div style={{ width: "100%", height: "100%", transition: "transform 0.7s ease-in-out", ...rotationStyle }}>
         <div style={{ width: "100%", height: "100%", transition: "opacity 0.5s ease-in-out", opacity: visible ? 1 : 0 }}>
           {/* Fallback screen */}
@@ -929,6 +1040,7 @@ export default function Player() {
           </div>
         )}
       </div>
+      </ResolutionFrame>
       <Watermark text={branding.watermark} />
       <PlayerSignature show={branding.showSignatureOnPlayer} />
     </div>
