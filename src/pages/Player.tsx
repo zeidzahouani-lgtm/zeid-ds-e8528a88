@@ -542,7 +542,7 @@ function LayoutRenderer({
 
   const rotationStyle = getOrientationStyle(screenOrientation);
 
-  // If all regions are empty (no widget and no media), show fallback
+  // If all regions are empty (no widget and no media), show fallback with a hint
   const allRegionsEmpty = regions.length === 0 || regions.every(r => !r.widget_type && !r.media);
   if (allRegionsEmpty) {
     return (
@@ -555,6 +555,15 @@ function LayoutRenderer({
             showLogo={showLogo}
           />
         </FallbackErrorBoundary>
+        <div style={{
+          position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)",
+          backgroundColor: "rgba(245, 158, 11, 0.95)", color: "#1f2937",
+          padding: "8px 16px", borderRadius: 8, fontSize: 14, fontWeight: 600,
+          fontFamily: "system-ui,-apple-system,sans-serif", letterSpacing: "0.02em",
+          boxShadow: "0 4px 12px rgba(0,0,0,0.3)", zIndex: 10, pointerEvents: "none",
+        }}>
+          ⚠️ Layout vide — ajoutez un média ou un widget aux zones du layout
+        </div>
       </div>
     );
   }
