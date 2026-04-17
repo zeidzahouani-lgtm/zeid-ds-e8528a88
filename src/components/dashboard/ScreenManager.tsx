@@ -536,6 +536,14 @@ export function ScreenManager() {
         assignedProgram={detailScreen ? programs.find((p) => p.id === detailScreen.program_id) : null}
         onClose={() => setDetailScreenId(null)}
       />
+
+      {/* Quick playlist creation dialog */}
+      <QuickPlaylistDialog
+        open={!!quickPlaylistScreen}
+        onOpenChange={(o) => !o && setQuickPlaylistScreen(null)}
+        screenId={quickPlaylistScreen?.id}
+        screenName={quickPlaylistScreen?.name}
+      />
     </div>
   );
 }
