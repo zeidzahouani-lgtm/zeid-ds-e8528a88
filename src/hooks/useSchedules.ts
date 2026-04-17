@@ -6,6 +6,7 @@ export interface Schedule {
   program_id: string | null;
   screen_id: string | null;
   media_id: string | null;
+  playlist_id: string | null;
   start_time: string;
   end_time: string;
   days_of_week: number[];
@@ -14,6 +15,7 @@ export interface Schedule {
   active: boolean;
   created_at: string;
   media?: { id: string; name: string; type: string; url: string } | null;
+  playlist?: { id: string; name: string } | null;
 }
 
 export function useSchedules(programId?: string) {
@@ -26,7 +28,7 @@ export function useSchedules(programId?: string) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("schedules")
-        .select("*, media:media_id(id, name, type, url)")
+        .select("*, media:media_id(id, name, type, url), playlist:playlist_id(id, name)")
         .eq("program_id", programId!)
         .order("start_time", { ascending: true });
       if (error) throw error;
@@ -36,7 +38,8 @@ export function useSchedules(programId?: string) {
 
   const addSchedule = useMutation({
     mutationFn: async (schedule: {
-      media_id: string;
+      media_id?: string | null;
+      playlist_id?: string | null;
       start_time: string;
       end_time: string;
       days_of_week: number[];
@@ -53,7 +56,7 @@ export function useSchedules(programId?: string) {
 
   const updateSchedule = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Schedule> & { id: string }) => {
-      const { media, ...dbUpdates } = updates as any;
+      const { media, playlist, ...dbUpdates } = updates as any;
       const { error } = await supabase.from("schedules").update(dbUpdates).eq("id", id);
       if (error) throw error;
     },
