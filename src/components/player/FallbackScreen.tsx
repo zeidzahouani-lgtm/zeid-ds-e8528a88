@@ -32,7 +32,7 @@ export default function FallbackScreen({ screenName, screenId, logoUrl, showLogo
   });
 
   return (
-    <div className="w-full h-full relative overflow-hidden" style={{ backgroundColor: "#0a0e17", width: "100%", height: "100%", minWidth: "100vw", minHeight: "100vh" }}>
+    <div className="relative overflow-hidden" style={{ backgroundColor: "#0a0e17", width: "100%", height: "100%" }}>
       {/* Pure CSS animated background - no canvas for device compatibility */}
       <div style={{
         position: "absolute", inset: 0,
@@ -60,35 +60,35 @@ export default function FallbackScreen({ screenName, screenId, logoUrl, showLogo
           />
         )}
 
-        {/* Clock - using inline styles for device compatibility */}
+        {/* Clock - using vmin for rotation-safe sizing */}
         <div style={{ display: "flex", alignItems: "baseline", gap: 4, userSelect: "none" }}>
-          <span style={{ fontSize: "min(12vw, 160px)", fontWeight: 200, letterSpacing: "-0.02em", lineHeight: 1, color: "hsl(213,20%,88%)" }}>
+          <span style={{ fontSize: "min(16vmin, 160px)", fontWeight: 200, letterSpacing: "-0.02em", lineHeight: 1, color: "hsl(213,20%,88%)" }}>
             {hours}
           </span>
-          <span style={{ fontSize: "min(12vw, 160px)", fontWeight: 200, lineHeight: 1, color: "hsla(210,100%,56%,0.5)", animation: "fallback-blink 2s ease-in-out infinite" }}>
+          <span style={{ fontSize: "min(16vmin, 160px)", fontWeight: 200, lineHeight: 1, color: "hsla(210,100%,56%,0.5)", animation: "fallback-blink 2s ease-in-out infinite" }}>
             :
           </span>
-          <span style={{ fontSize: "min(12vw, 160px)", fontWeight: 200, letterSpacing: "-0.02em", lineHeight: 1, color: "hsl(213,20%,88%)" }}>
+          <span style={{ fontSize: "min(16vmin, 160px)", fontWeight: 200, letterSpacing: "-0.02em", lineHeight: 1, color: "hsl(213,20%,88%)" }}>
             {mins}
           </span>
-          <span style={{ fontSize: "min(5vw, 48px)", fontWeight: 300, marginLeft: 8, opacity: 0.4, lineHeight: 1, color: "hsl(213,20%,70%)" }}>
+          <span style={{ fontSize: "min(6vmin, 48px)", fontWeight: 300, marginLeft: 8, opacity: 0.4, lineHeight: 1, color: "hsl(213,20%,70%)" }}>
             {secs}
           </span>
         </div>
 
         {/* Date */}
-        <p style={{ marginTop: 16, fontSize: "min(2vw, 20px)", fontWeight: 300, textTransform: "capitalize", letterSpacing: "0.05em", color: "hsl(213,15%,45%)" }}>
+        <p style={{ marginTop: 16, fontSize: "min(2.5vmin, 20px)", fontWeight: 300, textTransform: "capitalize", letterSpacing: "0.05em", color: "hsl(213,15%,45%)" }}>
           {dateStr}
         </p>
 
         {/* Screen name */}
-        <p style={{ marginTop: 32, fontSize: "min(1.2vw, 14px)", textTransform: "uppercase", letterSpacing: "0.25em", fontWeight: 500, color: "hsla(210,100%,56%,0.3)" }}>
+        <p style={{ marginTop: 32, fontSize: "min(1.6vmin, 14px)", textTransform: "uppercase", letterSpacing: "0.25em", fontWeight: 500, color: "hsla(210,100%,56%,0.3)" }}>
           {screenName}
         </p>
 
         {/* QR Upload */}
         <div style={{ marginTop: 48, display: "flex", flexDirection: "column", alignItems: "center", gap: 12, opacity: 0.6 }}>
-          <p style={{ fontSize: "min(1vw, 11px)", textTransform: "uppercase", letterSpacing: "0.2em", color: "hsl(213,15%,35%)" }}>
+          <p style={{ fontSize: "min(1.4vmin, 11px)", textTransform: "uppercase", letterSpacing: "0.2em", color: "hsl(213,15%,35%)" }}>
             Scannez pour diffuser
           </p>
           <div style={{ backgroundColor: "rgba(255,255,255,0.9)", padding: 12, borderRadius: 12, width: 144, height: 144, display: "flex", alignItems: "center", justifyContent: "center" }}>
