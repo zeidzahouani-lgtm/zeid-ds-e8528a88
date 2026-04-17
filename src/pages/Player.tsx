@@ -797,6 +797,29 @@ export default function Player() {
     };
   }, [screen?.id]);
 
+  // Listen for remote refresh signal — forces full page reload (bypasses HTTP cache on Smart TVs)
+  useEffect(() => {
+    if (!screen?.id || previewMode) return;
+    const channel = supabase
+      .channel(`screen-control-${screen.id}`)
+      .on("broadcast", { event: "force_refresh" }, () => {
+        try {
+          if ("caches" in window) {
+            caches.keys().then((keys) => keys.forEach((k) => caches.delete(k))).catch(() => {});
+          }
+        } catch {}
+        setTimeout(() => {
+          const url = new URL(window.location.href);
+          url.searchParams.set("_r", Date.now().toString());
+          window.location.replace(url.toString());
+        }, 200);
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [screen?.id, previewMode]);
+
   const requestFullscreen = useCallback(() => {
     if (previewMode) return; // No fullscreen in preview
     const el = containerRef.current;
