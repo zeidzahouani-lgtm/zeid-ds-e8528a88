@@ -797,17 +797,44 @@ export default function Player() {
     };
   }, [screen?.id]);
 
-  // Toast overlay shown briefly before remote-triggered reload
-  const [refreshToast, setRefreshToast] = useState<string | null>(null);
-
   // Listen for remote refresh signal — forces full page reload (bypasses HTTP cache on Smart TVs)
   useEffect(() => {
     if (!screen?.id || previewMode) return;
     const channel = supabase
       .channel(`screen-control-${screen.id}`)
       .on("broadcast", { event: "force_refresh" }, () => {
-        // Show on-screen notification so operator sees the action
-        setRefreshToast("Mise à jour en cours...");
+        // On-screen toast overlay (DOM-injected so it shows over any render branch)
+        try {
+          const overlay = document.createElement("div");
+          overlay.setAttribute("data-refresh-toast", "1");
+          overlay.style.cssText = [
+            "position:fixed",
+            "top:50%",
+            "left:50%",
+            "transform:translate(-50%,-50%)",
+            "z-index:2147483647",
+            "background:rgba(0,0,0,0.85)",
+            "color:#fff",
+            "padding:24px 40px",
+            "border-radius:16px",
+            "font-family:system-ui,-apple-system,sans-serif",
+            "font-size:28px",
+            "font-weight:600",
+            "letter-spacing:0.5px",
+            "box-shadow:0 20px 60px rgba(0,0,0,0.6)",
+            "border:1px solid rgba(255,255,255,0.15)",
+            "display:flex",
+            "align-items:center",
+            "gap:16px",
+            "pointer-events:none",
+          ].join(";");
+          overlay.innerHTML = `
+            <div style="width:24px;height:24px;border:3px solid rgba(255,255,255,0.25);border-top-color:#3b82f6;border-radius:50%;animation:rt-spin 0.8s linear infinite"></div>
+            <span>Mise à jour en cours...</span>
+            <style>@keyframes rt-spin{to{transform:rotate(360deg)}}</style>
+          `;
+          document.body.appendChild(overlay);
+        } catch {}
         try {
           if ("caches" in window) {
             caches.keys().then((keys) => keys.forEach((k) => caches.delete(k))).catch(() => {});
