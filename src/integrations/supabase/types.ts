@@ -826,6 +826,7 @@ export type Database = {
           end_time: string
           id: string
           media_id: string | null
+          playlist_id: string | null
           program_id: string | null
           screen_id: string | null
           start_date: string | null
@@ -839,6 +840,7 @@ export type Database = {
           end_time?: string
           id?: string
           media_id?: string | null
+          playlist_id?: string | null
           program_id?: string | null
           screen_id?: string | null
           start_date?: string | null
@@ -852,6 +854,7 @@ export type Database = {
           end_time?: string
           id?: string
           media_id?: string | null
+          playlist_id?: string | null
           program_id?: string | null
           screen_id?: string | null
           start_date?: string | null
@@ -863,6 +866,13 @@ export type Database = {
             columns: ["media_id"]
             isOneToOne: false
             referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "schedules_playlist_id_fkey"
+            columns: ["playlist_id"]
+            isOneToOne: false
+            referencedRelation: "playlists"
             referencedColumns: ["id"]
           },
           {
