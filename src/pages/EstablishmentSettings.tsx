@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings, AtSign, Sparkles, Palette, Save, Building2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import { useEstablishmentSettings } from "@/hooks/useEstablishmentSettings";
 import BrandingTab from "@/components/settings/BrandingTab";
@@ -68,6 +69,14 @@ export default function EstablishmentSettings() {
     try {
       for (const pair of pairs) {
         await upsertSetting.mutateAsync(pair);
+      }
+      // Sync brand_logo_url -> establishments.logo_url (single source of truth)
+      const logoPair = pairs.find(p => p.key === "brand_logo_url");
+      if (logoPair && currentEstablishmentId) {
+        await supabase
+          .from("establishments")
+          .update({ logo_url: logoPair.value || null, updated_at: new Date().toISOString() })
+          .eq("id", currentEstablishmentId);
       }
       toast({ title: "Configuration sauvegardée" });
     } catch {
