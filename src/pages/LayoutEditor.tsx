@@ -1479,22 +1479,23 @@ export default function LayoutEditor() {
                           {!cfg.playlistId && (
                             <div className="space-y-2">
                               <div className="flex items-center justify-between">
-                                <label className="text-xs text-muted-foreground">Images ({slideItems.length})</label>
+                                <label className="text-xs text-muted-foreground">Médias ({slideItems.length})</label>
                                 <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setShowSlideshowPicker(true)}>
                                   <Plus className="h-3 w-3 mr-1" /> Ajouter
                                 </Button>
                               </div>
                               {slideItems.length === 0 ? (
                                 <p className="text-[11px] text-muted-foreground italic">
-                                  Aucune image. Cliquez sur "Ajouter" pour en sélectionner.
+                                  Aucun média. Cliquez sur "Ajouter" pour ajouter des images ou vidéos.
                                 </p>
                               ) : (
                                 <div className="space-y-1">
                                   {slideItems.map((it, idx) => (
                                     <div key={idx} className="flex items-center gap-2 p-1.5 border border-border rounded">
                                       {it.type?.startsWith("video") ? (
-                                        <div className="h-9 w-12 rounded bg-muted flex items-center justify-center shrink-0">
-                                          <Video className="h-4 w-4" />
+                                        <div className="relative h-9 w-12 rounded overflow-hidden shrink-0 bg-muted">
+                                          <video src={it.url} className="h-full w-full object-cover" muted preload="metadata" />
+                                          <Video className="absolute bottom-0.5 right-0.5 h-3 w-3 text-white drop-shadow" />
                                         </div>
                                       ) : (
                                         <img src={it.url} alt="" className="h-9 w-12 rounded object-cover shrink-0" />
@@ -1692,8 +1693,9 @@ export default function LayoutEditor() {
                         {m.type?.startsWith("image") ? (
                           <img src={m.url} alt={m.name} className="w-full h-28 object-cover" />
                         ) : (
-                          <div className="w-full h-28 bg-muted flex items-center justify-center">
-                            <Video className="h-8 w-8 text-accent" />
+                          <div className="relative w-full h-28 bg-muted">
+                            <video src={m.url} className="w-full h-full object-cover" muted preload="metadata" />
+                            <span className="absolute bottom-1 left-1 px-1 rounded bg-black/60 text-white text-[9px] font-semibold">VIDÉO</span>
                           </div>
                         )}
                         {alreadyCount > 0 && (
