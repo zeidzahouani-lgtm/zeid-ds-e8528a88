@@ -12,7 +12,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { useScreens } from "@/hooks/useScreens";
 import { useMedia } from "@/hooks/useMedia";
 import { useLayouts } from "@/hooks/useLayouts";
-import { usePlaylistItems } from "@/hooks/usePlaylistItems";
 import { usePlaylists } from "@/hooks/usePlaylists";
 import { usePrograms } from "@/hooks/usePrograms";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
@@ -74,39 +73,6 @@ function parseUserAgent(ua: string | null): { device: string; icon: React.ReactN
   return { device: os ? `${browser} / ${os}` : browser, icon: <Laptop className="h-3 w-3" /> };
 }
 
-function PlaylistPanel({ screenId, media }: { screenId: string; media: any[] }) {
-  const { items, addItem, removeItem } = usePlaylistItems(screenId);
-
-  return (
-    <div className="space-y-3">
-      <p className="text-sm text-muted-foreground">
-        {items.length === 0 ? "Aucun média dans la playlist." : `${items.length} média(s) dans la playlist.`}
-      </p>
-      {items.map((item: any) => (
-        <div key={item.id} className="flex items-center justify-between border rounded-md p-2">
-          <span className="text-sm">{item.media?.name || "Média inconnu"}</span>
-          <Button variant="ghost" size="icon" onClick={() => removeItem.mutate(item.id)}>
-            <Trash2 className="h-3.5 w-3.5 text-destructive" />
-          </Button>
-        </div>
-      ))}
-      <div className="border-t pt-3">
-        <label className="text-sm font-medium">Ajouter un média</label>
-        <Select onValueChange={(mediaId) => addItem.mutate({ mediaId, position: items.length })}>
-          <SelectTrigger className="mt-1">
-            <SelectValue placeholder="Choisir un média..." />
-          </SelectTrigger>
-          <SelectContent>
-            {media.map((m) => (
-              <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    </div>
-  );
-}
-
 export function ScreenManager() {
   const { screens, isLoading, addScreen, updateScreen, deleteScreen } = useScreens();
   const { media } = useMedia();
@@ -140,7 +106,6 @@ export function ScreenManager() {
 
   const quotaReached = maxScreens != null && maxScreens > 0 && screens.length >= maxScreens;
   const [newName, setNewName] = useState("");
-  const [playlistScreenId, setPlaylistScreenId] = useState<string | null>(null);
   const [quickPlaylistScreen, setQuickPlaylistScreen] = useState<{ id: string; name: string } | null>(null);
   const [previewScreen, setPreviewScreen] = useState<{ id: string; slug: string | null; name: string } | null>(null);
   const [detailScreenId, setDetailScreenId] = useState<string | null>(null);
@@ -374,14 +339,6 @@ export function ScreenManager() {
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => setPlaylistScreenId(screen.id)}
-                    title="Gérer la playlist (legacy)"
-                  >
-                    <ListMusic className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
                     onClick={() => setQuickPlaylistScreen({ id: screen.id, name: screen.name })}
                     title="Créer une playlist rapide pour cet écran"
                     className="text-primary border-primary/30 hover:bg-primary/10"
@@ -487,21 +444,6 @@ export function ScreenManager() {
           })}
         </div>
       )}
-
-      {/* Playlist dialog */}
-      <Dialog open={!!playlistScreenId} onOpenChange={() => setPlaylistScreenId(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ListMusic className="h-5 w-5" /> Playlist
-            </DialogTitle>
-            <DialogDescription>
-              {screens.find((s) => s.id === playlistScreenId)?.name}
-            </DialogDescription>
-          </DialogHeader>
-          {playlistScreenId && <PlaylistPanel screenId={playlistScreenId} media={media} />}
-        </DialogContent>
-      </Dialog>
 
       {/* Live preview dialog */}
       <Dialog open={!!previewScreen} onOpenChange={() => setPreviewScreen(null)}>
