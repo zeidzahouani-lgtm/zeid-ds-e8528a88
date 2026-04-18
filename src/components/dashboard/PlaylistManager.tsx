@@ -281,9 +281,14 @@ function WizardView({
                           {order}
                         </div>
                       )}
-                      <div className="aspect-video rounded bg-muted overflow-hidden mb-1.5">
+                      <div className="aspect-video rounded bg-muted overflow-hidden mb-1.5 relative">
                         {m.type === "image" ? (
                           <img src={m.url} alt={m.name} className="w-full h-full object-cover" />
+                        ) : m.type === "video" ? (
+                          <>
+                            <video src={m.url} className="w-full h-full object-cover" muted preload="metadata" />
+                            <span className="absolute bottom-1 left-1 px-1 rounded bg-black/60 text-white text-[9px] font-semibold">VIDÉO</span>
+                          </>
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <ListMusic className="h-6 w-6 text-muted-foreground" />
