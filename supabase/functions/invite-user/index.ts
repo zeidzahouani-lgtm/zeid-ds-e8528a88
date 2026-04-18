@@ -28,15 +28,16 @@ Deno.serve(async (req) => {
     if (!isServiceRole) {
       const token = authHeader.replace(/^Bearer\s+/i, "");
       const anonClient = createClient(supabaseUrl, anonKey);
-      const { data: userData, error: userError } = await anonClient.auth.getUser(token);
-      if (userError || !userData?.user) {
-        console.error("Auth error:", userError?.message, "token len:", token.length);
+      const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
+      const userIdFromToken = claimsData?.claims?.sub;
+      if (claimsError || !userIdFromToken) {
+        console.error("Auth claims error:", claimsError?.message, "token len:", token.length);
         throw new Error("Session expirée, veuillez vous reconnecter");
       }
 
-      callerUserId = userData.user.id;
+      callerUserId = userIdFromToken;
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
-      const { data: roleData } = await adminClient.from("user_roles").select("role").eq("user_id", callerUserId).eq("role", "admin");
+      const { data: roleData } = await adminClient.from("user_roles").select("role" ).eq("user_id", callerUserId).eq("role", "admin");
       callerIsAdmin = !!(roleData && roleData.length > 0);
     }
 
@@ -178,7 +179,7 @@ Deno.serve(async (req) => {
         console.error("Vault password update sync failed:", syncErr);
       }
 
-      return new Response(JSON.stringify({ success: true, user: targetUser }), {
+      return new Response(JSON.stringify({ success: true, user_id: pwUserId }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
