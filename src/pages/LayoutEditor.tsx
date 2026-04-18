@@ -1410,6 +1410,165 @@ export default function LayoutEditor() {
                       </div>
                     )}
 
+                    {(selectedRegion as any).widget_type === "slideshow" && (() => {
+                      const cfg = (selectedRegion as any).widget_config || {};
+                      const slideItems: any[] = Array.isArray(cfg.items) ? cfg.items : [];
+                      const updateCfg = (patch: any) =>
+                        updateRegion.mutate({
+                          id: selectedRegion.id,
+                          widget_config: { ...cfg, ...patch },
+                        } as any);
+                      const updateItem = (idx: number, patch: any) => {
+                        const next = slideItems.map((it, i) => (i === idx ? { ...it, ...patch } : it));
+                        updateCfg({ items: next });
+                      };
+                      const removeItem = (idx: number) => {
+                        const next = slideItems.filter((_, i) => i !== idx);
+                        updateCfg({ items: next });
+                      };
+                      const moveItem = (idx: number, dir: -1 | 1) => {
+                        const j = idx + dir;
+                        if (j < 0 || j >= slideItems.length) return;
+                        const next = [...slideItems];
+                        [next[idx], next[j]] = [next[j], next[idx]];
+                        updateCfg({ items: next });
+                      };
+                      return (
+                        <div className="space-y-3 border-t border-border pt-3">
+                          <p className="text-xs font-medium flex items-center gap-1.5">
+                            <Images className="h-3.5 w-3.5 text-primary" /> Configuration Diaporama
+                          </p>
+
+                          <div>
+                            <label className="text-xs text-muted-foreground">Source</label>
+                            <Select
+                              value={cfg.playlistId ? "playlist" : "manual"}
+                              onValueChange={(v) =>
+                                updateCfg(v === "playlist" ? { playlistId: playlists[0]?.id ?? null } : { playlistId: null })
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="manual">📷 Sélection manuelle</SelectItem>
+                                <SelectItem value="playlist">🎵 Playlist existante</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {cfg.playlistId && (
+                            <div>
+                              <label className="text-xs text-muted-foreground">Playlist</label>
+                              <Select value={cfg.playlistId} onValueChange={(v) => updateCfg({ playlistId: v })}>
+                                <SelectTrigger className="h-8 text-sm mt-1"><SelectValue placeholder="Choisir..." /></SelectTrigger>
+                                <SelectContent>
+                                  {playlists.length === 0 ? (
+                                    <SelectItem value="__none" disabled>Aucune playlist</SelectItem>
+                                  ) : (
+                                    playlists.map((p) => (
+                                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                    ))
+                                  )}
+                                </SelectContent>
+                              </Select>
+                              <p className="text-[10px] text-muted-foreground mt-1">
+                                Les médias et l'ordre sont récupérés depuis la playlist.
+                              </p>
+                            </div>
+                          )}
+
+                          {!cfg.playlistId && (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <label className="text-xs text-muted-foreground">Images ({slideItems.length})</label>
+                                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setShowSlideshowPicker(true)}>
+                                  <Plus className="h-3 w-3 mr-1" /> Ajouter
+                                </Button>
+                              </div>
+                              {slideItems.length === 0 ? (
+                                <p className="text-[11px] text-muted-foreground italic">
+                                  Aucune image. Cliquez sur "Ajouter" pour en sélectionner.
+                                </p>
+                              ) : (
+                                <div className="space-y-1">
+                                  {slideItems.map((it, idx) => (
+                                    <div key={idx} className="flex items-center gap-2 p-1.5 border border-border rounded">
+                                      {it.type?.startsWith("video") ? (
+                                        <div className="h-9 w-12 rounded bg-muted flex items-center justify-center shrink-0">
+                                          <Video className="h-4 w-4" />
+                                        </div>
+                                      ) : (
+                                        <img src={it.url} alt="" className="h-9 w-12 rounded object-cover shrink-0" />
+                                      )}
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-[10px] text-muted-foreground">#{idx + 1} • durée (s)</p>
+                                        <Input
+                                          type="number"
+                                          min={1}
+                                          value={it.duration ?? cfg.defaultDuration ?? 5}
+                                          onChange={(e) => updateItem(idx, { duration: Math.max(1, +e.target.value) })}
+                                          className="h-6 text-xs"
+                                        />
+                                      </div>
+                                      <div className="flex flex-col gap-0.5">
+                                        <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => moveItem(idx, -1)} disabled={idx === 0}>
+                                          <ArrowUp className="h-3 w-3" />
+                                        </Button>
+                                        <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={() => moveItem(idx, 1)} disabled={idx === slideItems.length - 1}>
+                                          <ArrowDown className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-destructive" onClick={() => removeItem(idx)}>
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="grid grid-cols-2 gap-2 border-t border-border pt-3">
+                            <div>
+                              <label className="text-xs text-muted-foreground">Durée par défaut (s)</label>
+                              <Input type="number" min={1} value={cfg.defaultDuration ?? 5} onChange={(e) => updateCfg({ defaultDuration: Math.max(1, +e.target.value) })} className="h-8 text-sm mt-1" />
+                            </div>
+                            <div>
+                              <label className="text-xs text-muted-foreground">Transition (ms)</label>
+                              <Input type="number" min={0} step={100} value={cfg.transitionDuration ?? 600} onChange={(e) => updateCfg({ transitionDuration: Math.max(0, +e.target.value) })} className="h-8 text-sm mt-1" />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground">Effet de transition</label>
+                            <Select value={cfg.transition || "fade"} onValueChange={(v) => updateCfg({ transition: v })}>
+                              <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="fade">Fondu</SelectItem>
+                                <SelectItem value="slide">Glissement</SelectItem>
+                                <SelectItem value="none">Aucune</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground">Ajustement</label>
+                            <Select value={cfg.fit || "cover"} onValueChange={(v) => updateCfg({ fit: v })}>
+                              <SelectTrigger className="h-8 text-sm mt-1"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="cover">Remplir (cover)</SelectItem>
+                                <SelectItem value="contain">Ajuster (contain)</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground">Couleur de fond</label>
+                            <div className="flex items-center gap-2 mt-1">
+                              <input type="color" value={cfg.backgroundColor || "#000000"} onChange={(e) => updateCfg({ backgroundColor: e.target.value })} className="w-10 h-8 rounded border border-border cursor-pointer" />
+                              <Input value={cfg.backgroundColor || "#000000"} onChange={(e) => updateCfg({ backgroundColor: e.target.value })} className="h-8 text-xs flex-1 font-mono" />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     {selectedRegion.media && !(selectedRegion as any).widget_type && (
                       <div className="border rounded-md overflow-hidden">
                         {selectedRegion.media.type?.startsWith("image") ? (
