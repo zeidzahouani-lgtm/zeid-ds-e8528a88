@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useLayouts, useLayoutRegions, LayoutRegion } from "@/hooks/useLayouts";
+import { usePlaylists } from "@/hooks/usePlaylists";
 import { useMedia } from "@/hooks/useMedia";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -124,6 +125,7 @@ export default function LayoutEditor() {
   const { layouts, updateLayout } = useLayouts();
   const { regions, addRegion, updateRegion, deleteRegion } = useLayoutRegions(id);
   const { media } = useMedia();
+  const { playlists } = usePlaylists();
   const canvasRef = useRef<HTMLDivElement>(null);
 
   const layout = layouts.find((l) => l.id === id);
