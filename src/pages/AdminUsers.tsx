@@ -215,15 +215,32 @@ export default function AdminUsers() {
 
   const updateProfile = useMutation({
     mutationFn: async ({ id, display_name, email }: { id: string; display_name: string; email: string }) => {
-      const { error } = await supabase.from("profiles").update({ display_name, email } as any).eq("id", id);
-      if (error) throw error;
+      const trimmedEmail = email.trim().toLowerCase();
+      const trimmedName = display_name.trim();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (trimmedEmail && !emailRegex.test(trimmedEmail)) {
+        throw new Error("Format d'email invalide (ex: nom@domaine.com)");
+      }
+      const res = await supabase.functions.invoke("invite-user", {
+        body: {
+          update_profile: true,
+          user_id: id,
+          new_email: trimmedEmail,
+          display_name: trimmedName,
+        },
+      });
+      if (res.error) throw res.error;
+      if (res.data?.error) throw new Error(res.data.error);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin_users"] });
-      toast({ title: "Profil mis à jour" });
+      toast({ title: "Profil mis à jour", description: "L'email de connexion a aussi été modifié." });
       setShowEditDialog(null);
     },
-    onError: () => toast({ title: "Erreur", variant: "destructive" }),
+    onError: (e: unknown) => {
+      const msg = e instanceof Error ? e.message : "Erreur inconnue";
+      toast({ title: "Erreur", description: msg, variant: "destructive" });
+    },
   });
 
   const deleteUser = useMutation({
