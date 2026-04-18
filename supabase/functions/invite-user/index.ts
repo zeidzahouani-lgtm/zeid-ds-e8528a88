@@ -43,12 +43,58 @@ Deno.serve(async (req) => {
     const password = typeof payload?.password === "string" ? payload.password : "";
     const displayName = typeof payload?.display_name === "string" ? payload.display_name.trim() : "";
     const updatePassword = payload?.update_password === true;
+    const updateProfileFlag = payload?.update_profile === true;
     const deleteUserFlag = payload?.delete_user === true;
     const deleteUserId = typeof payload?.user_id === "string" ? payload.user_id : "";
+    const targetUserId = typeof payload?.user_id === "string" ? payload.user_id : "";
+    const newEmailRaw = typeof payload?.new_email === "string" ? payload.new_email : "";
     const requestedRole = typeof payload?.role === "string" ? payload.role : null;
     const establishmentId = typeof payload?.establishment_id === "string" ? payload.establishment_id : null;
 
     const email = rawEmail.trim().toLowerCase();
+    const newEmail = newEmailRaw.trim().toLowerCase();
+
+    // ============ UPDATE PROFILE (display_name + email) ============
+    if (updateProfileFlag) {
+      if (!callerIsAdmin) throw new Error("Not admin");
+      if (!targetUserId) throw new Error("user_id required");
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (newEmail && !emailRegex.test(newEmail)) {
+        throw new Error("Format d'email invalide");
+      }
+
+      const adminClient = createClient(supabaseUrl, serviceRoleKey);
+
+      // Update auth user (email used for login) + metadata
+      const authUpdate: Record<string, any> = {};
+      if (newEmail) {
+        authUpdate.email = newEmail;
+        authUpdate.email_confirm = true;
+      }
+      if (displayName) {
+        authUpdate.user_metadata = { display_name: displayName };
+      }
+
+      if (Object.keys(authUpdate).length > 0) {
+        const { error: authErr } = await adminClient.auth.admin.updateUserById(targetUserId, authUpdate);
+        if (authErr) throw authErr;
+      }
+
+      // Sync profiles table
+      const profileUpdate: Record<string, any> = {};
+      if (newEmail) profileUpdate.email = newEmail;
+      if (displayName) profileUpdate.display_name = displayName;
+
+      if (Object.keys(profileUpdate).length > 0) {
+        const { error: profErr } = await adminClient.from("profiles").update(profileUpdate).eq("id", targetUserId);
+        if (profErr) throw profErr;
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // ============ DELETE USER ============
     if (deleteUserFlag) {
