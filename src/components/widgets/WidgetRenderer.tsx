@@ -5,6 +5,7 @@ import QRCodeWidget from "./QRCodeWidget";
 import FixedTextWidget from "./FixedTextWidget";
 import CurrencyWidget from "./CurrencyWidget";
 import RSSWidget from "./RSSWidget";
+import SlideshowWidget from "./SlideshowWidget";
 
 interface WidgetRendererProps {
   widgetType: string;
@@ -27,6 +28,8 @@ export default function WidgetRenderer({ widgetType, widgetConfig }: WidgetRende
       return <CurrencyWidget config={widgetConfig} />;
     case "rss":
       return <RSSWidget config={widgetConfig} />;
+    case "slideshow":
+      return <SlideshowWidget config={widgetConfig} />;
     default:
       return (
         <div className="flex items-center justify-center h-full w-full bg-muted text-muted-foreground text-xs">
