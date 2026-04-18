@@ -794,6 +794,9 @@ export default function LayoutEditor() {
                           {w.value === "marquee" && "Message défilant personnalisable"}
                           {w.value === "fixedtext" && "Texte statique personnalisable"}
                           {w.value === "qrcode" && "QR Code interactif"}
+                          {w.value === "currency" && "Cours des devises"}
+                          {w.value === "rss" && "Flux RSS / actualités"}
+                          {w.value === "slideshow" && "Diaporama de plusieurs images"}
                         </p>
                       </div>
                     </div>
