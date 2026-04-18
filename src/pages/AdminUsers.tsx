@@ -535,7 +535,7 @@ export default function AdminUsers() {
             <Button
               onClick={() => {
                 if (showPasswordDialog?.email && validatePassword(newPasswordValue).valid) {
-                  updatePassword.mutate({ email: showPasswordDialog.email, password: newPasswordValue });
+                  updatePassword.mutate({ id: showPasswordDialog.id, email: showPasswordDialog.email, password: newPasswordValue });
                 }
               }}
               disabled={!validatePassword(newPasswordValue).valid || updatePassword.isPending}
