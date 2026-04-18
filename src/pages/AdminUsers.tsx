@@ -194,9 +194,9 @@ export default function AdminUsers() {
   });
 
   const updatePassword = useMutation({
-    mutationFn: async ({ email, password }: { email: string; password: string }) => {
+    mutationFn: async ({ id, email, password }: { id: string; email: string; password: string }) => {
       const res = await supabase.functions.invoke("invite-user", {
-        body: { email, password, update_password: true },
+        body: { user_id: id, email, password, update_password: true },
       });
       if (res.error) throw res.error;
       if (res.data?.error) throw new Error(res.data.error);
@@ -535,7 +535,7 @@ export default function AdminUsers() {
             <Button
               onClick={() => {
                 if (showPasswordDialog?.email && validatePassword(newPasswordValue).valid) {
-                  updatePassword.mutate({ email: showPasswordDialog.email, password: newPasswordValue });
+                  updatePassword.mutate({ id: showPasswordDialog.id, email: showPasswordDialog.email, password: newPasswordValue });
                 }
               }}
               disabled={!validatePassword(newPasswordValue).valid || updatePassword.isPending}

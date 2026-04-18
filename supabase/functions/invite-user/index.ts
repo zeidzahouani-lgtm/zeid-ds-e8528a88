@@ -136,13 +136,17 @@ Deno.serve(async (req) => {
 
     if (updatePassword) {
       if (!callerIsAdmin) throw new Error("Not admin");
-      const { data: { users }, error: listError } = await adminClient.auth.admin.listUsers();
-      if (listError) throw listError;
 
-      const targetUser = users.find((u: any) => (u.email || "").toLowerCase() === email);
-      if (!targetUser) throw new Error("Utilisateur introuvable");
+      let pwUserId = targetUserId;
+      if (!pwUserId) {
+        const { data: { users }, error: listError } = await adminClient.auth.admin.listUsers();
+        if (listError) throw listError;
+        const targetUser = users.find((u: any) => (u.email || "").toLowerCase() === email);
+        if (!targetUser) throw new Error("Utilisateur introuvable");
+        pwUserId = targetUser.id;
+      }
 
-      const { error: updateError } = await adminClient.auth.admin.updateUserById(targetUser.id, {
+      const { error: updateError } = await adminClient.auth.admin.updateUserById(pwUserId, {
         password,
       });
       if (updateError) throw updateError;
