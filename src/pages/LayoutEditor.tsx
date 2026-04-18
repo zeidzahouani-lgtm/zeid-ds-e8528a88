@@ -713,6 +713,8 @@ export default function LayoutEditor() {
                 )}
               </CardContent>
             </Card>
+          )}
+
           {activePanel === "library" && (
             <Card className="self-start">
               <CardHeader className="pb-2">
