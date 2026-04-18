@@ -135,6 +135,7 @@ export default function LayoutEditor() {
   const [activePanel, setActivePanel] = useState<"properties" | "library" | "widgets" | "presets" | "background">("presets");
   const [showPreview, setShowPreview] = useState(false);
   const [showBgLibrary, setShowBgLibrary] = useState(false);
+  const [showSlideshowPicker, setShowSlideshowPicker] = useState(false);
   const [orientation, setOrientation] = useState<"landscape" | "portrait">("landscape");
 
   useEffect(() => {
