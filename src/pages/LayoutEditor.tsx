@@ -1646,6 +1646,73 @@ export default function LayoutEditor() {
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      {/* Slideshow media picker */}
+      <Dialog open={showSlideshowPicker} onOpenChange={setShowSlideshowPicker}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Images className="h-5 w-5 text-primary" /> Ajouter des images au diaporama
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">
+            Cliquez sur les images à ajouter. Elles seront empilées dans l'ordre des clics.
+          </p>
+          <ScrollArea className="h-[400px]">
+            <div className="grid grid-cols-3 gap-3 p-1">
+              {media.filter((m) => m.type?.startsWith("image") || m.type?.startsWith("video")).length === 0 ? (
+                <p className="col-span-3 text-center text-sm text-muted-foreground py-12">
+                  Aucun média dans la bibliothèque.
+                </p>
+              ) : (
+                media
+                  .filter((m) => m.type?.startsWith("image") || m.type?.startsWith("video"))
+                  .map((m) => {
+                    const region = selectedRegion;
+                    const cfg = (region as any)?.widget_config || {};
+                    const items: any[] = Array.isArray(cfg.items) ? cfg.items : [];
+                    const alreadyCount = items.filter((it) => it.url === m.url).length;
+                    return (
+                      <div
+                        key={m.id}
+                        className="relative group rounded-lg overflow-hidden border-2 border-border cursor-pointer hover:border-primary/60 transition-all"
+                        onClick={() => {
+                          if (!region) return;
+                          const next = [
+                            ...items,
+                            { url: m.url, type: m.type, duration: cfg.defaultDuration ?? 5 },
+                          ];
+                          updateRegion.mutate({
+                            id: region.id,
+                            widget_config: { ...cfg, items: next },
+                          } as any);
+                          toast({ title: `"${m.name}" ajouté au diaporama` });
+                        }}
+                      >
+                        {m.type?.startsWith("image") ? (
+                          <img src={m.url} alt={m.name} className="w-full h-28 object-cover" />
+                        ) : (
+                          <div className="w-full h-28 bg-muted flex items-center justify-center">
+                            <Video className="h-8 w-8 text-accent" />
+                          </div>
+                        )}
+                        {alreadyCount > 0 && (
+                          <div className="absolute top-1 right-1 h-5 min-w-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                            ×{alreadyCount}
+                          </div>
+                        )}
+                        <p className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] px-2 py-1 truncate">{m.name}</p>
+                      </div>
+                    );
+                  })
+              )}
+            </div>
+          </ScrollArea>
+          <div className="flex justify-end pt-2">
+            <Button size="sm" onClick={() => setShowSlideshowPicker(false)}>Terminé</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
