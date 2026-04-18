@@ -194,9 +194,9 @@ export default function AdminUsers() {
   });
 
   const updatePassword = useMutation({
-    mutationFn: async ({ email, password }: { email: string; password: string }) => {
+    mutationFn: async ({ id, email, password }: { id: string; email: string; password: string }) => {
       const res = await supabase.functions.invoke("invite-user", {
-        body: { email, password, update_password: true },
+        body: { user_id: id, email, password, update_password: true },
       });
       if (res.error) throw res.error;
       if (res.data?.error) throw new Error(res.data.error);
