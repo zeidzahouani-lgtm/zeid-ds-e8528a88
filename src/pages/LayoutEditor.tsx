@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import {
   ArrowLeft, Plus, Trash2, Save, Move, Maximize2, Image, Video, Globe, Clock, Cloud, Type,
   Monitor, Smartphone, LayoutGrid, Columns, PanelLeft, Square, Eye, QrCode, Palette, AlignLeft,
-  ImageIcon, Check, ArrowUpDown, Rss,
+  ImageIcon, Check, ArrowUpDown, Rss, Images, ArrowUp, ArrowDown,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import WidgetRenderer from "@/components/widgets/WidgetRenderer";
@@ -42,6 +42,7 @@ const WIDGET_TYPES = [
   { value: "qrcode", label: "QR Code", icon: QrCode },
   { value: "currency", label: "Cours devises", icon: ArrowUpDown },
   { value: "rss", label: "Flux RSS", icon: Rss },
+  { value: "slideshow", label: "Diaporama", icon: Images },
 ];
 
 interface PresetTemplate {
@@ -114,6 +115,7 @@ const DEFAULT_WIDGET_CONFIGS: Record<string, any> = {
   qrcode: { qrType: "url", url: "https://example.com", label: "Scannez-moi", bgColor: "#ffffff", fgColor: "#000000" },
   currency: { mode: "auto", baseCurrency: "EUR", targetCurrencies: ["USD", "TND", "GBP"], manualRates: {} },
   rss: { feedUrl: "", maxItems: 5, showDescription: false, scrollSpeed: 30, accentColor: "#3b82f6" },
+  slideshow: { items: [], playlistId: null, defaultDuration: 5, transition: "fade", transitionDuration: 600, fit: "cover", backgroundColor: "#000000" },
 };
 
 export default function LayoutEditor() {
