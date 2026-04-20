@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import ScreenDetailDialog from "@/components/dashboard/ScreenDetailDialog";
 import { QuickPlaylistDialog } from "@/components/dashboard/QuickPlaylistDialog";
-import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock, RefreshCw, Tv, Power, Eye, ShieldAlert, ShieldOff, Bug, AlertTriangle, Sparkles, PlayCircle } from "lucide-react";
+import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock, RefreshCw, Tv, Power, Eye, ShieldAlert, ShieldOff, Bug, AlertTriangle, Sparkles } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -429,24 +429,6 @@ export function ScreenManager() {
                     title="Ouvrir le player"
                   >
                     <ExternalLink className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    title="Copier le lien VLC (.m3u)"
-                    className="text-orange-500 border-orange-500/30 hover:bg-orange-500/10"
-                    onClick={async () => {
-                      const ident = (screen as any).slug || screen.id;
-                      const link = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/screen-vlc-playlist?screen=${encodeURIComponent(ident)}`;
-                      try {
-                        await navigator.clipboard.writeText(link);
-                        toast.success("Lien VLC copié — collez-le dans VLC › Média › Ouvrir un flux réseau");
-                      } catch {
-                        window.prompt("Copiez le lien VLC :", link);
-                      }
-                    }}
-                  >
-                    <PlayCircle className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="destructive"
