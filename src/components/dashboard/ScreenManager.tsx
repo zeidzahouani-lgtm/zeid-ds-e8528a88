@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import ScreenDetailDialog from "@/components/dashboard/ScreenDetailDialog";
 import { QuickPlaylistDialog } from "@/components/dashboard/QuickPlaylistDialog";
-import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock, RefreshCw, Tv, Power, Eye, ShieldAlert, ShieldOff, Bug, AlertTriangle, Sparkles, PlayCircle } from "lucide-react";
+import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock, RefreshCw, Tv, Power, Eye, ShieldAlert, ShieldOff, Bug, AlertTriangle, Sparkles } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
