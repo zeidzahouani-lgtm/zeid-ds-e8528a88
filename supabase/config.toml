@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.send-credentials]
 verify_jwt = false
+
+[functions.screen-vlc-playlist]
+verify_jwt = false
