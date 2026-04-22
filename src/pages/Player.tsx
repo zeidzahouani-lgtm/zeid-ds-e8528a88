@@ -280,6 +280,36 @@ function MediaRenderer({ media, playlistLength }: { media: { id: string; name: s
   );
 }
 
+/**
+ * WallTile: when a screen is part of a video wall, scale the content by (cols, rows)
+ * and translate it so this tile shows only its assigned portion.
+ * Result: every screen in the wall plays the SAME source, but each shows a different slice.
+ */
+function WallTile({
+  rows, cols, row, col, children,
+}: { rows?: number | null; cols?: number | null; row?: number | null; col?: number | null; children: React.ReactNode }) {
+  const r = Number(rows), c = Number(cols), rr = Number(row), cc = Number(col);
+  const isWall = r > 0 && c > 0 && Number.isFinite(rr) && Number.isFinite(cc) && (r > 1 || c > 1);
+  if (!isWall) return <>{children}</>;
+  return (
+    <div style={{ position: "absolute", inset: 0, overflow: "hidden", backgroundColor: "#000" }}>
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: `${c * 100}%`,
+          height: `${r * 100}%`,
+          transform: `translate(${-cc * (100 / c)}%, ${-rr * (100 / r)}%)`,
+          transformOrigin: "top left",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function withCacheBust(url: string, version?: string | number | null): string {
   if (!url) return url;
   const v = version ? String(version) : Date.now().toString();
@@ -772,6 +802,16 @@ export default function Player() {
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>();
 
+  // Wall info (if this screen is part of a video wall)
+  const [wallInfo, setWallInfo] = useState<{ rows: number; cols: number } | null>(null);
+  useEffect(() => {
+    const wallId = (screen as any)?.wall_id;
+    if (!wallId) { setWallInfo(null); return; }
+    (supabase as any).from("video_walls").select("rows, cols").eq("id", wallId).maybeSingle().then(({ data }: any) => {
+      if (data) setWallInfo({ rows: data.rows, cols: data.cols });
+    });
+  }, [(screen as any)?.wall_id]);
+
   // License validation (also in preview mode so preview reflects real state)
   const [licenseValid, setLicenseValid] = useState<boolean | null>(null);
   const [licenseMessage, setLicenseMessage] = useState("");
@@ -1083,11 +1123,18 @@ export default function Player() {
             opacity: hasContent ? 1 : 0,
             pointerEvents: hasContent ? "auto" : "none",
           }}>
-            {activeContents.length > 0 && !media ? (
-              <ActiveContentCarousel contents={activeContents} screenOrientation={screen.orientation} />
-            ) : media ? (
-              <MediaRenderer media={media} playlistLength={playlistLength} />
-            ) : null}
+            <WallTile
+              rows={wallInfo?.rows}
+              cols={wallInfo?.cols}
+              row={(screen as any).wall_row}
+              col={(screen as any).wall_col}
+            >
+              {activeContents.length > 0 && !media ? (
+                <ActiveContentCarousel contents={activeContents} screenOrientation={screen.orientation} />
+              ) : media ? (
+                <MediaRenderer media={media} playlistLength={playlistLength} />
+              ) : null}
+            </WallTile>
           </div>
         </div>
 

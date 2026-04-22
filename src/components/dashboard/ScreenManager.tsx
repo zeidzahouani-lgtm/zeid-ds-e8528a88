@@ -1,7 +1,8 @@
 import { useState, useMemo } from "react";
 import ScreenDetailDialog from "@/components/dashboard/ScreenDetailDialog";
 import { QuickPlaylistDialog } from "@/components/dashboard/QuickPlaylistDialog";
-import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock, RefreshCw, Tv, Power, Eye, ShieldAlert, ShieldOff, Bug, AlertTriangle, Sparkles } from "lucide-react";
+import { VideoWallDialog } from "@/components/dashboard/VideoWallDialog";
+import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock, RefreshCw, Tv, Power, Eye, ShieldAlert, ShieldOff, Bug, AlertTriangle, Sparkles, Grid3x3 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,7 @@ import { useMedia } from "@/hooks/useMedia";
 import { useLayouts } from "@/hooks/useLayouts";
 import { usePlaylists } from "@/hooks/usePlaylists";
 import { usePrograms } from "@/hooks/usePrograms";
+import { useVideoWalls } from "@/hooks/useVideoWalls";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -106,6 +108,8 @@ export function ScreenManager() {
 
   const quotaReached = maxScreens != null && maxScreens > 0 && screens.length >= maxScreens;
   const [newName, setNewName] = useState("");
+  const [wallDialogOpen, setWallDialogOpen] = useState(false);
+  const { walls, deleteWall } = useVideoWalls();
   const [quickPlaylistScreen, setQuickPlaylistScreen] = useState<{ id: string; name: string } | null>(null);
   const [previewScreen, setPreviewScreen] = useState<{ id: string; slug: string | null; name: string } | null>(null);
   const [detailScreenId, setDetailScreenId] = useState<string | null>(null);
@@ -140,9 +144,12 @@ export function ScreenManager() {
           onKeyDown={(e) => e.key === "Enter" && handleAdd()}
           className="sm:max-w-xs"
         />
-        <div className="flex gap-3 items-center">
+        <div className="flex gap-3 items-center flex-wrap">
           <Button onClick={handleAdd} disabled={quotaReached} className="gap-2">
             <Plus className="h-4 w-4" /> Ajouter
+          </Button>
+          <Button variant="outline" onClick={() => setWallDialogOpen(true)} disabled={quotaReached} className="gap-2">
+            <Grid3x3 className="h-4 w-4" /> Créer un mur d'écrans
           </Button>
           {maxScreens != null && maxScreens > 0 && (
             <Badge variant={quotaReached ? "destructive" : "secondary"} className="text-sm px-3 py-1">
@@ -151,6 +158,64 @@ export function ScreenManager() {
           )}
         </div>
       </div>
+
+      {/* Video walls list */}
+      {walls.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+            <Grid3x3 className="h-4 w-4" /> Murs d'écrans ({walls.length})
+          </h3>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {walls.map((w: any) => {
+              const wallScreens = screens.filter((s: any) => s.wall_id === w.id);
+              return (
+                <Card key={w.id} className="glass-panel p-3 flex items-center gap-3">
+                  <div
+                    className="border border-border rounded bg-muted/30 shrink-0"
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: `repeat(${w.cols}, 1fr)`,
+                      gridTemplateRows: `repeat(${w.rows}, 1fr)`,
+                      gap: 2,
+                      padding: 2,
+                      width: 60,
+                      aspectRatio: `${w.cols * 16} / ${w.rows * 9}`,
+                    }}
+                  >
+                    {Array.from({ length: w.rows * w.cols }).map((_, i) => (
+                      <div key={i} className="bg-primary/30 rounded-sm" />
+                    ))}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate text-sm">{w.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {w.rows}×{w.cols} • {wallScreens.length} écran(s)
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive"
+                    onClick={async () => {
+                      if (!confirm(`Supprimer le mur "${w.name}" ? Les écrans seront détachés mais conservés.`)) return;
+                      try {
+                        await deleteWall.mutateAsync(w.id);
+                        toast.success("Mur supprimé");
+                      } catch (e: any) {
+                        toast.error(e?.message || "Erreur");
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <VideoWallDialog open={wallDialogOpen} onOpenChange={setWallDialogOpen} />
 
       {isLoading ? (
         <p className="text-muted-foreground">Chargement...</p>
