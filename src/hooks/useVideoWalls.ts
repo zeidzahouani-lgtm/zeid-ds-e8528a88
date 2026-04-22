@@ -92,12 +92,13 @@ export function useVideoWalls() {
     },
   });
 
-  // Assign a single source (media or playlist) to ALL screens of a wall
+  // Assign a single source (media, playlist or layout) to ALL screens of a wall
   const assignSourceToWall = useMutation({
-    mutationFn: async ({ wallId, mediaId, playlistId }: { wallId: string; mediaId?: string | null; playlistId?: string | null }) => {
+    mutationFn: async ({ wallId, mediaId, playlistId, layoutId }: { wallId: string; mediaId?: string | null; playlistId?: string | null; layoutId?: string | null }) => {
       const updates: any = {
         current_media_id: mediaId ?? null,
         playlist_id: playlistId ?? null,
+        layout_id: layoutId ?? null,
       };
       const { error } = await supabase.from("screens").update(updates).eq("wall_id", wallId);
       if (error) throw error;
