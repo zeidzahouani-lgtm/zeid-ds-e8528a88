@@ -63,13 +63,19 @@ export function WallConfigDialog({ open, onOpenChange, wall }: Props) {
       setSourceType("none");
       setMediaId("");
       setPlaylistId("");
+      setLayoutId("");
       return;
     }
     const firstMedia = wallScreens[0].current_media_id;
     const firstPlaylist = (wallScreens[0] as any).playlist_id;
+    const firstLayout = (wallScreens[0] as any).layout_id;
     const allSameMedia = firstMedia && wallScreens.every((s: any) => s.current_media_id === firstMedia);
     const allSamePlaylist = firstPlaylist && wallScreens.every((s: any) => s.playlist_id === firstPlaylist);
-    if (allSamePlaylist) {
+    const allSameLayout = firstLayout && wallScreens.every((s: any) => s.layout_id === firstLayout);
+    if (allSameLayout) {
+      setSourceType("layout");
+      setLayoutId(firstLayout);
+    } else if (allSamePlaylist) {
       setSourceType("playlist");
       setPlaylistId(firstPlaylist);
     } else if (allSameMedia) {
