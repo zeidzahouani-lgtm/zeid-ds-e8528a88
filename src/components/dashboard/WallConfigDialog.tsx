@@ -9,8 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { useScreens } from "@/hooks/useScreens";
 import { useMedia } from "@/hooks/useMedia";
 import { usePlaylists } from "@/hooks/usePlaylists";
+import { useLayouts } from "@/hooks/useLayouts";
 import { useVideoWalls } from "@/hooks/useVideoWalls";
-import { Grid3x3, Eye, Settings, Plus, Trash2, Image as ImageIcon, ListMusic, Ban, RotateCcw } from "lucide-react";
+import { Grid3x3, Eye, Settings, Plus, Trash2, Image as ImageIcon, ListMusic, Ban, RotateCcw, LayoutGrid } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
@@ -19,7 +20,7 @@ interface Props {
   wall: { id: string; name: string; rows: number; cols: number } | null;
 }
 
-type SourceType = "none" | "media" | "playlist";
+type SourceType = "none" | "media" | "playlist" | "layout";
 
 const ORIENTATION_ROTATION: Record<string, number> = {
   landscape: 0,
@@ -32,11 +33,13 @@ export function WallConfigDialog({ open, onOpenChange, wall }: Props) {
   const { screens } = useScreens();
   const { media } = useMedia();
   const { playlists } = usePlaylists();
+  const { layouts } = useLayouts();
   const { assignSourceToWall, addScreenToWall, removeScreenFromWall } = useVideoWalls();
 
   const [sourceType, setSourceType] = useState<SourceType>("none");
   const [mediaId, setMediaId] = useState<string>("");
   const [playlistId, setPlaylistId] = useState<string>("");
+  const [layoutId, setLayoutId] = useState<string>("");
   const [syncAll, setSyncAll] = useState(true);
 
   // Add-screen state
@@ -60,13 +63,19 @@ export function WallConfigDialog({ open, onOpenChange, wall }: Props) {
       setSourceType("none");
       setMediaId("");
       setPlaylistId("");
+      setLayoutId("");
       return;
     }
     const firstMedia = wallScreens[0].current_media_id;
     const firstPlaylist = (wallScreens[0] as any).playlist_id;
+    const firstLayout = (wallScreens[0] as any).layout_id;
     const allSameMedia = firstMedia && wallScreens.every((s: any) => s.current_media_id === firstMedia);
     const allSamePlaylist = firstPlaylist && wallScreens.every((s: any) => s.playlist_id === firstPlaylist);
-    if (allSamePlaylist) {
+    const allSameLayout = firstLayout && wallScreens.every((s: any) => s.layout_id === firstLayout);
+    if (allSameLayout) {
+      setSourceType("layout");
+      setLayoutId(firstLayout);
+    } else if (allSamePlaylist) {
       setSourceType("playlist");
       setPlaylistId(firstPlaylist);
     } else if (allSameMedia) {
@@ -98,6 +107,7 @@ export function WallConfigDialog({ open, onOpenChange, wall }: Props) {
         wallId: wall.id,
         mediaId: sourceType === "media" ? mediaId || null : null,
         playlistId: sourceType === "playlist" ? playlistId || null : null,
+        layoutId: sourceType === "layout" ? layoutId || null : null,
       });
       toast.success(syncAll ? "Source synchronisée sur tous les écrans" : "Source appliquée");
     } catch (e: any) {
@@ -238,11 +248,12 @@ export function WallConfigDialog({ open, onOpenChange, wall }: Props) {
               <Switch checked={syncAll} onCheckedChange={setSyncAll} />
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               {([
                 { v: "none", icon: Ban, label: "Aucune" },
                 { v: "media", icon: ImageIcon, label: "Média" },
                 { v: "playlist", icon: ListMusic, label: "Playlist" },
+                { v: "layout", icon: LayoutGrid, label: "Layout" },
               ] as const).map(({ v, icon: Icon, label }) => (
                 <button
                   key={v}
@@ -260,9 +271,9 @@ export function WallConfigDialog({ open, onOpenChange, wall }: Props) {
 
             {sourceType === "media" && (
               <Select value={mediaId} onValueChange={setMediaId}>
-                <SelectTrigger><SelectValue placeholder="Choisir un média" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={media.length === 0 ? "Aucun média disponible" : "Choisir un média"} /></SelectTrigger>
                 <SelectContent>
-                  {media.length === 0 && <div className="p-2 text-xs text-muted-foreground">Aucun média</div>}
+                  {media.length === 0 && <div className="p-2 text-xs text-muted-foreground">Aucun média dans la bibliothèque</div>}
                   {media.map((m: any) => (
                     <SelectItem key={m.id} value={m.id}>
                       {m.name} <span className="text-xs text-muted-foreground">({m.type})</span>
@@ -274,11 +285,23 @@ export function WallConfigDialog({ open, onOpenChange, wall }: Props) {
 
             {sourceType === "playlist" && (
               <Select value={playlistId} onValueChange={setPlaylistId}>
-                <SelectTrigger><SelectValue placeholder="Choisir une playlist" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={playlists.length === 0 ? "Aucune playlist disponible" : "Choisir une playlist"} /></SelectTrigger>
                 <SelectContent>
-                  {playlists.length === 0 && <div className="p-2 text-xs text-muted-foreground">Aucune playlist</div>}
+                  {playlists.length === 0 && <div className="p-2 text-xs text-muted-foreground">Aucune playlist créée</div>}
                   {playlists.map((p: any) => (
                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {sourceType === "layout" && (
+              <Select value={layoutId} onValueChange={setLayoutId}>
+                <SelectTrigger><SelectValue placeholder={layouts.length === 0 ? "Aucun layout disponible" : "Choisir un layout"} /></SelectTrigger>
+                <SelectContent>
+                  {layouts.length === 0 && <div className="p-2 text-xs text-muted-foreground">Aucun layout créé</div>}
+                  {layouts.map((l: any) => (
+                    <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
