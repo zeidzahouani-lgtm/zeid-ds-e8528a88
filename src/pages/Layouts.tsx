@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { LayoutGrid, Plus, Trash2, Edit } from "lucide-react";
+import { LayoutGrid, Plus, Trash2, Edit, Grid3x3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { WallLayoutPresetDialog } from "@/components/dashboard/WallLayoutPresetDialog";
 
 interface MiniRegion {
   id: string;
@@ -91,6 +92,7 @@ function LayoutMiniPreview({ layout }: { layout: { id: string; width: number; he
 export default function Layouts() {
   const { layouts, isLoading, addLayout, deleteLayout } = useLayouts();
   const [newName, setNewName] = useState("");
+  const [wallPresetOpen, setWallPresetOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleAdd = async () => {
@@ -119,7 +121,7 @@ export default function Layouts() {
         <Badge variant="secondary">{layouts.length} layout(s)</Badge>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Input
           placeholder="Nom du nouveau layout..."
           value={newName}
@@ -130,7 +132,12 @@ export default function Layouts() {
         <Button onClick={handleAdd} disabled={!newName.trim() || addLayout.isPending}>
           <Plus className="h-4 w-4 mr-1" /> Créer
         </Button>
+        <Button variant="outline" onClick={() => setWallPresetOpen(true)}>
+          <Grid3x3 className="h-4 w-4 mr-1" /> Layout pour mur d'écrans
+        </Button>
       </div>
+
+      <WallLayoutPresetDialog open={wallPresetOpen} onOpenChange={setWallPresetOpen} />
 
       {isLoading ? (
         <p className="text-muted-foreground">Chargement...</p>
@@ -143,11 +150,19 @@ export default function Layouts() {
         </Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {layouts.map((layout) => (
+          {layouts.map((layout: any) => (
             <Card key={layout.id} className="group hover:border-primary/50 transition-colors">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center justify-between">
-                  <span className="truncate">{layout.name}</span>
+                  <span className="truncate flex items-center gap-2">
+                    {layout.name}
+                    {layout.wall_id && (
+                      <Badge variant="outline" className="text-[10px] gap-1">
+                        <Grid3x3 className="h-3 w-3" />
+                        {layout.wall_mode === "tiled" ? "Mur (tuiles)" : "Mur (étiré)"}
+                      </Badge>
+                    )}
+                  </span>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => navigate(`/layouts/${layout.id}`)}>
                       <Edit className="h-3.5 w-3.5" />

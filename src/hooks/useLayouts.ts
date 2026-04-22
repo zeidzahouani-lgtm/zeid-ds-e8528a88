@@ -57,7 +57,7 @@ export function useLayouts() {
   });
 
   const addLayout = useMutation({
-    mutationFn: async (params: { name: string; width?: number; height?: number }) => {
+    mutationFn: async (params: { name: string; width?: number; height?: number; wall_id?: string | null; wall_mode?: 'single' | 'stretched' | 'tiled' }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
       const { data, error } = await supabase
@@ -68,6 +68,8 @@ export function useLayouts() {
           height: params.height || 1080,
           user_id: user.id,
           establishment_id: currentEstablishmentId,
+          wall_id: params.wall_id ?? null,
+          wall_mode: params.wall_mode ?? 'single',
         } as any)
         .select()
         .single();
