@@ -33,11 +33,13 @@ export function WallConfigDialog({ open, onOpenChange, wall }: Props) {
   const { screens } = useScreens();
   const { media } = useMedia();
   const { playlists } = usePlaylists();
+  const { layouts } = useLayouts();
   const { assignSourceToWall, addScreenToWall, removeScreenFromWall } = useVideoWalls();
 
   const [sourceType, setSourceType] = useState<SourceType>("none");
   const [mediaId, setMediaId] = useState<string>("");
   const [playlistId, setPlaylistId] = useState<string>("");
+  const [layoutId, setLayoutId] = useState<string>("");
   const [syncAll, setSyncAll] = useState(true);
 
   // Add-screen state
