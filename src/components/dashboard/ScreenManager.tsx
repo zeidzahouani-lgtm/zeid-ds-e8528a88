@@ -2,7 +2,8 @@ import { useState, useMemo } from "react";
 import ScreenDetailDialog from "@/components/dashboard/ScreenDetailDialog";
 import { QuickPlaylistDialog } from "@/components/dashboard/QuickPlaylistDialog";
 import { VideoWallDialog } from "@/components/dashboard/VideoWallDialog";
-import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock, RefreshCw, Tv, Power, Eye, ShieldAlert, ShieldOff, Bug, AlertTriangle, Sparkles, Grid3x3 } from "lucide-react";
+import { WallConfigDialog } from "@/components/dashboard/WallConfigDialog";
+import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock, RefreshCw, Tv, Power, Eye, ShieldAlert, ShieldOff, Bug, AlertTriangle, Sparkles, Grid3x3, Settings } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -109,6 +110,7 @@ export function ScreenManager() {
   const quotaReached = maxScreens != null && maxScreens > 0 && screens.length >= maxScreens;
   const [newName, setNewName] = useState("");
   const [wallDialogOpen, setWallDialogOpen] = useState(false);
+  const [configWall, setConfigWall] = useState<{ id: string; name: string; rows: number; cols: number } | null>(null);
   const { walls, deleteWall } = useVideoWalls();
   const [quickPlaylistScreen, setQuickPlaylistScreen] = useState<{ id: string; name: string } | null>(null);
   const [previewScreen, setPreviewScreen] = useState<{ id: string; slug: string | null; name: string } | null>(null);
@@ -169,7 +171,11 @@ export function ScreenManager() {
             {walls.map((w: any) => {
               const wallScreens = screens.filter((s: any) => s.wall_id === w.id);
               return (
-                <Card key={w.id} className="glass-panel p-3 flex items-center gap-3">
+                <Card
+                  key={w.id}
+                  className="glass-panel p-3 flex items-center gap-3 cursor-pointer hover:ring-1 hover:ring-primary/40 transition"
+                  onClick={() => setConfigWall({ id: w.id, name: w.name, rows: w.rows, cols: w.cols })}
+                >
                   <div
                     className="border border-border rounded bg-muted/30 shrink-0"
                     style={{
@@ -195,8 +201,21 @@ export function ScreenManager() {
                   <Button
                     variant="ghost"
                     size="icon"
+                    className="h-8 w-8"
+                    title="Configurer le mur"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConfigWall({ id: w.id, name: w.name, rows: w.rows, cols: w.cols });
+                    }}
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     className="h-8 w-8 text-destructive"
-                    onClick={async () => {
+                    onClick={async (e) => {
+                      e.stopPropagation();
                       if (!confirm(`Supprimer le mur "${w.name}" ? Les écrans seront détachés mais conservés.`)) return;
                       try {
                         await deleteWall.mutateAsync(w.id);
@@ -216,6 +235,7 @@ export function ScreenManager() {
       )}
 
       <VideoWallDialog open={wallDialogOpen} onOpenChange={setWallDialogOpen} />
+      <WallConfigDialog open={!!configWall} onOpenChange={(o) => !o && setConfigWall(null)} wall={configWall} />
 
       {isLoading ? (
         <p className="text-muted-foreground">Chargement...</p>
