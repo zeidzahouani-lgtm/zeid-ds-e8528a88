@@ -150,11 +150,19 @@ export default function Layouts() {
         </Card>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {layouts.map((layout) => (
+          {layouts.map((layout: any) => (
             <Card key={layout.id} className="group hover:border-primary/50 transition-colors">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center justify-between">
-                  <span className="truncate">{layout.name}</span>
+                  <span className="truncate flex items-center gap-2">
+                    {layout.name}
+                    {layout.wall_id && (
+                      <Badge variant="outline" className="text-[10px] gap-1">
+                        <Grid3x3 className="h-3 w-3" />
+                        {layout.wall_mode === "tiled" ? "Mur (tuiles)" : "Mur (étiré)"}
+                      </Badge>
+                    )}
+                  </span>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => navigate(`/layouts/${layout.id}`)}>
                       <Edit className="h-3.5 w-3.5" />
