@@ -92,6 +92,7 @@ function LayoutMiniPreview({ layout }: { layout: { id: string; width: number; he
 export default function Layouts() {
   const { layouts, isLoading, addLayout, deleteLayout } = useLayouts();
   const [newName, setNewName] = useState("");
+  const [wallPresetOpen, setWallPresetOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleAdd = async () => {
@@ -120,7 +121,7 @@ export default function Layouts() {
         <Badge variant="secondary">{layouts.length} layout(s)</Badge>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Input
           placeholder="Nom du nouveau layout..."
           value={newName}
@@ -131,7 +132,12 @@ export default function Layouts() {
         <Button onClick={handleAdd} disabled={!newName.trim() || addLayout.isPending}>
           <Plus className="h-4 w-4 mr-1" /> Créer
         </Button>
+        <Button variant="outline" onClick={() => setWallPresetOpen(true)}>
+          <Grid3x3 className="h-4 w-4 mr-1" /> Layout pour mur d'écrans
+        </Button>
       </div>
+
+      <WallLayoutPresetDialog open={wallPresetOpen} onOpenChange={setWallPresetOpen} />
 
       {isLoading ? (
         <p className="text-muted-foreground">Chargement...</p>
