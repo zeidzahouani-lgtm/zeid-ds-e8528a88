@@ -802,6 +802,16 @@ export default function Player() {
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>();
 
+  // Wall info (if this screen is part of a video wall)
+  const [wallInfo, setWallInfo] = useState<{ rows: number; cols: number } | null>(null);
+  useEffect(() => {
+    const wallId = (screen as any)?.wall_id;
+    if (!wallId) { setWallInfo(null); return; }
+    (supabase as any).from("video_walls").select("rows, cols").eq("id", wallId).maybeSingle().then(({ data }: any) => {
+      if (data) setWallInfo({ rows: data.rows, cols: data.cols });
+    });
+  }, [(screen as any)?.wall_id]);
+
   // License validation (also in preview mode so preview reflects real state)
   const [licenseValid, setLicenseValid] = useState<boolean | null>(null);
   const [licenseMessage, setLicenseMessage] = useState("");
@@ -1114,8 +1124,8 @@ export default function Player() {
             pointerEvents: hasContent ? "auto" : "none",
           }}>
             <WallTile
-              rows={(screen as any).wall_rows ?? (screen as any).wall?.rows}
-              cols={(screen as any).wall_cols ?? (screen as any).wall?.cols}
+              rows={wallInfo?.rows}
+              cols={wallInfo?.cols}
               row={(screen as any).wall_row}
               col={(screen as any).wall_col}
             >
