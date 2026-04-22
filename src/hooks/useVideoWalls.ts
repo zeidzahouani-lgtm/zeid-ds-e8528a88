@@ -19,7 +19,7 @@ export function useVideoWalls() {
   });
 
   const createWall = useMutation({
-    mutationFn: async ({ name, rows, cols }: { name: string; rows: number; cols: number }) => {
+    mutationFn: async ({ name, rows, cols, mediaId, playlistId }: { name: string; rows: number; cols: number; mediaId?: string | null; playlistId?: string | null }) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Non authentifié");
 
@@ -63,6 +63,8 @@ export function useVideoWalls() {
             wall_id: wall.id,
             wall_row: r,
             wall_col: c,
+            current_media_id: mediaId || null,
+            playlist_id: playlistId || null,
           });
         }
       }
