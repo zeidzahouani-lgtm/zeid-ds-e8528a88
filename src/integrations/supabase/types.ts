@@ -915,6 +915,9 @@ export type Database = {
           status: string
           updated_at: string
           user_id: string | null
+          wall_col: number | null
+          wall_id: string | null
+          wall_row: number | null
         }
         Insert: {
           created_at?: string
@@ -939,6 +942,9 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string | null
+          wall_col?: number | null
+          wall_id?: string | null
+          wall_row?: number | null
         }
         Update: {
           created_at?: string
@@ -963,6 +969,9 @@ export type Database = {
           status?: string
           updated_at?: string
           user_id?: string | null
+          wall_col?: number | null
+          wall_id?: string | null
+          wall_row?: number | null
         }
         Relationships: [
           {
@@ -998,6 +1007,13 @@ export type Database = {
             columns: ["program_id"]
             isOneToOne: false
             referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "screens_wall_id_fkey"
+            columns: ["wall_id"]
+            isOneToOne: false
+            referencedRelation: "video_walls"
             referencedColumns: ["id"]
           },
         ]
@@ -1051,6 +1067,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      video_walls: {
+        Row: {
+          cols: number
+          created_at: string
+          establishment_id: string | null
+          id: string
+          name: string
+          rows: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cols?: number
+          created_at?: string
+          establishment_id?: string | null
+          id?: string
+          name: string
+          rows?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cols?: number
+          created_at?: string
+          establishment_id?: string | null
+          id?: string
+          name?: string
+          rows?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_walls_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
