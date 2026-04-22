@@ -107,6 +107,7 @@ export function WallConfigDialog({ open, onOpenChange, wall }: Props) {
         wallId: wall.id,
         mediaId: sourceType === "media" ? mediaId || null : null,
         playlistId: sourceType === "playlist" ? playlistId || null : null,
+        layoutId: sourceType === "layout" ? layoutId || null : null,
       });
       toast.success(syncAll ? "Source synchronisée sur tous les écrans" : "Source appliquée");
     } catch (e: any) {
