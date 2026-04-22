@@ -228,63 +228,123 @@ export function ScreenManager() {
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {walls.map((w: any) => {
               const wallScreens = screens.filter((s: any) => s.wall_id === w.id);
+              const debugActive = wallScreens.some((s: any) => (s.debug_mode ?? 0) > 0);
+              const onlineCount = wallScreens.filter((s: any) => s.status === 'online').length;
               return (
                 <Card
                   key={w.id}
-                  className="glass-panel p-3 flex items-center gap-3 cursor-pointer hover:ring-1 hover:ring-primary/40 transition"
+                  className="glass-panel p-3 cursor-pointer hover:ring-1 hover:ring-primary/40 transition"
                   onClick={() => setConfigWall({ id: w.id, name: w.name, rows: w.rows, cols: w.cols })}
                 >
-                  <div
-                    className="border border-border rounded bg-muted/30 shrink-0"
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: `repeat(${w.cols}, 1fr)`,
-                      gridTemplateRows: `repeat(${w.rows}, 1fr)`,
-                      gap: 2,
-                      padding: 2,
-                      width: 60,
-                      aspectRatio: `${w.cols * 16} / ${w.rows * 9}`,
-                    }}
-                  >
-                    {Array.from({ length: w.rows * w.cols }).map((_, i) => (
-                      <div key={i} className="bg-primary/30 rounded-sm" />
-                    ))}
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="border border-border rounded bg-muted/30 shrink-0"
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: `repeat(${w.cols}, 1fr)`,
+                        gridTemplateRows: `repeat(${w.rows}, 1fr)`,
+                        gap: 2,
+                        padding: 2,
+                        width: 60,
+                        aspectRatio: `${w.cols * 16} / ${w.rows * 9}`,
+                      }}
+                    >
+                      {Array.from({ length: w.rows * w.cols }).map((_, i) => (
+                        <div key={i} className="bg-primary/30 rounded-sm" />
+                      ))}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate text-sm">{w.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {w.rows}×{w.cols} • {wallScreens.length} écran(s) • {onlineCount} en ligne
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate text-sm">{w.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {w.rows}×{w.cols} • {wallScreens.length} écran(s)
-                    </p>
+
+                  {/* Bulk actions bar */}
+                  <div className="flex items-center gap-1 mt-3 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      title="Aperçu mosaïque du mur"
+                      onClick={() => setPreviewWall({ id: w.id, name: w.name, rows: w.rows, cols: w.cols })}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      title="Configurer le mur"
+                      onClick={() => setConfigWall({ id: w.id, name: w.name, rows: w.rows, cols: w.cols })}
+                    >
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                    {onlineCount > 0 && (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        title="Arrêter toutes les sessions du mur"
+                        className="h-8 w-8 text-orange-500 border-orange-500/30 hover:bg-orange-500/10"
+                        onClick={() => stopWallSessions(w.id)}
+                      >
+                        <Power className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          title="Mode diagnostic (tout le mur)"
+                          className={`h-8 w-8 ${debugActive ? "text-amber-500 border-amber-500/30 hover:bg-amber-500/10" : ""}`}
+                        >
+                          <Bug className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setWallDebugMode(w.id, 0)}>Désactivé</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setWallDebugMode(w.id, 2)}>HUD discret</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setWallDebugMode(w.id, 1)}>Complet</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 text-blue-500 border-blue-500/30 hover:bg-blue-500/10"
+                      title="Forcer le rafraîchissement de tous les écrans"
+                      onClick={() => refreshWall(w.id, w.name)}
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      title="Ouvrir tous les players (un onglet par écran)"
+                      onClick={() => openAllPlayers(w.id)}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive ml-auto"
+                      title="Supprimer le mur"
+                      onClick={async () => {
+                        if (!confirm(`Supprimer le mur "${w.name}" ? Les écrans seront détachés mais conservés.`)) return;
+                        try {
+                          await deleteWall.mutateAsync(w.id);
+                          toast.success("Mur supprimé");
+                        } catch (e: any) {
+                          toast.error(e?.message || "Erreur");
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    title="Configurer le mur"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setConfigWall({ id: w.id, name: w.name, rows: w.rows, cols: w.cols });
-                    }}
-                  >
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-destructive"
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      if (!confirm(`Supprimer le mur "${w.name}" ? Les écrans seront détachés mais conservés.`)) return;
-                      try {
-                        await deleteWall.mutateAsync(w.id);
-                        toast.success("Mur supprimé");
-                      } catch (e: any) {
-                        toast.error(e?.message || "Erreur");
-                      }
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
                 </Card>
               );
             })}
