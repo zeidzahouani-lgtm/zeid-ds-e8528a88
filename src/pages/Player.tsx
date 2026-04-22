@@ -802,14 +802,22 @@ export default function Player() {
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>();
 
-  // Wall info (if this screen is part of a video wall)
+  // Wall info (if this screen is part of a video wall) — reactive to wall row/col changes
   const [wallInfo, setWallInfo] = useState<{ rows: number; cols: number } | null>(null);
   useEffect(() => {
     const wallId = (screen as any)?.wall_id;
     if (!wallId) { setWallInfo(null); return; }
-    (supabase as any).from("video_walls").select("rows, cols").eq("id", wallId).maybeSingle().then(({ data }: any) => {
-      if (data) setWallInfo({ rows: data.rows, cols: data.cols });
-    });
+    const fetchWall = () => {
+      (supabase as any).from("video_walls").select("rows, cols").eq("id", wallId).maybeSingle().then(({ data }: any) => {
+        if (data) setWallInfo({ rows: data.rows, cols: data.cols });
+      });
+    };
+    fetchWall();
+    const channel = supabase
+      .channel(`video-wall-${wallId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "video_walls", filter: `id=eq.${wallId}` }, () => fetchWall())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [(screen as any)?.wall_id]);
 
   // License validation (also in preview mode so preview reflects real state)
