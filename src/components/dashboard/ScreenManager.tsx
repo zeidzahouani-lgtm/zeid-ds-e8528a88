@@ -671,6 +671,64 @@ export function ScreenManager() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Wall mosaic preview dialog */}
+      <Dialog open={!!previewWall} onOpenChange={() => setPreviewWall(null)}>
+        <DialogContent className="max-w-6xl w-[95vw] h-[85vh] flex flex-col p-0">
+          <DialogHeader className="px-6 pt-6 pb-2">
+            <DialogTitle className="flex items-center gap-2">
+              <Grid3x3 className="h-5 w-5" /> Aperçu mosaïque — {previewWall?.name}
+            </DialogTitle>
+            <DialogDescription>
+              {previewWall && `${previewWall.rows}×${previewWall.cols} — chaque tuile reflète l'écran correspondant en temps réel`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 px-6 pb-6 min-h-0">
+            {previewWall && (() => {
+              const ws = screens
+                .filter((s: any) => s.wall_id === previewWall.id)
+                .sort((a: any, b: any) => (a.wall_row - b.wall_row) || (a.wall_col - b.wall_col));
+              const cells = Array.from({ length: previewWall.rows * previewWall.cols }).map((_, i) => {
+                const row = Math.floor(i / previewWall.cols);
+                const col = i % previewWall.cols;
+                return ws.find((s: any) => s.wall_row === row && s.wall_col === col) || null;
+              });
+              return (
+                <div
+                  className="w-full h-full grid gap-1 bg-black/50 rounded-lg p-1"
+                  style={{
+                    gridTemplateColumns: `repeat(${previewWall.cols}, 1fr)`,
+                    gridTemplateRows: `repeat(${previewWall.rows}, 1fr)`,
+                  }}
+                >
+                  {cells.map((s: any, i) => (
+                    <div key={i} className="relative bg-black border border-border/50 rounded overflow-hidden">
+                      {s ? (
+                        <>
+                          <iframe
+                            src={`/player/${s.slug || s.id}?preview=1`}
+                            className="w-full h-full"
+                            title={`Tuile ${i}`}
+                            allow="autoplay"
+                          />
+                          <div className="absolute top-1 left-1 bg-background/80 text-foreground text-[10px] px-1.5 py-0.5 rounded font-mono">
+                            [{s.wall_row + 1}-{s.wall_col + 1}] {s.name}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
+                          Vide
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Screen detail dialog */}
       <ScreenDetailDialog
         screen={detailScreen}
