@@ -9,8 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { useScreens } from "@/hooks/useScreens";
 import { useMedia } from "@/hooks/useMedia";
 import { usePlaylists } from "@/hooks/usePlaylists";
+import { useLayouts } from "@/hooks/useLayouts";
 import { useVideoWalls } from "@/hooks/useVideoWalls";
-import { Grid3x3, Eye, Settings, Plus, Trash2, Image as ImageIcon, ListMusic, Ban, RotateCcw } from "lucide-react";
+import { Grid3x3, Eye, Settings, Plus, Trash2, Image as ImageIcon, ListMusic, Ban, RotateCcw, LayoutGrid } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
