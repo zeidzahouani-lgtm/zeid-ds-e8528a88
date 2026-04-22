@@ -241,7 +241,7 @@ export function ScreenManager() {
         <p className="text-muted-foreground">Chargement...</p>
       ) : (
         <div className="space-y-3">
-          {screens.map((screen) => {
+          {screens.filter((s: any) => !s.wall_id).map((screen) => {
             const assignedMedia = media.find((m) => m.id === screen.current_media_id);
             const assignedLayout = layouts.find((l) => l.id === (screen as any).layout_id);
             const assignedPlaylist = playlists.find((p) => p.id === (screen as any).playlist_id);
