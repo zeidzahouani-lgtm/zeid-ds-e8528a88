@@ -235,6 +235,7 @@ export function ScreenManager() {
       )}
 
       <VideoWallDialog open={wallDialogOpen} onOpenChange={setWallDialogOpen} />
+      <WallConfigDialog open={!!configWall} onOpenChange={(o) => !o && setConfigWall(null)} wall={configWall} />
 
       {isLoading ? (
         <p className="text-muted-foreground">Chargement...</p>
