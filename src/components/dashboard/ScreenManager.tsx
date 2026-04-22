@@ -114,8 +114,66 @@ export function ScreenManager() {
   const { walls, deleteWall } = useVideoWalls();
   const [quickPlaylistScreen, setQuickPlaylistScreen] = useState<{ id: string; name: string } | null>(null);
   const [previewScreen, setPreviewScreen] = useState<{ id: string; slug: string | null; name: string } | null>(null);
+  const [previewWall, setPreviewWall] = useState<{ id: string; name: string; rows: number; cols: number } | null>(null);
   const [detailScreenId, setDetailScreenId] = useState<string | null>(null);
   const detailScreen = useMemo(() => screens.find((s: any) => s.id === detailScreenId) ?? null, [screens, detailScreenId]);
+
+  // Bulk action helpers for an entire wall
+  const wallScreensFor = (wallId: string) => screens.filter((s: any) => s.wall_id === wallId);
+
+  const setWallDebugMode = async (wallId: string, mode: number) => {
+    const list = wallScreensFor(wallId);
+    if (!list.length) return toast.info("Aucun écran dans ce mur");
+    try {
+      const { error } = await supabase.from("screens").update({ debug_mode: mode } as any).eq("wall_id", wallId);
+      if (error) throw error;
+      toast.success(`Mode debug appliqué à ${list.length} écran(s)`);
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur");
+    }
+  };
+
+  const refreshWall = async (wallId: string, wallName: string) => {
+    const list = wallScreensFor(wallId);
+    if (!list.length) return toast.info("Aucun écran dans ce mur");
+    try {
+      await Promise.all(list.map(async (s: any) => {
+        const channel = supabase.channel(`screen-control-${s.id}`);
+        await new Promise<void>((resolve) => {
+          channel.subscribe((status) => { if (status === "SUBSCRIBED") resolve(); });
+          setTimeout(resolve, 1500);
+        });
+        await channel.send({ type: "broadcast", event: "force_refresh", payload: { at: Date.now() } });
+        setTimeout(() => supabase.removeChannel(channel), 1000);
+      }));
+      toast.success(`Signal envoyé au mur "${wallName}" (${list.length})`);
+    } catch {
+      toast.error("Erreur d'envoi du signal");
+    }
+  };
+
+  const stopWallSessions = async (wallId: string) => {
+    const list = wallScreensFor(wallId);
+    if (!list.length) return toast.info("Aucun écran dans ce mur");
+    if (!confirm(`Forcer l'arrêt des sessions sur ${list.length} écran(s) ?`)) return;
+    try {
+      const { error } = await supabase.from("screens").update({
+        status: 'offline',
+        player_session_id: null,
+        player_heartbeat_at: null,
+      } as any).eq("wall_id", wallId);
+      if (error) throw error;
+      toast.success("Sessions arrêtées");
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur");
+    }
+  };
+
+  const openAllPlayers = (wallId: string) => {
+    const list = wallScreensFor(wallId);
+    if (!list.length) return toast.info("Aucun écran dans ce mur");
+    list.forEach((s: any) => window.open(`/player/${s.slug || s.id}`, '_blank'));
+  };
 
   const handleAdd = async () => {
     if (!newName.trim()) return;
@@ -170,63 +228,123 @@ export function ScreenManager() {
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {walls.map((w: any) => {
               const wallScreens = screens.filter((s: any) => s.wall_id === w.id);
+              const debugActive = wallScreens.some((s: any) => (s.debug_mode ?? 0) > 0);
+              const onlineCount = wallScreens.filter((s: any) => s.status === 'online').length;
               return (
                 <Card
                   key={w.id}
-                  className="glass-panel p-3 flex items-center gap-3 cursor-pointer hover:ring-1 hover:ring-primary/40 transition"
+                  className="glass-panel p-3 cursor-pointer hover:ring-1 hover:ring-primary/40 transition"
                   onClick={() => setConfigWall({ id: w.id, name: w.name, rows: w.rows, cols: w.cols })}
                 >
-                  <div
-                    className="border border-border rounded bg-muted/30 shrink-0"
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: `repeat(${w.cols}, 1fr)`,
-                      gridTemplateRows: `repeat(${w.rows}, 1fr)`,
-                      gap: 2,
-                      padding: 2,
-                      width: 60,
-                      aspectRatio: `${w.cols * 16} / ${w.rows * 9}`,
-                    }}
-                  >
-                    {Array.from({ length: w.rows * w.cols }).map((_, i) => (
-                      <div key={i} className="bg-primary/30 rounded-sm" />
-                    ))}
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="border border-border rounded bg-muted/30 shrink-0"
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: `repeat(${w.cols}, 1fr)`,
+                        gridTemplateRows: `repeat(${w.rows}, 1fr)`,
+                        gap: 2,
+                        padding: 2,
+                        width: 60,
+                        aspectRatio: `${w.cols * 16} / ${w.rows * 9}`,
+                      }}
+                    >
+                      {Array.from({ length: w.rows * w.cols }).map((_, i) => (
+                        <div key={i} className="bg-primary/30 rounded-sm" />
+                      ))}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate text-sm">{w.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {w.rows}×{w.cols} • {wallScreens.length} écran(s) • {onlineCount} en ligne
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate text-sm">{w.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {w.rows}×{w.cols} • {wallScreens.length} écran(s)
-                    </p>
+
+                  {/* Bulk actions bar */}
+                  <div className="flex items-center gap-1 mt-3 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      title="Aperçu mosaïque du mur"
+                      onClick={() => setPreviewWall({ id: w.id, name: w.name, rows: w.rows, cols: w.cols })}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      title="Configurer le mur"
+                      onClick={() => setConfigWall({ id: w.id, name: w.name, rows: w.rows, cols: w.cols })}
+                    >
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                    {onlineCount > 0 && (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        title="Arrêter toutes les sessions du mur"
+                        className="h-8 w-8 text-orange-500 border-orange-500/30 hover:bg-orange-500/10"
+                        onClick={() => stopWallSessions(w.id)}
+                      >
+                        <Power className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          title="Mode diagnostic (tout le mur)"
+                          className={`h-8 w-8 ${debugActive ? "text-amber-500 border-amber-500/30 hover:bg-amber-500/10" : ""}`}
+                        >
+                          <Bug className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setWallDebugMode(w.id, 0)}>Désactivé</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setWallDebugMode(w.id, 2)}>HUD discret</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setWallDebugMode(w.id, 1)}>Complet</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8 text-blue-500 border-blue-500/30 hover:bg-blue-500/10"
+                      title="Forcer le rafraîchissement de tous les écrans"
+                      onClick={() => refreshWall(w.id, w.name)}
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      title="Ouvrir tous les players (un onglet par écran)"
+                      onClick={() => openAllPlayers(w.id)}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive ml-auto"
+                      title="Supprimer le mur"
+                      onClick={async () => {
+                        if (!confirm(`Supprimer le mur "${w.name}" ? Les écrans seront détachés mais conservés.`)) return;
+                        try {
+                          await deleteWall.mutateAsync(w.id);
+                          toast.success("Mur supprimé");
+                        } catch (e: any) {
+                          toast.error(e?.message || "Erreur");
+                        }
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    title="Configurer le mur"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setConfigWall({ id: w.id, name: w.name, rows: w.rows, cols: w.cols });
-                    }}
-                  >
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-destructive"
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      if (!confirm(`Supprimer le mur "${w.name}" ? Les écrans seront détachés mais conservés.`)) return;
-                      try {
-                        await deleteWall.mutateAsync(w.id);
-                        toast.success("Mur supprimé");
-                      } catch (e: any) {
-                        toast.error(e?.message || "Erreur");
-                      }
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
                 </Card>
               );
             })}
@@ -553,6 +671,64 @@ export function ScreenManager() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Wall mosaic preview dialog */}
+      <Dialog open={!!previewWall} onOpenChange={() => setPreviewWall(null)}>
+        <DialogContent className="max-w-6xl w-[95vw] h-[85vh] flex flex-col p-0">
+          <DialogHeader className="px-6 pt-6 pb-2">
+            <DialogTitle className="flex items-center gap-2">
+              <Grid3x3 className="h-5 w-5" /> Aperçu mosaïque — {previewWall?.name}
+            </DialogTitle>
+            <DialogDescription>
+              {previewWall && `${previewWall.rows}×${previewWall.cols} — chaque tuile reflète l'écran correspondant en temps réel`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 px-6 pb-6 min-h-0">
+            {previewWall && (() => {
+              const ws = screens
+                .filter((s: any) => s.wall_id === previewWall.id)
+                .sort((a: any, b: any) => (a.wall_row - b.wall_row) || (a.wall_col - b.wall_col));
+              const cells = Array.from({ length: previewWall.rows * previewWall.cols }).map((_, i) => {
+                const row = Math.floor(i / previewWall.cols);
+                const col = i % previewWall.cols;
+                return ws.find((s: any) => s.wall_row === row && s.wall_col === col) || null;
+              });
+              return (
+                <div
+                  className="w-full h-full grid gap-1 bg-black/50 rounded-lg p-1"
+                  style={{
+                    gridTemplateColumns: `repeat(${previewWall.cols}, 1fr)`,
+                    gridTemplateRows: `repeat(${previewWall.rows}, 1fr)`,
+                  }}
+                >
+                  {cells.map((s: any, i) => (
+                    <div key={i} className="relative bg-black border border-border/50 rounded overflow-hidden">
+                      {s ? (
+                        <>
+                          <iframe
+                            src={`/player/${s.slug || s.id}?preview=1`}
+                            className="w-full h-full"
+                            title={`Tuile ${i}`}
+                            allow="autoplay"
+                          />
+                          <div className="absolute top-1 left-1 bg-background/80 text-foreground text-[10px] px-1.5 py-0.5 rounded font-mono">
+                            [{s.wall_row + 1}-{s.wall_col + 1}] {s.name}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
+                          Vide
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Screen detail dialog */}
       <ScreenDetailDialog
         screen={detailScreen}
