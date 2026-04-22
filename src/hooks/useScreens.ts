@@ -9,7 +9,8 @@ export function useScreens() {
 
   const { data: screens = [], isLoading } = useQuery({
     queryKey: ["screens", currentEstablishmentId, isGlobalAdmin],
-    refetchInterval: 10_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       let query = supabase
         .from("screens")
