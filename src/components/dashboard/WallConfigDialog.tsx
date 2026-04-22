@@ -248,11 +248,12 @@ export function WallConfigDialog({ open, onOpenChange, wall }: Props) {
               <Switch checked={syncAll} onCheckedChange={setSyncAll} />
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               {([
                 { v: "none", icon: Ban, label: "Aucune" },
                 { v: "media", icon: ImageIcon, label: "Média" },
                 { v: "playlist", icon: ListMusic, label: "Playlist" },
+                { v: "layout", icon: LayoutGrid, label: "Layout" },
               ] as const).map(({ v, icon: Icon, label }) => (
                 <button
                   key={v}
@@ -270,9 +271,9 @@ export function WallConfigDialog({ open, onOpenChange, wall }: Props) {
 
             {sourceType === "media" && (
               <Select value={mediaId} onValueChange={setMediaId}>
-                <SelectTrigger><SelectValue placeholder="Choisir un média" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={media.length === 0 ? "Aucun média disponible" : "Choisir un média"} /></SelectTrigger>
                 <SelectContent>
-                  {media.length === 0 && <div className="p-2 text-xs text-muted-foreground">Aucun média</div>}
+                  {media.length === 0 && <div className="p-2 text-xs text-muted-foreground">Aucun média dans la bibliothèque</div>}
                   {media.map((m: any) => (
                     <SelectItem key={m.id} value={m.id}>
                       {m.name} <span className="text-xs text-muted-foreground">({m.type})</span>
@@ -284,11 +285,23 @@ export function WallConfigDialog({ open, onOpenChange, wall }: Props) {
 
             {sourceType === "playlist" && (
               <Select value={playlistId} onValueChange={setPlaylistId}>
-                <SelectTrigger><SelectValue placeholder="Choisir une playlist" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={playlists.length === 0 ? "Aucune playlist disponible" : "Choisir une playlist"} /></SelectTrigger>
                 <SelectContent>
-                  {playlists.length === 0 && <div className="p-2 text-xs text-muted-foreground">Aucune playlist</div>}
+                  {playlists.length === 0 && <div className="p-2 text-xs text-muted-foreground">Aucune playlist créée</div>}
                   {playlists.map((p: any) => (
                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {sourceType === "layout" && (
+              <Select value={layoutId} onValueChange={setLayoutId}>
+                <SelectTrigger><SelectValue placeholder={layouts.length === 0 ? "Aucun layout disponible" : "Choisir un layout"} /></SelectTrigger>
+                <SelectContent>
+                  {layouts.length === 0 && <div className="p-2 text-xs text-muted-foreground">Aucun layout créé</div>}
+                  {layouts.map((l: any) => (
+                    <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
