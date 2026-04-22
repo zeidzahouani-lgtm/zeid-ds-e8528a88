@@ -394,6 +394,8 @@ export type Database = {
           name: string
           updated_at: string
           user_id: string
+          wall_id: string | null
+          wall_mode: string
           width: number
         }
         Insert: {
@@ -410,6 +412,8 @@ export type Database = {
           name: string
           updated_at?: string
           user_id: string
+          wall_id?: string | null
+          wall_mode?: string
           width?: number
         }
         Update: {
@@ -426,6 +430,8 @@ export type Database = {
           name?: string
           updated_at?: string
           user_id?: string
+          wall_id?: string | null
+          wall_mode?: string
           width?: number
         }
         Relationships: [
@@ -434,6 +440,13 @@ export type Database = {
             columns: ["establishment_id"]
             isOneToOne: false
             referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "layouts_wall_id_fkey"
+            columns: ["wall_id"]
+            isOneToOne: false
+            referencedRelation: "video_walls"
             referencedColumns: ["id"]
           },
         ]
@@ -1078,6 +1091,7 @@ export type Database = {
           rows: number
           updated_at: string
           user_id: string
+          wall_layout_mode: string
         }
         Insert: {
           cols?: number
@@ -1088,6 +1102,7 @@ export type Database = {
           rows?: number
           updated_at?: string
           user_id: string
+          wall_layout_mode?: string
         }
         Update: {
           cols?: number
@@ -1098,6 +1113,7 @@ export type Database = {
           rows?: number
           updated_at?: string
           user_id?: string
+          wall_layout_mode?: string
         }
         Relationships: [
           {
