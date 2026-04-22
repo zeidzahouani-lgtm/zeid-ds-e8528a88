@@ -28,8 +28,9 @@ export function useScreens() {
 
   // Real-time subscription
   useEffect(() => {
+    const channelName = `screens-realtime-${Math.random().toString(36).slice(2)}`;
     const channel = supabase
-      .channel("screens-realtime")
+      .channel(channelName)
       .on("postgres_changes", { event: "*", schema: "public", table: "screens" }, () => {
         queryClient.invalidateQueries({ queryKey: ["screens"] });
       })
