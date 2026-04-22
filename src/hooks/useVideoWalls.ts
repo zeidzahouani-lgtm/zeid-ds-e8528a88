@@ -92,5 +92,61 @@ export function useVideoWalls() {
     },
   });
 
-  return { walls, isLoading, createWall, deleteWall };
+  // Assign a single source (media or playlist) to ALL screens of a wall
+  const assignSourceToWall = useMutation({
+    mutationFn: async ({ wallId, mediaId, playlistId }: { wallId: string; mediaId?: string | null; playlistId?: string | null }) => {
+      const updates: any = {
+        current_media_id: mediaId ?? null,
+        playlist_id: playlistId ?? null,
+      };
+      const { error } = await supabase.from("screens").update(updates).eq("wall_id", wallId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["screens"] });
+    },
+  });
+
+  // Add an existing standalone screen to a wall at a specific row/col
+  const addScreenToWall = useMutation({
+    mutationFn: async ({ wallId, screenId, row, col }: { wallId: string; screenId: string; row: number; col: number }) => {
+      const { error } = await supabase
+        .from("screens")
+        .update({ wall_id: wallId, wall_row: row, wall_col: col } as any)
+        .eq("id", screenId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["screens"] });
+      queryClient.invalidateQueries({ queryKey: ["video_walls"] });
+    },
+  });
+
+  // Remove a screen from a wall (detach but keep the screen)
+  const removeScreenFromWall = useMutation({
+    mutationFn: async (screenId: string) => {
+      const { error } = await supabase
+        .from("screens")
+        .update({ wall_id: null, wall_row: null, wall_col: null } as any)
+        .eq("id", screenId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["screens"] });
+      queryClient.invalidateQueries({ queryKey: ["video_walls"] });
+    },
+  });
+
+  // Resize a wall (update rows/cols)
+  const resizeWall = useMutation({
+    mutationFn: async ({ wallId, rows, cols }: { wallId: string; rows: number; cols: number }) => {
+      const { error } = await (supabase as any).from("video_walls").update({ rows, cols }).eq("id", wallId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["video_walls"] });
+    },
+  });
+
+  return { walls, isLoading, createWall, deleteWall, assignSourceToWall, addScreenToWall, removeScreenFromWall, resizeWall };
 }
