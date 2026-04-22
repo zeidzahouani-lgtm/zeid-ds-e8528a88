@@ -20,7 +20,7 @@ interface Props {
   wall: { id: string; name: string; rows: number; cols: number } | null;
 }
 
-type SourceType = "none" | "media" | "playlist";
+type SourceType = "none" | "media" | "playlist" | "layout";
 
 const ORIENTATION_ROTATION: Record<string, number> = {
   landscape: 0,
