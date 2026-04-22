@@ -114,8 +114,66 @@ export function ScreenManager() {
   const { walls, deleteWall } = useVideoWalls();
   const [quickPlaylistScreen, setQuickPlaylistScreen] = useState<{ id: string; name: string } | null>(null);
   const [previewScreen, setPreviewScreen] = useState<{ id: string; slug: string | null; name: string } | null>(null);
+  const [previewWall, setPreviewWall] = useState<{ id: string; name: string; rows: number; cols: number } | null>(null);
   const [detailScreenId, setDetailScreenId] = useState<string | null>(null);
   const detailScreen = useMemo(() => screens.find((s: any) => s.id === detailScreenId) ?? null, [screens, detailScreenId]);
+
+  // Bulk action helpers for an entire wall
+  const wallScreensFor = (wallId: string) => screens.filter((s: any) => s.wall_id === wallId);
+
+  const setWallDebugMode = async (wallId: string, mode: number) => {
+    const list = wallScreensFor(wallId);
+    if (!list.length) return toast.info("Aucun écran dans ce mur");
+    try {
+      const { error } = await supabase.from("screens").update({ debug_mode: mode } as any).eq("wall_id", wallId);
+      if (error) throw error;
+      toast.success(`Mode debug appliqué à ${list.length} écran(s)`);
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur");
+    }
+  };
+
+  const refreshWall = async (wallId: string, wallName: string) => {
+    const list = wallScreensFor(wallId);
+    if (!list.length) return toast.info("Aucun écran dans ce mur");
+    try {
+      await Promise.all(list.map(async (s: any) => {
+        const channel = supabase.channel(`screen-control-${s.id}`);
+        await new Promise<void>((resolve) => {
+          channel.subscribe((status) => { if (status === "SUBSCRIBED") resolve(); });
+          setTimeout(resolve, 1500);
+        });
+        await channel.send({ type: "broadcast", event: "force_refresh", payload: { at: Date.now() } });
+        setTimeout(() => supabase.removeChannel(channel), 1000);
+      }));
+      toast.success(`Signal envoyé au mur "${wallName}" (${list.length})`);
+    } catch {
+      toast.error("Erreur d'envoi du signal");
+    }
+  };
+
+  const stopWallSessions = async (wallId: string) => {
+    const list = wallScreensFor(wallId);
+    if (!list.length) return toast.info("Aucun écran dans ce mur");
+    if (!confirm(`Forcer l'arrêt des sessions sur ${list.length} écran(s) ?`)) return;
+    try {
+      const { error } = await supabase.from("screens").update({
+        status: 'offline',
+        player_session_id: null,
+        player_heartbeat_at: null,
+      } as any).eq("wall_id", wallId);
+      if (error) throw error;
+      toast.success("Sessions arrêtées");
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur");
+    }
+  };
+
+  const openAllPlayers = (wallId: string) => {
+    const list = wallScreensFor(wallId);
+    if (!list.length) return toast.info("Aucun écran dans ce mur");
+    list.forEach((s: any) => window.open(`/player/${s.slug || s.id}`, '_blank'));
+  };
 
   const handleAdd = async () => {
     if (!newName.trim()) return;
