@@ -186,5 +186,5 @@ export function useVideoWalls() {
     },
   });
 
-  return { walls, isLoading, createWall, deleteWall, assignSourceToWall, addScreenToWall, removeScreenFromWall, resizeWall };
+  return { walls, isLoading, createWall, deleteWall, assignSourceToWall, addScreenToWall, moveScreenInWall, updateScreenOrientation, removeScreenFromWall, resizeWall };
 }
