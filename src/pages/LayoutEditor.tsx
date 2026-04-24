@@ -13,8 +13,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import {
   ArrowLeft, Plus, Trash2, Save, Move, Maximize2, Image, Video, Globe, Clock, Cloud, Type,
   Monitor, Smartphone, LayoutGrid, Columns, PanelLeft, Square, Eye, QrCode, Palette, AlignLeft,
-  ImageIcon, Check, ArrowUpDown, Rss, Images, ArrowUp, ArrowDown,
+  ImageIcon, Check, ArrowUpDown, Rss, Images, ArrowUp, ArrowDown, Grid3x3, Magnet,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import WidgetRenderer from "@/components/widgets/WidgetRenderer";
 import { COUNTRY_LIST } from "@/components/widgets/WeatherWidget";
@@ -137,6 +138,9 @@ export default function LayoutEditor() {
   const [showBgLibrary, setShowBgLibrary] = useState(false);
   const [showSlideshowPicker, setShowSlideshowPicker] = useState(false);
   const [orientation, setOrientation] = useState<"landscape" | "portrait">("landscape");
+  const [showGrid, setShowGrid] = useState(true);
+  const [snapToGrid, setSnapToGrid] = useState(false);
+  const [gridDivisions, setGridDivisions] = useState(12);
 
   useEffect(() => {
     if (layout) {
@@ -223,18 +227,22 @@ export default function LayoutEditor() {
       const region = regions.find((r) => r.id === dragState.regionId);
       if (!region) return;
 
+      const stepX = layout.width / gridDivisions;
+      const stepY = layout.height / gridDivisions;
+      const snap = (val: number, step: number) => snapToGrid ? Math.round(val / step) * step : val;
+
       if (dragState.mode === "move") {
-        const newX = Math.max(0, Math.min(layout.width - region.width, Math.round(dragState.origX + dx)));
-        const newY = Math.max(0, Math.min(layout.height - region.height, Math.round(dragState.origY + dy)));
+        const newX = Math.max(0, Math.min(layout.width - region.width, Math.round(snap(dragState.origX + dx, stepX))));
+        const newY = Math.max(0, Math.min(layout.height - region.height, Math.round(snap(dragState.origY + dy, stepY))));
         Object.assign(region, { x: newX, y: newY });
       } else if (dragState.mode === "resize") {
-        const newW = Math.max(50, Math.round(dragState.origW + dx));
-        const newH = Math.max(50, Math.round(dragState.origH + dy));
+        const newW = Math.max(50, Math.round(snap(dragState.origW + dx, stepX)));
+        const newH = Math.max(50, Math.round(snap(dragState.origH + dy, stepY)));
         Object.assign(region, { width: newW, height: newH });
       }
       setDragState({ ...dragState });
     },
-    [dragState, layout, regions, scale]
+    [dragState, layout, regions, scale, snapToGrid, gridDivisions]
   );
 
   const handleMouseUp = useCallback(() => {
@@ -454,10 +462,32 @@ export default function LayoutEditor() {
       <div className="flex gap-4">
         {/* Canvas area */}
         <div className="flex-1 min-w-0">
-          <div className="flex gap-2 mb-3">
+          <div className="flex flex-wrap gap-2 mb-3 items-center">
             <Button size="sm" variant="outline" onClick={handleAddRegion}>
               <Plus className="h-4 w-4 mr-1" /> Ajouter une zone
             </Button>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-card">
+              <Grid3x3 className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Grille</span>
+              <Switch checked={showGrid} onCheckedChange={setShowGrid} />
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-card">
+              <Magnet className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Aimanter</span>
+              <Switch checked={snapToGrid} onCheckedChange={setSnapToGrid} />
+            </div>
+            <Select value={String(gridDivisions)} onValueChange={(v) => setGridDivisions(parseInt(v))}>
+              <SelectTrigger className="h-8 w-[110px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="6">6 divisions</SelectItem>
+                <SelectItem value="8">8 divisions</SelectItem>
+                <SelectItem value="12">12 divisions</SelectItem>
+                <SelectItem value="16">16 divisions</SelectItem>
+                <SelectItem value="24">24 divisions</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div
@@ -485,10 +515,20 @@ export default function LayoutEditor() {
               }} />
             )}
             {/* Grid overlay */}
-            <div className="absolute inset-0 pointer-events-none opacity-10 z-[0]" style={{
-              backgroundImage: "linear-gradient(hsl(185 100% 55% / 0.3) 1px, transparent 1px), linear-gradient(90deg, hsl(185 100% 55% / 0.3) 1px, transparent 1px)",
-              backgroundSize: `${(canvasW * scale) / 12}px ${(canvasH * scale) / 12}px`,
-            }} />
+            {showGrid && (
+              <>
+                <div className="absolute inset-0 pointer-events-none z-[0]" style={{
+                  opacity: snapToGrid ? 0.45 : 0.25,
+                  backgroundImage: "linear-gradient(hsl(var(--primary) / 0.5) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--primary) / 0.5) 1px, transparent 1px)",
+                  backgroundSize: `${(canvasW * scale) / gridDivisions}px ${(canvasH * scale) / gridDivisions}px`,
+                }} />
+                <div className="absolute inset-0 pointer-events-none z-[0] opacity-40" style={{
+                  backgroundImage: "linear-gradient(hsl(var(--primary) / 0.9) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--primary) / 0.9) 1px, transparent 1px)",
+                  backgroundSize: `${(canvasW * scale) / 2}px ${(canvasH * scale) / 2}px`,
+                  backgroundPosition: "center",
+                }} />
+              </>
+            )}
             {regions.map((region, idx) => renderRegionOnCanvas(region, idx))}
           </div>
 
