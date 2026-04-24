@@ -1083,14 +1083,21 @@ export default function Player() {
         {debugMode && <DiagnosticOverlay {...diagBaseProps} />}
         {hudMode && <DiagnosticOverlay {...diagBaseProps} mode="hud" />}
         <ResolutionFrame resolution={screenResolution}>
-          <LayoutRenderer
-            layoutId={layoutId}
-            screenOrientation={screen.orientation}
-            screenName={screen.name}
-            screenId={screen.id}
-            logoUrl={branding.logoUrl}
-            showLogo={branding.showLogo}
-          />
+          <WallTile
+            rows={wallInfo?.rows}
+            cols={wallInfo?.cols}
+            row={(screen as any).wall_row}
+            col={(screen as any).wall_col}
+          >
+            <LayoutRenderer
+              layoutId={layoutId}
+              screenOrientation={screen.orientation}
+              screenName={screen.name}
+              screenId={screen.id}
+              logoUrl={branding.logoUrl}
+              showLogo={branding.showLogo}
+            />
+          </WallTile>
         </ResolutionFrame>
         <Watermark text={branding.watermark} />
         <PlayerSignature show={branding.showSignatureOnPlayer} />
