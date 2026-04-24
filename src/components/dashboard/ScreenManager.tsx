@@ -713,8 +713,36 @@ export function ScreenManager() {
                     return (
                     <div
                       key={i}
-                      className="group relative bg-black border border-border/50 rounded overflow-hidden transition-all duration-200 hover:border-primary hover:shadow-[0_0_0_2px_hsl(var(--primary)/0.4)] hover:z-10"
-                      title={s ? `${s.name} — Ligne ${s.wall_row + 1}, Colonne ${s.wall_col + 1} — ${orientLabel}` : `Cellule vide (Ligne ${row + 1}, Colonne ${col + 1})`}
+                      onDragOver={(e) => {
+                        if (!dragScreenId) return;
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                        setDragOverCell(`${row}-${col}`);
+                      }}
+                      onDragLeave={() => {
+                        setDragOverCell((c) => (c === `${row}-${col}` ? null : c));
+                      }}
+                      onDrop={async (e) => {
+                        e.preventDefault();
+                        const screenId = e.dataTransfer.getData("text/screen-id") || dragScreenId;
+                        setDragOverCell(null);
+                        setDragScreenId(null);
+                        if (!screenId || !previewWall) return;
+                        // No-op if dropped on its own cell
+                        if (s && s.id === screenId) return;
+                        try {
+                          await moveScreenInWall.mutateAsync({ wallId: previewWall.id, screenId, row, col });
+                          toast.success(s ? "Écrans permutés" : "Écran déplacé");
+                        } catch (err: any) {
+                          toast.error(err?.message || "Erreur lors du déplacement");
+                        }
+                      }}
+                      className={`group relative bg-black border rounded overflow-hidden transition-all duration-200 hover:border-primary hover:shadow-[0_0_0_2px_hsl(var(--primary)/0.4)] hover:z-10 ${
+                        dragOverCell === `${row}-${col}`
+                          ? "border-primary ring-2 ring-primary shadow-[0_0_0_3px_hsl(var(--primary)/0.5)] scale-[1.02] z-20"
+                          : "border-border/50"
+                      } ${dragScreenId && s?.id === dragScreenId ? "opacity-40" : ""}`}
+                      title={s ? `${s.name} — Ligne ${s.wall_row + 1}, Colonne ${s.wall_col + 1} — ${orientLabel} (glisser pour déplacer)` : `Cellule vide (Ligne ${row + 1}, Colonne ${col + 1}) — déposer un écran ici`}
                     >
                       {s ? (
                         <>
@@ -726,27 +754,39 @@ export function ScreenManager() {
                             allow="autoplay"
                             style={{ transform: `rotate(${rot}deg)`, transformOrigin: "center center" }}
                           />
+                          {/* Draggable handle layer (covers the tile so user can grab anywhere) */}
+                          <div
+                            draggable
+                            onDragStart={(e) => {
+                              setDragScreenId(s.id);
+                              e.dataTransfer.effectAllowed = "move";
+                              e.dataTransfer.setData("text/screen-id", s.id);
+                            }}
+                            onDragEnd={() => {
+                              setDragScreenId(null);
+                              setDragOverCell(null);
+                            }}
+                            className="absolute inset-0 cursor-grab active:cursor-grabbing"
+                            aria-label={`Glisser ${s.name}`}
+                          />
                           {/* Top-left coordinate badge (always visible) */}
-                          <div className="absolute top-1 left-1 bg-background/85 backdrop-blur text-foreground text-[10px] px-1.5 py-0.5 rounded font-mono border border-border/50 flex items-center gap-1">
+                          <div className="absolute top-1 left-1 bg-background/85 backdrop-blur text-foreground text-[10px] px-1.5 py-0.5 rounded font-mono border border-border/50 flex items-center gap-1 pointer-events-none">
                             <span className="font-semibold">L{s.wall_row + 1}·C{s.wall_col + 1}</span>
                             <span className={`inline-block h-1.5 w-1.5 rounded-full ${online ? "bg-green-500" : "bg-red-500"}`} />
                           </div>
                           {/* Top-right orientation badge */}
-                          <div className="absolute top-1 right-1 bg-background/85 backdrop-blur text-foreground text-[10px] px-1.5 py-0.5 rounded font-mono border border-border/50">
+                          <div className="absolute top-1 right-1 bg-background/85 backdrop-blur text-foreground text-[10px] px-1.5 py-0.5 rounded font-mono border border-border/50 pointer-events-none">
                             {orientLabel}
                           </div>
                           {/* Hover overlay with full info + actions */}
-                          <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center gap-2 p-2 text-center">
-                            <div className="text-white font-semibold text-sm truncate max-w-full">{s.name}</div>
-                            <div className="text-white/80 text-xs font-mono">
-                              Ligne {s.wall_row + 1} · Colonne {s.wall_col + 1}
-                            </div>
-                            <div className="text-white/80 text-xs">Orientation : {orientLabel}</div>
-                            <div className="flex gap-1 mt-1">
+                          <div className="absolute inset-x-0 bottom-0 bg-black/75 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center gap-1 p-2 text-center pointer-events-none">
+                            <div className="text-white font-semibold text-xs truncate max-w-full">{s.name}</div>
+                            <div className="text-white/80 text-[10px] font-mono">L{s.wall_row + 1}·C{s.wall_col + 1} · {orientLabel}</div>
+                            <div className="flex gap-1 mt-1 pointer-events-auto">
                               <Button
                                 size="sm"
                                 variant="secondary"
-                                className="h-7 px-2 text-xs"
+                                className="h-6 px-2 text-[10px]"
                                 onClick={() => window.open(`/player/${s.slug || s.id}`, "_blank")}
                               >
                                 <ExternalLink className="h-3 w-3 mr-1" /> Ouvrir
@@ -754,7 +794,7 @@ export function ScreenManager() {
                               <Button
                                 size="sm"
                                 variant="secondary"
-                                className="h-7 px-2 text-xs"
+                                className="h-6 px-2 text-[10px]"
                                 onClick={() => {
                                   setPreviewWall(null);
                                   setDetailScreenId(s.id);
@@ -766,9 +806,9 @@ export function ScreenManager() {
                           </div>
                         </>
                       ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground text-xs gap-1 hover:bg-muted/10 transition-colors">
+                        <div className={`w-full h-full flex flex-col items-center justify-center text-muted-foreground text-xs gap-1 transition-colors ${dragScreenId ? "bg-primary/10" : "hover:bg-muted/10"}`}>
                           <span className="font-mono text-[10px]">L{row + 1}·C{col + 1}</span>
-                          <span>Vide</span>
+                          <span>{dragScreenId ? "Déposer ici" : "Vide"}</span>
                         </div>
                       )}
                     </div>
