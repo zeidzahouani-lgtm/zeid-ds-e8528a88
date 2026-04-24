@@ -682,7 +682,7 @@ export function ScreenManager() {
               <Grid3x3 className="h-5 w-5" /> Aperçu mosaïque — {previewWall?.name}
             </DialogTitle>
             <DialogDescription>
-              {previewWall && `${previewWall.rows}×${previewWall.cols} — chaque tuile reflète l'écran correspondant en temps réel`}
+              {previewWall && `${previewWall.rows}×${previewWall.cols} — temps réel · glissez‑déposez une tuile pour la déplacer ou la permuter`}
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 px-6 pb-6 min-h-0">
