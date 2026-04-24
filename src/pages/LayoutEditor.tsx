@@ -13,8 +13,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import {
   ArrowLeft, Plus, Trash2, Save, Move, Maximize2, Image, Video, Globe, Clock, Cloud, Type,
   Monitor, Smartphone, LayoutGrid, Columns, PanelLeft, Square, Eye, QrCode, Palette, AlignLeft,
-  ImageIcon, Check, ArrowUpDown, Rss, Images, ArrowUp, ArrowDown,
+  ImageIcon, Check, ArrowUpDown, Rss, Images, ArrowUp, ArrowDown, Grid3x3, Magnet,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
 import WidgetRenderer from "@/components/widgets/WidgetRenderer";
 import { COUNTRY_LIST } from "@/components/widgets/WeatherWidget";
