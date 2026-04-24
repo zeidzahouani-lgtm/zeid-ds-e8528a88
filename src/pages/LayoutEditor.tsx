@@ -462,10 +462,32 @@ export default function LayoutEditor() {
       <div className="flex gap-4">
         {/* Canvas area */}
         <div className="flex-1 min-w-0">
-          <div className="flex gap-2 mb-3">
+          <div className="flex flex-wrap gap-2 mb-3 items-center">
             <Button size="sm" variant="outline" onClick={handleAddRegion}>
               <Plus className="h-4 w-4 mr-1" /> Ajouter une zone
             </Button>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-card">
+              <Grid3x3 className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Grille</span>
+              <Switch checked={showGrid} onCheckedChange={setShowGrid} />
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-border bg-card">
+              <Magnet className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Aimanter</span>
+              <Switch checked={snapToGrid} onCheckedChange={setSnapToGrid} />
+            </div>
+            <Select value={String(gridDivisions)} onValueChange={(v) => setGridDivisions(parseInt(v))}>
+              <SelectTrigger className="h-8 w-[110px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="6">6 divisions</SelectItem>
+                <SelectItem value="8">8 divisions</SelectItem>
+                <SelectItem value="12">12 divisions</SelectItem>
+                <SelectItem value="16">16 divisions</SelectItem>
+                <SelectItem value="24">24 divisions</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div
