@@ -726,7 +726,8 @@ export function ScreenManager() {
                         </div>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               );
             })()}
