@@ -332,15 +332,53 @@ export function WallConfigDialog({ open, onOpenChange, wall }: Props) {
                   {wallScreens
                     .sort((a: any, b: any) => (a.wall_row - b.wall_row) || (a.wall_col - b.wall_col))
                     .map((s: any) => (
-                      <div key={s.id} className="flex items-center gap-2 p-2 rounded border border-border bg-muted/20">
+                      <div key={s.id} className="flex flex-wrap items-center gap-2 p-2 rounded border border-border bg-muted/20">
                         <Badge variant="outline" className="font-mono text-[10px]">
                           {s.wall_row + 1}-{s.wall_col + 1}
                         </Badge>
-                        <span className="text-sm font-medium flex-1 truncate">{s.name}</span>
-                        <Badge variant="outline" className="text-xs gap-1">
-                          <RotateCcw className="h-3 w-3" />
-                          {ORIENTATION_ROTATION[s.orientation] ?? 0}°
-                        </Badge>
+                        <span className="text-sm font-medium flex-1 min-w-[120px] truncate">{s.name}</span>
+
+                        {/* Position (row/col) — instant update */}
+                        <Select
+                          value={String(s.wall_row)}
+                          onValueChange={(v) => moveScreenInWall.mutate({ wallId: wall.id, screenId: s.id, row: parseInt(v), col: s.wall_col })}
+                        >
+                          <SelectTrigger className="h-8 w-[70px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: wall.rows }).map((_, i) => (
+                              <SelectItem key={i} value={String(i)}>L{i + 1}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={String(s.wall_col)}
+                          onValueChange={(v) => moveScreenInWall.mutate({ wallId: wall.id, screenId: s.id, row: s.wall_row, col: parseInt(v) })}
+                        >
+                          <SelectTrigger className="h-8 w-[70px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: wall.cols }).map((_, i) => (
+                              <SelectItem key={i} value={String(i)}>C{i + 1}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        {/* Orientation — instant update, syncs preview */}
+                        <Select
+                          value={s.orientation || "landscape"}
+                          onValueChange={(v) => updateScreenOrientation.mutate({ screenId: s.id, orientation: v })}
+                        >
+                          <SelectTrigger className="h-8 w-[140px]">
+                            <RotateCcw className="h-3 w-3 mr-1" />
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="landscape">Paysage 0°</SelectItem>
+                            <SelectItem value="portrait">Portrait 90°</SelectItem>
+                            <SelectItem value="landscape-flipped">Paysage 180°</SelectItem>
+                            <SelectItem value="portrait-flipped">Portrait 270°</SelectItem>
+                          </SelectContent>
+                        </Select>
+
                         <Button
                           variant="ghost"
                           size="icon"
