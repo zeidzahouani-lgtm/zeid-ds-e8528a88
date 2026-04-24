@@ -138,6 +138,9 @@ export default function LayoutEditor() {
   const [showBgLibrary, setShowBgLibrary] = useState(false);
   const [showSlideshowPicker, setShowSlideshowPicker] = useState(false);
   const [orientation, setOrientation] = useState<"landscape" | "portrait">("landscape");
+  const [showGrid, setShowGrid] = useState(true);
+  const [snapToGrid, setSnapToGrid] = useState(false);
+  const [gridDivisions, setGridDivisions] = useState(12);
 
   useEffect(() => {
     if (layout) {
