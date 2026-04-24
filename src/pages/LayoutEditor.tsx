@@ -227,18 +227,22 @@ export default function LayoutEditor() {
       const region = regions.find((r) => r.id === dragState.regionId);
       if (!region) return;
 
+      const stepX = layout.width / gridDivisions;
+      const stepY = layout.height / gridDivisions;
+      const snap = (val: number, step: number) => snapToGrid ? Math.round(val / step) * step : val;
+
       if (dragState.mode === "move") {
-        const newX = Math.max(0, Math.min(layout.width - region.width, Math.round(dragState.origX + dx)));
-        const newY = Math.max(0, Math.min(layout.height - region.height, Math.round(dragState.origY + dy)));
+        const newX = Math.max(0, Math.min(layout.width - region.width, Math.round(snap(dragState.origX + dx, stepX))));
+        const newY = Math.max(0, Math.min(layout.height - region.height, Math.round(snap(dragState.origY + dy, stepY))));
         Object.assign(region, { x: newX, y: newY });
       } else if (dragState.mode === "resize") {
-        const newW = Math.max(50, Math.round(dragState.origW + dx));
-        const newH = Math.max(50, Math.round(dragState.origH + dy));
+        const newW = Math.max(50, Math.round(snap(dragState.origW + dx, stepX)));
+        const newH = Math.max(50, Math.round(snap(dragState.origH + dy, stepY)));
         Object.assign(region, { width: newW, height: newH });
       }
       setDragState({ ...dragState });
     },
-    [dragState, layout, regions, scale]
+    [dragState, layout, regions, scale, snapToGrid, gridDivisions]
   );
 
   const handleMouseUp = useCallback(() => {
