@@ -701,15 +701,20 @@ export function ScreenManager() {
                     gridTemplateRows: `repeat(${previewWall.rows}, 1fr)`,
                   }}
                 >
-                  {cells.map((s: any, i) => (
+                  {cells.map((s: any, i) => {
+                    const orient = s?.orientation || "landscape";
+                    const rot = orient === "portrait" ? 90 : orient === "landscape-flipped" ? 180 : orient === "portrait-flipped" ? 270 : 0;
+                    return (
                     <div key={i} className="relative bg-black border border-border/50 rounded overflow-hidden">
                       {s ? (
                         <>
                           <iframe
-                            src={`/player/${s.slug || s.id}?preview=1`}
+                            key={`${s.id}-${orient}`}
+                            src={`/player/${s.slug || s.id}?preview=1&orient=${orient}`}
                             className="w-full h-full"
                             title={`Tuile ${i}`}
                             allow="autoplay"
+                            style={{ transform: `rotate(${rot}deg)`, transformOrigin: "center center" }}
                           />
                           <div className="absolute top-1 left-1 bg-background/80 text-foreground text-[10px] px-1.5 py-0.5 rounded font-mono">
                             [{s.wall_row + 1}-{s.wall_col + 1}] {s.name}
@@ -721,7 +726,8 @@ export function ScreenManager() {
                         </div>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               );
             })()}

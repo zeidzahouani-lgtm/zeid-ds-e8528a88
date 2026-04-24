@@ -123,6 +123,43 @@ export function useVideoWalls() {
     },
   });
 
+  // Move (or swap) a screen to a target row/col within a wall
+  const moveScreenInWall = useMutation({
+    mutationFn: async ({ wallId, screenId, row, col }: { wallId: string; screenId: string; row: number; col: number }) => {
+      // Find current screen + any screen already at the target cell
+      const { data: rows, error: selErr } = await supabase
+        .from("screens")
+        .select("id, wall_row, wall_col")
+        .eq("wall_id", wallId);
+      if (selErr) throw selErr;
+      const moving = rows?.find((s: any) => s.id === screenId);
+      const occupant = rows?.find((s: any) => s.wall_row === row && s.wall_col === col && s.id !== screenId);
+      if (occupant && moving) {
+        // Swap: park occupant temporarily to avoid any unique conflicts
+        await supabase.from("screens").update({ wall_row: -1, wall_col: -1 } as any).eq("id", occupant.id);
+        await supabase.from("screens").update({ wall_row: row, wall_col: col } as any).eq("id", screenId);
+        await supabase.from("screens").update({ wall_row: moving.wall_row, wall_col: moving.wall_col } as any).eq("id", occupant.id);
+      } else {
+        const { error } = await supabase.from("screens").update({ wall_row: row, wall_col: col } as any).eq("id", screenId);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["screens"] });
+    },
+  });
+
+  // Update orientation of a single screen (used from wall config)
+  const updateScreenOrientation = useMutation({
+    mutationFn: async ({ screenId, orientation }: { screenId: string; orientation: string }) => {
+      const { error } = await supabase.from("screens").update({ orientation } as any).eq("id", screenId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["screens"] });
+    },
+  });
+
   // Remove a screen from a wall (detach but keep the screen)
   const removeScreenFromWall = useMutation({
     mutationFn: async (screenId: string) => {
@@ -149,5 +186,5 @@ export function useVideoWalls() {
     },
   });
 
-  return { walls, isLoading, createWall, deleteWall, assignSourceToWall, addScreenToWall, removeScreenFromWall, resizeWall };
+  return { walls, isLoading, createWall, deleteWall, assignSourceToWall, addScreenToWall, moveScreenInWall, updateScreenOrientation, removeScreenFromWall, resizeWall };
 }
