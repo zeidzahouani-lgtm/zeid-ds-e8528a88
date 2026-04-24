@@ -208,11 +208,12 @@ export function WallConfigDialog({ open, onOpenChange, wall }: Props) {
                           }}
                         >
                           <iframe
-                            src={`/player/${screen.slug || screen.id}?preview=1`}
+                            key={`${screen.id}-${orientation}`}
+                            src={`/player/${screen.slug || screen.id}?preview=1&orient=${orientation}`}
                             title={screen.name}
                             className="w-full h-full border-0 bg-black pointer-events-none"
                             allow="autoplay"
-                            style={isPortrait ? { width: "100%", height: "100%" } : { width: "100%", height: "100%" }}
+                            style={{ width: "100%", height: "100%" }}
                           />
                         </div>
                         <div className="absolute top-1 left-1 bg-background/80 backdrop-blur px-1.5 py-0.5 rounded text-[9px] font-mono z-10">
