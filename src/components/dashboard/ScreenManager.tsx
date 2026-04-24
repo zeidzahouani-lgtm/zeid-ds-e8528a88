@@ -704,25 +704,69 @@ export function ScreenManager() {
                   {cells.map((s: any, i) => {
                     const orient = s?.orientation || "landscape";
                     const rot = orient === "portrait" ? 90 : orient === "landscape-flipped" ? 180 : orient === "portrait-flipped" ? 270 : 0;
+                    const orientLabel = getOrientationPreview(orient).label;
+                    const row = Math.floor(i / previewWall!.cols);
+                    const col = i % previewWall!.cols;
+                    const online = s ? isScreenReallyOnline(s) : false;
                     return (
-                    <div key={i} className="relative bg-black border border-border/50 rounded overflow-hidden">
+                    <div
+                      key={i}
+                      className="group relative bg-black border border-border/50 rounded overflow-hidden transition-all duration-200 hover:border-primary hover:shadow-[0_0_0_2px_hsl(var(--primary)/0.4)] hover:z-10"
+                      title={s ? `${s.name} — Ligne ${s.wall_row + 1}, Colonne ${s.wall_col + 1} — ${orientLabel}` : `Cellule vide (Ligne ${row + 1}, Colonne ${col + 1})`}
+                    >
                       {s ? (
                         <>
                           <iframe
                             key={`${s.id}-${orient}`}
                             src={`/player/${s.slug || s.id}?preview=1&orient=${orient}`}
-                            className="w-full h-full"
+                            className="w-full h-full pointer-events-none"
                             title={`Tuile ${i}`}
                             allow="autoplay"
                             style={{ transform: `rotate(${rot}deg)`, transformOrigin: "center center" }}
                           />
-                          <div className="absolute top-1 left-1 bg-background/80 text-foreground text-[10px] px-1.5 py-0.5 rounded font-mono">
-                            [{s.wall_row + 1}-{s.wall_col + 1}] {s.name}
+                          {/* Top-left coordinate badge (always visible) */}
+                          <div className="absolute top-1 left-1 bg-background/85 backdrop-blur text-foreground text-[10px] px-1.5 py-0.5 rounded font-mono border border-border/50 flex items-center gap-1">
+                            <span className="font-semibold">L{s.wall_row + 1}·C{s.wall_col + 1}</span>
+                            <span className={`inline-block h-1.5 w-1.5 rounded-full ${online ? "bg-green-500" : "bg-red-500"}`} />
+                          </div>
+                          {/* Top-right orientation badge */}
+                          <div className="absolute top-1 right-1 bg-background/85 backdrop-blur text-foreground text-[10px] px-1.5 py-0.5 rounded font-mono border border-border/50">
+                            {orientLabel}
+                          </div>
+                          {/* Hover overlay with full info + actions */}
+                          <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center justify-center gap-2 p-2 text-center">
+                            <div className="text-white font-semibold text-sm truncate max-w-full">{s.name}</div>
+                            <div className="text-white/80 text-xs font-mono">
+                              Ligne {s.wall_row + 1} · Colonne {s.wall_col + 1}
+                            </div>
+                            <div className="text-white/80 text-xs">Orientation : {orientLabel}</div>
+                            <div className="flex gap-1 mt-1">
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                className="h-7 px-2 text-xs"
+                                onClick={() => window.open(`/player/${s.slug || s.id}`, "_blank")}
+                              >
+                                <ExternalLink className="h-3 w-3 mr-1" /> Ouvrir
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                className="h-7 px-2 text-xs"
+                                onClick={() => {
+                                  setPreviewWall(null);
+                                  setDetailScreenId(s.id);
+                                }}
+                              >
+                                <Settings className="h-3 w-3 mr-1" /> Détails
+                              </Button>
+                            </div>
                           </div>
                         </>
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
-                          Vide
+                        <div className="w-full h-full flex flex-col items-center justify-center text-muted-foreground text-xs gap-1 hover:bg-muted/10 transition-colors">
+                          <span className="font-mono text-[10px]">L{row + 1}·C{col + 1}</span>
+                          <span>Vide</span>
                         </div>
                       )}
                     </div>
