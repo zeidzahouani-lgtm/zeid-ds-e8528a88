@@ -111,7 +111,9 @@ export function ScreenManager() {
   const [newName, setNewName] = useState("");
   const [wallDialogOpen, setWallDialogOpen] = useState(false);
   const [configWall, setConfigWall] = useState<{ id: string; name: string; rows: number; cols: number } | null>(null);
-  const { walls, deleteWall } = useVideoWalls();
+  const { walls, deleteWall, moveScreenInWall } = useVideoWalls();
+  const [dragScreenId, setDragScreenId] = useState<string | null>(null);
+  const [dragOverCell, setDragOverCell] = useState<string | null>(null);
   const [quickPlaylistScreen, setQuickPlaylistScreen] = useState<{ id: string; name: string } | null>(null);
   const [previewScreen, setPreviewScreen] = useState<{ id: string; slug: string | null; name: string } | null>(null);
   const [previewWall, setPreviewWall] = useState<{ id: string; name: string; rows: number; cols: number } | null>(null);
