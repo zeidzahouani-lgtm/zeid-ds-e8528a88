@@ -515,10 +515,20 @@ export default function LayoutEditor() {
               }} />
             )}
             {/* Grid overlay */}
-            <div className="absolute inset-0 pointer-events-none opacity-10 z-[0]" style={{
-              backgroundImage: "linear-gradient(hsl(185 100% 55% / 0.3) 1px, transparent 1px), linear-gradient(90deg, hsl(185 100% 55% / 0.3) 1px, transparent 1px)",
-              backgroundSize: `${(canvasW * scale) / 12}px ${(canvasH * scale) / 12}px`,
-            }} />
+            {showGrid && (
+              <>
+                <div className="absolute inset-0 pointer-events-none z-[0]" style={{
+                  opacity: snapToGrid ? 0.45 : 0.25,
+                  backgroundImage: "linear-gradient(hsl(var(--primary) / 0.5) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--primary) / 0.5) 1px, transparent 1px)",
+                  backgroundSize: `${(canvasW * scale) / gridDivisions}px ${(canvasH * scale) / gridDivisions}px`,
+                }} />
+                <div className="absolute inset-0 pointer-events-none z-[0] opacity-40" style={{
+                  backgroundImage: "linear-gradient(hsl(var(--primary) / 0.9) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--primary) / 0.9) 1px, transparent 1px)",
+                  backgroundSize: `${(canvasW * scale) / 2}px ${(canvasH * scale) / 2}px`,
+                  backgroundPosition: "center",
+                }} />
+              </>
+            )}
             {regions.map((region, idx) => renderRegionOnCanvas(region, idx))}
           </div>
 
