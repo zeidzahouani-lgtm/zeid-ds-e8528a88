@@ -34,7 +34,7 @@ export function WallConfigDialog({ open, onOpenChange, wall }: Props) {
   const { media } = useMedia();
   const { playlists } = usePlaylists();
   const { layouts } = useLayouts();
-  const { assignSourceToWall, addScreenToWall, removeScreenFromWall } = useVideoWalls();
+  const { assignSourceToWall, addScreenToWall, removeScreenFromWall, moveScreenInWall, updateScreenOrientation } = useVideoWalls();
 
   const [sourceType, setSourceType] = useState<SourceType>("none");
   const [mediaId, setMediaId] = useState<string>("");
