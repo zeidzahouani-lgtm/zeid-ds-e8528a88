@@ -87,6 +87,36 @@ export default function Library() {
     return <Badge variant="secondary" className="text-[10px]">{labels[type] || type}</Badge>;
   };
 
+  const handleAssign = async (id: string, value: string) => {
+    try {
+      await assignEstablishmentMutation.mutateAsync({ id, establishmentId: value === "__none__" ? null : value });
+      toast.success("Établissement mis à jour");
+    } catch {
+      toast.error("Erreur d'assignation");
+    }
+  };
+
+  const EstablishmentPicker = ({ item }: { item: any }) => (
+    <Select
+      value={item.establishment_id || "__none__"}
+      onValueChange={(v) => handleAssign(item.id, v)}
+    >
+      <SelectTrigger
+        className="h-7 text-[11px] bg-secondary/40 border-border/50"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Building2 className="h-3 w-3 mr-1 text-primary/60" />
+        <SelectValue placeholder="Établissement..." />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="__none__">Aucun (global)</SelectItem>
+        {establishments.map((e: any) => (
+          <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
