@@ -153,12 +153,6 @@ Deno.serve(async (req) => {
       await adminClient.from("profiles").delete().eq("id", resolvedTargetId);
 
       const { error: deleteError } = await adminClient.auth.admin.deleteUser(resolvedTargetId);
-
-      await adminClient.from("user_establishments").delete().eq("user_id", targetUserId);
-      await adminClient.from("user_roles").delete().eq("user_id", targetUserId);
-      await adminClient.from("profiles").delete().eq("id", targetUserId);
-
-      const { error: deleteError } = await adminClient.auth.admin.deleteUser(targetUserId);
       if (deleteError) throw deleteError;
 
       return new Response(JSON.stringify({ success: true, deleted: true }), {
