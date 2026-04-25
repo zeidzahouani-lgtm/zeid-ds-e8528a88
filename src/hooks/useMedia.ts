@@ -67,5 +67,16 @@ export function useMedia() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["media"] }),
   });
 
-  return { media, isLoading, uploadMutation, addIframeMutation, deleteMutation };
+  const assignEstablishmentMutation = useMutation({
+    mutationFn: async ({ id, establishmentId }: { id: string; establishmentId: string | null }) => {
+      const { error } = await supabase
+        .from("media")
+        .update({ establishment_id: establishmentId } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["media"] }),
+  });
+
+  return { media, isLoading, uploadMutation, addIframeMutation, deleteMutation, assignEstablishmentMutation };
 }

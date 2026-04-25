@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from "react";
-import { Upload, Link, Trash2, Image, Video, Globe, Search, Grid, List, Eye } from "lucide-react";
+import { Upload, Link, Trash2, Image, Video, Globe, Search, Grid, List, Eye, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useMedia } from "@/hooks/useMedia";
+import { useEstablishments } from "@/hooks/useEstablishments";
+import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import { toast } from "sonner";
 
 interface UploadProgress {
@@ -16,7 +18,9 @@ interface UploadProgress {
 }
 
 export default function Library() {
-  const { media, isLoading, uploadMutation, addIframeMutation, deleteMutation } = useMedia();
+  const { media, isLoading, uploadMutation, addIframeMutation, deleteMutation, assignEstablishmentMutation } = useMedia();
+  const { isGlobalAdmin } = useEstablishmentContext();
+  const { establishments } = useEstablishments();
   const [iframeName, setIframeName] = useState("");
   const [iframeUrl, setIframeUrl] = useState("");
   const [showIframe, setShowIframe] = useState(false);
@@ -82,6 +86,36 @@ export default function Library() {
     const labels: Record<string, string> = { image: "Image", video: "Vidéo", iframe: "Web" };
     return <Badge variant="secondary" className="text-[10px]">{labels[type] || type}</Badge>;
   };
+
+  const handleAssign = async (id: string, value: string) => {
+    try {
+      await assignEstablishmentMutation.mutateAsync({ id, establishmentId: value === "__none__" ? null : value });
+      toast.success("Établissement mis à jour");
+    } catch {
+      toast.error("Erreur d'assignation");
+    }
+  };
+
+  const EstablishmentPicker = ({ item }: { item: any }) => (
+    <Select
+      value={item.establishment_id || "__none__"}
+      onValueChange={(v) => handleAssign(item.id, v)}
+    >
+      <SelectTrigger
+        className="h-7 text-[11px] bg-secondary/40 border-border/50"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Building2 className="h-3 w-3 mr-1 text-primary/60" />
+        <SelectValue placeholder="Établissement..." />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="__none__">Aucun (global)</SelectItem>
+        {establishments.map((e: any) => (
+          <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
 
   return (
     <div className="space-y-6">
@@ -183,10 +217,17 @@ export default function Library() {
                   </Button>
                 </div>
               </div>
-              <div className="p-2.5 flex items-center gap-2">
-                {typeIcon(item.type)}
-                <span className="text-xs font-medium truncate flex-1">{item.name}</span>
-                {typeBadge(item.type)}
+              <div className="p-2.5 space-y-2">
+                <div className="flex items-center gap-2">
+                  {typeIcon(item.type)}
+                  <span className="text-xs font-medium truncate flex-1">{item.name}</span>
+                  {typeBadge(item.type)}
+                </div>
+                {isGlobalAdmin && (
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <EstablishmentPicker item={item} />
+                  </div>
+                )}
               </div>
             </Card>
           ))}
@@ -205,6 +246,11 @@ export default function Library() {
                 <p className="text-xs text-muted-foreground">{item.duration}s</p>
               </div>
               {typeBadge(item.type)}
+              {isGlobalAdmin && (
+                <div className="w-48 shrink-0">
+                  <EstablishmentPicker item={item} />
+                </div>
+              )}
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setPreview(item)}>
                   <Eye className="h-4 w-4" />
