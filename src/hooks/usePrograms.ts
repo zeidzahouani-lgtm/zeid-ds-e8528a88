@@ -69,7 +69,10 @@ export function usePrograms() {
         .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["programs"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["programs"] });
+      queryClient.invalidateQueries({ queryKey: ["est_dashboard_programs"] });
+    },
   });
 
   return { programs, isLoading, addProgram, deleteProgram, renameProgram, assignEstablishment };
