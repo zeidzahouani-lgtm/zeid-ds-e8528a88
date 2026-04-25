@@ -89,8 +89,11 @@ Deno.serve(async (req) => {
 
     // ============ UPDATE PROFILE (display_name + email) ============
     if (updateProfileFlag) {
-      if (!callerIsAdmin) throw new Error("Not admin");
       if (!targetUserId) throw new Error("user_id required");
+      if (!callerIsAdmin) {
+        const allowed = await isCallerEstabAdminOfTarget(targetUserId);
+        if (!allowed) throw new Error("Non autorisé");
+      }
 
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (newEmail && !emailRegex.test(newEmail)) {
