@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { WallLayoutPresetDialog } from "@/components/dashboard/WallLayoutPresetDialog";
+import { EstablishmentAssignSelect } from "@/components/EstablishmentAssignSelect";
 
 interface MiniRegion {
   id: string;
