@@ -13,6 +13,7 @@ import { usePlaylistItems } from "@/hooks/usePlaylistItems";
 import { useMedia } from "@/hooks/useMedia";
 import { useScreens } from "@/hooks/useScreens";
 import { supabase } from "@/integrations/supabase/client";
+import { EstablishmentAssignSelect } from "@/components/EstablishmentAssignSelect";
 import { toast } from "sonner";
 
 type WizardStep = "list" | "name" | "media" | "screens" | "edit";
