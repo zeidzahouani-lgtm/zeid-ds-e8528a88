@@ -141,17 +141,25 @@ export function ScheduleManager() {
           </SelectContent>
         </Select>
         {selectedProgram && (
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => {
-              deleteProgram.mutate(selectedProgram);
-              setSelectedProgram("");
-              toast.success("Programme supprimé");
-            }}
-          >
-            <Trash2 className="h-3.5 w-3.5 mr-1" /> Supprimer
-          </Button>
+          <>
+            <div className="w-[260px]">
+              <EstablishmentAssignSelect
+                currentEstablishmentId={(programs.find((p) => p.id === selectedProgram) as any)?.establishment_id}
+                onAssign={(eid) => assignEstablishment.mutateAsync({ id: selectedProgram, establishmentId: eid })}
+              />
+            </div>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                deleteProgram.mutate(selectedProgram);
+                setSelectedProgram("");
+                toast.success("Programme supprimé");
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5 mr-1" /> Supprimer
+            </Button>
+          </>
         )}
       </div>
 
