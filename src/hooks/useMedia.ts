@@ -75,7 +75,10 @@ export function useMedia() {
         .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["media"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["media"] });
+      queryClient.invalidateQueries({ queryKey: ["est_dashboard_media"] });
+    },
   });
 
   return { media, isLoading, uploadMutation, addIframeMutation, deleteMutation, assignEstablishmentMutation };
