@@ -69,7 +69,10 @@ export function usePlaylists() {
         .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["playlists"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["playlists"] });
+      queryClient.invalidateQueries({ queryKey: ["est_dashboard_playlists"] });
+    },
   });
 
   return { playlists, isLoading, addPlaylist, deletePlaylist, renamePlaylist, assignEstablishment };
