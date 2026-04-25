@@ -15,6 +15,7 @@ import { usePlaylists } from "@/hooks/usePlaylists";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ScheduleCalendar } from "./ScheduleCalendar";
+import { EstablishmentAssignSelect } from "@/components/EstablishmentAssignSelect";
 
 const DAYS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 
