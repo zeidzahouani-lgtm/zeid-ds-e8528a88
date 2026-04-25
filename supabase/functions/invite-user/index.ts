@@ -41,6 +41,36 @@ Deno.serve(async (req) => {
       callerIsAdmin = !!(roleData && roleData.length > 0);
     }
 
+    // Helper: check if caller is admin of an establishment that the target user belongs to as marketing
+    const isCallerEstabAdminOfTarget = async (targetId: string): Promise<boolean> => {
+      if (!callerUserId || !targetId) return false;
+      const adminClient = createClient(supabaseUrl, serviceRoleKey);
+      // Get establishments where caller is admin
+      const { data: callerAdminEstabs } = await adminClient
+        .from("user_establishments")
+        .select("establishment_id")
+        .eq("user_id", callerUserId)
+        .eq("role", "admin");
+      const estabIds = (callerAdminEstabs || []).map((r: any) => r.establishment_id);
+      if (estabIds.length === 0) return false;
+      // Verify target belongs to one of these establishments
+      const { data: targetMembership } = await adminClient
+        .from("user_establishments")
+        .select("establishment_id")
+        .eq("user_id", targetId)
+        .in("establishment_id", estabIds)
+        .maybeSingle();
+      if (!targetMembership) return false;
+      // Verify target has marketing role (don't allow editing other admins)
+      const { data: targetRoles } = await adminClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", targetId);
+      const roles = (targetRoles || []).map((r: any) => r.role);
+      // Only allow editing marketing or plain user accounts (never admins)
+      return !roles.includes("admin");
+    };
+
     const payload = await req.json();
     const rawEmail = typeof payload?.email === "string" ? payload.email : "";
     const password = typeof payload?.password === "string" ? payload.password : "";
@@ -59,8 +89,11 @@ Deno.serve(async (req) => {
 
     // ============ UPDATE PROFILE (display_name + email) ============
     if (updateProfileFlag) {
-      if (!callerIsAdmin) throw new Error("Not admin");
       if (!targetUserId) throw new Error("user_id required");
+      if (!callerIsAdmin) {
+        const allowed = await isCallerEstabAdminOfTarget(targetUserId);
+        if (!allowed) throw new Error("Non autorisé");
+      }
 
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (newEmail && !emailRegex.test(newEmail)) {
@@ -101,21 +134,25 @@ Deno.serve(async (req) => {
 
     // ============ DELETE USER ============
     if (deleteUserFlag) {
-      if (!callerIsAdmin) throw new Error("Not admin");
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-      let targetUserId = deleteUserId;
-      if (!targetUserId && email) {
+      let resolvedTargetId = deleteUserId;
+      if (!resolvedTargetId && email) {
         const { data: profile } = await adminClient.from("profiles").select("id").eq("email", email).maybeSingle();
-        if (profile) targetUserId = profile.id;
+        if (profile) resolvedTargetId = profile.id;
       }
-      if (!targetUserId) throw new Error("Utilisateur introuvable: ID ou email requis");
+      if (!resolvedTargetId) throw new Error("Utilisateur introuvable: ID ou email requis");
 
-      await adminClient.from("user_establishments").delete().eq("user_id", targetUserId);
-      await adminClient.from("user_roles").delete().eq("user_id", targetUserId);
-      await adminClient.from("profiles").delete().eq("id", targetUserId);
+      if (!callerIsAdmin) {
+        const allowed = await isCallerEstabAdminOfTarget(resolvedTargetId);
+        if (!allowed) throw new Error("Non autorisé");
+      }
 
-      const { error: deleteError } = await adminClient.auth.admin.deleteUser(targetUserId);
+      await adminClient.from("user_establishments").delete().eq("user_id", resolvedTargetId);
+      await adminClient.from("user_roles").delete().eq("user_id", resolvedTargetId);
+      await adminClient.from("profiles").delete().eq("id", resolvedTargetId);
+
+      const { error: deleteError } = await adminClient.auth.admin.deleteUser(resolvedTargetId);
       if (deleteError) throw deleteError;
 
       return new Response(JSON.stringify({ success: true, deleted: true }), {
@@ -136,7 +173,11 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
     if (updatePassword) {
-      if (!callerIsAdmin) throw new Error("Not admin");
+      if (!callerIsAdmin) {
+        if (!targetUserId) throw new Error("user_id requis");
+        const allowed = await isCallerEstabAdminOfTarget(targetUserId);
+        if (!allowed) throw new Error("Non autorisé");
+      }
 
       let pwUserId = targetUserId;
       if (!pwUserId) {
@@ -273,7 +314,8 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    const message = error instanceof Error ? error.message : String(error);
+    return new Response(JSON.stringify({ error: message }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
