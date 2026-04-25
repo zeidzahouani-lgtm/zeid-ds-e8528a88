@@ -12,8 +12,8 @@ export interface Program {
 
 export function usePrograms() {
   const queryClient = useQueryClient();
-  const { currentEstablishmentId } = useEstablishmentContext();
-  const queryKey = ["programs", currentEstablishmentId];
+  const { currentEstablishmentId, isGlobalAdmin } = useEstablishmentContext();
+  const queryKey = ["programs", currentEstablishmentId, isGlobalAdmin];
 
   const { data: programs = [], isLoading } = useQuery({
     queryKey,
@@ -21,6 +21,8 @@ export function usePrograms() {
       let q = supabase.from("programs").select("*").order("created_at", { ascending: false });
       if (currentEstablishmentId) {
         q = q.eq("establishment_id", currentEstablishmentId);
+      } else if (!isGlobalAdmin) {
+        return [];
       }
       const { data, error } = await q;
       if (error) throw error;
@@ -40,7 +42,7 @@ export function usePrograms() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["programs"] }),
   });
 
   const deleteProgram = useMutation({
@@ -48,7 +50,7 @@ export function usePrograms() {
       const { error } = await supabase.from("programs").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["programs"] }),
   });
 
   const renameProgram = useMutation({
@@ -56,8 +58,19 @@ export function usePrograms() {
       const { error } = await supabase.from("programs").update({ name }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["programs"] }),
   });
 
-  return { programs, isLoading, addProgram, deleteProgram, renameProgram };
+  const assignEstablishment = useMutation({
+    mutationFn: async ({ id, establishmentId }: { id: string; establishmentId: string | null }) => {
+      const { error } = await supabase
+        .from("programs")
+        .update({ establishment_id: establishmentId } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["programs"] }),
+  });
+
+  return { programs, isLoading, addProgram, deleteProgram, renameProgram, assignEstablishment };
 }

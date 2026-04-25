@@ -12,8 +12,8 @@ export interface Playlist {
 
 export function usePlaylists() {
   const queryClient = useQueryClient();
-  const { currentEstablishmentId } = useEstablishmentContext();
-  const queryKey = ["playlists", currentEstablishmentId];
+  const { currentEstablishmentId, isGlobalAdmin } = useEstablishmentContext();
+  const queryKey = ["playlists", currentEstablishmentId, isGlobalAdmin];
 
   const { data: playlists = [], isLoading } = useQuery({
     queryKey,
@@ -21,6 +21,8 @@ export function usePlaylists() {
       let q = supabase.from("playlists").select("*").order("created_at", { ascending: false });
       if (currentEstablishmentId) {
         q = q.eq("establishment_id", currentEstablishmentId);
+      } else if (!isGlobalAdmin) {
+        return [];
       }
       const { data, error } = await q;
       if (error) throw error;
@@ -40,7 +42,7 @@ export function usePlaylists() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["playlists"] }),
   });
 
   const deletePlaylist = useMutation({
@@ -48,7 +50,7 @@ export function usePlaylists() {
       const { error } = await supabase.from("playlists").delete().eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["playlists"] }),
   });
 
   const renamePlaylist = useMutation({
@@ -56,8 +58,19 @@ export function usePlaylists() {
       const { error } = await supabase.from("playlists").update({ name }).eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["playlists"] }),
   });
 
-  return { playlists, isLoading, addPlaylist, deletePlaylist, renamePlaylist };
+  const assignEstablishment = useMutation({
+    mutationFn: async ({ id, establishmentId }: { id: string; establishmentId: string | null }) => {
+      const { error } = await supabase
+        .from("playlists")
+        .update({ establishment_id: establishmentId } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["playlists"] }),
+  });
+
+  return { playlists, isLoading, addPlaylist, deletePlaylist, renamePlaylist, assignEstablishment };
 }

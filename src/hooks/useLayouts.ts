@@ -39,7 +39,7 @@ export function useLayouts() {
   const { currentEstablishmentId, isGlobalAdmin } = useEstablishmentContext();
 
   const { data: layouts = [], isLoading } = useQuery({
-    queryKey: ["layouts", currentEstablishmentId],
+    queryKey: ["layouts", currentEstablishmentId, isGlobalAdmin],
     queryFn: async () => {
       let query = supabase
         .from("layouts")
@@ -118,7 +118,18 @@ export function useLayouts() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["layouts"] }),
   });
 
-  return { layouts, isLoading, addLayout, deleteLayout, updateLayout };
+  const assignEstablishment = useMutation({
+    mutationFn: async ({ id, establishmentId }: { id: string; establishmentId: string | null }) => {
+      const { error } = await supabase
+        .from("layouts")
+        .update({ establishment_id: establishmentId } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["layouts"] }),
+  });
+
+  return { layouts, isLoading, addLayout, deleteLayout, updateLayout, assignEstablishment };
 }
 
 export function useLayoutRegions(layoutId: string | undefined) {

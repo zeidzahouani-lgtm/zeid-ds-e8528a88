@@ -13,12 +13,13 @@ import { usePlaylistItems } from "@/hooks/usePlaylistItems";
 import { useMedia } from "@/hooks/useMedia";
 import { useScreens } from "@/hooks/useScreens";
 import { supabase } from "@/integrations/supabase/client";
+import { EstablishmentAssignSelect } from "@/components/EstablishmentAssignSelect";
 import { toast } from "sonner";
 
 type WizardStep = "list" | "name" | "media" | "screens" | "edit";
 
 export function PlaylistManager() {
-  const { playlists, isLoading: loadingPlaylists, addPlaylist, deletePlaylist, renamePlaylist } = usePlaylists();
+  const { playlists, isLoading: loadingPlaylists, addPlaylist, deletePlaylist, renamePlaylist, assignEstablishment } = usePlaylists();
   const { media } = useMedia();
   const { screens } = useScreens();
 
@@ -190,6 +191,12 @@ export function PlaylistManager() {
                 >
                   <Pencil className="h-3.5 w-3.5" /> Gérer le contenu
                 </Button>
+                <div className="mt-2">
+                  <EstablishmentAssignSelect
+                    currentEstablishmentId={(p as any).establishment_id}
+                    onAssign={(eid) => assignEstablishment.mutateAsync({ id: p.id, establishmentId: eid })}
+                  />
+                </div>
               </Card>
             );
           })}

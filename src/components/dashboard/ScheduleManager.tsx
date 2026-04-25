@@ -15,11 +15,12 @@ import { usePlaylists } from "@/hooks/usePlaylists";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ScheduleCalendar } from "./ScheduleCalendar";
+import { EstablishmentAssignSelect } from "@/components/EstablishmentAssignSelect";
 
 const DAYS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 
 export function ScheduleManager() {
-  const { programs, isLoading: loadingPrograms, addProgram, deleteProgram } = usePrograms();
+  const { programs, isLoading: loadingPrograms, addProgram, deleteProgram, assignEstablishment } = usePrograms();
   const { media } = useMedia();
   const { screens } = useScreens();
   const { playlists } = usePlaylists();
@@ -140,17 +141,25 @@ export function ScheduleManager() {
           </SelectContent>
         </Select>
         {selectedProgram && (
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => {
-              deleteProgram.mutate(selectedProgram);
-              setSelectedProgram("");
-              toast.success("Programme supprimé");
-            }}
-          >
-            <Trash2 className="h-3.5 w-3.5 mr-1" /> Supprimer
-          </Button>
+          <>
+            <div className="w-[260px]">
+              <EstablishmentAssignSelect
+                currentEstablishmentId={(programs.find((p) => p.id === selectedProgram) as any)?.establishment_id}
+                onAssign={(eid) => assignEstablishment.mutateAsync({ id: selectedProgram, establishmentId: eid })}
+              />
+            </div>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                deleteProgram.mutate(selectedProgram);
+                setSelectedProgram("");
+                toast.success("Programme supprimé");
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5 mr-1" /> Supprimer
+            </Button>
+          </>
         )}
       </div>
 

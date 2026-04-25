@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { WallLayoutPresetDialog } from "@/components/dashboard/WallLayoutPresetDialog";
+import { EstablishmentAssignSelect } from "@/components/EstablishmentAssignSelect";
 
 interface MiniRegion {
   id: string;
@@ -90,7 +91,7 @@ function LayoutMiniPreview({ layout }: { layout: { id: string; width: number; he
 }
 
 export default function Layouts() {
-  const { layouts, isLoading, addLayout, deleteLayout } = useLayouts();
+  const { layouts, isLoading, addLayout, deleteLayout, assignEstablishment } = useLayouts();
   const [newName, setNewName] = useState("");
   const [wallPresetOpen, setWallPresetOpen] = useState(false);
   const navigate = useNavigate();
@@ -188,6 +189,12 @@ export default function Layouts() {
                 <p className="text-xs text-muted-foreground mt-2">
                   {layout.width} × {layout.height}px
                 </p>
+                <div className="mt-2">
+                  <EstablishmentAssignSelect
+                    currentEstablishmentId={layout.establishment_id}
+                    onAssign={(eid) => assignEstablishment.mutateAsync({ id: layout.id, establishmentId: eid })}
+                  />
+                </div>
               </CardContent>
             </Card>
           ))}
