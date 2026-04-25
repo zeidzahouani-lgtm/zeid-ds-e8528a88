@@ -20,7 +20,7 @@ import { EstablishmentAssignSelect } from "@/components/EstablishmentAssignSelec
 const DAYS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 
 export function ScheduleManager() {
-  const { programs, isLoading: loadingPrograms, addProgram, deleteProgram } = usePrograms();
+  const { programs, isLoading: loadingPrograms, addProgram, deleteProgram, assignEstablishment } = usePrograms();
   const { media } = useMedia();
   const { screens } = useScreens();
   const { playlists } = usePlaylists();
