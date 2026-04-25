@@ -217,10 +217,17 @@ export default function Library() {
                   </Button>
                 </div>
               </div>
-              <div className="p-2.5 flex items-center gap-2">
-                {typeIcon(item.type)}
-                <span className="text-xs font-medium truncate flex-1">{item.name}</span>
-                {typeBadge(item.type)}
+              <div className="p-2.5 space-y-2">
+                <div className="flex items-center gap-2">
+                  {typeIcon(item.type)}
+                  <span className="text-xs font-medium truncate flex-1">{item.name}</span>
+                  {typeBadge(item.type)}
+                </div>
+                {isGlobalAdmin && (
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <EstablishmentPicker item={item} />
+                  </div>
+                )}
               </div>
             </Card>
           ))}
