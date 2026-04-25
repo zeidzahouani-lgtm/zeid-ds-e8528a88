@@ -173,7 +173,11 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
     if (updatePassword) {
-      if (!callerIsAdmin) throw new Error("Not admin");
+      if (!callerIsAdmin) {
+        if (!targetUserId) throw new Error("user_id requis");
+        const allowed = await isCallerEstabAdminOfTarget(targetUserId);
+        if (!allowed) throw new Error("Non autorisé");
+      }
 
       let pwUserId = targetUserId;
       if (!pwUserId) {
