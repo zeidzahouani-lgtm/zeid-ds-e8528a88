@@ -134,15 +134,25 @@ Deno.serve(async (req) => {
 
     // ============ DELETE USER ============
     if (deleteUserFlag) {
-      if (!callerIsAdmin) throw new Error("Not admin");
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
 
-      let targetUserId = deleteUserId;
-      if (!targetUserId && email) {
+      let resolvedTargetId = deleteUserId;
+      if (!resolvedTargetId && email) {
         const { data: profile } = await adminClient.from("profiles").select("id").eq("email", email).maybeSingle();
-        if (profile) targetUserId = profile.id;
+        if (profile) resolvedTargetId = profile.id;
       }
-      if (!targetUserId) throw new Error("Utilisateur introuvable: ID ou email requis");
+      if (!resolvedTargetId) throw new Error("Utilisateur introuvable: ID ou email requis");
+
+      if (!callerIsAdmin) {
+        const allowed = await isCallerEstabAdminOfTarget(resolvedTargetId);
+        if (!allowed) throw new Error("Non autorisé");
+      }
+
+      await adminClient.from("user_establishments").delete().eq("user_id", resolvedTargetId);
+      await adminClient.from("user_roles").delete().eq("user_id", resolvedTargetId);
+      await adminClient.from("profiles").delete().eq("id", resolvedTargetId);
+
+      const { error: deleteError } = await adminClient.auth.admin.deleteUser(resolvedTargetId);
 
       await adminClient.from("user_establishments").delete().eq("user_id", targetUserId);
       await adminClient.from("user_roles").delete().eq("user_id", targetUserId);
