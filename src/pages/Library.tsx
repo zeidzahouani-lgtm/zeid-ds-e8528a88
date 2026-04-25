@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from "react";
-import { Upload, Link, Trash2, Image, Video, Globe, Search, Grid, List, Eye } from "lucide-react";
+import { Upload, Link, Trash2, Image, Video, Globe, Search, Grid, List, Eye, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useMedia } from "@/hooks/useMedia";
+import { useEstablishments } from "@/hooks/useEstablishments";
+import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import { toast } from "sonner";
 
 interface UploadProgress {
@@ -16,7 +18,9 @@ interface UploadProgress {
 }
 
 export default function Library() {
-  const { media, isLoading, uploadMutation, addIframeMutation, deleteMutation } = useMedia();
+  const { media, isLoading, uploadMutation, addIframeMutation, deleteMutation, assignEstablishmentMutation } = useMedia();
+  const { isGlobalAdmin } = useEstablishmentContext();
+  const { establishments } = useEstablishments();
   const [iframeName, setIframeName] = useState("");
   const [iframeUrl, setIframeUrl] = useState("");
   const [showIframe, setShowIframe] = useState(false);
