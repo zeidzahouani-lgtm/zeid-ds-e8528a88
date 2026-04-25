@@ -90,7 +90,7 @@ function LayoutMiniPreview({ layout }: { layout: { id: string; width: number; he
 }
 
 export default function Layouts() {
-  const { layouts, isLoading, addLayout, deleteLayout } = useLayouts();
+  const { layouts, isLoading, addLayout, deleteLayout, assignEstablishment } = useLayouts();
   const [newName, setNewName] = useState("");
   const [wallPresetOpen, setWallPresetOpen] = useState(false);
   const navigate = useNavigate();
