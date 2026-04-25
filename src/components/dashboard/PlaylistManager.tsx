@@ -19,7 +19,7 @@ import { toast } from "sonner";
 type WizardStep = "list" | "name" | "media" | "screens" | "edit";
 
 export function PlaylistManager() {
-  const { playlists, isLoading: loadingPlaylists, addPlaylist, deletePlaylist, renamePlaylist } = usePlaylists();
+  const { playlists, isLoading: loadingPlaylists, addPlaylist, deletePlaylist, renamePlaylist, assignEstablishment } = usePlaylists();
   const { media } = useMedia();
   const { screens } = useScreens();
 
