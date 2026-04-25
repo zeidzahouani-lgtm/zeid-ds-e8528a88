@@ -191,6 +191,12 @@ export function PlaylistManager() {
                 >
                   <Pencil className="h-3.5 w-3.5" /> Gérer le contenu
                 </Button>
+                <div className="mt-2">
+                  <EstablishmentAssignSelect
+                    currentEstablishmentId={(p as any).establishment_id}
+                    onAssign={(eid) => assignEstablishment.mutateAsync({ id: p.id, establishmentId: eid })}
+                  />
+                </div>
               </Card>
             );
           })}
