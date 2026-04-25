@@ -404,7 +404,7 @@ export default function AdminUsers() {
                     <SelectContent>
                       <SelectItem value="user">Utilisateur</SelectItem>
                       <SelectItem value="marketing">Marketing</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="admin">Admin Global</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

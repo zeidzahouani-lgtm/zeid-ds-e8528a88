@@ -126,7 +126,10 @@ export function useLayouts() {
         .eq("id", id);
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["layouts"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["layouts"] });
+      queryClient.invalidateQueries({ queryKey: ["est_dashboard_layouts"] });
+    },
   });
 
   return { layouts, isLoading, addLayout, deleteLayout, updateLayout, assignEstablishment };
