@@ -189,6 +189,12 @@ export default function Layouts() {
                 <p className="text-xs text-muted-foreground mt-2">
                   {layout.width} × {layout.height}px
                 </p>
+                <div className="mt-2">
+                  <EstablishmentAssignSelect
+                    currentEstablishmentId={layout.establishment_id}
+                    onAssign={(eid) => assignEstablishment.mutateAsync({ id: layout.id, establishmentId: eid })}
+                  />
+                </div>
               </CardContent>
             </Card>
           ))}
