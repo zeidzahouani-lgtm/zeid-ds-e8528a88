@@ -909,7 +909,7 @@ To rebuild manually: docker compose up -d --build
     }
   };
 
-
+  return (
     <div className="p-8 space-y-6 max-w-6xl">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Backup & Déploiement</h1>
