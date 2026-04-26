@@ -1,4 +1,4 @@
-import { Tv, Image, ListMusic, Clock, LayoutDashboard, LogOut, User, LayoutGrid, Users, Building2, Settings, Palette, Key, Sparkles, Mail, AtSign, ClipboardList, BookOpen, BarChart3, DatabaseBackup, Activity } from "lucide-react";
+import { Tv, Image, ListMusic, Clock, LayoutDashboard, LogOut, User, LayoutGrid, Users, Building2, Settings, Palette, Key, Sparkles, Mail, AtSign, ClipboardList, BookOpen, BarChart3, DatabaseBackup, Activity, ShieldCheck } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
