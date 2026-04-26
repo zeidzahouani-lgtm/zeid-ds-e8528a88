@@ -148,8 +148,17 @@ Deno.serve(async (req) => {
         const r = await exec(conn, installCmd);
         log(r.stdout.slice(-1500));
         if (r.code !== 0) {
-          log("⚠ Install errors: " + r.stderr.slice(-1000));
-          throw new Error("Docker installation failed");
+          const errMsg = r.stderr.slice(-1000);
+          log("⚠ Install errors: " + errMsg);
+          if (/not in the sudoers/i.test(errMsg) || /incorrect password/i.test(errMsg)) {
+            throw new Error(
+              `L'utilisateur '${body.username}' n'a pas les droits sudo sur le serveur. ` +
+              `Connectez-vous en root et exécutez : 'usermod -aG sudo ${body.username}' ` +
+              `(Debian/Ubuntu) ou 'usermod -aG wheel ${body.username}' (RHEL/CentOS), ` +
+              `puis réessayez. Alternative : installez Docker manuellement et décochez 'Auto-installer Docker'.`
+            );
+          }
+          throw new Error("Échec de l'installation de Docker. Voir les logs.");
         }
         log("✓ Docker installed");
       } else if (!hasDocker || !hasCompose) {
