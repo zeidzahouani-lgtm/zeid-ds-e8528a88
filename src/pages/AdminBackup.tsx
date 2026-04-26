@@ -178,6 +178,11 @@ export default function AdminBackup() {
   const [sshEnableHttps, setSshEnableHttps] = useState(false);
   const [sshHttpsPort, setSshHttpsPort] = useState("8443");
   const [sshHttpsDomain, setSshHttpsDomain] = useState("");
+  // Isolated backend (separate Supabase) for the local server
+  const [sshIsolateBackend, setSshIsolateBackend] = useState(true);
+  const [sshSupabaseUrl, setSshSupabaseUrl] = useState("");
+  const [sshSupabaseKey, setSshSupabaseKey] = useState("");
+  const [sshSupabaseProjectId, setSshSupabaseProjectId] = useState("");
   const [sshDeploying, setSshDeploying] = useState(false);
   const [sshLogs, setSshLogs] = useState<string[]>([]);
   const [sshDeployedUrl, setSshDeployedUrl] = useState<string | null>(null);
