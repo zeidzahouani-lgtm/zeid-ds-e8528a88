@@ -258,9 +258,8 @@ CMD ["nginx","-g","daemon off;"]
       log("✓ Build files ready");
 
 
-      // 6. docker compose build & up
       log("→ Building & starting containers (docker compose up -d --build)…");
-      const composeCmd = `cd ${remoteDir} && (docker compose up -d --build || docker-compose up -d --build) 2>&1`;
+      const composeCmd = `cd ${remoteDir}/repo && (docker compose up -d --build || docker-compose up -d --build) 2>&1`;
       const up = await exec(conn, composeCmd);
       log(up.stdout.slice(-3000));
       if (up.code !== 0) {
@@ -269,8 +268,7 @@ CMD ["nginx","-g","daemon off;"]
       }
       log("✓ Containers started");
 
-      // 7. Status
-      const ps = await exec(conn, `cd ${remoteDir} && (docker compose ps || docker-compose ps)`);
+      const ps = await exec(conn, `cd ${remoteDir}/repo && (docker compose ps || docker-compose ps)`);
       log(ps.stdout);
 
       conn.end();
