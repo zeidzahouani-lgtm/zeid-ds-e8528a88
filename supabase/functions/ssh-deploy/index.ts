@@ -143,6 +143,9 @@ Deno.serve(async (req) => {
     const remoteDir = body.remote_dir || "/opt/screenflow";
     const appPort = body.app_port || "8080";
     const branch = body.git_branch || "main";
+    const enableHttps = !!body.enable_https;
+    const httpsPort = body.https_port || "8443";
+    const httpsDomain = (body.https_domain || body.host).trim();
 
     let gitUrl = body.git_url.trim();
     if (body.git_token && /^https?:\/\//.test(gitUrl)) {
