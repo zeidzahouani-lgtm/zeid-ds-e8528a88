@@ -197,28 +197,29 @@ Deno.serve(async (req) => {
 
 // ===== The actual deployment logic, now wrapped =====
 async function runDeployment(body: DeployBody, log: (m: string) => Promise<void> | void) {
-    const remoteDir = body.remote_dir || "/opt/screenflow";
-    const appPort = body.app_port || "8080";
-    const branch = body.git_branch || "main";
-    const enableHttps = !!body.enable_https;
-    const httpsPort = body.https_port || "8443";
-    const httpsDomain = (body.https_domain || body.host).trim();
-    const installSupabase = !!body.install_supabase_local;
-    const supaKongPort = body.supabase_kong_http_port || "8000";
-    const supaStudioPort = body.supabase_studio_port || "3001";
-    const supaDbPort = body.supabase_db_port || "5432";
-    let supabaseUrlOverride = "";
-    let supabaseAnonOverride = "";
-    let supabaseProjectIdOverride = "";
+  const port = body.port ?? 22;
+  const remoteDir = body.remote_dir || "/opt/screenflow";
+  const appPort = body.app_port || "8080";
+  const branch = body.git_branch || "main";
+  const enableHttps = !!body.enable_https;
+  const httpsPort = body.https_port || "8443";
+  const httpsDomain = (body.https_domain || body.host).trim();
+  const installSupabase = !!body.install_supabase_local;
+  const supaKongPort = body.supabase_kong_http_port || "8000";
+  const supaStudioPort = body.supabase_studio_port || "3001";
+  const supaDbPort = body.supabase_db_port || "5432";
+  let supabaseUrlOverride = "";
+  let supabaseAnonOverride = "";
+  let supabaseProjectIdOverride = "";
 
-    let gitUrl = body.git_url.trim();
-    if (body.git_token && /^https?:\/\//.test(gitUrl)) {
-      gitUrl = gitUrl.replace(/^(https?:\/\/)/, `$1${encodeURIComponent(body.git_token)}@`);
-    }
+  let gitUrl = body.git_url.trim();
+  if (body.git_token && /^https?:\/\//.test(gitUrl)) {
+    gitUrl = gitUrl.replace(/^(https?:\/\/)/, `$1${encodeURIComponent(body.git_token)}@`);
+  }
 
-    log(`→ Connecting to ${body.username}@${body.host}:${port}…`);
-    const conn = await ssh({ host: body.host, port, username: body.username, password: body.password });
-    log("✓ SSH connection established");
+  await log(`→ Connecting to ${body.username}@${body.host}:${port}…`);
+  const conn = await ssh({ host: body.host, port, username: body.username, password: body.password });
+  await log("✓ SSH connection established");
 
     try {
       log("→ Checking Docker installation…");
