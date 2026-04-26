@@ -215,8 +215,8 @@ Deno.serve(async (req) => {
       const escEnv = (s: string) => (s || "").replace(/'/g, "'\\''");
       const dockerfile = `FROM node:20-alpine AS builder
 WORKDIR /app
-COPY package.json bun.lockb* package-lock.json* ./
-RUN if [ -f bun.lockb ]; then npm install -g bun && bun install --frozen-lockfile; else npm ci || npm install; fi
+COPY package.json package-lock.json* bun.lockb* bun.lock* ./
+RUN npm install --no-audit --no-fund --legacy-peer-deps
 COPY . .
 ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_PUBLISHABLE_KEY
