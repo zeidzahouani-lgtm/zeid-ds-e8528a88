@@ -1575,9 +1575,9 @@ To rebuild manually: docker compose up -d --build
                   className="gap-2"
                   onClick={handleResetAdminPassword}
                   disabled={sshDeploying || !sshHost || !sshUser || !sshPassword}
-                  title="Réinitialise le mot de passe du compte screenflow@screenflow.local sur le serveur"
+                  title="Crée ou répare le premier compte admin screenflow@screenflow.local sur le serveur"
                 >
-                  <AlertCircle className="h-4 w-4" />Reset mot de passe admin
+                  <AlertCircle className="h-4 w-4" />Créer/réparer admin
                 </Button>
                 {sshDeployedUrl && (
                   <a href={sshDeployedUrl} target="_blank" rel="noopener noreferrer">
