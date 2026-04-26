@@ -151,6 +151,13 @@ Deno.serve(async (req) => {
     const enableHttps = !!body.enable_https;
     const httpsPort = body.https_port || "8443";
     const httpsDomain = (body.https_domain || body.host).trim();
+    const installSupabase = !!body.install_supabase_local;
+    const supaKongPort = body.supabase_kong_http_port || "8000";
+    const supaStudioPort = body.supabase_studio_port || "3001";
+    const supaDbPort = body.supabase_db_port || "5432";
+    let supabaseUrlOverride = "";
+    let supabaseAnonOverride = "";
+    let supabaseProjectIdOverride = "";
 
     let gitUrl = body.git_url.trim();
     if (body.git_token && /^https?:\/\//.test(gitUrl)) {
