@@ -17,8 +17,10 @@ import { toast } from "sonner";
 import {
   Database, Download, Container, FileArchive, Loader2, Package, FileCode, Copy,
   Upload, CheckCircle2, XCircle, AlertCircle, ServerCog, Rocket, ShieldCheck,
+  Server, Terminal, Wifi, KeyRound,
 } from "lucide-react";
 import JSZip from "jszip";
+import { Textarea } from "@/components/ui/textarea";
 
 const TABLES = [
   "profiles", "user_roles", "user_establishments", "establishments", "establishment_settings",
