@@ -691,6 +691,26 @@ To rebuild manually: docker compose up -d --build
     return btoa(bin);
   };
 
+  const getFreshAccessToken = async () => {
+    const refreshed = await supabase.auth.refreshSession();
+    let session = refreshed.data.session;
+
+    if (!session?.access_token) {
+      const fallback = await supabase.auth.getSession();
+      session = fallback.data.session;
+    }
+
+    if (session?.access_token) {
+      const { data: userData, error: userError } = await supabase.auth.getUser(session.access_token);
+      if (!userError && userData.user) return session.access_token;
+    }
+
+    await supabase.auth.signOut();
+    toast.error("Session expirée. Reconnectez-vous puis relancez le déploiement.");
+    window.location.href = "/login";
+    return null;
+  };
+
   const handleSshDeploy = async () => {
     if (!sshHost || !sshUser || !sshPassword) {
       toast.error("Renseignez l'IP, l'utilisateur et le mot de passe");
@@ -718,9 +738,14 @@ To rebuild manually: docker compose up -d --build
     setSshDeployedUrl(null);
     setSshLocalSupabaseInfo(null);
     try {
-      setSshLogs(["🔌 Connexion au serveur…"]);
+      setSshLogs(["🔐 Vérification de la session admin…"]);
+      const accessToken = await getFreshAccessToken();
+      if (!accessToken) return;
+
+      setSshLogs(prev => [...prev, "🔌 Connexion au serveur…"]);
 
       const { data, error } = await supabase.functions.invoke("ssh-deploy", {
+        headers: { Authorization: `Bearer ${accessToken}` },
         body: {
           host: sshHost.trim(),
           port: parseInt(sshPort) || 22,
