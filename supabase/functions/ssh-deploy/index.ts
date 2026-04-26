@@ -477,16 +477,20 @@ BEGIN
 
   -- Ensure auth.identities row exists (required by GoTrue for password login)
   DELETE FROM auth.identities WHERE provider = 'email' AND user_id <> new_user_id AND provider_id = new_user_id::text;
-  INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
-  VALUES (
-    gen_random_uuid(), new_user_id,
-    jsonb_build_object('sub', new_user_id::text, 'email', '${DEFAULT_ADMIN_EMAIL}', 'email_verified', true),
-    'email', new_user_id::text, now(), now(), now()
-  )
-  ON CONFLICT (provider_id, provider) DO UPDATE SET
-    user_id = EXCLUDED.user_id,
-    identity_data = EXCLUDED.identity_data,
-    updated_at = now();
+  IF EXISTS (SELECT 1 FROM auth.identities WHERE provider = 'email' AND provider_id = new_user_id::text) THEN
+    UPDATE auth.identities
+    SET user_id = new_user_id,
+        identity_data = jsonb_build_object('sub', new_user_id::text, 'email', '${DEFAULT_ADMIN_EMAIL}', 'email_verified', true),
+        updated_at = now()
+    WHERE provider = 'email' AND provider_id = new_user_id::text;
+  ELSE
+    INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
+    VALUES (
+      gen_random_uuid(), new_user_id,
+      jsonb_build_object('sub', new_user_id::text, 'email', '${DEFAULT_ADMIN_EMAIL}', 'email_verified', true),
+      'email', new_user_id::text, now(), now(), now()
+    );
+  END IF;
 END $$;
 `.trim();
         const adminSqlB64 = btoa(adminSql);
