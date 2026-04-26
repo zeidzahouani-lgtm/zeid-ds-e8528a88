@@ -809,74 +809,6 @@ async function runResetAdminPassword(body: DeployBody, log: (m: string) => Promi
       await log("✓ Permissions réparées et Postgres opérationnel");
     }
 
-    // Escape password for SQL single-quoted string
-    const sqlPwd = newPassword.replace(/'/g, "''");
-
-    const resetSql = `
-DO $$
-DECLARE
-  new_user_id uuid;
-  existing_id uuid;
-BEGIN
-  SELECT id INTO existing_id FROM auth.users WHERE lower(email) = lower('${DEFAULT_ADMIN_EMAIL}') LIMIT 1;
-  IF existing_id IS NULL THEN
-    new_user_id := gen_random_uuid();
-    INSERT INTO auth.users (
-      instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
-      raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
-      confirmation_token, email_change, email_change_token_new, recovery_token,
-      is_sso_user, is_anonymous
-    ) VALUES (
-      '00000000-0000-0000-0000-000000000000', new_user_id, 'authenticated', 'authenticated',
-      '${DEFAULT_ADMIN_EMAIL}', crypt('${sqlPwd}', gen_salt('bf')), now(),
-      '{"provider":"email","providers":["email"]}'::jsonb,
-      '{"display_name":"ScreenFlow Admin"}'::jsonb,
-      now(), now(), '', '', '', '',
-      false, false
-    );
-  ELSE
-    UPDATE auth.users
-    SET email = '${DEFAULT_ADMIN_EMAIL}',
-        encrypted_password = crypt('${sqlPwd}', gen_salt('bf')),
-        email_confirmed_at = COALESCE(email_confirmed_at, now()),
-        banned_until = NULL,
-        deleted_at = NULL,
-        aud = 'authenticated',
-        role = 'authenticated',
-        raw_app_meta_data = '{"provider":"email","providers":["email"]}'::jsonb,
-        raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || '{"display_name":"ScreenFlow Admin"}'::jsonb,
-        updated_at = now()
-    WHERE id = existing_id;
-    new_user_id := existing_id;
-  END IF;
-
-  DELETE FROM auth.identities WHERE provider = 'email' AND user_id <> new_user_id AND provider_id = new_user_id::text;
-  IF EXISTS (SELECT 1 FROM auth.identities WHERE provider = 'email' AND provider_id = new_user_id::text) THEN
-    UPDATE auth.identities
-    SET user_id = new_user_id,
-        identity_data = jsonb_build_object('sub', new_user_id::text, 'email', '${DEFAULT_ADMIN_EMAIL}', 'email_verified', true),
-        updated_at = now()
-    WHERE provider = 'email' AND provider_id = new_user_id::text;
-  ELSE
-    INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
-    VALUES (
-      gen_random_uuid(), new_user_id,
-      jsonb_build_object('sub', new_user_id::text, 'email', '${DEFAULT_ADMIN_EMAIL}', 'email_verified', true),
-      'email', new_user_id::text, now(), now(), now()
-    );
-  END IF;
-
-  -- Ensure admin role
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='user_roles') THEN
-    INSERT INTO public.user_roles (user_id, role) VALUES (new_user_id, 'admin') ON CONFLICT DO NOTHING;
-    DELETE FROM public.user_roles WHERE user_id = new_user_id AND role = 'user';
-  END IF;
-END $$;
-`.trim();
-
-    await log("→ Réinitialisation du mot de passe admin en cours…");
-    const sqlB64 = btoa(resetSql);
-
     // Récupère POSTGRES_PASSWORD depuis le .env de la stack Supabase locale
     const pwdRes = await exec(
       conn,
@@ -894,32 +826,14 @@ END $$;
       throw new Error("Impossible de lire ANON_KEY dans " + supaDir + "/.env");
     }
 
-    // Exécute psql via TCP (127.0.0.1) à l'intérieur du conteneur db pour
-    // éviter le bug de permissions sur le socket Unix (/run/postgresql).
-    const result = await exec(
-      conn,
-      `cd ${supaDir} && echo "${sqlB64}" | base64 -d | ` +
-      `PGPASSWORD='${pgPwd.replace(/'/g, "'\\''")}' ` +
-      `docker compose exec -T -e PGPASSWORD='${pgPwd.replace(/'/g, "'\\''")}' db ` +
-      `psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`
-    );
-
-    if (result.code !== 0) {
-      // Fallback : tenter via le conteneur supavisor/pooler exposé sur l'hôte
-      await log("⚠ psql intra-conteneur a échoué, tentative via l'hôte (port 5432)…");
-      const hostRes = await exec(
-        conn,
-        `echo "${sqlB64}" | base64 -d | ` +
-        `PGPASSWORD='${pgPwd.replace(/'/g, "'\\''")}' ` +
-        `psql -h 127.0.0.1 -p 5432 -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`
-      );
-      if (hostRes.code !== 0) {
-        throw new Error(
-          "Échec SQL : " +
-          (result.stdout + result.stderr + "\n---\n" + hostRes.stdout + hostRes.stderr).slice(-1200)
-        );
-      }
+    const serviceKey = await readRemoteEnv(conn, `${supaDir}/.env`, "SERVICE_ROLE_KEY") || await readRemoteEnv(conn, `${supaDir}/.env`, "SUPABASE_SECRET_KEY");
+    if (!serviceKey) {
+      throw new Error("Impossible de lire SERVICE_ROLE_KEY dans " + supaDir + "/.env");
     }
+
+    await log("→ Création/réparation du premier compte admin via l'API Auth officielle…");
+    await upsertDefaultAdminViaAuthApi(conn, supaDir, kongPort, serviceKey, newPassword, log);
+    await ensureDefaultAdminRole(conn, supaDir, log);
 
     await log("→ Test réel du login admin local…");
     await ensureLocalAuthGateway(conn, supaDir, kongPort, log);
