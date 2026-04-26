@@ -102,6 +102,7 @@ const App = () => (
                 <Route path="/admin/resources" element={<Resources />} />
                 <Route path="/admin/stats" element={<AdminStats />} />
                 <Route path="/team" element={<Team />} />
+                <Route path="/admin/backup" element={<AdminBackup />} />
                 <Route path="/setup" element={<ScreenSetup />} />
                 <Route path="/ai-assistant" element={<AIAssistant />} />
                 <Route path="/auto-flow" element={<AutoFlow />} />
