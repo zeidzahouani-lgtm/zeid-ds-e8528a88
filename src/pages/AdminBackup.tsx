@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import JSZip from "jszip";
 import { Textarea } from "@/components/ui/textarea";
-import { DeployAuthGate } from "@/components/admin/DeployAuthGate";
 
 const TABLES = [
   "profiles", "user_roles", "user_establishments", "establishments", "establishment_settings",
