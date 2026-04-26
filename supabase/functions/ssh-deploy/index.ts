@@ -1,7 +1,9 @@
 // SSH deploy: connect to a Linux server with ip/user/password, install Docker if needed,
 // upload project archive, build & run via docker compose.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { Client } from "npm:ssh2@1.15.0";
+import ssh2 from "https://esm.sh/ssh2@1.15.0";
+const { Client } = ssh2 as any;
+type Client = any;
 import { Buffer } from "node:buffer";
 
 const corsHeaders = {
@@ -40,7 +42,7 @@ function ssh(opts: { host: string; port: number; username: string; password: str
     const conn = new Client();
     conn
       .on("ready", () => resolve(conn))
-      .on("keyboard-interactive", (_name, _instructions, _lang, prompts, finish) => {
+      .on("keyboard-interactive", (_name: any, _instructions: any, _lang: any, prompts: any, finish: any) => {
         // Some servers (PAM) require keyboard-interactive even when password is enabled
         finish(prompts.map(() => opts.password));
       })
@@ -71,7 +73,7 @@ function ssh(opts: { host: string; port: number; username: string; password: str
 
 function exec(conn: Client, cmd: string): Promise<{ code: number; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
-    conn.exec(cmd, (err, stream) => {
+    conn.exec(cmd, (err: any, stream: any) => {
       if (err) return reject(err);
       let stdout = "";
       let stderr = "";
@@ -85,7 +87,7 @@ function exec(conn: Client, cmd: string): Promise<{ code: number; stdout: string
 
 function uploadFile(conn: Client, remotePath: string, content: Buffer): Promise<void> {
   return new Promise((resolve, reject) => {
-    conn.sftp((err, sftp) => {
+    conn.sftp((err: any, sftp: any) => {
       if (err) return reject(err);
       const stream = sftp.createWriteStream(remotePath);
       stream.on("close", () => resolve());

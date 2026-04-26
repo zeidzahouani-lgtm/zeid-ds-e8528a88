@@ -1,6 +1,8 @@
 // Collect Linux server stats via SSH + Supabase DB stats
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { Client } from "npm:ssh2@1.15.0";
+import ssh2 from "https://esm.sh/ssh2@1.15.0";
+const { Client } = ssh2 as any;
+type Client = any;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,7 +22,7 @@ function ssh(opts: { host: string; port: number; username: string; password: str
     const conn = new Client();
     conn
       .on("ready", () => resolve(conn))
-      .on("keyboard-interactive", (_n, _i, _l, prompts, finish) => finish(prompts.map(() => opts.password)))
+      .on("keyboard-interactive", (_n: any, _i: any, _l: any, prompts: any, finish: any) => finish(prompts.map(() => opts.password)))
       .on("error", reject)
       .connect({ ...opts, readyTimeout: 15000, tryKeyboard: true });
   });
@@ -28,7 +30,7 @@ function ssh(opts: { host: string; port: number; username: string; password: str
 
 function exec(conn: Client, cmd: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    conn.exec(cmd, (err, stream) => {
+    conn.exec(cmd, (err: any, stream: any) => {
       if (err) return reject(err);
       let out = "";
       stream
