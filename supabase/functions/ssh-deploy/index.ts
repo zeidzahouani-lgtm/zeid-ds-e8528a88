@@ -700,13 +700,42 @@ END $$;
 
     await log("→ Réinitialisation du mot de passe admin en cours…");
     const sqlB64 = btoa(resetSql);
+
+    // Récupère POSTGRES_PASSWORD depuis le .env de la stack Supabase locale
+    const pwdRes = await exec(
+      conn,
+      `grep -E '^POSTGRES_PASSWORD=' ${supaDir}/.env | head -1 | cut -d= -f2-`
+    );
+    const pgPwd = (pwdRes.stdout || "").trim();
+    if (!pgPwd) {
+      throw new Error("Impossible de lire POSTGRES_PASSWORD dans " + supaDir + "/.env");
+    }
+
+    // Exécute psql via TCP (127.0.0.1) à l'intérieur du conteneur db pour
+    // éviter le bug de permissions sur le socket Unix (/run/postgresql).
     const result = await exec(
       conn,
-      `cd ${supaDir} && echo "${sqlB64}" | base64 -d | docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`
+      `cd ${supaDir} && echo "${sqlB64}" | base64 -d | ` +
+      `PGPASSWORD='${pgPwd.replace(/'/g, "'\\''")}' ` +
+      `docker compose exec -T -e PGPASSWORD='${pgPwd.replace(/'/g, "'\\''")}' db ` +
+      `psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`
     );
 
     if (result.code !== 0) {
-      throw new Error("Échec SQL : " + result.stdout.slice(-800) + result.stderr.slice(-400));
+      // Fallback : tenter via le conteneur supavisor/pooler exposé sur l'hôte
+      await log("⚠ psql intra-conteneur a échoué, tentative via l'hôte (port 5432)…");
+      const hostRes = await exec(
+        conn,
+        `echo "${sqlB64}" | base64 -d | ` +
+        `PGPASSWORD='${pgPwd.replace(/'/g, "'\\''")}' ` +
+        `psql -h 127.0.0.1 -p 5432 -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`
+      );
+      if (hostRes.code !== 0) {
+        throw new Error(
+          "Échec SQL : " +
+          (result.stdout + result.stderr + "\n---\n" + hostRes.stdout + hostRes.stderr).slice(-1200)
+        );
+      }
     }
 
     await log("✓ Mot de passe admin réinitialisé avec succès");
