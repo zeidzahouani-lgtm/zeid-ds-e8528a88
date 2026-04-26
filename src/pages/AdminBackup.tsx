@@ -835,7 +835,7 @@ To rebuild manually: docker compose up -d --build
       return;
     }
     const customPwd = window.prompt(
-      "Nouveau mot de passe pour screenflow@screenflow.local\n(laisser vide pour rétablir la valeur par défaut '260390DS') :",
+      "Créer/réparer le premier compte admin screenflow@screenflow.local\nMot de passe (laisser vide pour la valeur par défaut '260390DS') :",
       ""
     );
     if (customPwd === null) return; // user cancelled
@@ -845,13 +845,13 @@ To rebuild manually: docker compose up -d --build
       return;
     }
     if (!window.confirm(
-      `Confirmer la réinitialisation du compte admin sur ${sshHost} ?\n\n` +
+      `Confirmer la création/réparation du premier admin sur ${sshHost} ?\n\n` +
       `Email : screenflow@screenflow.local\n` +
       `Mot de passe : ${newPwd || "260390DS (défaut)"}`
     )) return;
 
     setSshDeploying(true);
-    setSshLogs(["🔐 Vérification de la session admin…"]);
+    setSshLogs(["🔐 Création/réparation du premier compte admin…"]);
     try {
       const accessToken = await getFreshAccessToken();
       if (!accessToken) return;
@@ -892,7 +892,7 @@ To rebuild manually: docker compose up -d --build
         try { parsed = JSON.parse(row.value as string); } catch { continue; }
         if (Array.isArray(parsed.logs)) setSshLogs(parsed.logs);
         if (parsed.status === "success") {
-          toast.success("Mot de passe admin réinitialisé ✓");
+          toast.success("Premier compte admin créé/réparé ✓");
           return;
         }
         if (parsed.status === "error") {
