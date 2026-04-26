@@ -13,8 +13,8 @@ const corsHeaders = {
 };
 
 interface DeployBody {
-  // Action: "deploy" (default) or "reset_admin_password"
-  action?: "deploy" | "reset_admin_password";
+  // Action: "deploy" (default), "reset_admin_password", or "check_admin_status" (read-only diagnostic)
+  action?: "deploy" | "reset_admin_password" | "check_admin_status";
   // Optional override for the admin password to set during reset (defaults to 260390DS)
   admin_password?: string;
   host: string;
