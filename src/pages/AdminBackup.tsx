@@ -104,11 +104,10 @@ function downloadText(filename: string, content: string, mime = "text/plain") {
 }
 
 export default function AdminBackup() {
-  const { isGlobalAdmin, loading } = useEstablishmentContext();
+  const { isGlobalAdmin } = useEstablishmentContext();
   const [exporting, setExporting] = useState(false);
   const [progress, setProgress] = useState<string>("");
 
-  if (loading) return <div className="p-8 text-muted-foreground">Chargement...</div>;
   if (!isGlobalAdmin) return <Navigate to="/" replace />;
 
   const handleExportJSON = async () => {
