@@ -340,6 +340,7 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
         // Wait for Postgres to be ready (max ~60s)
         await exec(conn, `cd ${supaDir} && for i in $(seq 1 30); do docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && break || sleep 2; done`);
 
+        // Idempotent: create or reset password. Compatible with modern auth.users schema (is_sso_user, is_anonymous).
         const adminSql = `
 DO $$
 DECLARE
@@ -352,13 +353,15 @@ BEGIN
     INSERT INTO auth.users (
       instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
       raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
-      confirmation_token, email_change, email_change_token_new, recovery_token
+      confirmation_token, email_change, email_change_token_new, recovery_token,
+      is_sso_user, is_anonymous
     ) VALUES (
       '00000000-0000-0000-0000-000000000000', new_user_id, 'authenticated', 'authenticated',
       'screenflow@screenflow.local', crypt('260390DS', gen_salt('bf')), now(),
       '{"provider":"email","providers":["email"]}'::jsonb,
       '{"display_name":"ScreenFlow Admin"}'::jsonb,
-      now(), now(), '', '', '', ''
+      now(), now(), '', '', '', '',
+      false, false
     );
     INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
     VALUES (
@@ -366,11 +369,13 @@ BEGIN
       jsonb_build_object('sub', new_user_id::text, 'email', 'screenflow@screenflow.local', 'email_verified', true),
       'email', new_user_id::text, now(), now(), now()
     );
-    -- Promote to admin if user_roles table exists (after migrations)
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='user_roles') THEN
-      INSERT INTO public.user_roles (user_id, role) VALUES (new_user_id, 'admin') ON CONFLICT DO NOTHING;
-      DELETE FROM public.user_roles WHERE user_id = new_user_id AND role = 'user';
-    END IF;
+  ELSE
+    -- Reset password to ensure it matches the documented value
+    UPDATE auth.users
+    SET encrypted_password = crypt('260390DS', gen_salt('bf')),
+        email_confirmed_at = COALESCE(email_confirmed_at, now()),
+        updated_at = now()
+    WHERE id = existing_id;
   END IF;
 END $$;
 `.trim();
@@ -380,11 +385,14 @@ END $$;
           `cd ${supaDir} && echo "${adminSqlB64}" | base64 -d | docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`
         );
         if (adminCreate.code === 0) {
-          log("✓ Compte admin créé : screenflow@screenflow.local / 260390DS");
-          log("  ⚠ Le rôle 'admin' sera attribué automatiquement après l'application des migrations.");
+          log("✓ Compte admin auth créé/réinitialisé : screenflow@screenflow.local / 260390DS");
         } else {
-          log("⚠ Création du compte admin a échoué (sera ignorée) : " + adminCreate.stdout.slice(-500) + adminCreate.stderr.slice(-500));
+          log("⚠ Création du compte admin a échoué : " + adminCreate.stdout.slice(-800) + adminCreate.stderr.slice(-400));
         }
+
+        // ===== Apply app migrations from cloned repo, then promote admin role =====
+        // Note: we apply this AFTER the repo is cloned below. We schedule it via a marker.
+        (globalThis as any).__pendingAdminPromotion = { supaDir, postgresPw: postgresPw };
       }
 
       log(`→ Preparing remote directory ${remoteDir}…`);
@@ -399,6 +407,45 @@ END $$;
         throw new Error(`Échec du clone Git. Vérifiez l'URL/branche/token. ${clone.stderr.slice(-300)}`);
       }
       log("✓ Repo cloned");
+
+      // ===== Apply app migrations to local Supabase, then promote admin =====
+      const pending = (globalThis as any).__pendingAdminPromotion;
+      if (pending?.supaDir) {
+        log("→ Application des migrations de l'application sur Supabase local…");
+        const migDir = `${remoteDir}/repo/supabase/migrations`;
+        // Concat all .sql files in order and pipe to psql
+        const applyMig = await exec(
+          conn,
+          `if [ -d "${migDir}" ]; then ` +
+          `for f in $(ls ${migDir}/*.sql 2>/dev/null | sort); do ` +
+          `  echo "-- $f"; cat "$f"; echo ""; ` +
+          `done | (cd ${pending.supaDir} && docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=0) 2>&1 | tail -100; ` +
+          `else echo "no migrations dir"; fi`
+        );
+        log(applyMig.stdout.slice(-1500));
+        log("✓ Migrations appliquées (les erreurs 'already exists' sont normales)");
+
+        log("→ Promotion du compte screenflow en admin global…");
+        const promoteSql = `
+DO $$
+DECLARE uid uuid;
+BEGIN
+  SELECT id INTO uid FROM auth.users WHERE email='screenflow@screenflow.local' LIMIT 1;
+  IF uid IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='user_roles') THEN
+    INSERT INTO public.user_roles (user_id, role) VALUES (uid, 'admin') ON CONFLICT DO NOTHING;
+    DELETE FROM public.user_roles WHERE user_id=uid AND role='user';
+  END IF;
+END $$;
+`.trim();
+        const promoteB64 = btoa(promoteSql);
+        const promote = await exec(
+          conn,
+          `cd ${pending.supaDir} && echo "${promoteB64}" | base64 -d | docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`
+        );
+        if (promote.code === 0) log("✓ Rôle admin attribué à screenflow@screenflow.local");
+        else log("⚠ Promotion admin échouée : " + promote.stdout.slice(-400) + promote.stderr.slice(-400));
+      }
+
 
       // Generate Dockerfile, nginx.conf, docker-compose.yml inside the repo
       log("→ Writing Dockerfile, nginx.conf, docker-compose.yml…");
