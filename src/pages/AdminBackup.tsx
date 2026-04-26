@@ -313,12 +313,121 @@ export default function AdminBackup() {
 
   // ============ IMPORT / RESTORE ============
 
-  const handleImportFile = async (file: File) => {
-    setRestoring(true);
-    setRestoreResults(null);
-    try {
-      let tablesPayload: Record<string, any[]> = {};
+  const sha256Hex = async (data: ArrayBuffer | Blob) => {
+    const buf = data instanceof Blob ? await data.arrayBuffer() : data;
+    const hash = await crypto.subtle.digest("SHA-256", buf);
+    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
+  };
 
+  const parseCSV = (text: string): any[] => {
+    const lines = text.split(/\r?\n/).filter(l => l.length);
+    if (lines.length < 2) return [];
+    const parseLine = (line: string): string[] => {
+      const out: string[] = [];
+      let cur = "", inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (inQ) {
+          if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+          else if (c === '"') inQ = false;
+          else cur += c;
+        } else {
+          if (c === '"') inQ = true;
+          else if (c === ",") { out.push(cur); cur = ""; }
+          else cur += c;
+        }
+      }
+      out.push(cur);
+      return out;
+    };
+    const headers = parseLine(lines[0]);
+    return lines.slice(1).map(l => {
+      const vals = parseLine(l);
+      const obj: any = {};
+      headers.forEach((h, idx) => {
+        const v = vals[idx];
+        if (v === "" || v === undefined) { obj[h] = null; return; }
+        try { obj[h] = JSON.parse(v); } catch { obj[h] = v; }
+      });
+      return obj;
+    });
+  };
+
+  const handleImportFile = async (file: File) => {
+    setRestoreResults(null);
+    setFileRestoreResults(null);
+    setZipPreview(null);
+
+    try {
+      // ZIP archive (full backup)
+      if (file.name.endsWith(".zip")) {
+        setVerifying(true);
+        setProgress("Lecture de l'archive...");
+        const zip = await JSZip.loadAsync(file);
+
+        // Parse database.json
+        const dbFile = zip.file("database.json");
+        const tablesPayload: Record<string, any[]> = {};
+        if (dbFile) {
+          const dbText = await dbFile.async("string");
+          const parsed = JSON.parse(dbText);
+          for (const [k, v] of Object.entries(parsed)) {
+            if (k.startsWith("_")) continue;
+            if (Array.isArray(v)) tablesPayload[k] = v;
+          }
+        }
+
+        // Parse manifest.json
+        const manifestFile = zip.file("manifest.json");
+        let manifest: ZipPreview["manifest"] = null;
+        if (manifestFile) {
+          manifest = JSON.parse(await manifestFile.async("string"));
+        }
+
+        // Verify each manifest entry
+        const fileChecks: ZipPreview["fileChecks"] = [];
+        let totalBytes = 0;
+        if (manifest?.files) {
+          let i = 0;
+          for (const entry of manifest.files) {
+            i++;
+            setProgress(`Vérification ${i}/${manifest.files.length}: ${entry.path}`);
+            setProgressPct(Math.round((i / manifest.files.length) * 100));
+            const zEntry = zip.file(entry.path);
+            if (!zEntry) {
+              fileChecks.push({ entry, present: false });
+              continue;
+            }
+            const blob = await zEntry.async("blob");
+            const sizeMatch = blob.size === entry.size;
+            let sha256Match: boolean | undefined = undefined;
+            if (entry.sha256) {
+              const actualHash = await sha256Hex(blob);
+              sha256Match = actualHash === entry.sha256;
+            }
+            totalBytes += blob.size;
+            fileChecks.push({ entry, present: true, actualSize: blob.size, sizeMatch, sha256Match });
+          }
+        }
+
+        const totalRows = Object.values(tablesPayload).reduce((s, r) => s + r.length, 0);
+        setZipPreview({
+          zip,
+          manifest,
+          tablesPayload,
+          fileChecks,
+          totalRows,
+          totalFiles: fileChecks.length,
+          totalBytes,
+        });
+        setProgress("");
+        setProgressPct(0);
+        toast.success("Archive vérifiée — vérifiez les détails avant de restaurer");
+        return;
+      }
+
+      // JSON / CSV (legacy single-file imports)
+      let tablesPayload: Record<string, any[]> = {};
       if (file.name.endsWith(".json")) {
         const text = await file.text();
         const parsed = JSON.parse(text);
@@ -328,63 +437,95 @@ export default function AdminBackup() {
         }
       } else if (file.name.endsWith(".csv")) {
         const tableName = file.name.replace(/\.csv$/, "");
-        const text = await file.text();
-        const lines = text.split(/\r?\n/).filter(l => l.length);
-        if (lines.length < 2) throw new Error("CSV vide");
-        const parseCSVLine = (line: string): string[] => {
-          const out: string[] = [];
-          let cur = "", inQ = false;
-          for (let i = 0; i < line.length; i++) {
-            const c = line[i];
-            if (inQ) {
-              if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
-              else if (c === '"') inQ = false;
-              else cur += c;
-            } else {
-              if (c === '"') inQ = true;
-              else if (c === ",") { out.push(cur); cur = ""; }
-              else cur += c;
-            }
-          }
-          out.push(cur);
-          return out;
-        };
-        const headers = parseCSVLine(lines[0]);
-        const rows = lines.slice(1).map(l => {
-          const vals = parseCSVLine(l);
-          const obj: any = {};
-          headers.forEach((h, idx) => {
-            const v = vals[idx];
-            if (v === "" || v === undefined) { obj[h] = null; return; }
-            try { obj[h] = JSON.parse(v); } catch { obj[h] = v; }
-          });
-          return obj;
-        });
-        tablesPayload[tableName] = rows;
+        tablesPayload[tableName] = parseCSV(await file.text());
       } else {
-        throw new Error("Format non supporté (.json ou .csv attendu)");
+        throw new Error("Format non supporté (.json, .csv ou .zip attendu)");
       }
 
       const totalRows = Object.values(tablesPayload).reduce((s, r) => s + r.length, 0);
       if (totalRows === 0) throw new Error("Aucune donnée à restaurer");
 
-      const confirm = window.confirm(
-        `Restaurer ${totalRows} lignes dans ${Object.keys(tablesPayload).length} table(s) en mode "${restoreMode}" ?\n\n⚠ Le mode "upsert" remplacera les enregistrements ayant le même ID.`
-      );
-      if (!confirm) { setRestoring(false); return; }
-
-      const { data, error } = await supabase.functions.invoke("restore-backup", {
-        body: { tables: tablesPayload, mode: restoreMode },
+      // Show preview for non-zip too
+      setZipPreview({
+        zip: null as any,
+        manifest: null,
+        tablesPayload,
+        fileChecks: [],
+        totalRows,
+        totalFiles: 0,
+        totalBytes: 0,
       });
-      if (error) throw error;
-      setRestoreResults(data.results);
-      const okCount = Object.values(data.results as any).filter((r: any) => r.ok).length;
-      toast.success(`Restauration terminée: ${okCount}/${Object.keys(data.results).length} tables OK`);
+      toast.success("Fichier analysé — confirmez la restauration ci-dessous");
+    } catch (e: any) {
+      toast.error("Erreur d'analyse: " + e.message);
+    } finally {
+      setVerifying(false);
+      setProgress("");
+      setProgressPct(0);
+    }
+  };
+
+  const launchRestore = async () => {
+    if (!zipPreview) return;
+    const { tablesPayload, zip, fileChecks } = zipPreview;
+    setRestoring(true);
+    setRestoreResults(null);
+    setFileRestoreResults(null);
+
+    try {
+      // 1. Restore tables via edge function
+      if (Object.keys(tablesPayload).length > 0) {
+        setProgress("Restauration des tables...");
+        const { data, error } = await supabase.functions.invoke("restore-backup", {
+          body: { tables: tablesPayload, mode: restoreMode },
+        });
+        if (error) throw error;
+        setRestoreResults(data.results);
+      }
+
+      // 2. Restore files to buckets
+      if (restoreFiles && zip && fileChecks.length > 0) {
+        const errors: string[] = [];
+        let ok = 0, failed = 0;
+        let i = 0;
+        for (const check of fileChecks) {
+          i++;
+          if (!check.present) { failed++; continue; }
+          const { entry } = check;
+          setProgress(`Upload ${i}/${fileChecks.length}: ${entry.path}`);
+          setProgressPct(Math.round((i / fileChecks.length) * 100));
+          try {
+            const zEntry = zip.file(entry.path);
+            if (!zEntry) { failed++; errors.push(`${entry.path}: introuvable`); continue; }
+            const blob = await zEntry.async("blob");
+            const relativePath = entry.path.replace(`${entry.bucket}/`, "");
+            const { error: upErr } = await supabase.storage
+              .from(entry.bucket)
+              .upload(relativePath, blob, { upsert: true, contentType: blob.type || undefined });
+            if (upErr) { failed++; errors.push(`${entry.path}: ${upErr.message}`); }
+            else ok++;
+          } catch (e: any) {
+            failed++;
+            errors.push(`${entry.path}: ${e.message}`);
+          }
+        }
+        setFileRestoreResults({ ok, failed, errors: errors.slice(0, 20) });
+      }
+
+      toast.success("Restauration terminée");
     } catch (e: any) {
       toast.error("Erreur de restauration: " + e.message);
     } finally {
       setRestoring(false);
+      setProgress("");
+      setProgressPct(0);
     }
+  };
+
+  const cancelRestore = () => {
+    setZipPreview(null);
+    setRestoreResults(null);
+    setFileRestoreResults(null);
   };
 
   // ============ DOCKER ============
