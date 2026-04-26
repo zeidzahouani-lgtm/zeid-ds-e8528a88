@@ -569,6 +569,100 @@ export default function AdminBackup() {
   ];
   const allValid = envChecks.every(c => c.valid);
 
+  // ============ SSH DEPLOY ============
+
+  // Detect if a host looks local/private (not reachable from a Supabase Edge Function on the public internet)
+  const isLocalHost = (h: string) => {
+    if (!h) return false;
+    const v = h.trim().toLowerCase();
+    if (v === "localhost" || v === "127.0.0.1") return true;
+    // RFC1918 + link-local
+    return /^10\./.test(v) || /^192\.168\./.test(v) || /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(v) || /^169\.254\./.test(v);
+  };
+
+  const buildProjectZip = async (): Promise<string> => {
+    const zip = new JSZip();
+    zip.file("Dockerfile", DOCKERFILE);
+    zip.file("nginx.conf", NGINX_CONF);
+    zip.file(".dockerignore", DOCKERIGNORE);
+    zip.file(
+      "docker-compose.yml",
+      buildDockerCompose("prod", envUrl, envKey, envProjectId, sshAppPort),
+    );
+    zip.file(
+      "README.txt",
+      `ScreenFlow deployment package
+Generated: ${new Date().toISOString()}
+App will be exposed on port ${sshAppPort}
+To rebuild manually: docker compose up -d --build
+`,
+    );
+    // NOTE: source files are not bundled here (they're hosted on Lovable). 
+    // The Dockerfile builds from a git source — we provide a minimal compose that pulls
+    // the prebuilt image OR uses local sources if you copy them in.
+    // For a fully self-contained build, also include a placeholder index.html:
+    zip.file(
+      "index.html",
+      `<!doctype html><html><head><meta charset="utf-8"/><title>ScreenFlow</title></head><body>
+<script>window.location.href="${import.meta.env.VITE_SUPABASE_URL ? "https://" + window.location.hostname : "/"}";</script>
+</body></html>`,
+    );
+    const blob = await zip.generateAsync({ type: "blob" });
+    const buf = await blob.arrayBuffer();
+    let bin = "";
+    const bytes = new Uint8Array(buf);
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)));
+    }
+    return btoa(bin);
+  };
+
+  const handleSshDeploy = async () => {
+    if (!sshHost || !sshUser || !sshPassword) {
+      toast.error("Renseignez l'IP, l'utilisateur et le mot de passe");
+      return;
+    }
+    setSshDeploying(true);
+    setSshLogs([]);
+    setSshDeployedUrl(null);
+    try {
+      setSshLogs(["📦 Préparation de l'archive du projet…"]);
+      const project_zip_b64 = await buildProjectZip();
+      setSshLogs(prev => [...prev, "✓ Archive prête, connexion au serveur…"]);
+
+      const { data, error } = await supabase.functions.invoke("ssh-deploy", {
+        body: {
+          host: sshHost.trim(),
+          port: parseInt(sshPort) || 22,
+          username: sshUser.trim(),
+          password: sshPassword,
+          remote_dir: sshRemoteDir.trim() || "/opt/screenflow",
+          app_port: sshAppPort,
+          install_docker: sshAutoInstallDocker,
+          vite_supabase_url: envUrl,
+          vite_supabase_key: envKey,
+          vite_supabase_project_id: envProjectId,
+          project_zip_b64,
+        },
+      });
+      if (error) throw error;
+      const logs = (data?.logs as string[]) || [];
+      setSshLogs(prev => [...prev, ...logs]);
+      if (data?.success) {
+        setSshDeployedUrl(data.url);
+        toast.success("Déploiement réussi 🚀");
+      } else {
+        toast.error("Échec du déploiement: " + (data?.error || "inconnu"));
+      }
+    } catch (e: any) {
+      setSshLogs(prev => [...prev, "✗ Erreur: " + (e?.message || String(e))]);
+      toast.error("Erreur: " + (e?.message || String(e)));
+    } finally {
+      setSshDeploying(false);
+    }
+  };
+
   return (
     <div className="p-8 space-y-6 max-w-6xl">
       <div>
