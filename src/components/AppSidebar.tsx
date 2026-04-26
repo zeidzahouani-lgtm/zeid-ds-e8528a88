@@ -51,6 +51,7 @@ const globalAdminItems = [
   { title: "Licences", url: "/admin/licenses", icon: Key },
   { title: "Statistiques", url: "/admin/stats", icon: BarChart3 },
   { title: "Demandes", url: "/admin/requests", icon: ClipboardList },
+  { title: "Backup & Docker", url: "/admin/backup", icon: DatabaseBackup },
 ];
 
 export function AppSidebar() {
