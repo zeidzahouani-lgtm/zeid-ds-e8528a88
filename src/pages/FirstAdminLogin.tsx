@@ -30,7 +30,6 @@ type CheckResult = {
 type StatusBadge = "ok" | "missing" | "broken" | "unknown";
 
 export default function FirstAdminLogin() {
-  const { isGlobalAdmin } = useEstablishmentContext();
 
   // SSH config (loaded from localStorage, editable)
   const [sshHost, setSshHost] = useState("");
