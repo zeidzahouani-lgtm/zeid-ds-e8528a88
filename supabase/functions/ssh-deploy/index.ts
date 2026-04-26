@@ -606,7 +606,16 @@ END $$;
 
         await log("→ Test réel du login admin local…");
         const internalSupaUrl = `http://127.0.0.1:${supaKongPort}`;
-        await verifyAuthLoginFromServer(conn, internalSupaUrl, supabaseAnonOverride, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD, log);
+        await ensureLocalAuthGateway(conn, pending.supaDir, supaKongPort, log);
+        await verifyAuthLoginFromServer(
+          conn,
+          internalSupaUrl,
+          supabaseAnonOverride,
+          DEFAULT_ADMIN_EMAIL,
+          DEFAULT_ADMIN_PASSWORD,
+          log,
+          buildDirectKongAuthLoginCommand(pending.supaDir, supabaseAnonOverride, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD),
+        );
         await verifyPublicAuthLogin(supabaseUrlOverride, supabaseAnonOverride, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD, log);
       }
 
