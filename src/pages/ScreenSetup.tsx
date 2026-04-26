@@ -1,15 +1,24 @@
 import { useState, useRef, useCallback } from "react";
-import { Monitor, Smartphone, Tv, Copy, CheckCheck, ExternalLink, Pencil, Check, X, Bot, Send, Loader2, CheckCircle, AlertTriangle, HelpCircle, Bug } from "lucide-react";
+import { Monitor, Smartphone, Tv, Copy, CheckCheck, ExternalLink, Pencil, Check, X, Bot, Send, Loader2, CheckCircle, AlertTriangle, HelpCircle, Bug, Save } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useScreens } from "@/hooks/useScreens";
+import { useAppSettings } from "@/hooks/useAppSettings";
 import ReactMarkdown from "react-markdown";
 
-const playerUrl = window.location.origin + "/player/";
+function buildPlayerBase(port?: string): string {
+  const { protocol, hostname, port: currentPort } = window.location;
+  const finalPort = (port || "").trim() || currentPort;
+  const portPart = finalPort && !((protocol === "http:" && finalPort === "80") || (protocol === "https:" && finalPort === "443"))
+    ? `:${finalPort}`
+    : "";
+  return `${protocol}//${hostname}${portPart}/player/`;
+}
 
 function CopyButton({ text, label, icon }: { text: string; label?: string; icon?: React.ReactNode }) {
   const [copied, setCopied] = useState(false);
@@ -42,10 +51,10 @@ function StepList({ steps }: { steps: string[] }) {
   );
 }
 
-function ScreenRow({ screen, updateScreen }: { screen: any; updateScreen: any }) {
+function ScreenRow({ screen, updateScreen, playerBase }: { screen: any; updateScreen: any; playerBase: string }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(screen.name);
-  const url = `${playerUrl}${screen.slug || screen.id}`;
+  const url = `${playerBase}${screen.slug || screen.id}`;
 
   const handleSave = () => {
     if (!name.trim()) return;
@@ -379,6 +388,25 @@ function CompatibilityTab() {
 
 export default function ScreenSetup() {
   const { screens, updateScreen } = useScreens();
+  const { settings, updateSetting } = useAppSettings();
+  const [portInput, setPortInput] = useState(settings.player_port || "");
+  const playerBase = buildPlayerBase(settings.player_port);
+  const currentBrowserPort = window.location.port || (window.location.protocol === "https:" ? "443" : "80");
+
+  const savePort = () => {
+    const v = portInput.trim();
+    if (v && !/^\d{1,5}$/.test(v)) {
+      toast.error("Port invalide (1-65535)");
+      return;
+    }
+    updateSetting.mutate(
+      { key: "player_port", value: v },
+      {
+        onSuccess: () => toast.success(v ? `Port player défini : ${v}` : "Port player réinitialisé (port courant)"),
+        onError: (e: any) => toast.error("Erreur : " + (e?.message || "inconnue")),
+      }
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -393,6 +421,37 @@ export default function ScreenSetup() {
 
       <Card>
         <CardHeader>
+          <CardTitle className="text-base">Port player</CardTitle>
+          <CardDescription>
+            Port utilisé par les écrans pour accéder au player. Laissez vide pour utiliser le port courant ({currentBrowserPort}).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-end gap-2 max-w-md">
+            <div className="flex-1">
+              <Label htmlFor="player-port" className="text-xs">Port</Label>
+              <Input
+                id="player-port"
+                type="number"
+                min={1}
+                max={65535}
+                value={portInput}
+                onChange={(e) => setPortInput(e.target.value)}
+                placeholder={currentBrowserPort}
+              />
+            </div>
+            <Button onClick={savePort} disabled={updateSetting.isPending} className="gap-1.5">
+              <Save className="h-4 w-4" /> Enregistrer
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            URL exemple : <span className="font-mono">{playerBase}mon-ecran</span>
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-base">URLs de vos écrans</CardTitle>
           <CardDescription>
             Copiez l'URL complète de l'écran à configurer et collez-la dans le navigateur de votre appareil
@@ -401,7 +460,7 @@ export default function ScreenSetup() {
         <CardContent className="space-y-3">
           {screens && screens.length > 0 ? (
             screens.map((s: any) => (
-              <ScreenRow key={s.id} screen={s} updateScreen={updateScreen} />
+              <ScreenRow key={s.id} screen={s} updateScreen={updateScreen} playerBase={playerBase} />
             ))
           ) : (
             <p className="text-sm text-muted-foreground">Aucun écran créé. Créez un écran dans l'onglet « Écrans » d'abord.</p>

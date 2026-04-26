@@ -13,6 +13,7 @@ export interface AppSettings {
   page_title: string;
   login_video_url: string;
   default_gmt_offset: string;
+  player_port: string;
 }
 
 const defaultSettings: AppSettings = {
@@ -26,6 +27,7 @@ const defaultSettings: AppSettings = {
   page_title: "ScreenFlow by Dravox — Digital Signage CMS",
   login_video_url: "",
   default_gmt_offset: "",
+  player_port: "",
 };
 
 async function fetchSettings(): Promise<AppSettings> {
@@ -87,8 +89,7 @@ export function useAppSettings() {
     mutationFn: async ({ key, value }: { key: string; value: string }) => {
       const { error } = await supabase
         .from("app_settings" as any)
-        .update({ value, updated_at: new Date().toISOString() } as any)
-        .eq("key", key as any);
+        .upsert({ key, value, updated_at: new Date().toISOString() } as any, { onConflict: "key" });
       if (error) throw error;
     },
     onSuccess: () => {
