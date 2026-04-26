@@ -1524,7 +1524,6 @@ To rebuild manually: docker compose up -d --build
               )}
             </CardContent>
           </Card>
-          </DeployAuthGate>
         </TabsContent>
       </Tabs>
     </div>
