@@ -132,7 +132,7 @@ async function verifyAuthLoginFromServer(
     if (attempt === 20 && fallbackCommand) {
       await log(`⚠ Port Auth ${authBaseUrl} indisponible depuis l'hôte, test direct dans le conteneur kong…`);
     }
-    await exec(conn, "sleep 2");
+    await new Promise((resolve) => setTimeout(resolve, 2000));
   }
 
   throw new Error(`Le compte admin existe mais le test login Auth échoue depuis le serveur (${authBaseUrl}). Réponse : ${lastOutput.slice(-700)}`);
