@@ -66,7 +66,7 @@ export default function FirstAdminLogin() {
     logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
 
-  if (!isGlobalAdmin) return <Navigate to="/" replace />;
+  // Public route: accessible without login to bootstrap the first admin account.
 
   const getFreshAccessToken = async () => {
     const refreshed = await supabase.auth.refreshSession();
