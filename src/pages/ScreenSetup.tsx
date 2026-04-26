@@ -1,15 +1,24 @@
 import { useState, useRef, useCallback } from "react";
-import { Monitor, Smartphone, Tv, Copy, CheckCheck, ExternalLink, Pencil, Check, X, Bot, Send, Loader2, CheckCircle, AlertTriangle, HelpCircle, Bug } from "lucide-react";
+import { Monitor, Smartphone, Tv, Copy, CheckCheck, ExternalLink, Pencil, Check, X, Bot, Send, Loader2, CheckCircle, AlertTriangle, HelpCircle, Bug, Save } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useScreens } from "@/hooks/useScreens";
+import { useAppSettings } from "@/hooks/useAppSettings";
 import ReactMarkdown from "react-markdown";
 
-const playerUrl = window.location.origin + "/player/";
+function buildPlayerBase(port?: string): string {
+  const { protocol, hostname, port: currentPort } = window.location;
+  const finalPort = (port || "").trim() || currentPort;
+  const portPart = finalPort && !((protocol === "http:" && finalPort === "80") || (protocol === "https:" && finalPort === "443"))
+    ? `:${finalPort}`
+    : "";
+  return `${protocol}//${hostname}${portPart}/player/`;
+}
 
 function CopyButton({ text, label, icon }: { text: string; label?: string; icon?: React.ReactNode }) {
   const [copied, setCopied] = useState(false);
