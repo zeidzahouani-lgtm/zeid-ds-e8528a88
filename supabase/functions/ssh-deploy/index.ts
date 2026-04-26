@@ -21,8 +21,10 @@ interface DeployBody {
   vite_supabase_url?: string;
   vite_supabase_key?: string;
   vite_supabase_project_id?: string;
-  // Base64 ZIP of the project (Dockerfile + nginx.conf + docker-compose.yml + dist or sources)
-  project_zip_b64: string;
+  // Git source (cloned on the server)
+  git_url: string;            // e.g. https://github.com/user/repo.git
+  git_branch?: string;        // default: main
+  git_token?: string;         // optional PAT for private repos
 }
 
 function ssh(opts: { host: string; port: number; username: string; password: string }): Promise<Client> {
@@ -127,8 +129,8 @@ Deno.serve(async (req) => {
     }
 
     const body = (await req.json()) as DeployBody;
-    if (!body.host || !body.username || !body.password || !body.project_zip_b64) {
-      return new Response(JSON.stringify({ error: "Missing required fields" }), {
+    if (!body.host || !body.username || !body.password || !body.git_url) {
+      return new Response(JSON.stringify({ error: "Missing required fields (host, username, password, git_url)" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -137,13 +139,18 @@ Deno.serve(async (req) => {
     const port = body.port ?? 22;
     const remoteDir = body.remote_dir || "/opt/screenflow";
     const appPort = body.app_port || "8080";
+    const branch = body.git_branch || "main";
+
+    let gitUrl = body.git_url.trim();
+    if (body.git_token && /^https?:\/\//.test(gitUrl)) {
+      gitUrl = gitUrl.replace(/^(https?:\/\/)/, `$1${encodeURIComponent(body.git_token)}@`);
+    }
 
     log(`→ Connecting to ${body.username}@${body.host}:${port}…`);
     const conn = await ssh({ host: body.host, port, username: body.username, password: body.password });
     log("✓ SSH connection established");
 
     try {
-      // 1. Detect Docker
       log("→ Checking Docker installation…");
       const dockerCheck = await exec(conn, "command -v docker && docker --version || echo MISSING");
       const hasDocker = !dockerCheck.stdout.includes("MISSING") && dockerCheck.code === 0;
@@ -153,14 +160,12 @@ Deno.serve(async (req) => {
       const hasCompose = !composeCheck.stdout.includes("MISSING");
       log(hasCompose ? `✓ Docker Compose present` : "✗ Docker Compose missing");
 
-      // 2. Install Docker if needed and allowed
+      const sudoPrefix = `echo '${body.password.replace(/'/g, "'\\''")}' | sudo -S `;
+
       if ((!hasDocker || !hasCompose) && body.install_docker) {
         log("→ Installing Docker (this may take 1-3 minutes)…");
-        const sudoP = `echo '${body.password.replace(/'/g, "'\\''")}' | sudo -S `;
-        // 1) Ensure curl + ca-certificates are present (apt or yum/dnf)
-        await exec(conn, `${sudoP}sh -c "(command -v apt-get && apt-get update -y && apt-get install -y curl ca-certificates) || (command -v dnf && dnf install -y curl ca-certificates) || (command -v yum && yum install -y curl ca-certificates) || true"`);
-        // 2) Install Docker via official script (curl, fallback wget)
-        const installCmd = `${sudoP}sh -c "
+        await exec(conn, `${sudoPrefix}sh -c "(command -v apt-get && apt-get update -y && apt-get install -y curl ca-certificates git) || (command -v dnf && dnf install -y curl ca-certificates git) || (command -v yum && yum install -y curl ca-certificates git) || true"`);
+        const installCmd = `${sudoPrefix}sh -c "
           (curl -fsSL https://get.docker.com -o /tmp/get-docker.sh || wget -qO /tmp/get-docker.sh https://get.docker.com) &&
           sh /tmp/get-docker.sh &&
           (systemctl enable docker || true) &&
@@ -174,49 +179,87 @@ Deno.serve(async (req) => {
           log("⚠ Install errors: " + errMsg);
           if (/not in the sudoers/i.test(errMsg) || /incorrect password/i.test(errMsg)) {
             throw new Error(
-              `L'utilisateur '${body.username}' n'a pas les droits sudo sur le serveur. ` +
-              `Connectez-vous en root et exécutez : 'usermod -aG sudo ${body.username}' ` +
-              `(Debian/Ubuntu) ou 'usermod -aG wheel ${body.username}' (RHEL/CentOS), ` +
-              `puis réessayez. Alternative : installez Docker manuellement et décochez 'Auto-installer Docker'.`
+              `L'utilisateur '${body.username}' n'a pas les droits sudo. ` +
+              `En root : 'usermod -aG sudo ${body.username}' (Debian/Ubuntu) ou 'usermod -aG wheel ${body.username}' (RHEL).`
             );
           }
           throw new Error("Échec de l'installation de Docker. Voir les logs.");
         }
         log("✓ Docker installed");
       } else if (!hasDocker || !hasCompose) {
-        throw new Error("Docker not installed on server. Enable 'Auto-install Docker' or install it manually.");
+        throw new Error("Docker n'est pas installé. Activez 'Auto-installer Docker'.");
       }
 
-      // 3. Prepare remote directory
+      // Ensure git
+      const gitCheck = await exec(conn, "command -v git || echo MISSING");
+      if (gitCheck.stdout.includes("MISSING")) {
+        log("→ Installing git…");
+        await exec(conn, `${sudoPrefix}sh -c "(apt-get update -y && apt-get install -y git) || (dnf install -y git) || (yum install -y git)"`);
+      }
+
       log(`→ Preparing remote directory ${remoteDir}…`);
-      const sudoPrefix = `echo '${body.password.replace(/'/g, "'\\''")}' | sudo -S `;
       await exec(conn, `${sudoPrefix}mkdir -p ${remoteDir} && ${sudoPrefix}chown -R ${body.username}:${body.username} ${remoteDir}`);
       log("✓ Remote directory ready");
 
-      // 4. Upload project ZIP
-      log("→ Uploading project archive…");
-      const zipBuf = Buffer.from(body.project_zip_b64, "base64");
-      const remoteZip = `${remoteDir}/project.zip`;
-      await uploadFile(conn, remoteZip, zipBuf);
-      log(`✓ Uploaded ${(zipBuf.length / 1024 / 1024).toFixed(2)} MB`);
-
-      // 5. Extract
-      log("→ Extracting archive…");
-      const unzipCheck = await exec(conn, "command -v unzip || echo MISSING");
-      if (unzipCheck.stdout.includes("MISSING")) {
-        log("→ Installing unzip…");
-        await exec(conn, `${sudoPrefix}sh -c "apt-get update -y && apt-get install -y unzip || yum install -y unzip"`);
+      log(`→ Cloning ${body.git_url} (branch: ${branch})…`);
+      await exec(conn, `rm -rf ${remoteDir}/repo`);
+      const clone = await exec(conn, `git clone --depth 1 --branch ${branch} '${gitUrl}' ${remoteDir}/repo 2>&1`);
+      log(clone.stdout.slice(-1500));
+      if (clone.code !== 0) {
+        throw new Error(`Échec du clone Git. Vérifiez l'URL/branche/token. ${clone.stderr.slice(-300)}`);
       }
-      const ext = await exec(conn, `cd ${remoteDir} && unzip -o project.zip && rm project.zip`);
-      if (ext.code !== 0) {
-        log("⚠ Extract stderr: " + ext.stderr);
-        throw new Error("Failed to extract project archive");
-      }
-      log("✓ Archive extracted");
+      log("✓ Repo cloned");
 
-      // 6. docker compose build & up
+      // Generate Dockerfile, nginx.conf, docker-compose.yml inside the repo
+      log("→ Writing Dockerfile, nginx.conf, docker-compose.yml…");
+      const escEnv = (s: string) => (s || "").replace(/'/g, "'\\''");
+      const dockerfile = `FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package.json bun.lockb* package-lock.json* ./
+RUN if [ -f bun.lockb ]; then npm install -g bun && bun install --frozen-lockfile; else npm ci || npm install; fi
+COPY . .
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_PUBLISHABLE_KEY
+ARG VITE_SUPABASE_PROJECT_ID
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
+ENV VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID
+RUN npm run build
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx","-g","daemon off;"]
+`;
+      const nginxConf = `server {
+  listen 80;
+  server_name _;
+  root /usr/share/nginx/html;
+  index index.html;
+  location / { try_files $uri $uri/ /index.html; }
+  location /assets/ { expires 1y; add_header Cache-Control "public, immutable"; }
+}
+`;
+      const compose = `services:
+  web:
+    build:
+      context: .
+      args:
+        VITE_SUPABASE_URL: '${escEnv(body.vite_supabase_url || "")}'
+        VITE_SUPABASE_PUBLISHABLE_KEY: '${escEnv(body.vite_supabase_key || "")}'
+        VITE_SUPABASE_PROJECT_ID: '${escEnv(body.vite_supabase_project_id || "")}'
+    ports:
+      - "${appPort}:80"
+    restart: unless-stopped
+`;
+      await uploadFile(conn, `${remoteDir}/repo/Dockerfile`, Buffer.from(dockerfile));
+      await uploadFile(conn, `${remoteDir}/repo/nginx.conf`, Buffer.from(nginxConf));
+      await uploadFile(conn, `${remoteDir}/repo/docker-compose.yml`, Buffer.from(compose));
+      log("✓ Build files ready");
+
+
       log("→ Building & starting containers (docker compose up -d --build)…");
-      const composeCmd = `cd ${remoteDir} && (docker compose up -d --build || docker-compose up -d --build) 2>&1`;
+      const composeCmd = `cd ${remoteDir}/repo && (docker compose up -d --build || docker-compose up -d --build) 2>&1`;
       const up = await exec(conn, composeCmd);
       log(up.stdout.slice(-3000));
       if (up.code !== 0) {
@@ -225,8 +268,7 @@ Deno.serve(async (req) => {
       }
       log("✓ Containers started");
 
-      // 7. Status
-      const ps = await exec(conn, `cd ${remoteDir} && (docker compose ps || docker-compose ps)`);
+      const ps = await exec(conn, `cd ${remoteDir}/repo && (docker compose ps || docker-compose ps)`);
       log(ps.stdout);
 
       conn.end();

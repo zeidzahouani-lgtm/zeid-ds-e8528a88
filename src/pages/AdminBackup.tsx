@@ -172,6 +172,9 @@ export default function AdminBackup() {
   const [sshRemoteDir, setSshRemoteDir] = useState("/opt/screenflow");
   const [sshAppPort, setSshAppPort] = useState("8080");
   const [sshAutoInstallDocker, setSshAutoInstallDocker] = useState(true);
+  const [sshGitUrl, setSshGitUrl] = useState("");
+  const [sshGitBranch, setSshGitBranch] = useState("main");
+  const [sshGitToken, setSshGitToken] = useState("");
   const [sshDeploying, setSshDeploying] = useState(false);
   const [sshLogs, setSshLogs] = useState<string[]>([]);
   const [sshDeployedUrl, setSshDeployedUrl] = useState<string | null>(null);
@@ -623,13 +626,15 @@ To rebuild manually: docker compose up -d --build
       toast.error("Renseignez l'IP, l'utilisateur et le mot de passe");
       return;
     }
+    if (!sshGitUrl) {
+      toast.error("Renseignez l'URL du dépôt Git");
+      return;
+    }
     setSshDeploying(true);
     setSshLogs([]);
     setSshDeployedUrl(null);
     try {
-      setSshLogs(["📦 Préparation de l'archive du projet…"]);
-      const project_zip_b64 = await buildProjectZip();
-      setSshLogs(prev => [...prev, "✓ Archive prête, connexion au serveur…"]);
+      setSshLogs(["🔌 Connexion au serveur…"]);
 
       const { data, error } = await supabase.functions.invoke("ssh-deploy", {
         body: {
@@ -643,7 +648,9 @@ To rebuild manually: docker compose up -d --build
           vite_supabase_url: envUrl,
           vite_supabase_key: envKey,
           vite_supabase_project_id: envProjectId,
-          project_zip_b64,
+          git_url: sshGitUrl.trim(),
+          git_branch: sshGitBranch.trim() || "main",
+          git_token: sshGitToken.trim() || undefined,
         },
       });
       if (error) throw error;
@@ -1156,6 +1163,28 @@ To rebuild manually: docker compose up -d --build
                 </div>
               </div>
 
+              <Separator />
+              <div>
+                <h4 className="text-sm font-semibold mb-2 flex items-center gap-2"><FileCode className="h-4 w-4" />Source du code (Git)</h4>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Le serveur va cloner votre dépôt puis builder l'image Docker. Connectez votre projet à GitHub via Connectors si ce n'est pas déjà fait.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>URL du dépôt Git</Label>
+                    <Input value={sshGitUrl} onChange={e => setSshGitUrl(e.target.value)} placeholder="https://github.com/user/repo.git" disabled={sshDeploying} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Branche</Label>
+                    <Input value={sshGitBranch} onChange={e => setSshGitBranch(e.target.value)} placeholder="main" disabled={sshDeploying} />
+                  </div>
+                  <div className="space-y-2 md:col-span-3">
+                    <Label className="flex items-center gap-2"><KeyRound className="h-3.5 w-3.5" />Token GitHub (optionnel, pour repo privé)</Label>
+                    <Input type="password" value={sshGitToken} onChange={e => setSshGitToken(e.target.value)} placeholder="ghp_xxx…" disabled={sshDeploying} />
+                  </div>
+                </div>
+              </div>
+
               <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/40 border">
                 <Switch checked={sshAutoInstallDocker} onCheckedChange={setSshAutoInstallDocker} disabled={sshDeploying} />
                 <div className="text-sm">
@@ -1171,7 +1200,7 @@ To rebuild manually: docker compose up -d --build
               <div className="flex flex-wrap gap-3 items-center">
                 <Button
                   onClick={handleSshDeploy}
-                  disabled={sshDeploying || !sshHost || !sshUser || !sshPassword}
+                  disabled={sshDeploying || !sshHost || !sshUser || !sshPassword || !sshGitUrl}
                   className="gap-2"
                 >
                   {sshDeploying
