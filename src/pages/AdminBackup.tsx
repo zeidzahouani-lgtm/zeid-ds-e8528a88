@@ -138,6 +138,22 @@ export default function AdminBackup() {
   const [restoreMode, setRestoreMode] = useState<"upsert" | "insert">("upsert");
   const [restoreResults, setRestoreResults] = useState<Record<string, { ok: boolean; count: number; error?: string }> | null>(null);
 
+  // ZIP verification state
+  type ManifestEntry = { name: string; size: number; path: string; bucket: string; sha256?: string };
+  type ZipPreview = {
+    zip: JSZip;
+    manifest: { generated_at?: string; files_count: number; files: ManifestEntry[] } | null;
+    tablesPayload: Record<string, any[]>;
+    fileChecks: Array<{ entry: ManifestEntry; present: boolean; actualSize?: number; sizeMatch?: boolean; sha256Match?: boolean }>;
+    totalRows: number;
+    totalFiles: number;
+    totalBytes: number;
+  };
+  const [zipPreview, setZipPreview] = useState<ZipPreview | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [restoreFiles, setRestoreFiles] = useState(true);
+  const [fileRestoreResults, setFileRestoreResults] = useState<{ ok: number; failed: number; errors: string[] } | null>(null);
+
   // Deployment guide
   const [envType, setEnvType] = useState<"prod" | "staging">("prod");
   const [envUrl, setEnvUrl] = useState(import.meta.env.VITE_SUPABASE_URL || "");
