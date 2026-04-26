@@ -1265,6 +1265,7 @@ To rebuild manually: docker compose up -d --build
 
         {/* ============ SSH DEPLOY TAB ============ */}
         <TabsContent value="ssh" className="space-y-4">
+          <DeployAuthGate>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
