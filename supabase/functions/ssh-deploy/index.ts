@@ -380,7 +380,9 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
         const anonKey = jwtLines[0];
         const serviceKey = jwtLines[1];
 
-        const supaPublicUrl = enableHttps ? `https://${httpsDomain}:${supaKongPort}` : `http://${body.host}:${supaKongPort}`;
+        const appPublicUrl = enableHttps ? `https://${httpsDomain}:${httpsPort}` : `http://${body.host}:${appPort}`;
+        const supaKongPublicUrl = `http://${body.host}:${supaKongPort}`;
+        const supaBrowserUrl = appPublicUrl;
 
         const envPatch = [
           `POSTGRES_PASSWORD=${postgresPw}`,
@@ -391,9 +393,9 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
           `SUPABASE_SECRET_KEY=${serviceKey}`,
           `DASHBOARD_USERNAME=admin`,
           `DASHBOARD_PASSWORD=${dashboardPw}`,
-          `SITE_URL=${enableHttps ? `https://${httpsDomain}:${httpsPort}` : `http://${body.host}:${appPort}`}`,
-          `API_EXTERNAL_URL=${supaPublicUrl}`,
-          `SUPABASE_PUBLIC_URL=${supaPublicUrl}`,
+          `SITE_URL=${appPublicUrl}`,
+          `API_EXTERNAL_URL=${supaBrowserUrl}`,
+          `SUPABASE_PUBLIC_URL=${supaBrowserUrl}`,
           `KONG_HTTP_PORT=${supaKongPort}`,
           `KONG_HTTPS_PORT=${parseInt(supaKongPort) + 443}`,
           `STUDIO_PORT=${supaStudioPort}`,
@@ -414,12 +416,13 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
           throw new Error("Échec du démarrage de Supabase local");
         }
 
-        supabaseUrlOverride = supaPublicUrl;
+        supabaseUrlOverride = supaBrowserUrl;
         supabaseAnonOverride = anonKey;
         supabaseProjectIdOverride = "local";
 
         log(`✓ Supabase local démarré`);
-        log(`  • API:    ${supaPublicUrl}`);
+        log(`  • API app: ${supaBrowserUrl} (proxy sécurisé via l'application)`);
+        log(`  • API directe: ${supaKongPublicUrl}`);
         log(`  • Studio: http://${body.host}:${supaStudioPort}  (admin / ${dashboardPw})`);
         log(`  • DB:     postgres://postgres:${postgresPw}@${body.host}:${supaDbPort}/postgres`);
         log(`  ⚠ Notez le mot de passe du dashboard, il ne sera pas réaffiché.`);
