@@ -388,6 +388,25 @@ function CompatibilityTab() {
 
 export default function ScreenSetup() {
   const { screens, updateScreen } = useScreens();
+  const { settings, updateSetting } = useAppSettings();
+  const [portInput, setPortInput] = useState(settings.player_port || "");
+  const playerBase = buildPlayerBase(settings.player_port);
+  const currentBrowserPort = window.location.port || (window.location.protocol === "https:" ? "443" : "80");
+
+  const savePort = () => {
+    const v = portInput.trim();
+    if (v && !/^\d{1,5}$/.test(v)) {
+      toast.error("Port invalide (1-65535)");
+      return;
+    }
+    updateSetting.mutate(
+      { key: "player_port", value: v },
+      {
+        onSuccess: () => toast.success(v ? `Port player défini : ${v}` : "Port player réinitialisé (port courant)"),
+        onError: (e: any) => toast.error("Erreur : " + (e?.message || "inconnue")),
+      }
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -402,6 +421,37 @@ export default function ScreenSetup() {
 
       <Card>
         <CardHeader>
+          <CardTitle className="text-base">Port player</CardTitle>
+          <CardDescription>
+            Port utilisé par les écrans pour accéder au player. Laissez vide pour utiliser le port courant ({currentBrowserPort}).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-end gap-2 max-w-md">
+            <div className="flex-1">
+              <Label htmlFor="player-port" className="text-xs">Port</Label>
+              <Input
+                id="player-port"
+                type="number"
+                min={1}
+                max={65535}
+                value={portInput}
+                onChange={(e) => setPortInput(e.target.value)}
+                placeholder={currentBrowserPort}
+              />
+            </div>
+            <Button onClick={savePort} disabled={updateSetting.isPending} className="gap-1.5">
+              <Save className="h-4 w-4" /> Enregistrer
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            URL exemple : <span className="font-mono">{playerBase}mon-ecran</span>
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle className="text-base">URLs de vos écrans</CardTitle>
           <CardDescription>
             Copiez l'URL complète de l'écran à configurer et collez-la dans le navigateur de votre appareil
@@ -410,7 +460,7 @@ export default function ScreenSetup() {
         <CardContent className="space-y-3">
           {screens && screens.length > 0 ? (
             screens.map((s: any) => (
-              <ScreenRow key={s.id} screen={s} updateScreen={updateScreen} />
+              <ScreenRow key={s.id} screen={s} updateScreen={updateScreen} playerBase={playerBase} />
             ))
           ) : (
             <p className="text-sm text-muted-foreground">Aucun écran créé. Créez un écran dans l'onglet « Écrans » d'abord.</p>
