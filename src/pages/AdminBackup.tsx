@@ -638,6 +638,17 @@ To rebuild manually: docker compose up -d --build
       toast.error("Renseignez l'URL du dépôt Git");
       return;
     }
+    if (sshIsolateBackend && (!sshSupabaseUrl || !sshSupabaseKey || !sshSupabaseProjectId)) {
+      toast.error("Backend isolé activé : renseignez l'URL, la clé et le project ID Supabase du serveur local");
+      return;
+    }
+    const backendUrl = sshIsolateBackend ? sshSupabaseUrl.trim() : envUrl;
+    const backendKey = sshIsolateBackend ? sshSupabaseKey.trim() : envKey;
+    const backendProjectId = sshIsolateBackend ? sshSupabaseProjectId.trim() : envProjectId;
+    if (sshIsolateBackend && backendUrl === envUrl) {
+      toast.error("L'URL Supabase du serveur local doit être DIFFÉRENTE de celle du projet en ligne");
+      return;
+    }
     setSshDeploying(true);
     setSshLogs([]);
     setSshDeployedUrl(null);
@@ -653,9 +664,9 @@ To rebuild manually: docker compose up -d --build
           remote_dir: sshRemoteDir.trim() || "/opt/screenflow",
           app_port: sshAppPort,
           install_docker: sshAutoInstallDocker,
-          vite_supabase_url: envUrl,
-          vite_supabase_key: envKey,
-          vite_supabase_project_id: envProjectId,
+          vite_supabase_url: backendUrl,
+          vite_supabase_key: backendKey,
+          vite_supabase_project_id: backendProjectId,
           git_url: sshGitUrl.trim(),
           git_branch: sshGitBranch.trim() || "main",
           git_token: sshGitToken.trim() || undefined,
