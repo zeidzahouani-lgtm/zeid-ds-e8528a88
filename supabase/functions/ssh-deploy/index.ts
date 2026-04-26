@@ -21,8 +21,10 @@ interface DeployBody {
   vite_supabase_url?: string;
   vite_supabase_key?: string;
   vite_supabase_project_id?: string;
-  // Base64 ZIP of the project (Dockerfile + nginx.conf + docker-compose.yml + dist or sources)
-  project_zip_b64: string;
+  // Git source (cloned on the server)
+  git_url: string;            // e.g. https://github.com/user/repo.git
+  git_branch?: string;        // default: main
+  git_token?: string;         // optional PAT for private repos
 }
 
 function ssh(opts: { host: string; port: number; username: string; password: string }): Promise<Client> {
