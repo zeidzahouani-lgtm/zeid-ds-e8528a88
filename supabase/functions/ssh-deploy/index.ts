@@ -846,6 +846,13 @@ END $$;
       throw new Error("Impossible de lire POSTGRES_PASSWORD dans " + supaDir + "/.env");
     }
 
+    const kongPort = await readRemoteEnv(conn, `${supaDir}/.env`, "KONG_HTTP_PORT") || "8000";
+    const publicUrl = await readRemoteEnv(conn, `${supaDir}/.env`, "SUPABASE_PUBLIC_URL") || await readRemoteEnv(conn, `${supaDir}/.env`, "API_EXTERNAL_URL") || `http://${body.host}:${kongPort}`;
+    const anonKey = await readRemoteEnv(conn, `${supaDir}/.env`, "ANON_KEY") || await readRemoteEnv(conn, `${supaDir}/.env`, "SUPABASE_PUBLISHABLE_KEY");
+    if (!anonKey) {
+      throw new Error("Impossible de lire ANON_KEY dans " + supaDir + "/.env");
+    }
+
     // Exécute psql via TCP (127.0.0.1) à l'intérieur du conteneur db pour
     // éviter le bug de permissions sur le socket Unix (/run/postgresql).
     const result = await exec(
@@ -872,6 +879,10 @@ END $$;
         );
       }
     }
+
+    await log("→ Test réel du login admin local…");
+    await verifyAuthLoginFromServer(conn, `http://127.0.0.1:${kongPort}`, anonKey, DEFAULT_ADMIN_EMAIL, newPassword, log);
+    await verifyPublicAuthLogin(publicUrl, anonKey, DEFAULT_ADMIN_EMAIL, newPassword, log);
 
     await log("✓ Mot de passe admin réinitialisé avec succès");
     await log("");
