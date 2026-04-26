@@ -356,9 +356,9 @@ server {
     build:
       context: .
       args:
-        VITE_SUPABASE_URL: '${escEnv(body.vite_supabase_url || "")}'
-        VITE_SUPABASE_PUBLISHABLE_KEY: '${escEnv(body.vite_supabase_key || "")}'
-        VITE_SUPABASE_PROJECT_ID: '${escEnv(body.vite_supabase_project_id || "")}'
+        VITE_SUPABASE_URL: '${escEnv(supabaseUrlOverride || body.vite_supabase_url || "")}'
+        VITE_SUPABASE_PUBLISHABLE_KEY: '${escEnv(supabaseAnonOverride || body.vite_supabase_key || "")}'
+        VITE_SUPABASE_PROJECT_ID: '${escEnv(supabaseProjectIdOverride || body.vite_supabase_project_id || "")}'
 ${portsBlock}
     restart: unless-stopped
 `;
