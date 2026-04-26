@@ -1418,6 +1418,24 @@ To rebuild manually: docker compose up -d --build
                     ? <><Loader2 className="h-4 w-4 animate-spin" />Déploiement en cours…</>
                     : <><Rocket className="h-4 w-4" />Déployer maintenant</>}
                 </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => { persistSshConfig(); toast.success("Configuration sauvegardée localement"); }}
+                  disabled={sshDeploying}
+                >
+                  <Database className="h-4 w-4" />Sauvegarder la config
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="gap-2 text-muted-foreground"
+                  onClick={clearSshConfig}
+                  disabled={sshDeploying}
+                >
+                  Réinitialiser
+                </Button>
                 {sshDeployedUrl && (
                   <a href={sshDeployedUrl} target="_blank" rel="noopener noreferrer">
                     <Button variant="outline" className="gap-2">
@@ -1426,6 +1444,9 @@ To rebuild manually: docker compose up -d --build
                   </a>
                 )}
               </div>
+              <p className="text-xs text-muted-foreground -mt-1">
+                💾 La configuration (hôte, ports, instance Supabase locale) est mémorisée automatiquement après chaque déploiement réussi. Le mot de passe SSH n'est jamais stocké.
+              </p>
 
               {sshLocalSupabaseInfo && (
                 <Alert className="border-primary/40 bg-primary/5">
