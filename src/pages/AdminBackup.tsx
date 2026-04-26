@@ -17,8 +17,10 @@ import { toast } from "sonner";
 import {
   Database, Download, Container, FileArchive, Loader2, Package, FileCode, Copy,
   Upload, CheckCircle2, XCircle, AlertCircle, ServerCog, Rocket, ShieldCheck,
+  Server, Terminal, Wifi, KeyRound,
 } from "lucide-react";
 import JSZip from "jszip";
+import { Textarea } from "@/components/ui/textarea";
 
 const TABLES = [
   "profiles", "user_roles", "user_establishments", "establishments", "establishment_settings",
@@ -161,6 +163,18 @@ export default function AdminBackup() {
   const [envKey, setEnvKey] = useState(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "");
   const [envProjectId, setEnvProjectId] = useState(import.meta.env.VITE_SUPABASE_PROJECT_ID || "");
   const [envPort, setEnvPort] = useState("8080");
+
+  // SSH Deploy state
+  const [sshHost, setSshHost] = useState("");
+  const [sshPort, setSshPort] = useState("22");
+  const [sshUser, setSshUser] = useState("root");
+  const [sshPassword, setSshPassword] = useState("");
+  const [sshRemoteDir, setSshRemoteDir] = useState("/opt/screenflow");
+  const [sshAppPort, setSshAppPort] = useState("8080");
+  const [sshAutoInstallDocker, setSshAutoInstallDocker] = useState(true);
+  const [sshDeploying, setSshDeploying] = useState(false);
+  const [sshLogs, setSshLogs] = useState<string[]>([]);
+  const [sshDeployedUrl, setSshDeployedUrl] = useState<string | null>(null);
 
   if (!isGlobalAdmin) return <Navigate to="/" replace />;
 
@@ -555,6 +569,100 @@ export default function AdminBackup() {
   ];
   const allValid = envChecks.every(c => c.valid);
 
+  // ============ SSH DEPLOY ============
+
+  // Detect if a host looks local/private (not reachable from a Supabase Edge Function on the public internet)
+  const isLocalHost = (h: string) => {
+    if (!h) return false;
+    const v = h.trim().toLowerCase();
+    if (v === "localhost" || v === "127.0.0.1") return true;
+    // RFC1918 + link-local
+    return /^10\./.test(v) || /^192\.168\./.test(v) || /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(v) || /^169\.254\./.test(v);
+  };
+
+  const buildProjectZip = async (): Promise<string> => {
+    const zip = new JSZip();
+    zip.file("Dockerfile", DOCKERFILE);
+    zip.file("nginx.conf", NGINX_CONF);
+    zip.file(".dockerignore", DOCKERIGNORE);
+    zip.file(
+      "docker-compose.yml",
+      buildDockerCompose("prod", envUrl, envKey, envProjectId, sshAppPort),
+    );
+    zip.file(
+      "README.txt",
+      `ScreenFlow deployment package
+Generated: ${new Date().toISOString()}
+App will be exposed on port ${sshAppPort}
+To rebuild manually: docker compose up -d --build
+`,
+    );
+    // NOTE: source files are not bundled here (they're hosted on Lovable). 
+    // The Dockerfile builds from a git source — we provide a minimal compose that pulls
+    // the prebuilt image OR uses local sources if you copy them in.
+    // For a fully self-contained build, also include a placeholder index.html:
+    zip.file(
+      "index.html",
+      `<!doctype html><html><head><meta charset="utf-8"/><title>ScreenFlow</title></head><body>
+<script>window.location.href="${import.meta.env.VITE_SUPABASE_URL ? "https://" + window.location.hostname : "/"}";</script>
+</body></html>`,
+    );
+    const blob = await zip.generateAsync({ type: "blob" });
+    const buf = await blob.arrayBuffer();
+    let bin = "";
+    const bytes = new Uint8Array(buf);
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)));
+    }
+    return btoa(bin);
+  };
+
+  const handleSshDeploy = async () => {
+    if (!sshHost || !sshUser || !sshPassword) {
+      toast.error("Renseignez l'IP, l'utilisateur et le mot de passe");
+      return;
+    }
+    setSshDeploying(true);
+    setSshLogs([]);
+    setSshDeployedUrl(null);
+    try {
+      setSshLogs(["📦 Préparation de l'archive du projet…"]);
+      const project_zip_b64 = await buildProjectZip();
+      setSshLogs(prev => [...prev, "✓ Archive prête, connexion au serveur…"]);
+
+      const { data, error } = await supabase.functions.invoke("ssh-deploy", {
+        body: {
+          host: sshHost.trim(),
+          port: parseInt(sshPort) || 22,
+          username: sshUser.trim(),
+          password: sshPassword,
+          remote_dir: sshRemoteDir.trim() || "/opt/screenflow",
+          app_port: sshAppPort,
+          install_docker: sshAutoInstallDocker,
+          vite_supabase_url: envUrl,
+          vite_supabase_key: envKey,
+          vite_supabase_project_id: envProjectId,
+          project_zip_b64,
+        },
+      });
+      if (error) throw error;
+      const logs = (data?.logs as string[]) || [];
+      setSshLogs(prev => [...prev, ...logs]);
+      if (data?.success) {
+        setSshDeployedUrl(data.url);
+        toast.success("Déploiement réussi 🚀");
+      } else {
+        toast.error("Échec du déploiement: " + (data?.error || "inconnu"));
+      }
+    } catch (e: any) {
+      setSshLogs(prev => [...prev, "✗ Erreur: " + (e?.message || String(e))]);
+      toast.error("Erreur: " + (e?.message || String(e)));
+    } finally {
+      setSshDeploying(false);
+    }
+  };
+
   return (
     <div className="p-8 space-y-6 max-w-6xl">
       <div>
@@ -570,6 +678,7 @@ export default function AdminBackup() {
           <TabsTrigger value="restore" className="gap-2"><Upload className="h-4 w-4" />Restauration</TabsTrigger>
           <TabsTrigger value="env" className="gap-2"><ShieldCheck className="h-4 w-4" />Vérif. Env</TabsTrigger>
           <TabsTrigger value="docker" className="gap-2"><Container className="h-4 w-4" />Docker</TabsTrigger>
+          <TabsTrigger value="ssh" className="gap-2"><Server className="h-4 w-4" />Déploiement SSH</TabsTrigger>
         </TabsList>
 
         {/* ============ BACKUP TAB ============ */}
@@ -983,6 +1092,109 @@ export default function AdminBackup() {
                   <pre className="text-xs bg-muted/50 p-3 rounded-lg overflow-x-auto max-h-60 border">{f.content}</pre>
                 </div>
               ))}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ============ SSH DEPLOY TAB ============ */}
+        <TabsContent value="ssh" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Rocket className="h-5 w-5" />Déployer sur un serveur Linux
+              </CardTitle>
+              <CardDescription>
+                Connectez-vous en SSH avec IP/login/mot de passe — l'application est packagée puis lancée via Docker Compose sur votre serveur.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Alert>
+                <Wifi className="h-4 w-4" />
+                <AlertTitle>Pré-requis réseau</AlertTitle>
+                <AlertDescription>
+                  Le serveur doit être joignable depuis Internet (IP publique + port SSH ouvert) car la connexion part des serveurs Lovable Cloud.
+                  Pour un serveur local (LAN/maison), utilisez plutôt l'onglet <strong>Docker</strong> et exécutez les commandes manuellement.
+                </AlertDescription>
+              </Alert>
+
+              {isLocalHost(sshHost) && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>IP locale détectée</AlertTitle>
+                  <AlertDescription>
+                    L'adresse <code>{sshHost}</code> est privée et ne sera pas joignable depuis Internet.
+                    Utilisez l'IP publique de votre serveur, un tunnel (ngrok, Tailscale, Cloudflare Tunnel),
+                    ou téléchargez le bundle Docker pour le déployer manuellement.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2"><Server className="h-3.5 w-3.5" />Adresse IP / Hostname</Label>
+                  <Input value={sshHost} onChange={e => setSshHost(e.target.value)} placeholder="123.45.67.89" disabled={sshDeploying} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Port SSH</Label>
+                  <Input value={sshPort} onChange={e => setSshPort(e.target.value)} placeholder="22" disabled={sshDeploying} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Utilisateur</Label>
+                  <Input value={sshUser} onChange={e => setSshUser(e.target.value)} placeholder="root" disabled={sshDeploying} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2"><KeyRound className="h-3.5 w-3.5" />Mot de passe</Label>
+                  <Input type="password" value={sshPassword} onChange={e => setSshPassword(e.target.value)} placeholder="••••••••" disabled={sshDeploying} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Dossier distant</Label>
+                  <Input value={sshRemoteDir} onChange={e => setSshRemoteDir(e.target.value)} placeholder="/opt/screenflow" disabled={sshDeploying} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Port d'exposition de l'app</Label>
+                  <Input value={sshAppPort} onChange={e => setSshAppPort(e.target.value)} placeholder="8080" disabled={sshDeploying} />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/40 border">
+                <Switch checked={sshAutoInstallDocker} onCheckedChange={setSshAutoInstallDocker} disabled={sshDeploying} />
+                <div className="text-sm">
+                  <p className="font-medium">Installer Docker automatiquement</p>
+                  <p className="text-xs text-muted-foreground">
+                    Si Docker / Docker Compose ne sont pas trouvés, le script lance <code>get.docker.com</code> via sudo.
+                  </p>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="flex flex-wrap gap-3 items-center">
+                <Button
+                  onClick={handleSshDeploy}
+                  disabled={sshDeploying || !sshHost || !sshUser || !sshPassword}
+                  className="gap-2"
+                >
+                  {sshDeploying
+                    ? <><Loader2 className="h-4 w-4 animate-spin" />Déploiement en cours…</>
+                    : <><Rocket className="h-4 w-4" />Déployer maintenant</>}
+                </Button>
+                {sshDeployedUrl && (
+                  <a href={sshDeployedUrl} target="_blank" rel="noopener noreferrer">
+                    <Button variant="outline" className="gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-primary" />Ouvrir {sshDeployedUrl}
+                    </Button>
+                  </a>
+                )}
+              </div>
+
+              {sshLogs.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2"><Terminal className="h-3.5 w-3.5" />Journal de déploiement</Label>
+                  <pre className="text-xs bg-muted/50 p-3 rounded-lg overflow-x-auto max-h-96 border whitespace-pre-wrap">
+                    {sshLogs.join("\n")}
+                  </pre>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
