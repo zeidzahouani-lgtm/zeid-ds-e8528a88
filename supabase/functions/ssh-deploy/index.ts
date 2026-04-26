@@ -1,8 +1,9 @@
 // SSH deploy: connect to a Linux server with ip/user/password, install Docker if needed,
 // upload project archive, build & run via docker compose.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-// @ts-nocheck
-import { Client } from "npm:ssh2@1.15.0";
+import ssh2 from "https://esm.sh/ssh2@1.15.0";
+const { Client } = ssh2 as any;
+type Client = any;
 import { Buffer } from "node:buffer";
 
 const corsHeaders = {

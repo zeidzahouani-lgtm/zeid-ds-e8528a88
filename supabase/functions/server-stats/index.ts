@@ -1,7 +1,8 @@
 // Collect Linux server stats via SSH + Supabase DB stats
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-// @ts-nocheck
-import { Client } from "npm:ssh2@1.15.0";
+import ssh2 from "https://esm.sh/ssh2@1.15.0";
+const { Client } = ssh2 as any;
+type Client = any;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
