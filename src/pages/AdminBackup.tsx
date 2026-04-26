@@ -749,8 +749,22 @@ To rebuild manually: docker compose up -d --build
       setSshLogs(prev => [...prev, ...logs]);
       if (data?.success) {
         setSshDeployedUrl(data.url);
-        if (data.supabase_local) setSshLocalSupabaseInfo(data.supabase_local);
-        toast.success("Déploiement réussi 🚀");
+        const localInfo = data.supabase_local || null;
+        if (localInfo) setSshLocalSupabaseInfo(localInfo);
+        // If a local Supabase was installed, auto-fill the isolated backend fields
+        // so future deployments / restorations reuse the same instance.
+        const updates: Record<string, any> = { sshDeployedUrl: data.url, sshLocalSupabaseInfo: localInfo };
+        if (localInfo?.url) {
+          setSshSupabaseUrl(localInfo.url);
+          updates.sshSupabaseUrl = localInfo.url;
+        }
+        if (localInfo?.anon_key) {
+          setSshSupabaseKey(localInfo.anon_key);
+          updates.sshSupabaseKey = localInfo.anon_key;
+        }
+        // Persist full config (excluding password) for next time
+        persistSshConfig(updates);
+        toast.success("Déploiement réussi 🚀 Configuration sauvegardée");
       } else {
         toast.error("Échec du déploiement: " + (data?.error || "inconnu"));
       }
