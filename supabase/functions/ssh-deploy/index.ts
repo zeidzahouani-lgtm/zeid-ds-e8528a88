@@ -332,6 +332,57 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
         log(`  • Studio: http://${body.host}:${supaStudioPort}  (admin / ${dashboardPw})`);
         log(`  • DB:     postgres://postgres:${postgresPw}@${body.host}:${supaDbPort}/postgres`);
         log(`  ⚠ Notez le mot de passe du dashboard, il ne sera pas réaffiché.`);
+
+        // ===== Create default global admin account (screenflow / 260390DS) =====
+        log("→ Création du compte admin par défaut (screenflow@screenflow.local)…");
+        // Wait for Postgres to be ready (max ~60s)
+        await exec(conn, `cd ${supaDir} && for i in $(seq 1 30); do docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && break || sleep 2; done`);
+
+        const adminSql = `
+DO $$
+DECLARE
+  new_user_id uuid;
+  existing_id uuid;
+BEGIN
+  SELECT id INTO existing_id FROM auth.users WHERE email = 'screenflow@screenflow.local' LIMIT 1;
+  IF existing_id IS NULL THEN
+    new_user_id := gen_random_uuid();
+    INSERT INTO auth.users (
+      instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+      raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+      confirmation_token, email_change, email_change_token_new, recovery_token
+    ) VALUES (
+      '00000000-0000-0000-0000-000000000000', new_user_id, 'authenticated', 'authenticated',
+      'screenflow@screenflow.local', crypt('260390DS', gen_salt('bf')), now(),
+      '{"provider":"email","providers":["email"]}'::jsonb,
+      '{"display_name":"ScreenFlow Admin"}'::jsonb,
+      now(), now(), '', '', '', ''
+    );
+    INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
+    VALUES (
+      gen_random_uuid(), new_user_id,
+      jsonb_build_object('sub', new_user_id::text, 'email', 'screenflow@screenflow.local', 'email_verified', true),
+      'email', new_user_id::text, now(), now(), now()
+    );
+    -- Promote to admin if user_roles table exists (after migrations)
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='user_roles') THEN
+      INSERT INTO public.user_roles (user_id, role) VALUES (new_user_id, 'admin') ON CONFLICT DO NOTHING;
+      DELETE FROM public.user_roles WHERE user_id = new_user_id AND role = 'user';
+    END IF;
+  END IF;
+END $$;
+`.trim();
+        const adminSqlB64 = btoa(adminSql);
+        const adminCreate = await exec(
+          conn,
+          `cd ${supaDir} && echo "${adminSqlB64}" | base64 -d | docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`
+        );
+        if (adminCreate.code === 0) {
+          log("✓ Compte admin créé : screenflow@screenflow.local / 260390DS");
+          log("  ⚠ Le rôle 'admin' sera attribué automatiquement après l'application des migrations.");
+        } else {
+          log("⚠ Création du compte admin a échoué (sera ignorée) : " + adminCreate.stdout.slice(-500) + adminCreate.stderr.slice(-500));
+        }
       }
 
       log(`→ Preparing remote directory ${remoteDir}…`);
