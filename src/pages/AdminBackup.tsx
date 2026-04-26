@@ -229,7 +229,13 @@ export default function AdminBackup() {
       setProgress("Listing du bucket 'media'...");
       setProgressPct(Math.round((i / total) * 100));
       const mediaFolder = zip.folder("media")!;
-      const manifest: Array<{ name: string; size: number; path: string }> = [];
+      const manifest: Array<{ name: string; size: number; path: string; bucket: string; sha256: string }> = [];
+
+      const sha256Hex = async (blob: Blob) => {
+        const buf = await blob.arrayBuffer();
+        const hash = await crypto.subtle.digest("SHA-256", buf);
+        return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
+      };
 
       const listAll = async (bucket: string, prefix = ""): Promise<string[]> => {
         const out: string[] = [];
@@ -238,7 +244,6 @@ export default function AdminBackup() {
         for (const item of data) {
           const path = prefix ? `${prefix}/${item.name}` : item.name;
           if (item.id === null) {
-            // folder
             const sub = await listAll(bucket, path);
             out.push(...sub);
           } else {
@@ -261,7 +266,8 @@ export default function AdminBackup() {
             continue;
           }
           bucketFolder.file(path, blob);
-          manifest.push({ name: path, size: blob.size, path: `${bucketName}/${path}` });
+          const sha256 = await sha256Hex(blob);
+          manifest.push({ name: path, size: blob.size, path: `${bucketName}/${path}`, bucket: bucketName, sha256 });
         }
       }
 
@@ -271,9 +277,10 @@ export default function AdminBackup() {
       zip.file("manifest.json", JSON.stringify({
         generated_at: new Date().toISOString(),
         files_count: manifest.length,
+        buckets: ["media", "uploads"],
         files: manifest,
       }, null, 2));
-      zip.file("README.md", `# ScreenFlow Backup\n\nGénéré: ${new Date().toISOString()}\n\n- \`database.json\` : toutes les tables\n- \`media/\` : fichiers du bucket media\n- \`uploads/\` : fichiers du bucket uploads\n- \`manifest.json\` : index des médias\n`);
+      zip.file("README.md", `# ScreenFlow Backup\n\nGénéré: ${new Date().toISOString()}\n\n- \`database.json\` : toutes les tables\n- \`media/\` : fichiers du bucket media\n- \`uploads/\` : fichiers du bucket uploads\n- \`manifest.json\` : index avec hashes SHA-256\n`);
 
       const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
       const stamp = new Date().toISOString().replace(/[:.]/g, "-");
