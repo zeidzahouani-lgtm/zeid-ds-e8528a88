@@ -692,25 +692,23 @@ To rebuild manually: docker compose up -d --build
   };
 
   const getFreshAccessToken = async () => {
-    const { data: sessionData } = await supabase.auth.getSession();
-    let session = sessionData.session;
-
-    if (session) {
-      const expiresAt = session.expires_at ? session.expires_at * 1000 : 0;
-      if (!expiresAt || expiresAt - Date.now() < 60_000) {
-        const refreshed = await supabase.auth.refreshSession();
-        session = refreshed.data.session;
-      }
-    }
+    const refreshed = await supabase.auth.refreshSession();
+    let session = refreshed.data.session;
 
     if (!session?.access_token) {
-      await supabase.auth.signOut();
-      toast.error("Session expirée. Reconnectez-vous puis relancez le déploiement.");
-      window.location.href = "/login";
-      return null;
+      const fallback = await supabase.auth.getSession();
+      session = fallback.data.session;
     }
 
-    return session.access_token;
+    if (session?.access_token) {
+      const { data: userData, error: userError } = await supabase.auth.getUser(session.access_token);
+      if (!userError && userData.user) return session.access_token;
+    }
+
+    await supabase.auth.signOut();
+    toast.error("Session expirée. Reconnectez-vous puis relancez le déploiement.");
+    window.location.href = "/login";
+    return null;
   };
 
   const handleSshDeploy = async () => {
