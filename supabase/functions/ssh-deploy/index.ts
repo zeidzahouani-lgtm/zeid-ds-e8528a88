@@ -453,37 +453,25 @@ openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
         log("⚠ Compose stderr: " + up.stderr.slice(-1500));
         throw new Error("docker compose failed");
       }
-      log("✓ Containers started");
+    await log("✓ Containers started");
 
-      const ps = await exec(conn, `cd ${remoteDir}/repo && (docker compose ps || docker-compose ps)`);
-      log(ps.stdout);
+    const ps = await exec(conn, `cd ${remoteDir}/repo && (docker compose ps || docker-compose ps)`);
+    await log(ps.stdout);
 
-      conn.end();
-      const url = enableHttps ? `https://${body.host}:${httpsPort}` : `http://${body.host}:${appPort}`;
-      log(`🚀 Deployment complete — accessible at ${url}`);
+    conn.end();
+    const url = enableHttps ? `https://${body.host}:${httpsPort}` : `http://${body.host}:${appPort}`;
+    await log(`🚀 Deployment complete — accessible at ${url}`);
 
-      return new Response(JSON.stringify({
-        success: true,
-        url,
-        logs,
-        supabase_local: installSupabase ? {
-          url: supabaseUrlOverride,
-          anon_key: supabaseAnonOverride,
-          studio_url: `http://${body.host}:${supaStudioPort}`,
-        } : null,
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    } catch (innerErr: any) {
-      try { conn.end(); } catch (_) {}
-      throw innerErr;
-    }
-  } catch (e: any) {
-    log("✗ ERROR: " + (e?.message || String(e)));
-    return new Response(JSON.stringify({ success: false, error: e?.message || String(e), logs }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    (globalThis as any).__lastDeployResult = {
+      url,
+      supabase_local: installSupabase ? {
+        url: supabaseUrlOverride,
+        anon_key: supabaseAnonOverride,
+        studio_url: `http://${body.host}:${supaStudioPort}`,
+      } : null,
+    };
+  } catch (innerErr: any) {
+    try { conn.end(); } catch (_) {}
+    throw innerErr;
   }
-});
+}
