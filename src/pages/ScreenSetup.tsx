@@ -51,10 +51,10 @@ function StepList({ steps }: { steps: string[] }) {
   );
 }
 
-function ScreenRow({ screen, updateScreen }: { screen: any; updateScreen: any }) {
+function ScreenRow({ screen, updateScreen, playerBase }: { screen: any; updateScreen: any; playerBase: string }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(screen.name);
-  const url = `${playerUrl}${screen.slug || screen.id}`;
+  const url = `${playerBase}${screen.slug || screen.id}`;
 
   const handleSave = () => {
     if (!name.trim()) return;
