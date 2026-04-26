@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
