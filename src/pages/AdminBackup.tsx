@@ -644,20 +644,23 @@ To rebuild manually: docker compose up -d --build
       toast.error("Renseignez l'URL du dépôt Git");
       return;
     }
-    if (sshIsolateBackend && (!sshSupabaseUrl || !sshSupabaseKey || !sshSupabaseProjectId)) {
-      toast.error("Backend isolé activé : renseignez l'URL, la clé et le project ID Supabase du serveur local");
+    // Validation: backend creds required only if isolating WITHOUT installing local Supabase
+    if (sshIsolateBackend && !sshInstallSupabaseLocal && (!sshSupabaseUrl || !sshSupabaseKey || !sshSupabaseProjectId)) {
+      toast.error("Backend isolé activé : renseignez l'URL, la clé et le project ID Supabase OU activez 'Installer Supabase local'");
       return;
     }
-    const backendUrl = sshIsolateBackend ? sshSupabaseUrl.trim() : envUrl;
-    const backendKey = sshIsolateBackend ? sshSupabaseKey.trim() : envKey;
-    const backendProjectId = sshIsolateBackend ? sshSupabaseProjectId.trim() : envProjectId;
-    if (sshIsolateBackend && backendUrl === envUrl) {
+    // When installing local Supabase, the function will override the creds itself
+    const backendUrl = sshInstallSupabaseLocal ? "" : (sshIsolateBackend ? sshSupabaseUrl.trim() : envUrl);
+    const backendKey = sshInstallSupabaseLocal ? "" : (sshIsolateBackend ? sshSupabaseKey.trim() : envKey);
+    const backendProjectId = sshInstallSupabaseLocal ? "" : (sshIsolateBackend ? sshSupabaseProjectId.trim() : envProjectId);
+    if (sshIsolateBackend && !sshInstallSupabaseLocal && backendUrl === envUrl) {
       toast.error("L'URL Supabase du serveur local doit être DIFFÉRENTE de celle du projet en ligne");
       return;
     }
     setSshDeploying(true);
     setSshLogs([]);
     setSshDeployedUrl(null);
+    setSshLocalSupabaseInfo(null);
     try {
       setSshLogs(["🔌 Connexion au serveur…"]);
 
@@ -679,6 +682,10 @@ To rebuild manually: docker compose up -d --build
           enable_https: sshEnableHttps,
           https_port: sshHttpsPort,
           https_domain: sshHttpsDomain.trim() || undefined,
+          install_supabase_local: sshInstallSupabaseLocal,
+          supabase_kong_http_port: sshSupaKongPort,
+          supabase_studio_port: sshSupaStudioPort,
+          supabase_db_port: sshSupaDbPort,
         },
       });
       if (error) throw error;
@@ -686,6 +693,7 @@ To rebuild manually: docker compose up -d --build
       setSshLogs(prev => [...prev, ...logs]);
       if (data?.success) {
         setSshDeployedUrl(data.url);
+        if (data.supabase_local) setSshLocalSupabaseInfo(data.supabase_local);
         toast.success("Déploiement réussi 🚀");
       } else {
         toast.error("Échec du déploiement: " + (data?.error || "inconnu"));
