@@ -243,6 +243,8 @@ export default function Login() {
           </div>
         </div>
       )}
+
+      <LoginRestoreButton />
     </div>
   );
 }
