@@ -193,6 +193,62 @@ export default function AdminBackup() {
   const [sshLogs, setSshLogs] = useState<string[]>([]);
   const [sshDeployedUrl, setSshDeployedUrl] = useState<string | null>(null);
 
+  // ===== Persist SSH + local Supabase config in localStorage =====
+  const SSH_CONFIG_KEY = "screenflow.ssh_deploy_config.v1";
+  const hasLoadedConfigRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (hasLoadedConfigRef.current) return;
+    hasLoadedConfigRef.current = true;
+    try {
+      const raw = localStorage.getItem(SSH_CONFIG_KEY);
+      if (!raw) return;
+      const c = JSON.parse(raw);
+      if (c.sshHost) setSshHost(c.sshHost);
+      if (c.sshPort) setSshPort(c.sshPort);
+      if (c.sshUser) setSshUser(c.sshUser);
+      if (c.sshRemoteDir) setSshRemoteDir(c.sshRemoteDir);
+      if (c.sshAppPort) setSshAppPort(c.sshAppPort);
+      if (typeof c.sshAutoInstallDocker === "boolean") setSshAutoInstallDocker(c.sshAutoInstallDocker);
+      if (c.sshGitUrl) setSshGitUrl(c.sshGitUrl);
+      if (c.sshGitBranch) setSshGitBranch(c.sshGitBranch);
+      if (typeof c.sshEnableHttps === "boolean") setSshEnableHttps(c.sshEnableHttps);
+      if (c.sshHttpsPort) setSshHttpsPort(c.sshHttpsPort);
+      if (c.sshHttpsDomain) setSshHttpsDomain(c.sshHttpsDomain);
+      if (typeof c.sshIsolateBackend === "boolean") setSshIsolateBackend(c.sshIsolateBackend);
+      if (c.sshSupabaseUrl) setSshSupabaseUrl(c.sshSupabaseUrl);
+      if (c.sshSupabaseKey) setSshSupabaseKey(c.sshSupabaseKey);
+      if (c.sshSupabaseProjectId) setSshSupabaseProjectId(c.sshSupabaseProjectId);
+      if (typeof c.sshInstallSupabaseLocal === "boolean") setSshInstallSupabaseLocal(c.sshInstallSupabaseLocal);
+      if (c.sshSupaKongPort) setSshSupaKongPort(c.sshSupaKongPort);
+      if (c.sshSupaStudioPort) setSshSupaStudioPort(c.sshSupaStudioPort);
+      if (c.sshSupaDbPort) setSshSupaDbPort(c.sshSupaDbPort);
+      if (c.sshLocalSupabaseInfo) setSshLocalSupabaseInfo(c.sshLocalSupabaseInfo);
+      if (c.sshDeployedUrl) setSshDeployedUrl(c.sshDeployedUrl);
+    } catch {}
+  }, []);
+
+  const persistSshConfig = (extra?: Record<string, any>) => {
+    try {
+      const payload = {
+        sshHost, sshPort, sshUser, sshRemoteDir, sshAppPort, sshAutoInstallDocker,
+        sshGitUrl, sshGitBranch,
+        sshEnableHttps, sshHttpsPort, sshHttpsDomain,
+        sshIsolateBackend, sshSupabaseUrl, sshSupabaseKey, sshSupabaseProjectId,
+        sshInstallSupabaseLocal, sshSupaKongPort, sshSupaStudioPort, sshSupaDbPort,
+        sshLocalSupabaseInfo, sshDeployedUrl,
+        ...(extra || {}),
+        _saved_at: new Date().toISOString(),
+      };
+      localStorage.setItem(SSH_CONFIG_KEY, JSON.stringify(payload));
+    } catch {}
+  };
+
+  const clearSshConfig = () => {
+    try { localStorage.removeItem(SSH_CONFIG_KEY); } catch {}
+    toast.success("Configuration locale effacée");
+  };
+
   if (!isGlobalAdmin) return <Navigate to="/" replace />;
 
   // ============ EXPORTS ============
