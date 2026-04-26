@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.send-credentials]
 verify_jwt = false
+
+[functions.ssh-deploy]
+verify_jwt = false
+
+[functions.server-stats]
+verify_jwt = false
