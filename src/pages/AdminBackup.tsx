@@ -829,7 +829,87 @@ To rebuild manually: docker compose up -d --build
     toast.success("Déploiement réussi 🚀 Configuration sauvegardée");
   };
 
-  return (
+  const handleResetAdminPassword = async () => {
+    if (!sshHost || !sshUser || !sshPassword) {
+      toast.error("Renseignez l'IP, l'utilisateur et le mot de passe SSH");
+      return;
+    }
+    const customPwd = window.prompt(
+      "Nouveau mot de passe pour screenflow@screenflow.local\n(laisser vide pour rétablir la valeur par défaut '260390DS') :",
+      ""
+    );
+    if (customPwd === null) return; // user cancelled
+    const newPwd = customPwd.trim();
+    if (newPwd && newPwd.length < 6) {
+      toast.error("Le mot de passe doit contenir au moins 6 caractères");
+      return;
+    }
+    if (!window.confirm(
+      `Confirmer la réinitialisation du compte admin sur ${sshHost} ?\n\n` +
+      `Email : screenflow@screenflow.local\n` +
+      `Mot de passe : ${newPwd || "260390DS (défaut)"}`
+    )) return;
+
+    setSshDeploying(true);
+    setSshLogs(["🔐 Vérification de la session admin…"]);
+    try {
+      const accessToken = await getFreshAccessToken();
+      if (!accessToken) return;
+
+      setSshLogs(prev => [...prev, "🔌 Connexion au serveur pour reset…"]);
+      const { data, error } = await supabase.functions.invoke("ssh-deploy", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: {
+          action: "reset_admin_password",
+          host: sshHost.trim(),
+          port: parseInt(sshPort) || 22,
+          username: sshUser.trim(),
+          password: sshPassword,
+          remote_dir: sshRemoteDir.trim() || "/opt/screenflow",
+          admin_password: newPwd || undefined,
+        },
+      });
+      if (error) throw error;
+
+      const jobId = data?.job_id as string | undefined;
+      if (!jobId) {
+        toast.error("Job non démarré");
+        return;
+      }
+      setSshLogs(prev => [...prev, `📋 Job ${jobId} démarré…`]);
+      const settingsKey = `ssh_deploy_job:${jobId}`;
+      const start = Date.now();
+      const maxMs = 5 * 60 * 1000;
+      while (Date.now() - start < maxMs) {
+        await new Promise(r => setTimeout(r, 3000));
+        const { data: row } = await supabase
+          .from("app_settings")
+          .select("value")
+          .eq("key", settingsKey)
+          .maybeSingle();
+        if (!row?.value) continue;
+        let parsed: any;
+        try { parsed = JSON.parse(row.value as string); } catch { continue; }
+        if (Array.isArray(parsed.logs)) setSshLogs(parsed.logs);
+        if (parsed.status === "success") {
+          toast.success("Mot de passe admin réinitialisé ✓");
+          return;
+        }
+        if (parsed.status === "error") {
+          toast.error("Échec : " + (parsed.error || "inconnu"));
+          return;
+        }
+      }
+      toast.warning("Délai dépassé — consultez les logs.");
+    } catch (e: any) {
+      setSshLogs(prev => [...prev, "✗ Erreur: " + (e?.message || String(e))]);
+      toast.error("Erreur: " + (e?.message || String(e)));
+    } finally {
+      setSshDeploying(false);
+    }
+  };
+
+
     <div className="p-8 space-y-6 max-w-6xl">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Backup & Déploiement</h1>
