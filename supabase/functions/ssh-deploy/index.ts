@@ -28,6 +28,11 @@ interface DeployBody {
   enable_https?: boolean;
   https_port?: string;
   https_domain?: string;
+  // Local self-hosted Supabase (optional)
+  install_supabase_local?: boolean;
+  supabase_kong_http_port?: string;   // public REST/Auth gateway (default 8000)
+  supabase_studio_port?: string;      // Supabase Studio UI (default 3000)
+  supabase_db_port?: string;          // Postgres (default 5432)
 }
 
 function ssh(opts: { host: string; port: number; username: string; password: string }): Promise<Client> {
