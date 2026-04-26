@@ -95,22 +95,50 @@ function uploadFile(conn: Client, remotePath: string, content: Buffer): Promise<
   });
 }
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-
+// Background job runner: persists progress to public.app_settings under key ssh_deploy_job:<jobId>
+async function runDeploymentJob(
+  jobId: string,
+  body: DeployBody,
+  serviceClient: ReturnType<typeof createClient>,
+) {
   const logs: string[] = [];
-  const log = (m: string) => {
-    console.log(m);
+  const settingsKey = `ssh_deploy_job:${jobId}`;
+
+  const persist = async (patch: Record<string, unknown>) => {
+    const value = JSON.stringify({
+      job_id: jobId,
+      updated_at: new Date().toISOString(),
+      ...patch,
+    });
+    await serviceClient
+      .from("app_settings")
+      .upsert({ key: settingsKey, value }, { onConflict: "key" });
+  };
+
+  const log = async (m: string) => {
+    console.log(`[${jobId}]`, m);
     logs.push(m);
+    await persist({ status: "running", logs });
   };
 
   try {
-    // Auth: must be global admin
+    await persist({ status: "running", logs: [] });
+    await runDeployment(body, log);
+    await persist({ status: "success", logs, result: (globalThis as any).__lastDeployResult || null });
+  } catch (e: any) {
+    logs.push("✗ ERROR: " + (e?.message || String(e)));
+    await persist({ status: "error", logs, error: e?.message || String(e) });
+  }
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
     const supabase = createClient(
@@ -121,52 +149,77 @@ Deno.serve(async (req) => {
     const { data: userData, error: userErr } = await supabase.auth.getUser();
     if (userErr || !userData?.user) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
     const { data: isAdmin } = await supabase.rpc("has_role", {
-      _user_id: userData.user.id,
-      _role: "admin",
+      _user_id: userData.user.id, _role: "admin",
     });
     if (!isAdmin) {
       return new Response(JSON.stringify({ error: "Forbidden — admin only" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const body = (await req.json()) as DeployBody;
     if (!body.host || !body.username || !body.password || !body.git_url) {
       return new Response(JSON.stringify({ error: "Missing required fields (host, username, password, git_url)" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const port = body.port ?? 22;
-    const remoteDir = body.remote_dir || "/opt/screenflow";
-    const appPort = body.app_port || "8080";
-    const branch = body.git_branch || "main";
-    const enableHttps = !!body.enable_https;
-    const httpsPort = body.https_port || "8443";
-    const httpsDomain = (body.https_domain || body.host).trim();
-    const installSupabase = !!body.install_supabase_local;
-    const supaKongPort = body.supabase_kong_http_port || "8000";
-    const supaStudioPort = body.supabase_studio_port || "3001";
-    const supaDbPort = body.supabase_db_port || "5432";
-    let supabaseUrlOverride = "";
-    let supabaseAnonOverride = "";
-    let supabaseProjectIdOverride = "";
+    // Service-role client used by background task to persist job progress (bypasses RLS via service key)
+    const serviceClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
 
-    let gitUrl = body.git_url.trim();
-    if (body.git_token && /^https?:\/\//.test(gitUrl)) {
-      gitUrl = gitUrl.replace(/^(https?:\/\/)/, `$1${encodeURIComponent(body.git_token)}@`);
-    }
+    const jobId = crypto.randomUUID();
 
-    log(`→ Connecting to ${body.username}@${body.host}:${port}…`);
-    const conn = await ssh({ host: body.host, port, username: body.username, password: body.password });
-    log("✓ SSH connection established");
+    // @ts-ignore - EdgeRuntime is provided by Supabase Functions runtime
+    EdgeRuntime.waitUntil(runDeploymentJob(jobId, body, serviceClient));
+
+    return new Response(JSON.stringify({
+      success: true,
+      job_id: jobId,
+      status_key: `ssh_deploy_job:${jobId}`,
+      message: "Déploiement lancé en arrière-plan. Suivez la progression via le polling.",
+    }), {
+      status: 202,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (e: any) {
+    return new Response(JSON.stringify({ success: false, error: e?.message || String(e) }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
+
+// ===== The actual deployment logic, now wrapped =====
+async function runDeployment(body: DeployBody, log: (m: string) => Promise<void> | void) {
+  const port = body.port ?? 22;
+  const remoteDir = body.remote_dir || "/opt/screenflow";
+  const appPort = body.app_port || "8080";
+  const branch = body.git_branch || "main";
+  const enableHttps = !!body.enable_https;
+  const httpsPort = body.https_port || "8443";
+  const httpsDomain = (body.https_domain || body.host).trim();
+  const installSupabase = !!body.install_supabase_local;
+  const supaKongPort = body.supabase_kong_http_port || "8000";
+  const supaStudioPort = body.supabase_studio_port || "3001";
+  const supaDbPort = body.supabase_db_port || "5432";
+  let supabaseUrlOverride = "";
+  let supabaseAnonOverride = "";
+  let supabaseProjectIdOverride = "";
+
+  let gitUrl = body.git_url.trim();
+  if (body.git_token && /^https?:\/\//.test(gitUrl)) {
+    gitUrl = gitUrl.replace(/^(https?:\/\/)/, `$1${encodeURIComponent(body.git_token)}@`);
+  }
+
+  await log(`→ Connecting to ${body.username}@${body.host}:${port}…`);
+  const conn = await ssh({ host: body.host, port, username: body.username, password: body.password });
+  await log("✓ SSH connection established");
 
     try {
       log("→ Checking Docker installation…");
@@ -400,37 +453,25 @@ openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
         log("⚠ Compose stderr: " + up.stderr.slice(-1500));
         throw new Error("docker compose failed");
       }
-      log("✓ Containers started");
+    await log("✓ Containers started");
 
-      const ps = await exec(conn, `cd ${remoteDir}/repo && (docker compose ps || docker-compose ps)`);
-      log(ps.stdout);
+    const ps = await exec(conn, `cd ${remoteDir}/repo && (docker compose ps || docker-compose ps)`);
+    await log(ps.stdout);
 
-      conn.end();
-      const url = enableHttps ? `https://${body.host}:${httpsPort}` : `http://${body.host}:${appPort}`;
-      log(`🚀 Deployment complete — accessible at ${url}`);
+    conn.end();
+    const url = enableHttps ? `https://${body.host}:${httpsPort}` : `http://${body.host}:${appPort}`;
+    await log(`🚀 Deployment complete — accessible at ${url}`);
 
-      return new Response(JSON.stringify({
-        success: true,
-        url,
-        logs,
-        supabase_local: installSupabase ? {
-          url: supabaseUrlOverride,
-          anon_key: supabaseAnonOverride,
-          studio_url: `http://${body.host}:${supaStudioPort}`,
-        } : null,
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    } catch (innerErr: any) {
-      try { conn.end(); } catch (_) {}
-      throw innerErr;
-    }
-  } catch (e: any) {
-    log("✗ ERROR: " + (e?.message || String(e)));
-    return new Response(JSON.stringify({ success: false, error: e?.message || String(e), logs }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    (globalThis as any).__lastDeployResult = {
+      url,
+      supabase_local: installSupabase ? {
+        url: supabaseUrlOverride,
+        anon_key: supabaseAnonOverride,
+        studio_url: `http://${body.host}:${supaStudioPort}`,
+      } : null,
+    };
+  } catch (innerErr: any) {
+    try { conn.end(); } catch (_) {}
+    throw innerErr;
   }
-});
+}
