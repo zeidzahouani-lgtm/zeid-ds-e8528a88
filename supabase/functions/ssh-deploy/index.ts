@@ -540,7 +540,7 @@ END $$;
 DO $$
 DECLARE uid uuid;
 BEGIN
-  SELECT id INTO uid FROM auth.users WHERE email='screenflow@screenflow.local' LIMIT 1;
+  SELECT id INTO uid FROM auth.users WHERE lower(email)=lower('${DEFAULT_ADMIN_EMAIL}') LIMIT 1;
   IF uid IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='user_roles') THEN
     INSERT INTO public.user_roles (user_id, role) VALUES (uid, 'admin') ON CONFLICT DO NOTHING;
     DELETE FROM public.user_roles WHERE user_id=uid AND role='user';
@@ -554,6 +554,11 @@ END $$;
         );
         if (promote.code === 0) log("✓ Rôle admin attribué à screenflow@screenflow.local");
         else log("⚠ Promotion admin échouée : " + promote.stdout.slice(-400) + promote.stderr.slice(-400));
+
+        await log("→ Test réel du login admin local…");
+        const internalSupaUrl = `http://127.0.0.1:${supaKongPort}`;
+        await verifyAuthLoginFromServer(conn, internalSupaUrl, supabaseAnonOverride, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD, log);
+        await verifyPublicAuthLogin(supabaseUrlOverride, supabaseAnonOverride, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD, log);
       }
 
 
@@ -676,8 +681,8 @@ openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
     await log("🔐  COMPTE ADMINISTRATEUR PAR DÉFAUT");
     await log("════════════════════════════════════════════════════════════");
     await log(`   URL de connexion : ${url}/login`);
-    await log(`   Email            : screenflow@screenflow.local`);
-    await log(`   Mot de passe     : 260390DS`);
+    await log(`   Email            : ${DEFAULT_ADMIN_EMAIL}`);
+    await log(`   Mot de passe     : ${DEFAULT_ADMIN_PASSWORD}`);
     await log(`   Rôle             : admin (global)`);
     await log("   ⚠  Pensez à changer ce mot de passe après la 1ʳᵉ connexion.");
     await log("════════════════════════════════════════════════════════════");
