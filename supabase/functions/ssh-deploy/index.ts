@@ -289,6 +289,23 @@ ${portsBlock}
       await uploadFile(conn, `${remoteDir}/repo/docker-compose.yml`, Buffer.from(compose));
       log("✓ Build files ready");
 
+      if (enableHttps) {
+        log("→ Generating self-signed SSL certificate…");
+        const cnEsc = httpsDomain.replace(/'/g, "");
+        const sslCmd = `mkdir -p ${remoteDir}/repo/ssl && \
+(command -v openssl || ${sudoPrefix}sh -c "(apt-get install -y openssl) || (dnf install -y openssl) || (yum install -y openssl)") && \
+openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
+  -keyout ${remoteDir}/repo/ssl/server.key \
+  -out ${remoteDir}/repo/ssl/server.crt \
+  -subj "/CN=${cnEsc}" \
+  -addext "subjectAltName=DNS:${cnEsc},IP:${body.host}" 2>&1`;
+        const ssl = await exec(conn, sslCmd);
+        log(ssl.stdout.slice(-800));
+        if (ssl.code !== 0) {
+          throw new Error("Échec de génération du certificat SSL: " + ssl.stderr.slice(-300));
+        }
+        log("✓ Certificat SSL généré");
+      }
 
       log("→ Building & starting containers (docker compose up -d --build)…");
       const composeCmd = `cd ${remoteDir}/repo && (docker compose up -d --build || docker-compose up -d --build) 2>&1`;
@@ -304,7 +321,7 @@ ${portsBlock}
       log(ps.stdout);
 
       conn.end();
-      const url = `http://${body.host}:${appPort}`;
+      const url = enableHttps ? `https://${body.host}:${httpsPort}` : `http://${body.host}:${appPort}`;
       log(`🚀 Deployment complete — accessible at ${url}`);
 
       return new Response(JSON.stringify({ success: true, url, logs }), {
