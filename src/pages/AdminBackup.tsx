@@ -1267,27 +1267,63 @@ To rebuild manually: docker compose up -d --build
                 </div>
                 {sshIsolateBackend ? (
                   <div className="space-y-3 pl-12">
-                    <Alert>
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertTitle>Instance Supabase indépendante requise</AlertTitle>
-                      <AlertDescription className="text-xs">
-                        Créez un nouveau projet Supabase (cloud ou self-hosted), puis collez ses identifiants ci-dessous. La structure (tables, RLS, edge functions) doit y être répliquée — utilisez l'onglet <strong>Sauvegarde</strong> pour exporter puis l'onglet <strong>Restauration</strong> pointé vers la nouvelle base.
-                      </AlertDescription>
-                    </Alert>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="space-y-1.5 md:col-span-2">
-                        <Label className="text-xs">Supabase URL (serveur local)</Label>
-                        <Input value={sshSupabaseUrl} onChange={e => setSshSupabaseUrl(e.target.value)} placeholder="https://xxxx.supabase.co" disabled={sshDeploying} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Project ID</Label>
-                        <Input value={sshSupabaseProjectId} onChange={e => setSshSupabaseProjectId(e.target.value)} placeholder="xxxx" disabled={sshDeploying} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Anon / Publishable Key</Label>
-                        <Input type="password" value={sshSupabaseKey} onChange={e => setSshSupabaseKey(e.target.value)} placeholder="eyJhbGciOi…" disabled={sshDeploying} />
+                    <div className="flex items-center gap-2 p-2.5 rounded-md bg-primary/5 border border-primary/20">
+                      <Switch checked={sshInstallSupabaseLocal} onCheckedChange={setSshInstallSupabaseLocal} disabled={sshDeploying} />
+                      <div className="text-sm">
+                        <p className="font-medium flex items-center gap-1.5"><Container className="h-3.5 w-3.5" />Installer Supabase self-hosted sur ce même serveur</p>
+                        <p className="text-xs text-muted-foreground">
+                          Déploie automatiquement une instance Supabase complète (Postgres, Auth, Storage, Studio) via Docker. L'app sera configurée pour l'utiliser. ~3-5 min.
+                        </p>
                       </div>
                     </div>
+
+                    {sshInstallSupabaseLocal ? (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Port API (Kong)</Label>
+                          <Input value={sshSupaKongPort} onChange={e => setSshSupaKongPort(e.target.value)} placeholder="8000" disabled={sshDeploying} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Port Studio</Label>
+                          <Input value={sshSupaStudioPort} onChange={e => setSshSupaStudioPort(e.target.value)} placeholder="3001" disabled={sshDeploying} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Port Postgres</Label>
+                          <Input value={sshSupaDbPort} onChange={e => setSshSupaDbPort(e.target.value)} placeholder="5432" disabled={sshDeploying} />
+                        </div>
+                        <Alert className="md:col-span-3">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription className="text-xs">
+                            Les identifiants de connexion (anon key, mot de passe Studio, mot de passe Postgres) seront affichés dans les logs après le déploiement. <strong>Sauvegardez-les</strong>.
+                            La structure (tables, RLS, fonctions) doit ensuite être appliquée via l'onglet <strong>Sauvegarde / Restauration</strong>.
+                          </AlertDescription>
+                        </Alert>
+                      </div>
+                    ) : (
+                      <>
+                        <Alert>
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertTitle>Instance Supabase indépendante requise</AlertTitle>
+                          <AlertDescription className="text-xs">
+                            Renseignez ci-dessous les identifiants d'une instance Supabase existante (cloud ou self-hosted).
+                          </AlertDescription>
+                        </Alert>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="space-y-1.5 md:col-span-2">
+                            <Label className="text-xs">Supabase URL (serveur local)</Label>
+                            <Input value={sshSupabaseUrl} onChange={e => setSshSupabaseUrl(e.target.value)} placeholder="https://xxxx.supabase.co" disabled={sshDeploying} />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Project ID</Label>
+                            <Input value={sshSupabaseProjectId} onChange={e => setSshSupabaseProjectId(e.target.value)} placeholder="xxxx" disabled={sshDeploying} />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Anon / Publishable Key</Label>
+                            <Input type="password" value={sshSupabaseKey} onChange={e => setSshSupabaseKey(e.target.value)} placeholder="eyJhbGciOi…" disabled={sshDeploying} />
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ) : (
                   <Alert variant="destructive" className="ml-12">
