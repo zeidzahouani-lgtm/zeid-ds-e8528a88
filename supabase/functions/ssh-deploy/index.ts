@@ -862,3 +862,135 @@ async function runResetAdminPassword(body: DeployBody, log: (m: string) => Promi
     try { conn.end(); } catch (_) {}
   }
 }
+
+// ===== Read-only check of the default admin account on the local self-hosted Supabase =====
+async function runCheckAdminStatus(
+  body: DeployBody,
+  log: (m: string) => Promise<void> | void,
+  persist: (patch: Record<string, unknown>) => Promise<void>,
+) {
+  const port = body.port ?? 22;
+  const remoteDir = body.remote_dir || "/opt/screenflow";
+  const supaDir = `${remoteDir}/supabase`;
+
+  const result: {
+    auth_user_exists: boolean;
+    email_confirmed: boolean;
+    has_admin_role: boolean;
+    has_profile: boolean;
+    can_login: boolean;
+    user_id: string | null;
+    public_url: string | null;
+  } = {
+    auth_user_exists: false,
+    email_confirmed: false,
+    has_admin_role: false,
+    has_profile: false,
+    can_login: false,
+    user_id: null,
+    public_url: null,
+  };
+
+  await log(`→ Connexion SSH ${body.username}@${body.host}:${port}…`);
+  const conn = await ssh({ host: body.host, port, username: body.username, password: body.password });
+  await log("✓ SSH connecté");
+
+  try {
+    const check = await exec(conn, `[ -f ${supaDir}/docker-compose.yml ] && echo OK || echo MISSING`);
+    if (!check.stdout.includes("OK")) {
+      throw new Error(
+        `Aucune installation Supabase locale trouvée dans ${supaDir}. ` +
+        `Lancez d'abord un déploiement complet.`
+      );
+    }
+    await log(`✓ Stack Supabase locale détectée dans ${supaDir}`);
+
+    // Wait for Postgres
+    await exec(conn, `cd ${supaDir} && for i in $(seq 1 30); do docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && break || sleep 2; done`);
+
+    // 1. Check auth.users
+    await log(`→ Recherche de ${DEFAULT_ADMIN_EMAIL} dans auth.users…`);
+    const userQuery = await exec(
+      conn,
+      `cd ${supaDir} && docker compose exec -T db psql -At -U postgres -d postgres -F'|' -c "select id::text, coalesce(email_confirmed_at::text,'') from auth.users where lower(email)=lower('${DEFAULT_ADMIN_EMAIL}') limit 1" 2>/dev/null || true`
+    );
+    const userLine = (userQuery.stdout || "").trim().split("\n").find(l => l.includes("|") && !l.startsWith("(")) || "";
+    if (userLine) {
+      const [uid, confirmed] = userLine.split("|");
+      if (uid && uid.length > 10) {
+        result.auth_user_exists = true;
+        result.user_id = uid.trim();
+        result.email_confirmed = !!(confirmed && confirmed.trim().length > 0);
+        await log(`✓ Compte Auth trouvé (id=${result.user_id.slice(0, 8)}…, confirmé=${result.email_confirmed})`);
+      }
+    }
+    if (!result.auth_user_exists) {
+      await log(`✗ Aucun compte Auth pour ${DEFAULT_ADMIN_EMAIL}`);
+    }
+
+    // 2. Check public.user_roles
+    if (result.auth_user_exists) {
+      await log("→ Vérification du rôle admin dans public.user_roles…");
+      const roleQuery = await exec(
+        conn,
+        `cd ${supaDir} && docker compose exec -T db psql -At -U postgres -d postgres -c "select 1 from public.user_roles where user_id='${result.user_id}' and role='admin' limit 1" 2>/dev/null || true`
+      );
+      result.has_admin_role = (roleQuery.stdout || "").trim().includes("1");
+      await log(result.has_admin_role ? "✓ Rôle admin présent" : "✗ Rôle admin manquant");
+
+      // 3. Profile
+      const profileQuery = await exec(
+        conn,
+        `cd ${supaDir} && docker compose exec -T db psql -At -U postgres -d postgres -c "select 1 from public.profiles where id='${result.user_id}' limit 1" 2>/dev/null || true`
+      );
+      result.has_profile = (profileQuery.stdout || "").trim().includes("1");
+      await log(result.has_profile ? "✓ Profil public trouvé" : "✗ Profil public manquant");
+    }
+
+    // 4. Real login test (only if user exists, role ok, with the default password)
+    const kongPort = await readRemoteEnv(conn, `${supaDir}/.env`, "KONG_HTTP_PORT") || "8000";
+    const publicUrl = await readRemoteEnv(conn, `${supaDir}/.env`, "SUPABASE_PUBLIC_URL")
+      || await readRemoteEnv(conn, `${supaDir}/.env`, "API_EXTERNAL_URL")
+      || `http://${body.host}:${kongPort}`;
+    result.public_url = publicUrl;
+    const anonKey = await readRemoteEnv(conn, `${supaDir}/.env`, "ANON_KEY")
+      || await readRemoteEnv(conn, `${supaDir}/.env`, "SUPABASE_PUBLISHABLE_KEY");
+
+    if (result.auth_user_exists && result.has_admin_role && anonKey) {
+      await log("→ Test de login (mot de passe par défaut)…");
+      try {
+        await ensureLocalAuthGateway(conn, supaDir, kongPort, log);
+        await verifyAuthLoginFromServer(
+          conn,
+          `http://127.0.0.1:${kongPort}`,
+          anonKey,
+          DEFAULT_ADMIN_EMAIL,
+          DEFAULT_ADMIN_PASSWORD,
+          log,
+          buildDirectKongAuthLoginCommand(supaDir, anonKey, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD),
+        );
+        result.can_login = true;
+        await log("✓ Login réel réussi avec le mot de passe par défaut");
+      } catch (e: any) {
+        await log("⚠ Login refusé : " + (e?.message || String(e)));
+      }
+    }
+
+    await log("");
+    await log("════════════════════════════════════════════════════════════");
+    await log("📋  ÉTAT DU PREMIER COMPTE ADMIN");
+    await log("════════════════════════════════════════════════════════════");
+    await log(`   Email           : ${DEFAULT_ADMIN_EMAIL}`);
+    await log(`   Compte Auth     : ${result.auth_user_exists ? "✓ existe" : "✗ absent"}`);
+    await log(`   Email confirmé  : ${result.email_confirmed ? "✓" : "✗"}`);
+    await log(`   Rôle admin      : ${result.has_admin_role ? "✓" : "✗"}`);
+    await log(`   Profil public   : ${result.has_profile ? "✓" : "✗"}`);
+    await log(`   Login fonctionne: ${result.can_login ? "✓ (mdp défaut)" : "✗ (mdp inconnu ou compte cassé)"}`);
+    await log("════════════════════════════════════════════════════════════");
+
+    await persist({ status: "running", check_result: result });
+    (globalThis as any).__lastDeployResult = { action: "check_admin_status", ...result };
+  } finally {
+    try { conn.end(); } catch (_) {}
+  }
+}
