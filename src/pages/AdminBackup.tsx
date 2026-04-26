@@ -770,35 +770,63 @@ To rebuild manually: docker compose up -d --build
         },
       });
       if (error) throw error;
-      const logs = (data?.logs as string[]) || [];
-      setSshLogs(prev => [...prev, ...logs]);
-      if (data?.success) {
-        setSshDeployedUrl(data.url);
-        const localInfo = data.supabase_local || null;
-        if (localInfo) setSshLocalSupabaseInfo(localInfo);
-        // If a local Supabase was installed, auto-fill the isolated backend fields
-        // so future deployments / restorations reuse the same instance.
-        const updates: Record<string, any> = { sshDeployedUrl: data.url, sshLocalSupabaseInfo: localInfo };
-        if (localInfo?.url) {
-          setSshSupabaseUrl(localInfo.url);
-          updates.sshSupabaseUrl = localInfo.url;
-        }
-        if (localInfo?.anon_key) {
-          setSshSupabaseKey(localInfo.anon_key);
-          updates.sshSupabaseKey = localInfo.anon_key;
-        }
-        // Persist full config (excluding password) for next time
-        persistSshConfig(updates);
-        toast.success("Déploiement réussi 🚀 Configuration sauvegardée");
-      } else {
-        toast.error("Échec du déploiement: " + (data?.error || "inconnu"));
+
+      // The function now returns 202 + job_id and runs the deployment in background.
+      const jobId = data?.job_id as string | undefined;
+      if (!jobId) {
+        // Backwards compat: synchronous response
+        const logs = (data?.logs as string[]) || [];
+        setSshLogs(prev => [...prev, ...logs]);
+        if (data?.success) handleDeploySuccess(data.url, data.supabase_local || null);
+        else toast.error("Échec du déploiement: " + (data?.error || "inconnu"));
+        return;
       }
+
+      setSshLogs(prev => [...prev, `📋 Job ${jobId} démarré — suivi en arrière-plan…`]);
+      // Poll app_settings every 4s for up to 30 min
+      const settingsKey = `ssh_deploy_job:${jobId}`;
+      const start = Date.now();
+      const maxMs = 30 * 60 * 1000;
+
+      while (Date.now() - start < maxMs) {
+        await new Promise(r => setTimeout(r, 4000));
+        const { data: row } = await supabase
+          .from("app_settings")
+          .select("value")
+          .eq("key", settingsKey)
+          .maybeSingle();
+        if (!row?.value) continue;
+        let parsed: any;
+        try { parsed = JSON.parse(row.value as string); } catch { continue; }
+
+        if (Array.isArray(parsed.logs)) setSshLogs(parsed.logs);
+
+        if (parsed.status === "success") {
+          handleDeploySuccess(parsed.result?.url, parsed.result?.supabase_local || null);
+          return;
+        }
+        if (parsed.status === "error") {
+          toast.error("Échec du déploiement: " + (parsed.error || "inconnu"));
+          return;
+        }
+      }
+      toast.warning("Le déploiement prend plus de 30 min — consultez les logs serveur.");
     } catch (e: any) {
       setSshLogs(prev => [...prev, "✗ Erreur: " + (e?.message || String(e))]);
       toast.error("Erreur: " + (e?.message || String(e)));
     } finally {
       setSshDeploying(false);
     }
+  };
+
+  const handleDeploySuccess = (url: string, localInfo: any) => {
+    setSshDeployedUrl(url);
+    if (localInfo) setSshLocalSupabaseInfo(localInfo);
+    const updates: Record<string, any> = { sshDeployedUrl: url, sshLocalSupabaseInfo: localInfo };
+    if (localInfo?.url) { setSshSupabaseUrl(localInfo.url); updates.sshSupabaseUrl = localInfo.url; }
+    if (localInfo?.anon_key) { setSshSupabaseKey(localInfo.anon_key); updates.sshSupabaseKey = localInfo.anon_key; }
+    persistSshConfig(updates);
+    toast.success("Déploiement réussi 🚀 Configuration sauvegardée");
   };
 
   return (
