@@ -1095,6 +1095,109 @@ To rebuild manually: docker compose up -d --build
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ============ SSH DEPLOY TAB ============ */}
+        <TabsContent value="ssh" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Rocket className="h-5 w-5" />Déployer sur un serveur Linux
+              </CardTitle>
+              <CardDescription>
+                Connectez-vous en SSH avec IP/login/mot de passe — l'application est packagée puis lancée via Docker Compose sur votre serveur.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Alert>
+                <Wifi className="h-4 w-4" />
+                <AlertTitle>Pré-requis réseau</AlertTitle>
+                <AlertDescription>
+                  Le serveur doit être joignable depuis Internet (IP publique + port SSH ouvert) car la connexion part des serveurs Lovable Cloud.
+                  Pour un serveur local (LAN/maison), utilisez plutôt l'onglet <strong>Docker</strong> et exécutez les commandes manuellement.
+                </AlertDescription>
+              </Alert>
+
+              {isLocalHost(sshHost) && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>IP locale détectée</AlertTitle>
+                  <AlertDescription>
+                    L'adresse <code>{sshHost}</code> est privée et ne sera pas joignable depuis Internet.
+                    Utilisez l'IP publique de votre serveur, un tunnel (ngrok, Tailscale, Cloudflare Tunnel),
+                    ou téléchargez le bundle Docker pour le déployer manuellement.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2"><Server className="h-3.5 w-3.5" />Adresse IP / Hostname</Label>
+                  <Input value={sshHost} onChange={e => setSshHost(e.target.value)} placeholder="123.45.67.89" disabled={sshDeploying} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Port SSH</Label>
+                  <Input value={sshPort} onChange={e => setSshPort(e.target.value)} placeholder="22" disabled={sshDeploying} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Utilisateur</Label>
+                  <Input value={sshUser} onChange={e => setSshUser(e.target.value)} placeholder="root" disabled={sshDeploying} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2"><KeyRound className="h-3.5 w-3.5" />Mot de passe</Label>
+                  <Input type="password" value={sshPassword} onChange={e => setSshPassword(e.target.value)} placeholder="••••••••" disabled={sshDeploying} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Dossier distant</Label>
+                  <Input value={sshRemoteDir} onChange={e => setSshRemoteDir(e.target.value)} placeholder="/opt/screenflow" disabled={sshDeploying} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Port d'exposition de l'app</Label>
+                  <Input value={sshAppPort} onChange={e => setSshAppPort(e.target.value)} placeholder="8080" disabled={sshDeploying} />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/40 border">
+                <Switch checked={sshAutoInstallDocker} onCheckedChange={setSshAutoInstallDocker} disabled={sshDeploying} />
+                <div className="text-sm">
+                  <p className="font-medium">Installer Docker automatiquement</p>
+                  <p className="text-xs text-muted-foreground">
+                    Si Docker / Docker Compose ne sont pas trouvés, le script lance <code>get.docker.com</code> via sudo.
+                  </p>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="flex flex-wrap gap-3 items-center">
+                <Button
+                  onClick={handleSshDeploy}
+                  disabled={sshDeploying || !sshHost || !sshUser || !sshPassword}
+                  className="gap-2"
+                >
+                  {sshDeploying
+                    ? <><Loader2 className="h-4 w-4 animate-spin" />Déploiement en cours…</>
+                    : <><Rocket className="h-4 w-4" />Déployer maintenant</>}
+                </Button>
+                {sshDeployedUrl && (
+                  <a href={sshDeployedUrl} target="_blank" rel="noopener noreferrer">
+                    <Button variant="outline" className="gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-primary" />Ouvrir {sshDeployedUrl}
+                    </Button>
+                  </a>
+                )}
+              </div>
+
+              {sshLogs.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2"><Terminal className="h-3.5 w-3.5" />Journal de déploiement</Label>
+                  <pre className="text-xs bg-muted/50 p-3 rounded-lg overflow-x-auto max-h-96 border whitespace-pre-wrap">
+                    {sshLogs.join("\n")}
+                  </pre>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   );
