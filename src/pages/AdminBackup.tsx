@@ -172,6 +172,9 @@ export default function AdminBackup() {
   const [sshRemoteDir, setSshRemoteDir] = useState("/opt/screenflow");
   const [sshAppPort, setSshAppPort] = useState("8080");
   const [sshAutoInstallDocker, setSshAutoInstallDocker] = useState(true);
+  const [sshGitUrl, setSshGitUrl] = useState("");
+  const [sshGitBranch, setSshGitBranch] = useState("main");
+  const [sshGitToken, setSshGitToken] = useState("");
   const [sshDeploying, setSshDeploying] = useState(false);
   const [sshLogs, setSshLogs] = useState<string[]>([]);
   const [sshDeployedUrl, setSshDeployedUrl] = useState<string | null>(null);
