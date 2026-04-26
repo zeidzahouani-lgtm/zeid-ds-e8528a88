@@ -209,6 +209,73 @@ async function ensureLocalAuthGateway(conn: Client, supaDir: string, kongPort: s
   );
 }
 
+async function upsertDefaultAdminViaAuthApi(
+  conn: Client,
+  supaDir: string,
+  kongPort: string,
+  serviceKey: string,
+  password: string,
+  log: (m: string) => Promise<void> | void,
+) {
+  await ensureLocalAuthGateway(conn, supaDir, kongPort, log);
+  const existing = await exec(conn, `cd ${supaDir} && docker compose exec -T db psql -At -U postgres -d postgres -c "select id::text from auth.users where lower(email)=lower('${DEFAULT_ADMIN_EMAIL}') limit 1" 2>/dev/null || true`);
+  const existingId = (existing.stdout || "").match(/[0-9a-fA-F-]{36}/)?.[0] || "";
+  const body = existingId
+    ? { email: DEFAULT_ADMIN_EMAIL, password, email_confirm: true, user_metadata: { display_name: "ScreenFlow Admin" }, app_metadata: { provider: "email", providers: ["email"] }, ban_duration: "none" }
+    : { email: DEFAULT_ADMIN_EMAIL, password, email_confirm: true, user_metadata: { display_name: "ScreenFlow Admin" }, app_metadata: { provider: "email", providers: ["email"] } };
+  const payloadB64 = btoa(JSON.stringify(body));
+  const method = existingId ? "PUT" : "POST";
+  const path = existingId ? `/auth/v1/admin/users/${existingId}` : "/auth/v1/admin/users";
+  const call = (baseUrl: string) =>
+    `API_BASE=${shQuote(baseUrl.replace(/\/$/, ""))} SERVICE_KEY=${shQuote(serviceKey)} METHOD=${method} PATH=${shQuote(path)} BODY_B64=${shQuote(payloadB64)} sh -c ` +
+    shQuote(`body=$(printf "%s" "$BODY_B64" | base64 -d); curl -k -sS -m 30 -w "\\nHTTP_STATUS:%{http_code}" -X "$METHOD" "$API_BASE$PATH" -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" -H "Content-Type: application/json" --data "$body"`);
+
+  let result = await exec(conn, call(`http://127.0.0.1:${kongPort}`));
+  let output = `${result.stdout}${result.stderr}`;
+  if (!(result.code === 0 && /HTTP_STATUS:20[01]/.test(output))) {
+    await log("⚠ API Admin Auth via le port hôte indisponible, tentative directe via le conteneur kong…");
+    const directBase = `cd ${supaDir} && KONG_CID=$(docker compose ps -q kong) && KONG_IP=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}} {{end}}' "$KONG_CID" | awk '{print $1}') && echo "http://$KONG_IP:8000"`;
+    const direct = await exec(conn, directBase);
+    const directUrl = (direct.stdout || "").trim().split(/\s+/).pop() || "";
+    if (directUrl.startsWith("http://")) {
+      result = await exec(conn, call(directUrl));
+      output = `${result.stdout}${result.stderr}`;
+    }
+  }
+  if (!(result.code === 0 && /HTTP_STATUS:20[01]/.test(output))) {
+    throw new Error(`Impossible de créer/réparer le compte admin via l'API Auth locale. Réponse : ${output.slice(-900)}`);
+  }
+  await log(existingId ? "✓ Compte admin Auth réparé via API officielle" : "✓ Compte admin Auth créé via API officielle");
+}
+
+async function ensureDefaultAdminRole(conn: Client, supaDir: string, log: (m: string) => Promise<void> | void) {
+  const roleSql = `
+DO $$
+DECLARE uid uuid;
+BEGIN
+  SELECT id INTO uid FROM auth.users WHERE lower(email)=lower('${DEFAULT_ADMIN_EMAIL}') LIMIT 1;
+  IF uid IS NULL THEN
+    RAISE EXCEPTION 'Compte Auth introuvable pour ${DEFAULT_ADMIN_EMAIL}';
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profiles') THEN
+    INSERT INTO public.profiles (id, email, display_name)
+    VALUES (uid, '${DEFAULT_ADMIN_EMAIL}', 'ScreenFlow Admin')
+    ON CONFLICT (id) DO UPDATE SET email=EXCLUDED.email, display_name=EXCLUDED.display_name, updated_at=now();
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='user_roles') THEN
+    INSERT INTO public.user_roles (user_id, role) VALUES (uid, 'admin') ON CONFLICT DO NOTHING;
+    DELETE FROM public.user_roles WHERE user_id=uid AND role='user';
+  END IF;
+END $$;
+`.trim();
+  const roleB64 = btoa(roleSql);
+  const promoted = await exec(conn, `cd ${supaDir} && echo "${roleB64}" | base64 -d | docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`);
+  if (promoted.code !== 0) throw new Error("Compte Auth créé, mais attribution du rôle admin échouée : " + (promoted.stdout + promoted.stderr).slice(-800));
+  await log("✓ Rôle admin global confirmé pour screenflow@screenflow.local");
+}
+
 // Background job runner: persists progress to public.app_settings under key ssh_deploy_job:<jobId>
 async function runDeploymentJob(
   jobId: string,
