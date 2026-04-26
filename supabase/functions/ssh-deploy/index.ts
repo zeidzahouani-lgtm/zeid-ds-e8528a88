@@ -409,7 +409,16 @@ openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
       const url = enableHttps ? `https://${body.host}:${httpsPort}` : `http://${body.host}:${appPort}`;
       log(`🚀 Deployment complete — accessible at ${url}`);
 
-      return new Response(JSON.stringify({ success: true, url, logs }), {
+      return new Response(JSON.stringify({
+        success: true,
+        url,
+        logs,
+        supabase_local: installSupabase ? {
+          url: supabaseUrlOverride,
+          anon_key: supabaseAnonOverride,
+          studio_url: `http://${body.host}:${supaStudioPort}`,
+        } : null,
+      }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
