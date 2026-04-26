@@ -89,8 +89,7 @@ export function useAppSettings() {
     mutationFn: async ({ key, value }: { key: string; value: string }) => {
       const { error } = await supabase
         .from("app_settings" as any)
-        .update({ value, updated_at: new Date().toISOString() } as any)
-        .eq("key", key as any);
+        .upsert({ key, value, updated_at: new Date().toISOString() } as any, { onConflict: "key" });
       if (error) throw error;
     },
     onSuccess: () => {
