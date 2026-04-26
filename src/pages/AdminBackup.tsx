@@ -183,6 +183,12 @@ export default function AdminBackup() {
   const [sshSupabaseUrl, setSshSupabaseUrl] = useState("");
   const [sshSupabaseKey, setSshSupabaseKey] = useState("");
   const [sshSupabaseProjectId, setSshSupabaseProjectId] = useState("");
+  // Install local self-hosted Supabase on the same server
+  const [sshInstallSupabaseLocal, setSshInstallSupabaseLocal] = useState(false);
+  const [sshSupaKongPort, setSshSupaKongPort] = useState("8000");
+  const [sshSupaStudioPort, setSshSupaStudioPort] = useState("3001");
+  const [sshSupaDbPort, setSshSupaDbPort] = useState("5432");
+  const [sshLocalSupabaseInfo, setSshLocalSupabaseInfo] = useState<{ url: string; anon_key: string; studio_url: string } | null>(null);
   const [sshDeploying, setSshDeploying] = useState(false);
   const [sshLogs, setSshLogs] = useState<string[]>([]);
   const [sshDeployedUrl, setSshDeployedUrl] = useState<string | null>(null);
