@@ -66,8 +66,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    const admin = createClient(supabaseUrl, serviceKey);
+    const admin = admin0;
     const results: Record<string, { ok: boolean; count: number; error?: string }> = {};
+    if (isBootstrap) console.log("[restore-backup] bootstrap mode (no admin yet)");
 
     for (const [table, rows] of Object.entries(tables)) {
       if (!ALLOWED_TABLES.has(table)) {
