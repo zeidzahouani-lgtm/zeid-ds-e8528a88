@@ -129,7 +129,11 @@ async function runDeploymentJob(
 
   try {
     await persist({ status: "running", logs: [] });
-    await runDeployment(body, log);
+    if (body.action === "reset_admin_password") {
+      await runResetAdminPassword(body, log);
+    } else {
+      await runDeployment(body, log);
+    }
     await persist({ status: "success", logs, result: (globalThis as any).__lastDeployResult || null });
   } catch (e: any) {
     logs.push("✗ ERROR: " + (e?.message || String(e)));
