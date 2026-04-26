@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -192,6 +192,62 @@ export default function AdminBackup() {
   const [sshDeploying, setSshDeploying] = useState(false);
   const [sshLogs, setSshLogs] = useState<string[]>([]);
   const [sshDeployedUrl, setSshDeployedUrl] = useState<string | null>(null);
+
+  // ===== Persist SSH + local Supabase config in localStorage =====
+  const SSH_CONFIG_KEY = "screenflow.ssh_deploy_config.v1";
+  const hasLoadedConfigRef = useRef(false);
+
+  useEffect(() => {
+    if (hasLoadedConfigRef.current) return;
+    hasLoadedConfigRef.current = true;
+    try {
+      const raw = localStorage.getItem(SSH_CONFIG_KEY);
+      if (!raw) return;
+      const c = JSON.parse(raw);
+      if (c.sshHost) setSshHost(c.sshHost);
+      if (c.sshPort) setSshPort(c.sshPort);
+      if (c.sshUser) setSshUser(c.sshUser);
+      if (c.sshRemoteDir) setSshRemoteDir(c.sshRemoteDir);
+      if (c.sshAppPort) setSshAppPort(c.sshAppPort);
+      if (typeof c.sshAutoInstallDocker === "boolean") setSshAutoInstallDocker(c.sshAutoInstallDocker);
+      if (c.sshGitUrl) setSshGitUrl(c.sshGitUrl);
+      if (c.sshGitBranch) setSshGitBranch(c.sshGitBranch);
+      if (typeof c.sshEnableHttps === "boolean") setSshEnableHttps(c.sshEnableHttps);
+      if (c.sshHttpsPort) setSshHttpsPort(c.sshHttpsPort);
+      if (c.sshHttpsDomain) setSshHttpsDomain(c.sshHttpsDomain);
+      if (typeof c.sshIsolateBackend === "boolean") setSshIsolateBackend(c.sshIsolateBackend);
+      if (c.sshSupabaseUrl) setSshSupabaseUrl(c.sshSupabaseUrl);
+      if (c.sshSupabaseKey) setSshSupabaseKey(c.sshSupabaseKey);
+      if (c.sshSupabaseProjectId) setSshSupabaseProjectId(c.sshSupabaseProjectId);
+      if (typeof c.sshInstallSupabaseLocal === "boolean") setSshInstallSupabaseLocal(c.sshInstallSupabaseLocal);
+      if (c.sshSupaKongPort) setSshSupaKongPort(c.sshSupaKongPort);
+      if (c.sshSupaStudioPort) setSshSupaStudioPort(c.sshSupaStudioPort);
+      if (c.sshSupaDbPort) setSshSupaDbPort(c.sshSupaDbPort);
+      if (c.sshLocalSupabaseInfo) setSshLocalSupabaseInfo(c.sshLocalSupabaseInfo);
+      if (c.sshDeployedUrl) setSshDeployedUrl(c.sshDeployedUrl);
+    } catch {}
+  }, []);
+
+  const persistSshConfig = (extra?: Record<string, any>) => {
+    try {
+      const payload = {
+        sshHost, sshPort, sshUser, sshRemoteDir, sshAppPort, sshAutoInstallDocker,
+        sshGitUrl, sshGitBranch,
+        sshEnableHttps, sshHttpsPort, sshHttpsDomain,
+        sshIsolateBackend, sshSupabaseUrl, sshSupabaseKey, sshSupabaseProjectId,
+        sshInstallSupabaseLocal, sshSupaKongPort, sshSupaStudioPort, sshSupaDbPort,
+        sshLocalSupabaseInfo, sshDeployedUrl,
+        ...(extra || {}),
+        _saved_at: new Date().toISOString(),
+      };
+      localStorage.setItem(SSH_CONFIG_KEY, JSON.stringify(payload));
+    } catch {}
+  };
+
+  const clearSshConfig = () => {
+    try { localStorage.removeItem(SSH_CONFIG_KEY); } catch {}
+    toast.success("Configuration locale effacée");
+  };
 
   if (!isGlobalAdmin) return <Navigate to="/" replace />;
 
@@ -693,8 +749,22 @@ To rebuild manually: docker compose up -d --build
       setSshLogs(prev => [...prev, ...logs]);
       if (data?.success) {
         setSshDeployedUrl(data.url);
-        if (data.supabase_local) setSshLocalSupabaseInfo(data.supabase_local);
-        toast.success("Déploiement réussi 🚀");
+        const localInfo = data.supabase_local || null;
+        if (localInfo) setSshLocalSupabaseInfo(localInfo);
+        // If a local Supabase was installed, auto-fill the isolated backend fields
+        // so future deployments / restorations reuse the same instance.
+        const updates: Record<string, any> = { sshDeployedUrl: data.url, sshLocalSupabaseInfo: localInfo };
+        if (localInfo?.url) {
+          setSshSupabaseUrl(localInfo.url);
+          updates.sshSupabaseUrl = localInfo.url;
+        }
+        if (localInfo?.anon_key) {
+          setSshSupabaseKey(localInfo.anon_key);
+          updates.sshSupabaseKey = localInfo.anon_key;
+        }
+        // Persist full config (excluding password) for next time
+        persistSshConfig(updates);
+        toast.success("Déploiement réussi 🚀 Configuration sauvegardée");
       } else {
         toast.error("Échec du déploiement: " + (data?.error || "inconnu"));
       }
@@ -1348,6 +1418,24 @@ To rebuild manually: docker compose up -d --build
                     ? <><Loader2 className="h-4 w-4 animate-spin" />Déploiement en cours…</>
                     : <><Rocket className="h-4 w-4" />Déployer maintenant</>}
                 </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => { persistSshConfig(); toast.success("Configuration sauvegardée localement"); }}
+                  disabled={sshDeploying}
+                >
+                  <Database className="h-4 w-4" />Sauvegarder la config
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="gap-2 text-muted-foreground"
+                  onClick={clearSshConfig}
+                  disabled={sshDeploying}
+                >
+                  Réinitialiser
+                </Button>
                 {sshDeployedUrl && (
                   <a href={sshDeployedUrl} target="_blank" rel="noopener noreferrer">
                     <Button variant="outline" className="gap-2">
@@ -1356,6 +1444,9 @@ To rebuild manually: docker compose up -d --build
                   </a>
                 )}
               </div>
+              <p className="text-xs text-muted-foreground -mt-1">
+                💾 La configuration (hôte, ports, instance Supabase locale) est mémorisée automatiquement après chaque déploiement réussi. Le mot de passe SSH n'est jamais stocké.
+              </p>
 
               {sshLocalSupabaseInfo && (
                 <Alert className="border-primary/40 bg-primary/5">
