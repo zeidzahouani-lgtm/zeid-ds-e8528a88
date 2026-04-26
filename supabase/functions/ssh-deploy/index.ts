@@ -178,6 +178,37 @@ function buildAuthLoginCurlCommand(authBaseUrl: string, anonKey: string, email: 
     shQuote(`body=$(printf "%s" "$BODY_B64" | base64 -d); curl -k -sS -m 20 -w "\\nHTTP_STATUS:%{http_code}" -X POST "$AUTH_URL" -H "apikey: $ANON_KEY" -H "Authorization: Bearer $ANON_KEY" -H "Content-Type: application/json" --data "$body"`);
 }
 
+function buildDirectKongAuthLoginCommand(supaDir: string, anonKey: string, email: string, password: string) {
+  const payloadB64 = btoa(JSON.stringify({ email, password }));
+  return `cd ${supaDir} && KONG_CID=$(docker compose ps -q kong) && ` +
+    `KONG_IP=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}} {{end}}' "$KONG_CID" | awk '{print $1}') && ` +
+    `AUTH_URL="http://$KONG_IP:8000/auth/v1/token?grant_type=password" ` +
+    `ANON_KEY=${shQuote(anonKey)} BODY_B64=${shQuote(payloadB64)} sh -c ` +
+    shQuote(`body=$(printf "%s" "$BODY_B64" | base64 -d); curl -k -sS -m 20 -w "\\nHTTP_STATUS:%{http_code}" -X POST "$AUTH_URL" -H "apikey: $ANON_KEY" -H "Authorization: Bearer $ANON_KEY" -H "Content-Type: application/json" --data "$body"`);
+}
+
+async function ensureLocalAuthGateway(conn: Client, supaDir: string, kongPort: string, log: (m: string) => Promise<void> | void) {
+  await log(`→ Vérification de la gateway Auth locale (port ${kongPort})…`);
+  const up = await exec(conn, `cd ${supaDir} && docker compose up -d kong auth rest realtime storage 2>&1 || docker compose up -d 2>&1`);
+  if (up.code !== 0) {
+    await log("⚠ Redémarrage gateway Auth incomplet : " + (up.stdout + up.stderr).slice(-1200));
+  }
+  const probe = await exec(
+    conn,
+    `for i in $(seq 1 45); do curl -fsS -m 5 http://127.0.0.1:${kongPort}/auth/v1/settings >/dev/null 2>&1 && echo OK && exit 0; sleep 2; done; ` +
+    `echo FAIL; cd ${supaDir} && docker compose ps && docker compose logs --tail=80 kong 2>&1`
+  );
+  if (probe.stdout.includes("OK")) {
+    await log(`✓ Gateway Auth locale accessible sur http://127.0.0.1:${kongPort}`);
+    return;
+  }
+  throw new Error(
+    `La gateway Auth locale ne répond pas sur http://127.0.0.1:${kongPort}. ` +
+    `Vérifiez qu'aucun autre service n'utilise ce port ou changez le port API Supabase local. Détails : ` +
+    (probe.stdout + probe.stderr).slice(-1200)
+  );
+}
+
 // Background job runner: persists progress to public.app_settings under key ssh_deploy_job:<jobId>
 async function runDeploymentJob(
   jobId: string,
