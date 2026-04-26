@@ -809,16 +809,6 @@ async function runResetAdminPassword(body: DeployBody, log: (m: string) => Promi
       await log("✓ Permissions réparées et Postgres opérationnel");
     }
 
-    // Récupère POSTGRES_PASSWORD depuis le .env de la stack Supabase locale
-    const pwdRes = await exec(
-      conn,
-      `grep -E '^POSTGRES_PASSWORD=' ${supaDir}/.env | head -1 | cut -d= -f2-`
-    );
-    const pgPwd = (pwdRes.stdout || "").trim();
-    if (!pgPwd) {
-      throw new Error("Impossible de lire POSTGRES_PASSWORD dans " + supaDir + "/.env");
-    }
-
     const kongPort = await readRemoteEnv(conn, `${supaDir}/.env`, "KONG_HTTP_PORT") || "8000";
     const publicUrl = await readRemoteEnv(conn, `${supaDir}/.env`, "SUPABASE_PUBLIC_URL") || await readRemoteEnv(conn, `${supaDir}/.env`, "API_EXTERNAL_URL") || `http://${body.host}:${kongPort}`;
     const anonKey = await readRemoteEnv(conn, `${supaDir}/.env`, "ANON_KEY") || await readRemoteEnv(conn, `${supaDir}/.env`, "SUPABASE_PUBLISHABLE_KEY");
