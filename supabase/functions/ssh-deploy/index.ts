@@ -306,6 +306,8 @@ async function runDeploymentJob(
     await persist({ status: "running", logs: [] });
     if (body.action === "reset_admin_password") {
       await runResetAdminPassword(body, log);
+    } else if (body.action === "check_admin_status") {
+      await runCheckAdminStatus(body, log, persist);
     } else {
       await runDeployment(body, log);
     }
