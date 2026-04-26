@@ -537,84 +537,11 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
         log(`  ⚠ Notez le mot de passe du dashboard, il ne sera pas réaffiché.`);
 
         // ===== Create default global admin account (screenflow / 260390DS) =====
-        log("→ Création du compte admin par défaut (screenflow@screenflow.local)…");
+        log("→ Création/réparation du compte admin par défaut (screenflow@screenflow.local)…");
         // Wait for Postgres to be ready (max ~60s)
         await exec(conn, `cd ${supaDir} && for i in $(seq 1 30); do docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && break || sleep 2; done`);
 
-        // Idempotent: create or reset password. Compatible with modern auth.users schema (is_sso_user, is_anonymous).
-        const adminSql = `
-DO $$
-DECLARE
-  new_user_id uuid;
-  existing_id uuid;
-BEGIN
-  SELECT id INTO existing_id FROM auth.users WHERE lower(email) = lower('${DEFAULT_ADMIN_EMAIL}') LIMIT 1;
-  IF existing_id IS NULL THEN
-    new_user_id := gen_random_uuid();
-    INSERT INTO auth.users (
-      instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
-      raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
-      confirmation_token, email_change, email_change_token_new, recovery_token,
-      is_sso_user, is_anonymous
-    ) VALUES (
-      '00000000-0000-0000-0000-000000000000', new_user_id, 'authenticated', 'authenticated',
-      '${DEFAULT_ADMIN_EMAIL}', crypt('${DEFAULT_ADMIN_PASSWORD}', gen_salt('bf')), now(),
-      '{"provider":"email","providers":["email"]}'::jsonb,
-      '{"display_name":"ScreenFlow Admin"}'::jsonb,
-      now(), now(), '', '', '', '',
-      false, false
-    );
-    INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
-    VALUES (
-      gen_random_uuid(), new_user_id,
-      jsonb_build_object('sub', new_user_id::text, 'email', '${DEFAULT_ADMIN_EMAIL}', 'email_verified', true),
-      'email', new_user_id::text, now(), now(), now()
-    );
-  ELSE
-    -- Reset password and clear any lock/ban to ensure login works
-    UPDATE auth.users
-    SET email = '${DEFAULT_ADMIN_EMAIL}',
-        encrypted_password = crypt('${DEFAULT_ADMIN_PASSWORD}', gen_salt('bf')),
-        email_confirmed_at = COALESCE(email_confirmed_at, now()),
-        banned_until = NULL,
-        deleted_at = NULL,
-        aud = 'authenticated',
-        role = 'authenticated',
-        raw_app_meta_data = '{"provider":"email","providers":["email"]}'::jsonb,
-        raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || '{"display_name":"ScreenFlow Admin"}'::jsonb,
-        updated_at = now()
-    WHERE id = existing_id;
-    new_user_id := existing_id;
-  END IF;
-
-  -- Ensure auth.identities row exists (required by GoTrue for password login)
-  DELETE FROM auth.identities WHERE provider = 'email' AND user_id <> new_user_id AND provider_id = new_user_id::text;
-  IF EXISTS (SELECT 1 FROM auth.identities WHERE provider = 'email' AND provider_id = new_user_id::text) THEN
-    UPDATE auth.identities
-    SET user_id = new_user_id,
-        identity_data = jsonb_build_object('sub', new_user_id::text, 'email', '${DEFAULT_ADMIN_EMAIL}', 'email_verified', true),
-        updated_at = now()
-    WHERE provider = 'email' AND provider_id = new_user_id::text;
-  ELSE
-    INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
-    VALUES (
-      gen_random_uuid(), new_user_id,
-      jsonb_build_object('sub', new_user_id::text, 'email', '${DEFAULT_ADMIN_EMAIL}', 'email_verified', true),
-      'email', new_user_id::text, now(), now(), now()
-    );
-  END IF;
-END $$;
-`.trim();
-        const adminSqlB64 = btoa(adminSql);
-        const adminCreate = await exec(
-          conn,
-          `cd ${supaDir} && echo "${adminSqlB64}" | base64 -d | docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`
-        );
-        if (adminCreate.code === 0) {
-          log(`✓ Compte admin auth créé/réinitialisé : ${DEFAULT_ADMIN_EMAIL} / ${DEFAULT_ADMIN_PASSWORD}`);
-        } else {
-          log("⚠ Création du compte admin a échoué : " + adminCreate.stdout.slice(-800) + adminCreate.stderr.slice(-400));
-        }
+        await upsertDefaultAdminViaAuthApi(conn, supaDir, supaKongPort, serviceKey, DEFAULT_ADMIN_PASSWORD, log);
 
         // ===== Apply app migrations from cloned repo, then promote admin role =====
         // Note: we apply this AFTER the repo is cloned below. We schedule it via a marker.
