@@ -175,6 +175,9 @@ export default function AdminBackup() {
   const [sshGitUrl, setSshGitUrl] = useState("");
   const [sshGitBranch, setSshGitBranch] = useState("main");
   const [sshGitToken, setSshGitToken] = useState("");
+  const [sshEnableHttps, setSshEnableHttps] = useState(false);
+  const [sshHttpsPort, setSshHttpsPort] = useState("8443");
+  const [sshHttpsDomain, setSshHttpsDomain] = useState("");
   const [sshDeploying, setSshDeploying] = useState(false);
   const [sshLogs, setSshLogs] = useState<string[]>([]);
   const [sshDeployedUrl, setSshDeployedUrl] = useState<string | null>(null);
