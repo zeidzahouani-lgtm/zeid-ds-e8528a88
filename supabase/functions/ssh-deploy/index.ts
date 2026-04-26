@@ -292,13 +292,20 @@ ${portsBlock}
       if (enableHttps) {
         log("→ Generating self-signed SSL certificate…");
         const cnEsc = httpsDomain.replace(/'/g, "");
+        const isIp = (s: string) => /^\d{1,3}(\.\d{1,3}){3}$/.test(s) || /^[0-9a-fA-F:]+$/.test(s);
+        const sanParts: string[] = [];
+        if (isIp(cnEsc)) sanParts.push(`IP:${cnEsc}`); else sanParts.push(`DNS:${cnEsc}`);
+        if (body.host && body.host !== cnEsc) {
+          if (isIp(body.host)) sanParts.push(`IP:${body.host}`); else sanParts.push(`DNS:${body.host}`);
+        }
+        const san = sanParts.join(",");
         const sslCmd = `mkdir -p ${remoteDir}/repo/ssl && \
 (command -v openssl || ${sudoPrefix}sh -c "(apt-get install -y openssl) || (dnf install -y openssl) || (yum install -y openssl)") && \
 openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
   -keyout ${remoteDir}/repo/ssl/server.key \
   -out ${remoteDir}/repo/ssl/server.crt \
   -subj "/CN=${cnEsc}" \
-  -addext "subjectAltName=DNS:${cnEsc},IP:${body.host}" 2>&1`;
+  -addext "subjectAltName=${san}" 2>&1`;
         const ssl = await exec(conn, sslCmd);
         log(ssl.stdout.slice(-800));
         if (ssl.code !== 0) {
