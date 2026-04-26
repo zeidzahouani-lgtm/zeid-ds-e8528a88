@@ -6,8 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Navigate } from "react-router-dom";
-import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
