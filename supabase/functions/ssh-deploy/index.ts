@@ -579,24 +579,7 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
         log("✓ Migrations appliquées (les erreurs 'already exists' sont normales)");
 
         log("→ Promotion du compte screenflow en admin global…");
-        const promoteSql = `
-DO $$
-DECLARE uid uuid;
-BEGIN
-  SELECT id INTO uid FROM auth.users WHERE lower(email)=lower('${DEFAULT_ADMIN_EMAIL}') LIMIT 1;
-  IF uid IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='user_roles') THEN
-    INSERT INTO public.user_roles (user_id, role) VALUES (uid, 'admin') ON CONFLICT DO NOTHING;
-    DELETE FROM public.user_roles WHERE user_id=uid AND role='user';
-  END IF;
-END $$;
-`.trim();
-        const promoteB64 = btoa(promoteSql);
-        const promote = await exec(
-          conn,
-          `cd ${pending.supaDir} && echo "${promoteB64}" | base64 -d | docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`
-        );
-        if (promote.code === 0) log("✓ Rôle admin attribué à screenflow@screenflow.local");
-        else log("⚠ Promotion admin échouée : " + promote.stdout.slice(-400) + promote.stderr.slice(-400));
+        await ensureDefaultAdminRole(conn, pending.supaDir, log);
 
         await log("→ Test réel du login admin local…");
         const internalSupaUrl = `http://127.0.0.1:${supaKongPort}`;
