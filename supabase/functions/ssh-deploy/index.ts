@@ -168,8 +168,15 @@ Deno.serve(async (req) => {
     }
 
     const body = (await req.json()) as DeployBody;
-    if (!body.host || !body.username || !body.password || !body.git_url) {
-      return new Response(JSON.stringify({ error: "Missing required fields (host, username, password, git_url)" }), {
+    const action = body.action || "deploy";
+
+    if (!body.host || !body.username || !body.password) {
+      return new Response(JSON.stringify({ error: "Missing required fields (host, username, password)" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (action === "deploy" && !body.git_url) {
+      return new Response(JSON.stringify({ error: "Missing required field: git_url" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -189,7 +196,9 @@ Deno.serve(async (req) => {
       success: true,
       job_id: jobId,
       status_key: `ssh_deploy_job:${jobId}`,
-      message: "Déploiement lancé en arrière-plan. Suivez la progression via le polling.",
+      message: action === "reset_admin_password"
+        ? "Réinitialisation du mot de passe admin lancée en arrière-plan."
+        : "Déploiement lancé en arrière-plan. Suivez la progression via le polling.",
     }), {
       status: 202,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
