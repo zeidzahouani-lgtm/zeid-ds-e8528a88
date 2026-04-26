@@ -237,7 +237,26 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 CMD ["nginx","-g","daemon off;"]
 `;
-      const nginxConf = `server {
+      const nginxConf = enableHttps
+        ? `server {
+  listen 80;
+  server_name _;
+  return 301 https://$host:${httpsPort}$request_uri;
+}
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name _;
+  ssl_certificate /etc/nginx/ssl/server.crt;
+  ssl_certificate_key /etc/nginx/ssl/server.key;
+  ssl_protocols TLSv1.2 TLSv1.3;
+  root /usr/share/nginx/html;
+  index index.html;
+  location / { try_files $uri $uri/ /index.html; }
+  location /assets/ { expires 1y; add_header Cache-Control "public, immutable"; }
+}
+`
+        : `server {
   listen 80;
   server_name _;
   root /usr/share/nginx/html;
@@ -246,6 +265,14 @@ CMD ["nginx","-g","daemon off;"]
   location /assets/ { expires 1y; add_header Cache-Control "public, immutable"; }
 }
 `;
+      const portsBlock = enableHttps
+        ? `    ports:
+      - "${appPort}:80"
+      - "${httpsPort}:443"
+    volumes:
+      - ./ssl:/etc/nginx/ssl:ro`
+        : `    ports:
+      - "${appPort}:80"`;
       const compose = `services:
   web:
     build:
@@ -254,8 +281,7 @@ CMD ["nginx","-g","daemon off;"]
         VITE_SUPABASE_URL: '${escEnv(body.vite_supabase_url || "")}'
         VITE_SUPABASE_PUBLISHABLE_KEY: '${escEnv(body.vite_supabase_key || "")}'
         VITE_SUPABASE_PROJECT_ID: '${escEnv(body.vite_supabase_project_id || "")}'
-    ports:
-      - "${appPort}:80"
+${portsBlock}
     restart: unless-stopped
 `;
       await uploadFile(conn, `${remoteDir}/repo/Dockerfile`, Buffer.from(dockerfile));
