@@ -1200,7 +1200,7 @@ To rebuild manually: docker compose up -d --build
               <div className="flex flex-wrap gap-3 items-center">
                 <Button
                   onClick={handleSshDeploy}
-                  disabled={sshDeploying || !sshHost || !sshUser || !sshPassword}
+                  disabled={sshDeploying || !sshHost || !sshUser || !sshPassword || !sshGitUrl}
                   className="gap-2"
                 >
                   {sshDeploying
