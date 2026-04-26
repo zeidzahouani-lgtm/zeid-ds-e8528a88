@@ -30,7 +30,24 @@ function ssh(opts: { host: string; port: number; username: string; password: str
     const conn = new Client();
     conn
       .on("ready", () => resolve(conn))
-      .on("error", (err: Error) => reject(err))
+      .on("keyboard-interactive", (_name, _instructions, _lang, prompts, finish) => {
+        // Some servers (PAM) require keyboard-interactive even when password is enabled
+        finish(prompts.map(() => opts.password));
+      })
+      .on("error", (err: Error) => {
+        const msg = err.message || String(err);
+        if (/All configured authentication methods failed/i.test(msg)) {
+          reject(new Error(
+            `Échec d'authentification SSH pour '${opts.username}@${opts.host}:${opts.port}'. ` +
+            `Causes possibles : (1) mot de passe incorrect ; ` +
+            `(2) le serveur refuse l'authentification par mot de passe — vérifiez '/etc/ssh/sshd_config' : ` +
+            `'PasswordAuthentication yes' et (si vous utilisez root) 'PermitRootLogin yes', puis 'systemctl restart sshd' ; ` +
+            `(3) le serveur n'autorise que les clés SSH. Essayez avec un autre utilisateur (ex: un user sudo non-root) ou activez le mot de passe.`
+          ));
+        } else {
+          reject(err);
+        }
+      })
       .connect({
         host: opts.host,
         port: opts.port,
