@@ -25,6 +25,9 @@ interface DeployBody {
   git_url: string;            // e.g. https://github.com/user/repo.git
   git_branch?: string;        // default: main
   git_token?: string;         // optional PAT for private repos
+  enable_https?: boolean;
+  https_port?: string;
+  https_domain?: string;
 }
 
 function ssh(opts: { host: string; port: number; username: string; password: string }): Promise<Client> {
