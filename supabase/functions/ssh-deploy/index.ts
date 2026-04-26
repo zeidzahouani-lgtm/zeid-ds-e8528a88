@@ -408,6 +408,45 @@ END $$;
       }
       log("✓ Repo cloned");
 
+      // ===== Apply app migrations to local Supabase, then promote admin =====
+      const pending = (globalThis as any).__pendingAdminPromotion;
+      if (pending?.supaDir) {
+        log("→ Application des migrations de l'application sur Supabase local…");
+        const migDir = `${remoteDir}/repo/supabase/migrations`;
+        // Concat all .sql files in order and pipe to psql
+        const applyMig = await exec(
+          conn,
+          `if [ -d "${migDir}" ]; then ` +
+          `for f in $(ls ${migDir}/*.sql 2>/dev/null | sort); do ` +
+          `  echo "-- $f"; cat "$f"; echo ""; ` +
+          `done | (cd ${pending.supaDir} && docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=0) 2>&1 | tail -100; ` +
+          `else echo "no migrations dir"; fi`
+        );
+        log(applyMig.stdout.slice(-1500));
+        log("✓ Migrations appliquées (les erreurs 'already exists' sont normales)");
+
+        log("→ Promotion du compte screenflow en admin global…");
+        const promoteSql = `
+DO $$
+DECLARE uid uuid;
+BEGIN
+  SELECT id INTO uid FROM auth.users WHERE email='screenflow@screenflow.local' LIMIT 1;
+  IF uid IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='user_roles') THEN
+    INSERT INTO public.user_roles (user_id, role) VALUES (uid, 'admin') ON CONFLICT DO NOTHING;
+    DELETE FROM public.user_roles WHERE user_id=uid AND role='user';
+  END IF;
+END $$;
+`.trim();
+        const promoteB64 = btoa(promoteSql);
+        const promote = await exec(
+          conn,
+          `cd ${pending.supaDir} && echo "${promoteB64}" | base64 -d | docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`
+        );
+        if (promote.code === 0) log("✓ Rôle admin attribué à screenflow@screenflow.local");
+        else log("⚠ Promotion admin échouée : " + promote.stdout.slice(-400) + promote.stderr.slice(-400));
+      }
+
+
       // Generate Dockerfile, nginx.conf, docker-compose.yml inside the repo
       log("→ Writing Dockerfile, nginx.conf, docker-compose.yml…");
       const escEnv = (s: string) => (s || "").replace(/'/g, "'\\''");
