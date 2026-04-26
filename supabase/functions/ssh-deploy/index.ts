@@ -101,6 +101,72 @@ function uploadFile(conn: Client, remotePath: string, content: Buffer): Promise<
   });
 }
 
+const DEFAULT_ADMIN_EMAIL = "screenflow@screenflow.local";
+const DEFAULT_ADMIN_PASSWORD = "260390DS";
+
+const shQuote = (value: string) => `'${value.replace(/'/g, `'\\''`)}'`;
+
+async function verifyAuthLoginFromServer(
+  conn: Client,
+  authBaseUrl: string,
+  anonKey: string,
+  email: string,
+  password: string,
+  log: (m: string) => Promise<void> | void,
+) {
+  const payloadB64 = btoa(JSON.stringify({ email, password }));
+  const command =
+    `AUTH_URL=${shQuote(`${authBaseUrl.replace(/\/$/, "")}/auth/v1/token?grant_type=password`)} ` +
+    `ANON_KEY=${shQuote(anonKey)} BODY_B64=${shQuote(payloadB64)} sh -c ` +
+    shQuote(`body=$(printf "%s" "$BODY_B64" | base64 -d); curl -k -sS -m 20 -w "\\nHTTP_STATUS:%{http_code}" -X POST "$AUTH_URL" -H "apikey: $ANON_KEY" -H "Authorization: Bearer $ANON_KEY" -H "Content-Type: application/json" --data "$body"`);
+
+  let lastOutput = "";
+  for (let attempt = 1; attempt <= 12; attempt++) {
+    const result = await exec(conn, command);
+    lastOutput = `${result.stdout}${result.stderr}`;
+    if (result.code === 0 && /HTTP_STATUS:200/.test(lastOutput) && /"access_token"/.test(lastOutput)) {
+      await log(`✓ Test login Auth réussi depuis le serveur (${authBaseUrl})`);
+      return;
+    }
+    await exec(conn, "sleep 2");
+  }
+
+  throw new Error(`Le compte admin existe mais le test login Auth échoue depuis le serveur (${authBaseUrl}). Réponse : ${lastOutput.slice(-700)}`);
+}
+
+async function verifyPublicAuthLogin(
+  authBaseUrl: string,
+  anonKey: string,
+  email: string,
+  password: string,
+  log: (m: string) => Promise<void> | void,
+) {
+  try {
+    const response = await fetch(`${authBaseUrl.replace(/\/$/, "")}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, password }),
+    });
+    const text = await response.text();
+    if (response.ok && text.includes("access_token")) {
+      await log(`✓ Test login Auth public réussi (${authBaseUrl})`);
+      return;
+    }
+    await log(`⚠ Test login Auth public échoué (${response.status}) : ${text.slice(0, 500)}`);
+  } catch (error: any) {
+    await log(`⚠ API Auth publique inaccessible depuis Lovable Cloud (${authBaseUrl}) : ${error?.message || String(error)}`);
+  }
+}
+
+async function readRemoteEnv(conn: Client, envPath: string, key: string) {
+  const result = await exec(conn, `grep -E '^${key}=' ${envPath} | head -1 | cut -d= -f2-`);
+  return (result.stdout || "").trim();
+}
+
 // Background job runner: persists progress to public.app_settings under key ssh_deploy_job:<jobId>
 async function runDeploymentJob(
   jobId: string,
@@ -314,25 +380,33 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
         const anonKey = jwtLines[0];
         const serviceKey = jwtLines[1];
 
-        const supaPublicUrl = enableHttps ? `https://${httpsDomain}:${supaKongPort}` : `http://${body.host}:${supaKongPort}`;
+        const appPublicUrl = enableHttps ? `https://${httpsDomain}:${httpsPort}` : `http://${body.host}:${appPort}`;
+        const supaKongPublicUrl = `http://${body.host}:${supaKongPort}`;
+        const supaBrowserUrl = appPublicUrl;
 
         const envPatch = [
           `POSTGRES_PASSWORD=${postgresPw}`,
           `JWT_SECRET=${jwtSecret}`,
           `ANON_KEY=${anonKey}`,
           `SERVICE_ROLE_KEY=${serviceKey}`,
+          `SUPABASE_PUBLISHABLE_KEY=${anonKey}`,
+          `SUPABASE_SECRET_KEY=${serviceKey}`,
           `DASHBOARD_USERNAME=admin`,
           `DASHBOARD_PASSWORD=${dashboardPw}`,
-          `SITE_URL=${enableHttps ? `https://${httpsDomain}:${httpsPort}` : `http://${body.host}:${appPort}`}`,
-          `API_EXTERNAL_URL=${supaPublicUrl}`,
-          `SUPABASE_PUBLIC_URL=${supaPublicUrl}`,
+          `SITE_URL=${appPublicUrl}`,
+          `API_EXTERNAL_URL=${supaBrowserUrl}`,
+          `SUPABASE_PUBLIC_URL=${supaBrowserUrl}`,
           `KONG_HTTP_PORT=${supaKongPort}`,
           `KONG_HTTPS_PORT=${parseInt(supaKongPort) + 443}`,
           `STUDIO_PORT=${supaStudioPort}`,
           `POSTGRES_PORT=${supaDbPort}`,
+          `ENABLE_EMAIL_SIGNUP=true`,
+          `ENABLE_EMAIL_AUTOCONFIRM=true`,
+          `ENABLE_ANONYMOUS_USERS=false`,
+          `DISABLE_SIGNUP=false`,
         ].join("\n") + "\n";
         const envB64 = btoa(envPatch);
-        await exec(conn, `cd ${supaDir} && for k in POSTGRES_PASSWORD JWT_SECRET ANON_KEY SERVICE_ROLE_KEY DASHBOARD_USERNAME DASHBOARD_PASSWORD SITE_URL API_EXTERNAL_URL SUPABASE_PUBLIC_URL KONG_HTTP_PORT KONG_HTTPS_PORT STUDIO_PORT POSTGRES_PORT; do sed -i "/^$k=/d" .env; done && echo "${envB64}" | base64 -d >> .env && serviceKey="${serviceKey}" && echo "_OK"`);
+        await exec(conn, `cd ${supaDir} && for k in POSTGRES_PASSWORD JWT_SECRET ANON_KEY SERVICE_ROLE_KEY SUPABASE_PUBLISHABLE_KEY SUPABASE_SECRET_KEY DASHBOARD_USERNAME DASHBOARD_PASSWORD SITE_URL API_EXTERNAL_URL SUPABASE_PUBLIC_URL KONG_HTTP_PORT KONG_HTTPS_PORT STUDIO_PORT POSTGRES_PORT ENABLE_EMAIL_SIGNUP ENABLE_EMAIL_AUTOCONFIRM ENABLE_ANONYMOUS_USERS DISABLE_SIGNUP; do sed -i "/^$k=/d" .env; done && echo "${envB64}" | base64 -d >> .env && serviceKey="${serviceKey}" && echo "_OK"`);
 
         log(`→ Starting Supabase containers (kong:${supaKongPort}, studio:${supaStudioPort}, db:${supaDbPort})…`);
         const supaUp = await exec(conn, `cd ${supaDir} && (docker compose pull 2>&1 | tail -20) && (docker compose up -d 2>&1 | tail -40)`);
@@ -342,12 +416,13 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
           throw new Error("Échec du démarrage de Supabase local");
         }
 
-        supabaseUrlOverride = supaPublicUrl;
+        supabaseUrlOverride = supaBrowserUrl;
         supabaseAnonOverride = anonKey;
         supabaseProjectIdOverride = "local";
 
         log(`✓ Supabase local démarré`);
-        log(`  • API:    ${supaPublicUrl}`);
+        log(`  • API app: ${supaBrowserUrl} (proxy sécurisé via l'application)`);
+        log(`  • API directe: ${supaKongPublicUrl}`);
         log(`  • Studio: http://${body.host}:${supaStudioPort}  (admin / ${dashboardPw})`);
         log(`  • DB:     postgres://postgres:${postgresPw}@${body.host}:${supaDbPort}/postgres`);
         log(`  ⚠ Notez le mot de passe du dashboard, il ne sera pas réaffiché.`);
@@ -364,7 +439,7 @@ DECLARE
   new_user_id uuid;
   existing_id uuid;
 BEGIN
-  SELECT id INTO existing_id FROM auth.users WHERE email = 'screenflow@screenflow.local' LIMIT 1;
+  SELECT id INTO existing_id FROM auth.users WHERE lower(email) = lower('${DEFAULT_ADMIN_EMAIL}') LIMIT 1;
   IF existing_id IS NULL THEN
     new_user_id := gen_random_uuid();
     INSERT INTO auth.users (
@@ -374,7 +449,7 @@ BEGIN
       is_sso_user, is_anonymous
     ) VALUES (
       '00000000-0000-0000-0000-000000000000', new_user_id, 'authenticated', 'authenticated',
-      'screenflow@screenflow.local', crypt('260390DS', gen_salt('bf')), now(),
+      '${DEFAULT_ADMIN_EMAIL}', crypt('${DEFAULT_ADMIN_PASSWORD}', gen_salt('bf')), now(),
       '{"provider":"email","providers":["email"]}'::jsonb,
       '{"display_name":"ScreenFlow Admin"}'::jsonb,
       now(), now(), '', '', '', '',
@@ -383,27 +458,39 @@ BEGIN
     INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
     VALUES (
       gen_random_uuid(), new_user_id,
-      jsonb_build_object('sub', new_user_id::text, 'email', 'screenflow@screenflow.local', 'email_verified', true),
+      jsonb_build_object('sub', new_user_id::text, 'email', '${DEFAULT_ADMIN_EMAIL}', 'email_verified', true),
       'email', new_user_id::text, now(), now(), now()
     );
   ELSE
     -- Reset password and clear any lock/ban to ensure login works
     UPDATE auth.users
-    SET encrypted_password = crypt('260390DS', gen_salt('bf')),
+    SET email = '${DEFAULT_ADMIN_EMAIL}',
+        encrypted_password = crypt('${DEFAULT_ADMIN_PASSWORD}', gen_salt('bf')),
         email_confirmed_at = COALESCE(email_confirmed_at, now()),
         banned_until = NULL,
         deleted_at = NULL,
+        aud = 'authenticated',
+        role = 'authenticated',
+        raw_app_meta_data = '{"provider":"email","providers":["email"]}'::jsonb,
+        raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || '{"display_name":"ScreenFlow Admin"}'::jsonb,
         updated_at = now()
     WHERE id = existing_id;
     new_user_id := existing_id;
   END IF;
 
   -- Ensure auth.identities row exists (required by GoTrue for password login)
-  IF NOT EXISTS (SELECT 1 FROM auth.identities WHERE user_id = new_user_id AND provider = 'email') THEN
+  DELETE FROM auth.identities WHERE provider = 'email' AND user_id <> new_user_id AND provider_id = new_user_id::text;
+  IF EXISTS (SELECT 1 FROM auth.identities WHERE provider = 'email' AND provider_id = new_user_id::text) THEN
+    UPDATE auth.identities
+    SET user_id = new_user_id,
+        identity_data = jsonb_build_object('sub', new_user_id::text, 'email', '${DEFAULT_ADMIN_EMAIL}', 'email_verified', true),
+        updated_at = now()
+    WHERE provider = 'email' AND provider_id = new_user_id::text;
+  ELSE
     INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
     VALUES (
       gen_random_uuid(), new_user_id,
-      jsonb_build_object('sub', new_user_id::text, 'email', 'screenflow@screenflow.local', 'email_verified', true),
+      jsonb_build_object('sub', new_user_id::text, 'email', '${DEFAULT_ADMIN_EMAIL}', 'email_verified', true),
       'email', new_user_id::text, now(), now(), now()
     );
   END IF;
@@ -415,7 +502,7 @@ END $$;
           `cd ${supaDir} && echo "${adminSqlB64}" | base64 -d | docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`
         );
         if (adminCreate.code === 0) {
-          log("✓ Compte admin auth créé/réinitialisé : screenflow@screenflow.local / 260390DS");
+          log(`✓ Compte admin auth créé/réinitialisé : ${DEFAULT_ADMIN_EMAIL} / ${DEFAULT_ADMIN_PASSWORD}`);
         } else {
           log("⚠ Création du compte admin a échoué : " + adminCreate.stdout.slice(-800) + adminCreate.stderr.slice(-400));
         }
@@ -460,7 +547,7 @@ END $$;
 DO $$
 DECLARE uid uuid;
 BEGIN
-  SELECT id INTO uid FROM auth.users WHERE email='screenflow@screenflow.local' LIMIT 1;
+  SELECT id INTO uid FROM auth.users WHERE lower(email)=lower('${DEFAULT_ADMIN_EMAIL}') LIMIT 1;
   IF uid IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='user_roles') THEN
     INSERT INTO public.user_roles (user_id, role) VALUES (uid, 'admin') ON CONFLICT DO NOTHING;
     DELETE FROM public.user_roles WHERE user_id=uid AND role='user';
@@ -474,6 +561,11 @@ END $$;
         );
         if (promote.code === 0) log("✓ Rôle admin attribué à screenflow@screenflow.local");
         else log("⚠ Promotion admin échouée : " + promote.stdout.slice(-400) + promote.stderr.slice(-400));
+
+        await log("→ Test réel du login admin local…");
+        const internalSupaUrl = `http://127.0.0.1:${supaKongPort}`;
+        await verifyAuthLoginFromServer(conn, internalSupaUrl, supabaseAnonOverride, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD, log);
+        await verifyPublicAuthLogin(supabaseUrlOverride, supabaseAnonOverride, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD, log);
       }
 
 
@@ -513,6 +605,10 @@ server {
   ssl_protocols TLSv1.2 TLSv1.3;
   root /usr/share/nginx/html;
   index index.html;
+  location /auth/v1/ { proxy_pass http://host.docker.internal:${supaKongPort}/auth/v1/; proxy_set_header Host $host; proxy_set_header X-Forwarded-Proto https; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; }
+  location /rest/v1/ { proxy_pass http://host.docker.internal:${supaKongPort}/rest/v1/; proxy_set_header Host $host; proxy_set_header X-Forwarded-Proto https; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; }
+  location /storage/v1/ { proxy_pass http://host.docker.internal:${supaKongPort}/storage/v1/; proxy_set_header Host $host; proxy_set_header X-Forwarded-Proto https; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; }
+  location /realtime/v1/ { proxy_pass http://host.docker.internal:${supaKongPort}/realtime/v1/; proxy_http_version 1.1; proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade"; proxy_set_header Host $host; proxy_set_header X-Forwarded-Proto https; }
   location / { try_files $uri $uri/ /index.html; }
   location /assets/ { expires 1y; add_header Cache-Control "public, immutable"; }
 }
@@ -522,6 +618,10 @@ server {
   server_name _;
   root /usr/share/nginx/html;
   index index.html;
+  location /auth/v1/ { proxy_pass http://host.docker.internal:${supaKongPort}/auth/v1/; proxy_set_header Host $host; proxy_set_header X-Forwarded-Proto http; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; }
+  location /rest/v1/ { proxy_pass http://host.docker.internal:${supaKongPort}/rest/v1/; proxy_set_header Host $host; proxy_set_header X-Forwarded-Proto http; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; }
+  location /storage/v1/ { proxy_pass http://host.docker.internal:${supaKongPort}/storage/v1/; proxy_set_header Host $host; proxy_set_header X-Forwarded-Proto http; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; }
+  location /realtime/v1/ { proxy_pass http://host.docker.internal:${supaKongPort}/realtime/v1/; proxy_http_version 1.1; proxy_set_header Upgrade $http_upgrade; proxy_set_header Connection "upgrade"; proxy_set_header Host $host; proxy_set_header X-Forwarded-Proto http; }
   location / { try_files $uri $uri/ /index.html; }
   location /assets/ { expires 1y; add_header Cache-Control "public, immutable"; }
 }
@@ -542,6 +642,8 @@ server {
         VITE_SUPABASE_URL: '${escEnv(supabaseUrlOverride || body.vite_supabase_url || "")}'
         VITE_SUPABASE_PUBLISHABLE_KEY: '${escEnv(supabaseAnonOverride || body.vite_supabase_key || "")}'
         VITE_SUPABASE_PROJECT_ID: '${escEnv(supabaseProjectIdOverride || body.vite_supabase_project_id || "")}'
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 ${portsBlock}
     restart: unless-stopped
 `;
@@ -596,8 +698,8 @@ openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
     await log("🔐  COMPTE ADMINISTRATEUR PAR DÉFAUT");
     await log("════════════════════════════════════════════════════════════");
     await log(`   URL de connexion : ${url}/login`);
-    await log(`   Email            : screenflow@screenflow.local`);
-    await log(`   Mot de passe     : 260390DS`);
+    await log(`   Email            : ${DEFAULT_ADMIN_EMAIL}`);
+    await log(`   Mot de passe     : ${DEFAULT_ADMIN_PASSWORD}`);
     await log(`   Rôle             : admin (global)`);
     await log("   ⚠  Pensez à changer ce mot de passe après la 1ʳᵉ connexion.");
     await log("════════════════════════════════════════════════════════════");
@@ -688,7 +790,7 @@ DECLARE
   new_user_id uuid;
   existing_id uuid;
 BEGIN
-  SELECT id INTO existing_id FROM auth.users WHERE email = 'screenflow@screenflow.local' LIMIT 1;
+  SELECT id INTO existing_id FROM auth.users WHERE lower(email) = lower('${DEFAULT_ADMIN_EMAIL}') LIMIT 1;
   IF existing_id IS NULL THEN
     new_user_id := gen_random_uuid();
     INSERT INTO auth.users (
@@ -698,7 +800,7 @@ BEGIN
       is_sso_user, is_anonymous
     ) VALUES (
       '00000000-0000-0000-0000-000000000000', new_user_id, 'authenticated', 'authenticated',
-      'screenflow@screenflow.local', crypt('${sqlPwd}', gen_salt('bf')), now(),
+      '${DEFAULT_ADMIN_EMAIL}', crypt('${sqlPwd}', gen_salt('bf')), now(),
       '{"provider":"email","providers":["email"]}'::jsonb,
       '{"display_name":"ScreenFlow Admin"}'::jsonb,
       now(), now(), '', '', '', '',
@@ -706,20 +808,32 @@ BEGIN
     );
   ELSE
     UPDATE auth.users
-    SET encrypted_password = crypt('${sqlPwd}', gen_salt('bf')),
+    SET email = '${DEFAULT_ADMIN_EMAIL}',
+        encrypted_password = crypt('${sqlPwd}', gen_salt('bf')),
         email_confirmed_at = COALESCE(email_confirmed_at, now()),
         banned_until = NULL,
         deleted_at = NULL,
+        aud = 'authenticated',
+        role = 'authenticated',
+        raw_app_meta_data = '{"provider":"email","providers":["email"]}'::jsonb,
+        raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || '{"display_name":"ScreenFlow Admin"}'::jsonb,
         updated_at = now()
     WHERE id = existing_id;
     new_user_id := existing_id;
   END IF;
 
-  IF NOT EXISTS (SELECT 1 FROM auth.identities WHERE user_id = new_user_id AND provider = 'email') THEN
+  DELETE FROM auth.identities WHERE provider = 'email' AND user_id <> new_user_id AND provider_id = new_user_id::text;
+  IF EXISTS (SELECT 1 FROM auth.identities WHERE provider = 'email' AND provider_id = new_user_id::text) THEN
+    UPDATE auth.identities
+    SET user_id = new_user_id,
+        identity_data = jsonb_build_object('sub', new_user_id::text, 'email', '${DEFAULT_ADMIN_EMAIL}', 'email_verified', true),
+        updated_at = now()
+    WHERE provider = 'email' AND provider_id = new_user_id::text;
+  ELSE
     INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
     VALUES (
       gen_random_uuid(), new_user_id,
-      jsonb_build_object('sub', new_user_id::text, 'email', 'screenflow@screenflow.local', 'email_verified', true),
+      jsonb_build_object('sub', new_user_id::text, 'email', '${DEFAULT_ADMIN_EMAIL}', 'email_verified', true),
       'email', new_user_id::text, now(), now(), now()
     );
   END IF;
@@ -743,6 +857,13 @@ END $$;
     const pgPwd = (pwdRes.stdout || "").trim();
     if (!pgPwd) {
       throw new Error("Impossible de lire POSTGRES_PASSWORD dans " + supaDir + "/.env");
+    }
+
+    const kongPort = await readRemoteEnv(conn, `${supaDir}/.env`, "KONG_HTTP_PORT") || "8000";
+    const publicUrl = await readRemoteEnv(conn, `${supaDir}/.env`, "SUPABASE_PUBLIC_URL") || await readRemoteEnv(conn, `${supaDir}/.env`, "API_EXTERNAL_URL") || `http://${body.host}:${kongPort}`;
+    const anonKey = await readRemoteEnv(conn, `${supaDir}/.env`, "ANON_KEY") || await readRemoteEnv(conn, `${supaDir}/.env`, "SUPABASE_PUBLISHABLE_KEY");
+    if (!anonKey) {
+      throw new Error("Impossible de lire ANON_KEY dans " + supaDir + "/.env");
     }
 
     // Exécute psql via TCP (127.0.0.1) à l'intérieur du conteneur db pour
@@ -771,6 +892,10 @@ END $$;
         );
       }
     }
+
+    await log("→ Test réel du login admin local…");
+    await verifyAuthLoginFromServer(conn, `http://127.0.0.1:${kongPort}`, anonKey, DEFAULT_ADMIN_EMAIL, newPassword, log);
+    await verifyPublicAuthLogin(publicUrl, anonKey, DEFAULT_ADMIN_EMAIL, newPassword, log);
 
     await log("✓ Mot de passe admin réinitialisé avec succès");
     await log("");
