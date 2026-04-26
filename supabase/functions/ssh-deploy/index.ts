@@ -387,6 +387,8 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
           `JWT_SECRET=${jwtSecret}`,
           `ANON_KEY=${anonKey}`,
           `SERVICE_ROLE_KEY=${serviceKey}`,
+          `SUPABASE_PUBLISHABLE_KEY=${anonKey}`,
+          `SUPABASE_SECRET_KEY=${serviceKey}`,
           `DASHBOARD_USERNAME=admin`,
           `DASHBOARD_PASSWORD=${dashboardPw}`,
           `SITE_URL=${enableHttps ? `https://${httpsDomain}:${httpsPort}` : `http://${body.host}:${appPort}`}`,
@@ -396,9 +398,13 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
           `KONG_HTTPS_PORT=${parseInt(supaKongPort) + 443}`,
           `STUDIO_PORT=${supaStudioPort}`,
           `POSTGRES_PORT=${supaDbPort}`,
+          `ENABLE_EMAIL_SIGNUP=true`,
+          `ENABLE_EMAIL_AUTOCONFIRM=true`,
+          `ENABLE_ANONYMOUS_USERS=false`,
+          `DISABLE_SIGNUP=false`,
         ].join("\n") + "\n";
         const envB64 = btoa(envPatch);
-        await exec(conn, `cd ${supaDir} && for k in POSTGRES_PASSWORD JWT_SECRET ANON_KEY SERVICE_ROLE_KEY DASHBOARD_USERNAME DASHBOARD_PASSWORD SITE_URL API_EXTERNAL_URL SUPABASE_PUBLIC_URL KONG_HTTP_PORT KONG_HTTPS_PORT STUDIO_PORT POSTGRES_PORT; do sed -i "/^$k=/d" .env; done && echo "${envB64}" | base64 -d >> .env && serviceKey="${serviceKey}" && echo "_OK"`);
+        await exec(conn, `cd ${supaDir} && for k in POSTGRES_PASSWORD JWT_SECRET ANON_KEY SERVICE_ROLE_KEY SUPABASE_PUBLISHABLE_KEY SUPABASE_SECRET_KEY DASHBOARD_USERNAME DASHBOARD_PASSWORD SITE_URL API_EXTERNAL_URL SUPABASE_PUBLIC_URL KONG_HTTP_PORT KONG_HTTPS_PORT STUDIO_PORT POSTGRES_PORT ENABLE_EMAIL_SIGNUP ENABLE_EMAIL_AUTOCONFIRM ENABLE_ANONYMOUS_USERS DISABLE_SIGNUP; do sed -i "/^$k=/d" .env; done && echo "${envB64}" | base64 -d >> .env && serviceKey="${serviceKey}" && echo "_OK"`);
 
         log(`→ Starting Supabase containers (kong:${supaKongPort}, studio:${supaStudioPort}, db:${supaDbPort})…`);
         const supaUp = await exec(conn, `cd ${supaDir} && (docker compose pull 2>&1 | tail -20) && (docker compose up -d 2>&1 | tail -40)`);
@@ -430,7 +436,7 @@ DECLARE
   new_user_id uuid;
   existing_id uuid;
 BEGIN
-  SELECT id INTO existing_id FROM auth.users WHERE email = 'screenflow@screenflow.local' LIMIT 1;
+  SELECT id INTO existing_id FROM auth.users WHERE lower(email) = lower('${DEFAULT_ADMIN_EMAIL}') LIMIT 1;
   IF existing_id IS NULL THEN
     new_user_id := gen_random_uuid();
     INSERT INTO auth.users (
@@ -440,7 +446,7 @@ BEGIN
       is_sso_user, is_anonymous
     ) VALUES (
       '00000000-0000-0000-0000-000000000000', new_user_id, 'authenticated', 'authenticated',
-      'screenflow@screenflow.local', crypt('260390DS', gen_salt('bf')), now(),
+      '${DEFAULT_ADMIN_EMAIL}', crypt('${DEFAULT_ADMIN_PASSWORD}', gen_salt('bf')), now(),
       '{"provider":"email","providers":["email"]}'::jsonb,
       '{"display_name":"ScreenFlow Admin"}'::jsonb,
       now(), now(), '', '', '', '',
@@ -449,30 +455,38 @@ BEGIN
     INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
     VALUES (
       gen_random_uuid(), new_user_id,
-      jsonb_build_object('sub', new_user_id::text, 'email', 'screenflow@screenflow.local', 'email_verified', true),
+      jsonb_build_object('sub', new_user_id::text, 'email', '${DEFAULT_ADMIN_EMAIL}', 'email_verified', true),
       'email', new_user_id::text, now(), now(), now()
     );
   ELSE
     -- Reset password and clear any lock/ban to ensure login works
     UPDATE auth.users
-    SET encrypted_password = crypt('260390DS', gen_salt('bf')),
+    SET email = '${DEFAULT_ADMIN_EMAIL}',
+        encrypted_password = crypt('${DEFAULT_ADMIN_PASSWORD}', gen_salt('bf')),
         email_confirmed_at = COALESCE(email_confirmed_at, now()),
         banned_until = NULL,
         deleted_at = NULL,
+        aud = 'authenticated',
+        role = 'authenticated',
+        raw_app_meta_data = '{"provider":"email","providers":["email"]}'::jsonb,
+        raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || '{"display_name":"ScreenFlow Admin"}'::jsonb,
         updated_at = now()
     WHERE id = existing_id;
     new_user_id := existing_id;
   END IF;
 
   -- Ensure auth.identities row exists (required by GoTrue for password login)
-  IF NOT EXISTS (SELECT 1 FROM auth.identities WHERE user_id = new_user_id AND provider = 'email') THEN
-    INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
-    VALUES (
-      gen_random_uuid(), new_user_id,
-      jsonb_build_object('sub', new_user_id::text, 'email', 'screenflow@screenflow.local', 'email_verified', true),
-      'email', new_user_id::text, now(), now(), now()
-    );
-  END IF;
+  DELETE FROM auth.identities WHERE provider = 'email' AND user_id <> new_user_id AND provider_id = new_user_id::text;
+  INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
+  VALUES (
+    gen_random_uuid(), new_user_id,
+    jsonb_build_object('sub', new_user_id::text, 'email', '${DEFAULT_ADMIN_EMAIL}', 'email_verified', true),
+    'email', new_user_id::text, now(), now(), now()
+  )
+  ON CONFLICT (provider_id, provider) DO UPDATE SET
+    user_id = EXCLUDED.user_id,
+    identity_data = EXCLUDED.identity_data,
+    updated_at = now();
 END $$;
 `.trim();
         const adminSqlB64 = btoa(adminSql);
@@ -481,7 +495,7 @@ END $$;
           `cd ${supaDir} && echo "${adminSqlB64}" | base64 -d | docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`
         );
         if (adminCreate.code === 0) {
-          log("✓ Compte admin auth créé/réinitialisé : screenflow@screenflow.local / 260390DS");
+          log(`✓ Compte admin auth créé/réinitialisé : ${DEFAULT_ADMIN_EMAIL} / ${DEFAULT_ADMIN_PASSWORD}`);
         } else {
           log("⚠ Création du compte admin a échoué : " + adminCreate.stdout.slice(-800) + adminCreate.stderr.slice(-400));
         }
