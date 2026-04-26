@@ -945,7 +945,16 @@ END $$;
     }
 
     await log("→ Test réel du login admin local…");
-    await verifyAuthLoginFromServer(conn, `http://127.0.0.1:${kongPort}`, anonKey, DEFAULT_ADMIN_EMAIL, newPassword, log);
+    await ensureLocalAuthGateway(conn, supaDir, kongPort, log);
+    await verifyAuthLoginFromServer(
+      conn,
+      `http://127.0.0.1:${kongPort}`,
+      anonKey,
+      DEFAULT_ADMIN_EMAIL,
+      newPassword,
+      log,
+      buildDirectKongAuthLoginCommand(supaDir, anonKey, DEFAULT_ADMIN_EMAIL, newPassword),
+    );
     await verifyPublicAuthLogin(publicUrl, anonKey, DEFAULT_ADMIN_EMAIL, newPassword, log);
 
     await log("✓ Mot de passe admin réinitialisé avec succès");
