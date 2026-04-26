@@ -1,4 +1,4 @@
-import { Tv, Image, ListMusic, Clock, LayoutDashboard, LogOut, User, LayoutGrid, Users, Building2, Settings, Palette, Key, Sparkles, Mail, AtSign, ClipboardList, BookOpen, BarChart3 } from "lucide-react";
+import { Tv, Image, ListMusic, Clock, LayoutDashboard, LogOut, User, LayoutGrid, Users, Building2, Settings, Palette, Key, Sparkles, Mail, AtSign, ClipboardList, BookOpen, BarChart3, DatabaseBackup } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -51,6 +51,7 @@ const globalAdminItems = [
   { title: "Licences", url: "/admin/licenses", icon: Key },
   { title: "Statistiques", url: "/admin/stats", icon: BarChart3 },
   { title: "Demandes", url: "/admin/requests", icon: ClipboardList },
+  { title: "Backup & Docker", url: "/admin/backup", icon: DatabaseBackup },
 ];
 
 export function AppSidebar() {
