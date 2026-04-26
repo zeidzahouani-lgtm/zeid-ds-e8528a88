@@ -506,7 +506,7 @@ export default function AdminBackup() {
                     {Object.entries(restoreResults).map(([table, r]) => (
                       <div key={table} className="flex items-center justify-between p-2.5 text-sm">
                         <div className="flex items-center gap-2">
-                          {r.ok ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-destructive" />}
+                          {r.ok ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-destructive" />}
                           <code className="text-xs">{table}</code>
                         </div>
                         <div className="text-xs text-muted-foreground">
@@ -566,7 +566,7 @@ export default function AdminBackup() {
                   {envChecks.map(c => (
                     <div key={c.name} className="flex items-center justify-between p-2.5 text-sm">
                       <div className="flex items-center gap-2">
-                        {c.valid ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-destructive" />}
+                        {c.valid ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <XCircle className="h-4 w-4 text-destructive" />}
                         <code className="text-xs">{c.name}</code>
                       </div>
                       <span className="text-xs text-muted-foreground">
