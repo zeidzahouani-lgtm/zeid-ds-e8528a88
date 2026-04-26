@@ -85,6 +85,7 @@ const App = () => (
               <Route path="/player/:id" element={<Player />} />
               <Route path="/upload/:id" element={<UploadPage />} />
               <Route path="/assign-license/:screenId" element={<ProtectedRoute><AssignLicense /></ProtectedRoute>} />
+              <Route path="/admin/first-login" element={<FirstAdminLogin />} />
 
               <Route element={<ProtectedRoute><EstablishmentProvider><DashboardLayout /></EstablishmentProvider></ProtectedRoute>}>
                 <Route path="/" element={<DashboardHome />} />
@@ -106,7 +107,6 @@ const App = () => (
                 <Route path="/team" element={<Team />} />
                 <Route path="/admin/backup" element={<AdminBackup />} />
                 <Route path="/admin/server-status" element={<AdminServerStatus />} />
-                <Route path="/admin/first-login" element={<FirstAdminLogin />} />
                 <Route path="/setup" element={<ScreenSetup />} />
                 <Route path="/ai-assistant" element={<AIAssistant />} />
                 <Route path="/auto-flow" element={<AutoFlow />} />

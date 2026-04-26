@@ -6,8 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Navigate } from "react-router-dom";
-import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
@@ -32,7 +30,6 @@ type CheckResult = {
 type StatusBadge = "ok" | "missing" | "broken" | "unknown";
 
 export default function FirstAdminLogin() {
-  const { isGlobalAdmin } = useEstablishmentContext();
 
   // SSH config (loaded from localStorage, editable)
   const [sshHost, setSshHost] = useState("");
@@ -66,7 +63,7 @@ export default function FirstAdminLogin() {
     logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
 
-  if (!isGlobalAdmin) return <Navigate to="/" replace />;
+  // Public route: accessible without login to bootstrap the first admin account.
 
   const getFreshAccessToken = async () => {
     const refreshed = await supabase.auth.refreshSession();
