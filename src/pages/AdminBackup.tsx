@@ -195,9 +195,9 @@ export default function AdminBackup() {
 
   // ===== Persist SSH + local Supabase config in localStorage =====
   const SSH_CONFIG_KEY = "screenflow.ssh_deploy_config.v1";
-  const hasLoadedConfigRef = React.useRef(false);
+  const hasLoadedConfigRef = useRef(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (hasLoadedConfigRef.current) return;
     hasLoadedConfigRef.current = true;
     try {
