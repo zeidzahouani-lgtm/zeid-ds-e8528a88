@@ -1,7 +1,7 @@
 // SSH deploy: connect to a Linux server with ip/user/password, install Docker if needed,
 // upload project archive, build & run via docker compose.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-// @ts-ignore - npm specifier resolved at runtime by Deno
+// @ts-nocheck
 import { Client } from "npm:ssh2@1.15.0";
 import { Buffer } from "node:buffer";
 

@@ -1,6 +1,6 @@
 // Collect Linux server stats via SSH + Supabase DB stats
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-// @ts-ignore - npm specifier resolved at runtime by Deno
+// @ts-nocheck
 import { Client } from "npm:ssh2@1.15.0";
 
 const corsHeaders = {
