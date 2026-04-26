@@ -178,6 +178,11 @@ export default function AdminBackup() {
   const [sshEnableHttps, setSshEnableHttps] = useState(false);
   const [sshHttpsPort, setSshHttpsPort] = useState("8443");
   const [sshHttpsDomain, setSshHttpsDomain] = useState("");
+  // Isolated backend (separate Supabase) for the local server
+  const [sshIsolateBackend, setSshIsolateBackend] = useState(true);
+  const [sshSupabaseUrl, setSshSupabaseUrl] = useState("");
+  const [sshSupabaseKey, setSshSupabaseKey] = useState("");
+  const [sshSupabaseProjectId, setSshSupabaseProjectId] = useState("");
   const [sshDeploying, setSshDeploying] = useState(false);
   const [sshLogs, setSshLogs] = useState<string[]>([]);
   const [sshDeployedUrl, setSshDeployedUrl] = useState<string | null>(null);
@@ -633,6 +638,17 @@ To rebuild manually: docker compose up -d --build
       toast.error("Renseignez l'URL du dépôt Git");
       return;
     }
+    if (sshIsolateBackend && (!sshSupabaseUrl || !sshSupabaseKey || !sshSupabaseProjectId)) {
+      toast.error("Backend isolé activé : renseignez l'URL, la clé et le project ID Supabase du serveur local");
+      return;
+    }
+    const backendUrl = sshIsolateBackend ? sshSupabaseUrl.trim() : envUrl;
+    const backendKey = sshIsolateBackend ? sshSupabaseKey.trim() : envKey;
+    const backendProjectId = sshIsolateBackend ? sshSupabaseProjectId.trim() : envProjectId;
+    if (sshIsolateBackend && backendUrl === envUrl) {
+      toast.error("L'URL Supabase du serveur local doit être DIFFÉRENTE de celle du projet en ligne");
+      return;
+    }
     setSshDeploying(true);
     setSshLogs([]);
     setSshDeployedUrl(null);
@@ -648,9 +664,9 @@ To rebuild manually: docker compose up -d --build
           remote_dir: sshRemoteDir.trim() || "/opt/screenflow",
           app_port: sshAppPort,
           install_docker: sshAutoInstallDocker,
-          vite_supabase_url: envUrl,
-          vite_supabase_key: envKey,
-          vite_supabase_project_id: envProjectId,
+          vite_supabase_url: backendUrl,
+          vite_supabase_key: backendKey,
+          vite_supabase_project_id: backendProjectId,
           git_url: sshGitUrl.trim(),
           git_branch: sshGitBranch.trim() || "main",
           git_token: sshGitToken.trim() || undefined,
@@ -1222,6 +1238,51 @@ To rebuild manually: docker compose up -d --build
                       <Input value={sshHttpsDomain} onChange={e => setSshHttpsDomain(e.target.value)} placeholder={sshHost || "exemple.local"} disabled={sshDeploying} />
                     </div>
                   </div>
+                )}
+              </div>
+
+              <div className="p-3 rounded-lg bg-muted/40 border space-y-3">
+                <div className="flex items-center gap-2">
+                  <Switch checked={sshIsolateBackend} onCheckedChange={setSshIsolateBackend} disabled={sshDeploying} />
+                  <div className="text-sm">
+                    <p className="font-medium flex items-center gap-1.5"><Database className="h-3.5 w-3.5" />Backend isolé (base de données séparée)</p>
+                    <p className="text-xs text-muted-foreground">
+                      Le serveur local utilisera sa <strong>propre instance Supabase</strong>. Sans isolation, il partagera la base du projet en ligne et toute modification sera répercutée.
+                    </p>
+                  </div>
+                </div>
+                {sshIsolateBackend ? (
+                  <div className="space-y-3 pl-12">
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Instance Supabase indépendante requise</AlertTitle>
+                      <AlertDescription className="text-xs">
+                        Créez un nouveau projet Supabase (cloud ou self-hosted), puis collez ses identifiants ci-dessous. La structure (tables, RLS, edge functions) doit y être répliquée — utilisez l'onglet <strong>Sauvegarde</strong> pour exporter puis l'onglet <strong>Restauration</strong> pointé vers la nouvelle base.
+                      </AlertDescription>
+                    </Alert>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="space-y-1.5 md:col-span-2">
+                        <Label className="text-xs">Supabase URL (serveur local)</Label>
+                        <Input value={sshSupabaseUrl} onChange={e => setSshSupabaseUrl(e.target.value)} placeholder="https://xxxx.supabase.co" disabled={sshDeploying} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Project ID</Label>
+                        <Input value={sshSupabaseProjectId} onChange={e => setSshSupabaseProjectId(e.target.value)} placeholder="xxxx" disabled={sshDeploying} />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Anon / Publishable Key</Label>
+                        <Input type="password" value={sshSupabaseKey} onChange={e => setSshSupabaseKey(e.target.value)} placeholder="eyJhbGciOi…" disabled={sshDeploying} />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <Alert variant="destructive" className="ml-12">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Backend partagé</AlertTitle>
+                    <AlertDescription className="text-xs">
+                      Le serveur local va utiliser la même base que le projet en ligne. Toute modification (écrans, médias, playlists, utilisateurs) sera <strong>partagée entre les deux environnements</strong>.
+                    </AlertDescription>
+                  </Alert>
                 )}
               </div>
 
