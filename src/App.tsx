@@ -43,6 +43,7 @@ const AssignLicense = lazy(() => import("./pages/AssignLicense"));
 const Team = lazy(() => import("./pages/Team"));
 const AdminBackup = lazy(() => import("./pages/AdminBackup"));
 const AdminServerStatus = lazy(() => import("./pages/AdminServerStatus"));
+const FirstAdminLogin = lazy(() => import("./pages/FirstAdminLogin"));
 
 const queryClient = new QueryClient();
 
