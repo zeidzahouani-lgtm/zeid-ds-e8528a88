@@ -132,7 +132,7 @@ async function verifyAuthLoginFromServer(
     if (attempt === 20 && fallbackCommand) {
       await log(`⚠ Port Auth ${authBaseUrl} indisponible depuis l'hôte, test direct dans le conteneur kong…`);
     }
-    await exec(conn, "sleep 2");
+    await new Promise((resolve) => setTimeout(resolve, 2000));
   }
 
   throw new Error(`Le compte admin existe mais le test login Auth échoue depuis le serveur (${authBaseUrl}). Réponse : ${lastOutput.slice(-700)}`);
@@ -207,6 +207,73 @@ async function ensureLocalAuthGateway(conn: Client, supaDir: string, kongPort: s
     `Vérifiez qu'aucun autre service n'utilise ce port ou changez le port API Supabase local. Détails : ` +
     (probe.stdout + probe.stderr).slice(-1200)
   );
+}
+
+async function upsertDefaultAdminViaAuthApi(
+  conn: Client,
+  supaDir: string,
+  kongPort: string,
+  serviceKey: string,
+  password: string,
+  log: (m: string) => Promise<void> | void,
+) {
+  await ensureLocalAuthGateway(conn, supaDir, kongPort, log);
+  const existing = await exec(conn, `cd ${supaDir} && docker compose exec -T db psql -At -U postgres -d postgres -c "select id::text from auth.users where lower(email)=lower('${DEFAULT_ADMIN_EMAIL}') limit 1" 2>/dev/null || true`);
+  const existingId = (existing.stdout || "").match(/[0-9a-fA-F-]{36}/)?.[0] || "";
+  const body = existingId
+    ? { email: DEFAULT_ADMIN_EMAIL, password, email_confirm: true, user_metadata: { display_name: "ScreenFlow Admin" }, app_metadata: { provider: "email", providers: ["email"] }, ban_duration: "none" }
+    : { email: DEFAULT_ADMIN_EMAIL, password, email_confirm: true, user_metadata: { display_name: "ScreenFlow Admin" }, app_metadata: { provider: "email", providers: ["email"] } };
+  const payloadB64 = btoa(JSON.stringify(body));
+  const method = existingId ? "PUT" : "POST";
+  const path = existingId ? `/auth/v1/admin/users/${existingId}` : "/auth/v1/admin/users";
+  const call = (baseUrl: string) =>
+    `API_BASE=${shQuote(baseUrl.replace(/\/$/, ""))} SERVICE_KEY=${shQuote(serviceKey)} METHOD=${method} PATH=${shQuote(path)} BODY_B64=${shQuote(payloadB64)} sh -c ` +
+    shQuote(`body=$(printf "%s" "$BODY_B64" | base64 -d); curl -k -sS -m 30 -w "\\nHTTP_STATUS:%{http_code}" -X "$METHOD" "$API_BASE$PATH" -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" -H "Content-Type: application/json" --data "$body"`);
+
+  let result = await exec(conn, call(`http://127.0.0.1:${kongPort}`));
+  let output = `${result.stdout}${result.stderr}`;
+  if (!(result.code === 0 && /HTTP_STATUS:20[01]/.test(output))) {
+    await log("⚠ API Admin Auth via le port hôte indisponible, tentative directe via le conteneur kong…");
+    const directBase = `cd ${supaDir} && KONG_CID=$(docker compose ps -q kong) && KONG_IP=$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}} {{end}}' "$KONG_CID" | awk '{print $1}') && echo "http://$KONG_IP:8000"`;
+    const direct = await exec(conn, directBase);
+    const directUrl = (direct.stdout || "").trim().split(/\s+/).pop() || "";
+    if (directUrl.startsWith("http://")) {
+      result = await exec(conn, call(directUrl));
+      output = `${result.stdout}${result.stderr}`;
+    }
+  }
+  if (!(result.code === 0 && /HTTP_STATUS:20[01]/.test(output))) {
+    throw new Error(`Impossible de créer/réparer le compte admin via l'API Auth locale. Réponse : ${output.slice(-900)}`);
+  }
+  await log(existingId ? "✓ Compte admin Auth réparé via API officielle" : "✓ Compte admin Auth créé via API officielle");
+}
+
+async function ensureDefaultAdminRole(conn: Client, supaDir: string, log: (m: string) => Promise<void> | void) {
+  const roleSql = `
+DO $$
+DECLARE uid uuid;
+BEGIN
+  SELECT id INTO uid FROM auth.users WHERE lower(email)=lower('${DEFAULT_ADMIN_EMAIL}') LIMIT 1;
+  IF uid IS NULL THEN
+    RAISE EXCEPTION 'Compte Auth introuvable pour ${DEFAULT_ADMIN_EMAIL}';
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='profiles') THEN
+    INSERT INTO public.profiles (id, email, display_name)
+    VALUES (uid, '${DEFAULT_ADMIN_EMAIL}', 'ScreenFlow Admin')
+    ON CONFLICT (id) DO UPDATE SET email=EXCLUDED.email, display_name=EXCLUDED.display_name, updated_at=now();
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='user_roles') THEN
+    INSERT INTO public.user_roles (user_id, role) VALUES (uid, 'admin') ON CONFLICT DO NOTHING;
+    DELETE FROM public.user_roles WHERE user_id=uid AND role='user';
+  END IF;
+END $$;
+`.trim();
+  const roleB64 = btoa(roleSql);
+  const promoted = await exec(conn, `cd ${supaDir} && echo "${roleB64}" | base64 -d | docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`);
+  if (promoted.code !== 0) throw new Error("Compte Auth créé, mais attribution du rôle admin échouée : " + (promoted.stdout + promoted.stderr).slice(-800));
+  await log("✓ Rôle admin global confirmé pour screenflow@screenflow.local");
 }
 
 // Background job runner: persists progress to public.app_settings under key ssh_deploy_job:<jobId>
@@ -470,84 +537,11 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
         log(`  ⚠ Notez le mot de passe du dashboard, il ne sera pas réaffiché.`);
 
         // ===== Create default global admin account (screenflow / 260390DS) =====
-        log("→ Création du compte admin par défaut (screenflow@screenflow.local)…");
+        log("→ Création/réparation du compte admin par défaut (screenflow@screenflow.local)…");
         // Wait for Postgres to be ready (max ~60s)
         await exec(conn, `cd ${supaDir} && for i in $(seq 1 30); do docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && break || sleep 2; done`);
 
-        // Idempotent: create or reset password. Compatible with modern auth.users schema (is_sso_user, is_anonymous).
-        const adminSql = `
-DO $$
-DECLARE
-  new_user_id uuid;
-  existing_id uuid;
-BEGIN
-  SELECT id INTO existing_id FROM auth.users WHERE lower(email) = lower('${DEFAULT_ADMIN_EMAIL}') LIMIT 1;
-  IF existing_id IS NULL THEN
-    new_user_id := gen_random_uuid();
-    INSERT INTO auth.users (
-      instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
-      raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
-      confirmation_token, email_change, email_change_token_new, recovery_token,
-      is_sso_user, is_anonymous
-    ) VALUES (
-      '00000000-0000-0000-0000-000000000000', new_user_id, 'authenticated', 'authenticated',
-      '${DEFAULT_ADMIN_EMAIL}', crypt('${DEFAULT_ADMIN_PASSWORD}', gen_salt('bf')), now(),
-      '{"provider":"email","providers":["email"]}'::jsonb,
-      '{"display_name":"ScreenFlow Admin"}'::jsonb,
-      now(), now(), '', '', '', '',
-      false, false
-    );
-    INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
-    VALUES (
-      gen_random_uuid(), new_user_id,
-      jsonb_build_object('sub', new_user_id::text, 'email', '${DEFAULT_ADMIN_EMAIL}', 'email_verified', true),
-      'email', new_user_id::text, now(), now(), now()
-    );
-  ELSE
-    -- Reset password and clear any lock/ban to ensure login works
-    UPDATE auth.users
-    SET email = '${DEFAULT_ADMIN_EMAIL}',
-        encrypted_password = crypt('${DEFAULT_ADMIN_PASSWORD}', gen_salt('bf')),
-        email_confirmed_at = COALESCE(email_confirmed_at, now()),
-        banned_until = NULL,
-        deleted_at = NULL,
-        aud = 'authenticated',
-        role = 'authenticated',
-        raw_app_meta_data = '{"provider":"email","providers":["email"]}'::jsonb,
-        raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || '{"display_name":"ScreenFlow Admin"}'::jsonb,
-        updated_at = now()
-    WHERE id = existing_id;
-    new_user_id := existing_id;
-  END IF;
-
-  -- Ensure auth.identities row exists (required by GoTrue for password login)
-  DELETE FROM auth.identities WHERE provider = 'email' AND user_id <> new_user_id AND provider_id = new_user_id::text;
-  IF EXISTS (SELECT 1 FROM auth.identities WHERE provider = 'email' AND provider_id = new_user_id::text) THEN
-    UPDATE auth.identities
-    SET user_id = new_user_id,
-        identity_data = jsonb_build_object('sub', new_user_id::text, 'email', '${DEFAULT_ADMIN_EMAIL}', 'email_verified', true),
-        updated_at = now()
-    WHERE provider = 'email' AND provider_id = new_user_id::text;
-  ELSE
-    INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
-    VALUES (
-      gen_random_uuid(), new_user_id,
-      jsonb_build_object('sub', new_user_id::text, 'email', '${DEFAULT_ADMIN_EMAIL}', 'email_verified', true),
-      'email', new_user_id::text, now(), now(), now()
-    );
-  END IF;
-END $$;
-`.trim();
-        const adminSqlB64 = btoa(adminSql);
-        const adminCreate = await exec(
-          conn,
-          `cd ${supaDir} && echo "${adminSqlB64}" | base64 -d | docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`
-        );
-        if (adminCreate.code === 0) {
-          log(`✓ Compte admin auth créé/réinitialisé : ${DEFAULT_ADMIN_EMAIL} / ${DEFAULT_ADMIN_PASSWORD}`);
-        } else {
-          log("⚠ Création du compte admin a échoué : " + adminCreate.stdout.slice(-800) + adminCreate.stderr.slice(-400));
-        }
+        await upsertDefaultAdminViaAuthApi(conn, supaDir, supaKongPort, serviceKey, DEFAULT_ADMIN_PASSWORD, log);
 
         // ===== Apply app migrations from cloned repo, then promote admin role =====
         // Note: we apply this AFTER the repo is cloned below. We schedule it via a marker.
@@ -585,24 +579,7 @@ END $$;
         log("✓ Migrations appliquées (les erreurs 'already exists' sont normales)");
 
         log("→ Promotion du compte screenflow en admin global…");
-        const promoteSql = `
-DO $$
-DECLARE uid uuid;
-BEGIN
-  SELECT id INTO uid FROM auth.users WHERE lower(email)=lower('${DEFAULT_ADMIN_EMAIL}') LIMIT 1;
-  IF uid IS NOT NULL AND EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='user_roles') THEN
-    INSERT INTO public.user_roles (user_id, role) VALUES (uid, 'admin') ON CONFLICT DO NOTHING;
-    DELETE FROM public.user_roles WHERE user_id=uid AND role='user';
-  END IF;
-END $$;
-`.trim();
-        const promoteB64 = btoa(promoteSql);
-        const promote = await exec(
-          conn,
-          `cd ${pending.supaDir} && echo "${promoteB64}" | base64 -d | docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`
-        );
-        if (promote.code === 0) log("✓ Rôle admin attribué à screenflow@screenflow.local");
-        else log("⚠ Promotion admin échouée : " + promote.stdout.slice(-400) + promote.stderr.slice(-400));
+        await ensureDefaultAdminRole(conn, pending.supaDir, log);
 
         await log("→ Test réel du login admin local…");
         const internalSupaUrl = `http://127.0.0.1:${supaKongPort}`;
@@ -832,84 +809,6 @@ async function runResetAdminPassword(body: DeployBody, log: (m: string) => Promi
       await log("✓ Permissions réparées et Postgres opérationnel");
     }
 
-    // Escape password for SQL single-quoted string
-    const sqlPwd = newPassword.replace(/'/g, "''");
-
-    const resetSql = `
-DO $$
-DECLARE
-  new_user_id uuid;
-  existing_id uuid;
-BEGIN
-  SELECT id INTO existing_id FROM auth.users WHERE lower(email) = lower('${DEFAULT_ADMIN_EMAIL}') LIMIT 1;
-  IF existing_id IS NULL THEN
-    new_user_id := gen_random_uuid();
-    INSERT INTO auth.users (
-      instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
-      raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
-      confirmation_token, email_change, email_change_token_new, recovery_token,
-      is_sso_user, is_anonymous
-    ) VALUES (
-      '00000000-0000-0000-0000-000000000000', new_user_id, 'authenticated', 'authenticated',
-      '${DEFAULT_ADMIN_EMAIL}', crypt('${sqlPwd}', gen_salt('bf')), now(),
-      '{"provider":"email","providers":["email"]}'::jsonb,
-      '{"display_name":"ScreenFlow Admin"}'::jsonb,
-      now(), now(), '', '', '', '',
-      false, false
-    );
-  ELSE
-    UPDATE auth.users
-    SET email = '${DEFAULT_ADMIN_EMAIL}',
-        encrypted_password = crypt('${sqlPwd}', gen_salt('bf')),
-        email_confirmed_at = COALESCE(email_confirmed_at, now()),
-        banned_until = NULL,
-        deleted_at = NULL,
-        aud = 'authenticated',
-        role = 'authenticated',
-        raw_app_meta_data = '{"provider":"email","providers":["email"]}'::jsonb,
-        raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || '{"display_name":"ScreenFlow Admin"}'::jsonb,
-        updated_at = now()
-    WHERE id = existing_id;
-    new_user_id := existing_id;
-  END IF;
-
-  DELETE FROM auth.identities WHERE provider = 'email' AND user_id <> new_user_id AND provider_id = new_user_id::text;
-  IF EXISTS (SELECT 1 FROM auth.identities WHERE provider = 'email' AND provider_id = new_user_id::text) THEN
-    UPDATE auth.identities
-    SET user_id = new_user_id,
-        identity_data = jsonb_build_object('sub', new_user_id::text, 'email', '${DEFAULT_ADMIN_EMAIL}', 'email_verified', true),
-        updated_at = now()
-    WHERE provider = 'email' AND provider_id = new_user_id::text;
-  ELSE
-    INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
-    VALUES (
-      gen_random_uuid(), new_user_id,
-      jsonb_build_object('sub', new_user_id::text, 'email', '${DEFAULT_ADMIN_EMAIL}', 'email_verified', true),
-      'email', new_user_id::text, now(), now(), now()
-    );
-  END IF;
-
-  -- Ensure admin role
-  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='user_roles') THEN
-    INSERT INTO public.user_roles (user_id, role) VALUES (new_user_id, 'admin') ON CONFLICT DO NOTHING;
-    DELETE FROM public.user_roles WHERE user_id = new_user_id AND role = 'user';
-  END IF;
-END $$;
-`.trim();
-
-    await log("→ Réinitialisation du mot de passe admin en cours…");
-    const sqlB64 = btoa(resetSql);
-
-    // Récupère POSTGRES_PASSWORD depuis le .env de la stack Supabase locale
-    const pwdRes = await exec(
-      conn,
-      `grep -E '^POSTGRES_PASSWORD=' ${supaDir}/.env | head -1 | cut -d= -f2-`
-    );
-    const pgPwd = (pwdRes.stdout || "").trim();
-    if (!pgPwd) {
-      throw new Error("Impossible de lire POSTGRES_PASSWORD dans " + supaDir + "/.env");
-    }
-
     const kongPort = await readRemoteEnv(conn, `${supaDir}/.env`, "KONG_HTTP_PORT") || "8000";
     const publicUrl = await readRemoteEnv(conn, `${supaDir}/.env`, "SUPABASE_PUBLIC_URL") || await readRemoteEnv(conn, `${supaDir}/.env`, "API_EXTERNAL_URL") || `http://${body.host}:${kongPort}`;
     const anonKey = await readRemoteEnv(conn, `${supaDir}/.env`, "ANON_KEY") || await readRemoteEnv(conn, `${supaDir}/.env`, "SUPABASE_PUBLISHABLE_KEY");
@@ -917,32 +816,14 @@ END $$;
       throw new Error("Impossible de lire ANON_KEY dans " + supaDir + "/.env");
     }
 
-    // Exécute psql via TCP (127.0.0.1) à l'intérieur du conteneur db pour
-    // éviter le bug de permissions sur le socket Unix (/run/postgresql).
-    const result = await exec(
-      conn,
-      `cd ${supaDir} && echo "${sqlB64}" | base64 -d | ` +
-      `PGPASSWORD='${pgPwd.replace(/'/g, "'\\''")}' ` +
-      `docker compose exec -T -e PGPASSWORD='${pgPwd.replace(/'/g, "'\\''")}' db ` +
-      `psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`
-    );
-
-    if (result.code !== 0) {
-      // Fallback : tenter via le conteneur supavisor/pooler exposé sur l'hôte
-      await log("⚠ psql intra-conteneur a échoué, tentative via l'hôte (port 5432)…");
-      const hostRes = await exec(
-        conn,
-        `echo "${sqlB64}" | base64 -d | ` +
-        `PGPASSWORD='${pgPwd.replace(/'/g, "'\\''")}' ` +
-        `psql -h 127.0.0.1 -p 5432 -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`
-      );
-      if (hostRes.code !== 0) {
-        throw new Error(
-          "Échec SQL : " +
-          (result.stdout + result.stderr + "\n---\n" + hostRes.stdout + hostRes.stderr).slice(-1200)
-        );
-      }
+    const serviceKey = await readRemoteEnv(conn, `${supaDir}/.env`, "SERVICE_ROLE_KEY") || await readRemoteEnv(conn, `${supaDir}/.env`, "SUPABASE_SECRET_KEY");
+    if (!serviceKey) {
+      throw new Error("Impossible de lire SERVICE_ROLE_KEY dans " + supaDir + "/.env");
     }
+
+    await log("→ Création/réparation du premier compte admin via l'API Auth officielle…");
+    await upsertDefaultAdminViaAuthApi(conn, supaDir, kongPort, serviceKey, newPassword, log);
+    await ensureDefaultAdminRole(conn, supaDir, log);
 
     await log("→ Test réel du login admin local…");
     await ensureLocalAuthGateway(conn, supaDir, kongPort, log);
