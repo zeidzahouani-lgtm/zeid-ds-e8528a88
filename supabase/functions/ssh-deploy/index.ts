@@ -101,6 +101,72 @@ function uploadFile(conn: Client, remotePath: string, content: Buffer): Promise<
   });
 }
 
+const DEFAULT_ADMIN_EMAIL = "screenflow@screenflow.local";
+const DEFAULT_ADMIN_PASSWORD = "260390DS";
+
+const shQuote = (value: string) => `'${value.replace(/'/g, `'\\''`)}'`;
+
+async function verifyAuthLoginFromServer(
+  conn: Client,
+  authBaseUrl: string,
+  anonKey: string,
+  email: string,
+  password: string,
+  log: (m: string) => Promise<void> | void,
+) {
+  const payloadB64 = btoa(JSON.stringify({ email, password }));
+  const command =
+    `AUTH_URL=${shQuote(`${authBaseUrl.replace(/\/$/, "")}/auth/v1/token?grant_type=password`)} ` +
+    `ANON_KEY=${shQuote(anonKey)} BODY_B64=${shQuote(payloadB64)} sh -c ` +
+    shQuote(`body=$(printf "%s" "$BODY_B64" | base64 -d); curl -k -sS -m 20 -w "\\nHTTP_STATUS:%{http_code}" -X POST "$AUTH_URL" -H "apikey: $ANON_KEY" -H "Authorization: Bearer $ANON_KEY" -H "Content-Type: application/json" --data "$body"`);
+
+  let lastOutput = "";
+  for (let attempt = 1; attempt <= 12; attempt++) {
+    const result = await exec(conn, command);
+    lastOutput = `${result.stdout}${result.stderr}`;
+    if (result.code === 0 && /HTTP_STATUS:200/.test(lastOutput) && /"access_token"/.test(lastOutput)) {
+      await log(`✓ Test login Auth réussi depuis le serveur (${authBaseUrl})`);
+      return;
+    }
+    await exec(conn, "sleep 2");
+  }
+
+  throw new Error(`Le compte admin existe mais le test login Auth échoue depuis le serveur (${authBaseUrl}). Réponse : ${lastOutput.slice(-700)}`);
+}
+
+async function verifyPublicAuthLogin(
+  authBaseUrl: string,
+  anonKey: string,
+  email: string,
+  password: string,
+  log: (m: string) => Promise<void> | void,
+) {
+  try {
+    const response = await fetch(`${authBaseUrl.replace(/\/$/, "")}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, password }),
+    });
+    const text = await response.text();
+    if (response.ok && text.includes("access_token")) {
+      await log(`✓ Test login Auth public réussi (${authBaseUrl})`);
+      return;
+    }
+    await log(`⚠ Test login Auth public échoué (${response.status}) : ${text.slice(0, 500)}`);
+  } catch (error: any) {
+    await log(`⚠ API Auth publique inaccessible depuis Lovable Cloud (${authBaseUrl}) : ${error?.message || String(error)}`);
+  }
+}
+
+async function readRemoteEnv(conn: Client, envPath: string, key: string) {
+  const result = await exec(conn, `grep -E '^${key}=' ${envPath} | head -1 | cut -d= -f2-`);
+  return (result.stdout || "").trim();
+}
+
 // Background job runner: persists progress to public.app_settings under key ssh_deploy_job:<jobId>
 async function runDeploymentJob(
   jobId: string,
