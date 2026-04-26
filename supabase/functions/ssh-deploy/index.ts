@@ -156,11 +156,16 @@ Deno.serve(async (req) => {
       // 2. Install Docker if needed and allowed
       if ((!hasDocker || !hasCompose) && body.install_docker) {
         log("→ Installing Docker (this may take 1-3 minutes)…");
-        const installCmd = `echo '${body.password.replace(/'/g, "'\\''")}' | sudo -S sh -c "
-          curl -fsSL https://get.docker.com | sh &&
-          systemctl enable docker &&
-          systemctl start docker &&
-          usermod -aG docker ${body.username}
+        const sudoP = `echo '${body.password.replace(/'/g, "'\\''")}' | sudo -S `;
+        // 1) Ensure curl + ca-certificates are present (apt or yum/dnf)
+        await exec(conn, `${sudoP}sh -c "(command -v apt-get && apt-get update -y && apt-get install -y curl ca-certificates) || (command -v dnf && dnf install -y curl ca-certificates) || (command -v yum && yum install -y curl ca-certificates) || true"`);
+        // 2) Install Docker via official script (curl, fallback wget)
+        const installCmd = `${sudoP}sh -c "
+          (curl -fsSL https://get.docker.com -o /tmp/get-docker.sh || wget -qO /tmp/get-docker.sh https://get.docker.com) &&
+          sh /tmp/get-docker.sh &&
+          (systemctl enable docker || true) &&
+          (systemctl start docker || service docker start || true) &&
+          usermod -aG docker ${body.username} || true
         "`;
         const r = await exec(conn, installCmd);
         log(r.stdout.slice(-1500));
