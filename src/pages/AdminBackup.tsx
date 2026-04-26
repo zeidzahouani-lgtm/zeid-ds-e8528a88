@@ -619,20 +619,20 @@ export default function AdminBackup() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Upload className="h-5 w-5" />Restaurer une sauvegarde</CardTitle>
-              <CardDescription>Importez un fichier JSON (multi-tables) ou CSV (table unique nommée selon le fichier).</CardDescription>
+              <CardDescription>Importez une archive ZIP complète, un JSON multi-tables, ou un CSV. Les ZIP sont vérifiés avant restauration.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Action critique</AlertTitle>
                 <AlertDescription className="text-xs">
-                  Le mode <strong>upsert</strong> remplace les enregistrements existants par ID. Le mode <strong>insert</strong> échoue sur les doublons. Faites une sauvegarde au préalable.
+                  Le mode <strong>upsert</strong> remplace les enregistrements existants par ID. Les fichiers seront uploadés en mode upsert dans les buckets. Faites une sauvegarde au préalable.
                 </AlertDescription>
               </Alert>
 
               <div className="grid gap-3 md:grid-cols-2">
                 <div>
-                  <Label className="text-xs">Mode d'import</Label>
+                  <Label className="text-xs">Mode d'import des tables</Label>
                   <Select value={restoreMode} onValueChange={(v: any) => setRestoreMode(v)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -642,12 +642,12 @@ export default function AdminBackup() {
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-xs">Fichier (.json ou .csv)</Label>
+                  <Label className="text-xs">Fichier (.zip, .json ou .csv)</Label>
                   <Input
                     ref={fileInputRef}
                     type="file"
-                    accept=".json,.csv"
-                    disabled={restoring}
+                    accept=".json,.csv,.zip"
+                    disabled={restoring || verifying}
                     onChange={(e) => {
                       const f = e.target.files?.[0];
                       if (f) handleImportFile(f);
@@ -657,16 +657,128 @@ export default function AdminBackup() {
                 </div>
               </div>
 
-              {restoring && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Restauration en cours...
+              {(verifying || (restoring && progress)) && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {progress || (verifying ? "Vérification..." : "Restauration...")}
+                  </div>
+                  {progressPct > 0 && <Progress value={progressPct} className="h-2" />}
                 </div>
               )}
 
+              {/* ===== ZIP VERIFICATION SCREEN ===== */}
+              {zipPreview && !restoreResults && !fileRestoreResults && (
+                <div className="space-y-4 border rounded-xl p-4 bg-muted/30">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5 text-primary" />
+                    <h3 className="font-semibold">Vérification de la sauvegarde</h3>
+                  </div>
+
+                  {zipPreview.manifest?.generated_at && (
+                    <p className="text-xs text-muted-foreground">
+                      Générée le : <code>{new Date(zipPreview.manifest.generated_at).toLocaleString()}</code>
+                    </p>
+                  )}
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="bg-background p-3 rounded-lg border">
+                      <div className="text-xs text-muted-foreground">Tables</div>
+                      <div className="text-2xl font-bold">{Object.keys(zipPreview.tablesPayload).length}</div>
+                    </div>
+                    <div className="bg-background p-3 rounded-lg border">
+                      <div className="text-xs text-muted-foreground">Lignes</div>
+                      <div className="text-2xl font-bold">{zipPreview.totalRows.toLocaleString()}</div>
+                    </div>
+                    <div className="bg-background p-3 rounded-lg border">
+                      <div className="text-xs text-muted-foreground">Fichiers</div>
+                      <div className="text-2xl font-bold">{zipPreview.totalFiles}</div>
+                    </div>
+                    <div className="bg-background p-3 rounded-lg border">
+                      <div className="text-xs text-muted-foreground">Taille totale</div>
+                      <div className="text-2xl font-bold">{(zipPreview.totalBytes / 1024 / 1024).toFixed(1)} MB</div>
+                    </div>
+                  </div>
+
+                  {/* Tables list */}
+                  {Object.keys(zipPreview.tablesPayload).length > 0 && (
+                    <div className="space-y-1.5">
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase">Tables détectées</h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {Object.entries(zipPreview.tablesPayload).map(([t, rows]) => (
+                          <Badge key={t} variant="secondary" className="text-xs">
+                            {t} <span className="ml-1 opacity-70">({rows.length})</span>
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* File integrity */}
+                  {zipPreview.fileChecks.length > 0 && (() => {
+                    const missing = zipPreview.fileChecks.filter(c => !c.present).length;
+                    const sizeBad = zipPreview.fileChecks.filter(c => c.present && c.sizeMatch === false).length;
+                    const hashBad = zipPreview.fileChecks.filter(c => c.present && c.sha256Match === false).length;
+                    const valid = zipPreview.fileChecks.length - missing - sizeBad - hashBad;
+                    return (
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase">Intégrité des fichiers</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                          <div className="flex items-center gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />{valid} valides</div>
+                          <div className="flex items-center gap-1.5"><XCircle className="h-3.5 w-3.5 text-destructive" />{missing} manquants</div>
+                          <div className="flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5 text-orange-500" />{sizeBad} taille KO</div>
+                          <div className="flex items-center gap-1.5"><AlertCircle className="h-3.5 w-3.5 text-orange-500" />{hashBad} hash KO</div>
+                        </div>
+                        <details className="text-xs">
+                          <summary className="cursor-pointer text-muted-foreground hover:text-foreground">Voir le détail des fichiers</summary>
+                          <div className="mt-2 border rounded-lg divide-y max-h-64 overflow-y-auto bg-background">
+                            {zipPreview.fileChecks.map((c, idx) => {
+                              const status = !c.present ? "missing" : (c.sizeMatch === false || c.sha256Match === false) ? "warn" : "ok";
+                              return (
+                                <div key={idx} className="flex items-center justify-between p-2 gap-2">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                                    {status === "ok" && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />}
+                                    {status === "warn" && <AlertCircle className="h-3.5 w-3.5 text-orange-500 shrink-0" />}
+                                    {status === "missing" && <XCircle className="h-3.5 w-3.5 text-destructive shrink-0" />}
+                                    <code className="truncate">{c.entry.path}</code>
+                                  </div>
+                                  <div className="text-muted-foreground shrink-0 text-[10px]">
+                                    {(c.entry.size / 1024).toFixed(1)} KB
+                                    {c.sha256Match === false && <span className="ml-1 text-orange-500">hash≠</span>}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </details>
+                      </div>
+                    );
+                  })()}
+
+                  {zipPreview.fileChecks.length > 0 && (
+                    <div className="flex items-center justify-between p-3 bg-background rounded-lg border">
+                      <div>
+                        <Label className="text-sm font-medium">Restaurer aussi les fichiers</Label>
+                        <p className="text-xs text-muted-foreground">Re-upload des médias dans les buckets via le manifest</p>
+                      </div>
+                      <Switch checked={restoreFiles} onCheckedChange={setRestoreFiles} />
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 pt-2">
+                    <Button onClick={launchRestore} disabled={restoring} className="gap-2">
+                      {restoring ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
+                      Lancer la restauration
+                    </Button>
+                    <Button onClick={cancelRestore} disabled={restoring} variant="outline">Annuler</Button>
+                  </div>
+                </div>
+              )}
+
+              {/* ===== TABLE RESTORE RESULTS ===== */}
               {restoreResults && (
                 <div className="space-y-2">
-                  <h3 className="text-sm font-semibold">Résultats</h3>
+                  <h3 className="text-sm font-semibold">Résultats — Tables</h3>
                   <div className="border rounded-lg divide-y max-h-80 overflow-y-auto">
                     {Object.entries(restoreResults).map(([table, r]) => (
                       <div key={table} className="flex items-center justify-between p-2.5 text-sm">
@@ -680,6 +792,37 @@ export default function AdminBackup() {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* ===== FILE RESTORE RESULTS ===== */}
+              {fileRestoreResults && (
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold">Résultats — Fichiers</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-emerald-500/10 border border-emerald-500/30 p-3 rounded-lg">
+                      <div className="flex items-center gap-2 text-emerald-600">
+                        <CheckCircle2 className="h-4 w-4" />
+                        <span className="text-sm font-semibold">{fileRestoreResults.ok}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Fichiers uploadés</p>
+                    </div>
+                    <div className="bg-destructive/10 border border-destructive/30 p-3 rounded-lg">
+                      <div className="flex items-center gap-2 text-destructive">
+                        <XCircle className="h-4 w-4" />
+                        <span className="text-sm font-semibold">{fileRestoreResults.failed}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">Échecs</p>
+                    </div>
+                  </div>
+                  {fileRestoreResults.errors.length > 0 && (
+                    <details className="text-xs">
+                      <summary className="cursor-pointer text-muted-foreground">Voir les erreurs ({fileRestoreResults.errors.length})</summary>
+                      <ul className="mt-2 space-y-1 bg-muted/50 p-3 rounded-lg max-h-40 overflow-y-auto">
+                        {fileRestoreResults.errors.map((e, i) => <li key={i}><code>{e}</code></li>)}
+                      </ul>
+                    </details>
+                  )}
                 </div>
               )}
             </CardContent>
