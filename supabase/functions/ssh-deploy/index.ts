@@ -28,6 +28,11 @@ interface DeployBody {
   enable_https?: boolean;
   https_port?: string;
   https_domain?: string;
+  // Local self-hosted Supabase (optional)
+  install_supabase_local?: boolean;
+  supabase_kong_http_port?: string;   // public REST/Auth gateway (default 8000)
+  supabase_studio_port?: string;      // Supabase Studio UI (default 3000)
+  supabase_db_port?: string;          // Postgres (default 5432)
 }
 
 function ssh(opts: { host: string; port: number; username: string; password: string }): Promise<Client> {
@@ -146,6 +151,13 @@ Deno.serve(async (req) => {
     const enableHttps = !!body.enable_https;
     const httpsPort = body.https_port || "8443";
     const httpsDomain = (body.https_domain || body.host).trim();
+    const installSupabase = !!body.install_supabase_local;
+    const supaKongPort = body.supabase_kong_http_port || "8000";
+    const supaStudioPort = body.supabase_studio_port || "3001";
+    const supaDbPort = body.supabase_db_port || "5432";
+    let supabaseUrlOverride = "";
+    let supabaseAnonOverride = "";
+    let supabaseProjectIdOverride = "";
 
     let gitUrl = body.git_url.trim();
     if (body.git_token && /^https?:\/\//.test(gitUrl)) {
@@ -201,6 +213,72 @@ Deno.serve(async (req) => {
       if (gitCheck.stdout.includes("MISSING")) {
         log("→ Installing git…");
         await exec(conn, `${sudoPrefix}sh -c "(apt-get update -y && apt-get install -y git) || (dnf install -y git) || (yum install -y git)"`);
+      }
+
+      // ===== Optional: install self-hosted Supabase on the same server =====
+      if (installSupabase) {
+        const supaDir = `${remoteDir}/supabase`;
+        log("→ Installing self-hosted Supabase (this may take 3-5 minutes)…");
+        await exec(conn, `${sudoPrefix}mkdir -p ${supaDir} && ${sudoPrefix}chown -R ${body.username}:${body.username} ${supaDir}`);
+
+        const supaClone = await exec(conn, `if [ ! -d ${supaDir}/supabase-repo ]; then git clone --depth 1 https://github.com/supabase/supabase ${supaDir}/supabase-repo 2>&1; else cd ${supaDir}/supabase-repo && git pull 2>&1; fi`);
+        log(supaClone.stdout.slice(-1000));
+        if (supaClone.code !== 0) throw new Error("Échec clone du dépôt Supabase: " + supaClone.stderr.slice(-300));
+
+        await exec(conn, `cp -rn ${supaDir}/supabase-repo/docker/* ${supaDir}/ 2>/dev/null || true`);
+        await exec(conn, `cp -n ${supaDir}/supabase-repo/docker/.env.example ${supaDir}/.env 2>/dev/null || true`);
+
+        const randHex = (n: number) => Array.from({ length: n }, () => Math.floor(Math.random() * 16).toString(16)).join("");
+        const postgresPw = randHex(32);
+        const jwtSecret = randHex(40);
+        const dashboardPw = randHex(16);
+
+        const jwtGen = await exec(conn, `docker run --rm -e S='${jwtSecret}' node:20-alpine node -e "const c=require('crypto');const s=process.env.S;function b64(o){return Buffer.from(JSON.stringify(o)).toString('base64url')}function sign(p){const h=b64({alg:'HS256',typ:'JWT'});const b=b64(p);const sig=c.createHmac('sha256',s).update(h+'.'+b).digest('base64url');return h+'.'+b+'.'+sig}const iat=Math.floor(Date.now()/1000),exp=iat+315360000;console.log(sign({role:'anon',iss:'supabase',iat,exp}));console.log(sign({role:'service_role',iss:'supabase',iat,exp}));"`);
+        const jwtLines = jwtGen.stdout.trim().split("\n").filter((l: string) => l.startsWith("ey"));
+        if (jwtLines.length < 2) {
+          log("⚠ JWT gen output: " + jwtGen.stdout.slice(-400) + " | err: " + jwtGen.stderr.slice(-400));
+          throw new Error("Échec génération des clés JWT Supabase");
+        }
+        const anonKey = jwtLines[0];
+        const serviceKey = jwtLines[1];
+
+        const supaPublicUrl = enableHttps ? `https://${httpsDomain}:${supaKongPort}` : `http://${body.host}:${supaKongPort}`;
+
+        const envPatch = [
+          `POSTGRES_PASSWORD=${postgresPw}`,
+          `JWT_SECRET=${jwtSecret}`,
+          `ANON_KEY=${anonKey}`,
+          `SERVICE_ROLE_KEY=${serviceKey}`,
+          `DASHBOARD_USERNAME=admin`,
+          `DASHBOARD_PASSWORD=${dashboardPw}`,
+          `SITE_URL=${enableHttps ? `https://${httpsDomain}:${httpsPort}` : `http://${body.host}:${appPort}`}`,
+          `API_EXTERNAL_URL=${supaPublicUrl}`,
+          `SUPABASE_PUBLIC_URL=${supaPublicUrl}`,
+          `KONG_HTTP_PORT=${supaKongPort}`,
+          `KONG_HTTPS_PORT=${parseInt(supaKongPort) + 443}`,
+          `STUDIO_PORT=${supaStudioPort}`,
+          `POSTGRES_PORT=${supaDbPort}`,
+        ].join("\n") + "\n";
+        const envB64 = btoa(envPatch);
+        await exec(conn, `cd ${supaDir} && for k in POSTGRES_PASSWORD JWT_SECRET ANON_KEY SERVICE_ROLE_KEY DASHBOARD_USERNAME DASHBOARD_PASSWORD SITE_URL API_EXTERNAL_URL SUPABASE_PUBLIC_URL KONG_HTTP_PORT KONG_HTTPS_PORT STUDIO_PORT POSTGRES_PORT; do sed -i "/^$k=/d" .env; done && echo "${envB64}" | base64 -d >> .env && serviceKey="${serviceKey}" && echo "_OK"`);
+
+        log(`→ Starting Supabase containers (kong:${supaKongPort}, studio:${supaStudioPort}, db:${supaDbPort})…`);
+        const supaUp = await exec(conn, `cd ${supaDir} && (docker compose pull 2>&1 | tail -20) && (docker compose up -d 2>&1 | tail -40)`);
+        log(supaUp.stdout.slice(-2000));
+        if (supaUp.code !== 0) {
+          log("⚠ Supabase compose stderr: " + supaUp.stderr.slice(-1000));
+          throw new Error("Échec du démarrage de Supabase local");
+        }
+
+        supabaseUrlOverride = supaPublicUrl;
+        supabaseAnonOverride = anonKey;
+        supabaseProjectIdOverride = "local";
+
+        log(`✓ Supabase local démarré`);
+        log(`  • API:    ${supaPublicUrl}`);
+        log(`  • Studio: http://${body.host}:${supaStudioPort}  (admin / ${dashboardPw})`);
+        log(`  • DB:     postgres://postgres:${postgresPw}@${body.host}:${supaDbPort}/postgres`);
+        log(`  ⚠ Notez le mot de passe du dashboard, il ne sera pas réaffiché.`);
       }
 
       log(`→ Preparing remote directory ${remoteDir}…`);
@@ -278,9 +356,9 @@ server {
     build:
       context: .
       args:
-        VITE_SUPABASE_URL: '${escEnv(body.vite_supabase_url || "")}'
-        VITE_SUPABASE_PUBLISHABLE_KEY: '${escEnv(body.vite_supabase_key || "")}'
-        VITE_SUPABASE_PROJECT_ID: '${escEnv(body.vite_supabase_project_id || "")}'
+        VITE_SUPABASE_URL: '${escEnv(supabaseUrlOverride || body.vite_supabase_url || "")}'
+        VITE_SUPABASE_PUBLISHABLE_KEY: '${escEnv(supabaseAnonOverride || body.vite_supabase_key || "")}'
+        VITE_SUPABASE_PROJECT_ID: '${escEnv(supabaseProjectIdOverride || body.vite_supabase_project_id || "")}'
 ${portsBlock}
     restart: unless-stopped
 `;
@@ -331,7 +409,16 @@ openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
       const url = enableHttps ? `https://${body.host}:${httpsPort}` : `http://${body.host}:${appPort}`;
       log(`🚀 Deployment complete — accessible at ${url}`);
 
-      return new Response(JSON.stringify({ success: true, url, logs }), {
+      return new Response(JSON.stringify({
+        success: true,
+        url,
+        logs,
+        supabase_local: installSupabase ? {
+          url: supabaseUrlOverride,
+          anon_key: supabaseAnonOverride,
+          studio_url: `http://${body.host}:${supaStudioPort}`,
+        } : null,
+      }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

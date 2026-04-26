@@ -183,6 +183,12 @@ export default function AdminBackup() {
   const [sshSupabaseUrl, setSshSupabaseUrl] = useState("");
   const [sshSupabaseKey, setSshSupabaseKey] = useState("");
   const [sshSupabaseProjectId, setSshSupabaseProjectId] = useState("");
+  // Install local self-hosted Supabase on the same server
+  const [sshInstallSupabaseLocal, setSshInstallSupabaseLocal] = useState(false);
+  const [sshSupaKongPort, setSshSupaKongPort] = useState("8000");
+  const [sshSupaStudioPort, setSshSupaStudioPort] = useState("3001");
+  const [sshSupaDbPort, setSshSupaDbPort] = useState("5432");
+  const [sshLocalSupabaseInfo, setSshLocalSupabaseInfo] = useState<{ url: string; anon_key: string; studio_url: string } | null>(null);
   const [sshDeploying, setSshDeploying] = useState(false);
   const [sshLogs, setSshLogs] = useState<string[]>([]);
   const [sshDeployedUrl, setSshDeployedUrl] = useState<string | null>(null);
@@ -638,20 +644,23 @@ To rebuild manually: docker compose up -d --build
       toast.error("Renseignez l'URL du dépôt Git");
       return;
     }
-    if (sshIsolateBackend && (!sshSupabaseUrl || !sshSupabaseKey || !sshSupabaseProjectId)) {
-      toast.error("Backend isolé activé : renseignez l'URL, la clé et le project ID Supabase du serveur local");
+    // Validation: backend creds required only if isolating WITHOUT installing local Supabase
+    if (sshIsolateBackend && !sshInstallSupabaseLocal && (!sshSupabaseUrl || !sshSupabaseKey || !sshSupabaseProjectId)) {
+      toast.error("Backend isolé activé : renseignez l'URL, la clé et le project ID Supabase OU activez 'Installer Supabase local'");
       return;
     }
-    const backendUrl = sshIsolateBackend ? sshSupabaseUrl.trim() : envUrl;
-    const backendKey = sshIsolateBackend ? sshSupabaseKey.trim() : envKey;
-    const backendProjectId = sshIsolateBackend ? sshSupabaseProjectId.trim() : envProjectId;
-    if (sshIsolateBackend && backendUrl === envUrl) {
+    // When installing local Supabase, the function will override the creds itself
+    const backendUrl = sshInstallSupabaseLocal ? "" : (sshIsolateBackend ? sshSupabaseUrl.trim() : envUrl);
+    const backendKey = sshInstallSupabaseLocal ? "" : (sshIsolateBackend ? sshSupabaseKey.trim() : envKey);
+    const backendProjectId = sshInstallSupabaseLocal ? "" : (sshIsolateBackend ? sshSupabaseProjectId.trim() : envProjectId);
+    if (sshIsolateBackend && !sshInstallSupabaseLocal && backendUrl === envUrl) {
       toast.error("L'URL Supabase du serveur local doit être DIFFÉRENTE de celle du projet en ligne");
       return;
     }
     setSshDeploying(true);
     setSshLogs([]);
     setSshDeployedUrl(null);
+    setSshLocalSupabaseInfo(null);
     try {
       setSshLogs(["🔌 Connexion au serveur…"]);
 
@@ -673,6 +682,10 @@ To rebuild manually: docker compose up -d --build
           enable_https: sshEnableHttps,
           https_port: sshHttpsPort,
           https_domain: sshHttpsDomain.trim() || undefined,
+          install_supabase_local: sshInstallSupabaseLocal,
+          supabase_kong_http_port: sshSupaKongPort,
+          supabase_studio_port: sshSupaStudioPort,
+          supabase_db_port: sshSupaDbPort,
         },
       });
       if (error) throw error;
@@ -680,6 +693,7 @@ To rebuild manually: docker compose up -d --build
       setSshLogs(prev => [...prev, ...logs]);
       if (data?.success) {
         setSshDeployedUrl(data.url);
+        if (data.supabase_local) setSshLocalSupabaseInfo(data.supabase_local);
         toast.success("Déploiement réussi 🚀");
       } else {
         toast.error("Échec du déploiement: " + (data?.error || "inconnu"));
@@ -1253,27 +1267,63 @@ To rebuild manually: docker compose up -d --build
                 </div>
                 {sshIsolateBackend ? (
                   <div className="space-y-3 pl-12">
-                    <Alert>
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertTitle>Instance Supabase indépendante requise</AlertTitle>
-                      <AlertDescription className="text-xs">
-                        Créez un nouveau projet Supabase (cloud ou self-hosted), puis collez ses identifiants ci-dessous. La structure (tables, RLS, edge functions) doit y être répliquée — utilisez l'onglet <strong>Sauvegarde</strong> pour exporter puis l'onglet <strong>Restauration</strong> pointé vers la nouvelle base.
-                      </AlertDescription>
-                    </Alert>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="space-y-1.5 md:col-span-2">
-                        <Label className="text-xs">Supabase URL (serveur local)</Label>
-                        <Input value={sshSupabaseUrl} onChange={e => setSshSupabaseUrl(e.target.value)} placeholder="https://xxxx.supabase.co" disabled={sshDeploying} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Project ID</Label>
-                        <Input value={sshSupabaseProjectId} onChange={e => setSshSupabaseProjectId(e.target.value)} placeholder="xxxx" disabled={sshDeploying} />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs">Anon / Publishable Key</Label>
-                        <Input type="password" value={sshSupabaseKey} onChange={e => setSshSupabaseKey(e.target.value)} placeholder="eyJhbGciOi…" disabled={sshDeploying} />
+                    <div className="flex items-center gap-2 p-2.5 rounded-md bg-primary/5 border border-primary/20">
+                      <Switch checked={sshInstallSupabaseLocal} onCheckedChange={setSshInstallSupabaseLocal} disabled={sshDeploying} />
+                      <div className="text-sm">
+                        <p className="font-medium flex items-center gap-1.5"><Container className="h-3.5 w-3.5" />Installer Supabase self-hosted sur ce même serveur</p>
+                        <p className="text-xs text-muted-foreground">
+                          Déploie automatiquement une instance Supabase complète (Postgres, Auth, Storage, Studio) via Docker. L'app sera configurée pour l'utiliser. ~3-5 min.
+                        </p>
                       </div>
                     </div>
+
+                    {sshInstallSupabaseLocal ? (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Port API (Kong)</Label>
+                          <Input value={sshSupaKongPort} onChange={e => setSshSupaKongPort(e.target.value)} placeholder="8000" disabled={sshDeploying} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Port Studio</Label>
+                          <Input value={sshSupaStudioPort} onChange={e => setSshSupaStudioPort(e.target.value)} placeholder="3001" disabled={sshDeploying} />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Port Postgres</Label>
+                          <Input value={sshSupaDbPort} onChange={e => setSshSupaDbPort(e.target.value)} placeholder="5432" disabled={sshDeploying} />
+                        </div>
+                        <Alert className="md:col-span-3">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription className="text-xs">
+                            Les identifiants de connexion (anon key, mot de passe Studio, mot de passe Postgres) seront affichés dans les logs après le déploiement. <strong>Sauvegardez-les</strong>.
+                            La structure (tables, RLS, fonctions) doit ensuite être appliquée via l'onglet <strong>Sauvegarde / Restauration</strong>.
+                          </AlertDescription>
+                        </Alert>
+                      </div>
+                    ) : (
+                      <>
+                        <Alert>
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertTitle>Instance Supabase indépendante requise</AlertTitle>
+                          <AlertDescription className="text-xs">
+                            Renseignez ci-dessous les identifiants d'une instance Supabase existante (cloud ou self-hosted).
+                          </AlertDescription>
+                        </Alert>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="space-y-1.5 md:col-span-2">
+                            <Label className="text-xs">Supabase URL (serveur local)</Label>
+                            <Input value={sshSupabaseUrl} onChange={e => setSshSupabaseUrl(e.target.value)} placeholder="https://xxxx.supabase.co" disabled={sshDeploying} />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Project ID</Label>
+                            <Input value={sshSupabaseProjectId} onChange={e => setSshSupabaseProjectId(e.target.value)} placeholder="xxxx" disabled={sshDeploying} />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">Anon / Publishable Key</Label>
+                            <Input type="password" value={sshSupabaseKey} onChange={e => setSshSupabaseKey(e.target.value)} placeholder="eyJhbGciOi…" disabled={sshDeploying} />
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ) : (
                   <Alert variant="destructive" className="ml-12">
@@ -1306,6 +1356,19 @@ To rebuild manually: docker compose up -d --build
                   </a>
                 )}
               </div>
+
+              {sshLocalSupabaseInfo && (
+                <Alert className="border-primary/40 bg-primary/5">
+                  <Database className="h-4 w-4" />
+                  <AlertTitle>Supabase local installé 🎉</AlertTitle>
+                  <AlertDescription className="space-y-1 text-xs mt-2">
+                    <div><strong>API URL :</strong> <code>{sshLocalSupabaseInfo.url}</code></div>
+                    <div><strong>Studio :</strong> <a href={sshLocalSupabaseInfo.studio_url} target="_blank" rel="noopener noreferrer" className="text-primary underline">{sshLocalSupabaseInfo.studio_url}</a></div>
+                    <div className="break-all"><strong>Anon Key :</strong> <code className="text-[10px]">{sshLocalSupabaseInfo.anon_key}</code></div>
+                    <p className="mt-2 text-muted-foreground">⚠ Le mot de passe Studio et le mot de passe Postgres sont dans le journal ci-dessous — sauvegardez-les.</p>
+                  </AlertDescription>
+                </Alert>
+              )}
 
               {sshLogs.length > 0 && (
                 <div className="space-y-2">
