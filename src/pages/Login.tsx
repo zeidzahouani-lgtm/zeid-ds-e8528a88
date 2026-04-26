@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
 import { LoginParticles } from "@/components/LoginParticles";
 import { CursorGlow } from "@/components/CursorGlow";
+import { LoginRestoreButton } from "@/components/LoginRestoreButton";
 
 export default function Login() {
   const [email, setEmail] = useState("");
