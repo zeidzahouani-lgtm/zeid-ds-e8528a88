@@ -616,3 +616,116 @@ openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
     throw innerErr;
   }
 }
+
+// ===== Reset-only: connect via SSH and reset the default admin password =====
+async function runResetAdminPassword(body: DeployBody, log: (m: string) => Promise<void> | void) {
+  const port = body.port ?? 22;
+  const remoteDir = body.remote_dir || "/opt/screenflow";
+  const supaDir = `${remoteDir}/supabase`;
+  const newPassword = (body.admin_password && body.admin_password.length >= 6)
+    ? body.admin_password
+    : "260390DS";
+
+  await log(`→ Connexion SSH ${body.username}@${body.host}:${port}…`);
+  const conn = await ssh({ host: body.host, port, username: body.username, password: body.password });
+  await log("✓ SSH connecté");
+
+  try {
+    // Sanity check: the local Supabase stack must exist
+    const check = await exec(conn, `[ -f ${supaDir}/docker-compose.yml ] && echo OK || echo MISSING`);
+    if (!check.stdout.includes("OK")) {
+      throw new Error(
+        `Aucune installation Supabase locale trouvée dans ${supaDir}. ` +
+        `Lancez d'abord un déploiement complet, ou ajustez 'remote_dir'.`
+      );
+    }
+    await log(`✓ Stack Supabase locale détectée dans ${supaDir}`);
+
+    // Wait for Postgres to be ready
+    await log("→ Vérification que Postgres est prêt…");
+    await exec(conn, `cd ${supaDir} && for i in $(seq 1 30); do docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && break || sleep 2; done`);
+
+    // Escape password for SQL single-quoted string
+    const sqlPwd = newPassword.replace(/'/g, "''");
+
+    const resetSql = `
+DO $$
+DECLARE
+  new_user_id uuid;
+  existing_id uuid;
+BEGIN
+  SELECT id INTO existing_id FROM auth.users WHERE email = 'screenflow@screenflow.local' LIMIT 1;
+  IF existing_id IS NULL THEN
+    new_user_id := gen_random_uuid();
+    INSERT INTO auth.users (
+      instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+      raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+      confirmation_token, email_change, email_change_token_new, recovery_token,
+      is_sso_user, is_anonymous
+    ) VALUES (
+      '00000000-0000-0000-0000-000000000000', new_user_id, 'authenticated', 'authenticated',
+      'screenflow@screenflow.local', crypt('${sqlPwd}', gen_salt('bf')), now(),
+      '{"provider":"email","providers":["email"]}'::jsonb,
+      '{"display_name":"ScreenFlow Admin"}'::jsonb,
+      now(), now(), '', '', '', '',
+      false, false
+    );
+  ELSE
+    UPDATE auth.users
+    SET encrypted_password = crypt('${sqlPwd}', gen_salt('bf')),
+        email_confirmed_at = COALESCE(email_confirmed_at, now()),
+        banned_until = NULL,
+        deleted_at = NULL,
+        updated_at = now()
+    WHERE id = existing_id;
+    new_user_id := existing_id;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM auth.identities WHERE user_id = new_user_id AND provider = 'email') THEN
+    INSERT INTO auth.identities (id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at)
+    VALUES (
+      gen_random_uuid(), new_user_id,
+      jsonb_build_object('sub', new_user_id::text, 'email', 'screenflow@screenflow.local', 'email_verified', true),
+      'email', new_user_id::text, now(), now(), now()
+    );
+  END IF;
+
+  -- Ensure admin role
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='user_roles') THEN
+    INSERT INTO public.user_roles (user_id, role) VALUES (new_user_id, 'admin') ON CONFLICT DO NOTHING;
+    DELETE FROM public.user_roles WHERE user_id = new_user_id AND role = 'user';
+  END IF;
+END $$;
+`.trim();
+
+    await log("→ Réinitialisation du mot de passe admin en cours…");
+    const sqlB64 = btoa(resetSql);
+    const result = await exec(
+      conn,
+      `cd ${supaDir} && echo "${sqlB64}" | base64 -d | docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`
+    );
+
+    if (result.code !== 0) {
+      throw new Error("Échec SQL : " + result.stdout.slice(-800) + result.stderr.slice(-400));
+    }
+
+    await log("✓ Mot de passe admin réinitialisé avec succès");
+    await log("");
+    await log("════════════════════════════════════════════════════════════");
+    await log("🔐  COMPTE ADMINISTRATEUR — MOT DE PASSE RÉINITIALISÉ");
+    await log("════════════════════════════════════════════════════════════");
+    await log(`   Email            : screenflow@screenflow.local`);
+    await log(`   Mot de passe     : ${newPassword}`);
+    await log(`   Rôle             : admin (global)`);
+    await log("   ⚠  Pensez à changer ce mot de passe après la connexion.");
+    await log("════════════════════════════════════════════════════════════");
+
+    (globalThis as any).__lastDeployResult = {
+      action: "reset_admin_password",
+      email: "screenflow@screenflow.local",
+      password: newPassword,
+    };
+  } finally {
+    try { conn.end(); } catch (_) {}
+  }
+}
