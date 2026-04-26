@@ -1357,6 +1357,19 @@ To rebuild manually: docker compose up -d --build
                 )}
               </div>
 
+              {sshLocalSupabaseInfo && (
+                <Alert className="border-primary/40 bg-primary/5">
+                  <Database className="h-4 w-4" />
+                  <AlertTitle>Supabase local installé 🎉</AlertTitle>
+                  <AlertDescription className="space-y-1 text-xs mt-2">
+                    <div><strong>API URL :</strong> <code>{sshLocalSupabaseInfo.url}</code></div>
+                    <div><strong>Studio :</strong> <a href={sshLocalSupabaseInfo.studio_url} target="_blank" rel="noopener noreferrer" className="text-primary underline">{sshLocalSupabaseInfo.studio_url}</a></div>
+                    <div className="break-all"><strong>Anon Key :</strong> <code className="text-[10px]">{sshLocalSupabaseInfo.anon_key}</code></div>
+                    <p className="mt-2 text-muted-foreground">⚠ Le mot de passe Studio et le mot de passe Postgres sont dans le journal ci-dessous — sauvegardez-les.</p>
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {sshLogs.length > 0 && (
                 <div className="space-y-2">
                   <Label className="flex items-center gap-2"><Terminal className="h-3.5 w-3.5" />Journal de déploiement</Label>
