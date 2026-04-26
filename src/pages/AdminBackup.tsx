@@ -175,6 +175,9 @@ export default function AdminBackup() {
   const [sshGitUrl, setSshGitUrl] = useState("");
   const [sshGitBranch, setSshGitBranch] = useState("main");
   const [sshGitToken, setSshGitToken] = useState("");
+  const [sshEnableHttps, setSshEnableHttps] = useState(false);
+  const [sshHttpsPort, setSshHttpsPort] = useState("8443");
+  const [sshHttpsDomain, setSshHttpsDomain] = useState("");
   const [sshDeploying, setSshDeploying] = useState(false);
   const [sshLogs, setSshLogs] = useState<string[]>([]);
   const [sshDeployedUrl, setSshDeployedUrl] = useState<string | null>(null);
@@ -651,6 +654,9 @@ To rebuild manually: docker compose up -d --build
           git_url: sshGitUrl.trim(),
           git_branch: sshGitBranch.trim() || "main",
           git_token: sshGitToken.trim() || undefined,
+          enable_https: sshEnableHttps,
+          https_port: sshHttpsPort,
+          https_domain: sshHttpsDomain.trim() || undefined,
         },
       });
       if (error) throw error;
@@ -1193,6 +1199,30 @@ To rebuild manually: docker compose up -d --build
                     Si Docker / Docker Compose ne sont pas trouvés, le script lance <code>get.docker.com</code> via sudo.
                   </p>
                 </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-muted/40 border space-y-3">
+                <div className="flex items-center gap-2">
+                  <Switch checked={sshEnableHttps} onCheckedChange={setSshEnableHttps} disabled={sshDeploying} />
+                  <div className="text-sm">
+                    <p className="font-medium flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" />Activer HTTPS (certificat auto-signé)</p>
+                    <p className="text-xs text-muted-foreground">
+                      Génère un certificat SSL auto-signé via OpenSSL. Le navigateur affichera un avertissement (à accepter une fois).
+                    </p>
+                  </div>
+                </div>
+                {sshEnableHttps && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-12">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Port HTTPS</Label>
+                      <Input value={sshHttpsPort} onChange={e => setSshHttpsPort(e.target.value)} placeholder="8443" disabled={sshDeploying} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Domaine / IP du certificat (CN)</Label>
+                      <Input value={sshHttpsDomain} onChange={e => setSshHttpsDomain(e.target.value)} placeholder={sshHost || "exemple.local"} disabled={sshDeploying} />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <Separator />

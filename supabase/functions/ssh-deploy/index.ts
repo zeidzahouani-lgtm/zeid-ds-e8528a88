@@ -25,6 +25,9 @@ interface DeployBody {
   git_url: string;            // e.g. https://github.com/user/repo.git
   git_branch?: string;        // default: main
   git_token?: string;         // optional PAT for private repos
+  enable_https?: boolean;
+  https_port?: string;
+  https_domain?: string;
 }
 
 function ssh(opts: { host: string; port: number; username: string; password: string }): Promise<Client> {
@@ -140,6 +143,9 @@ Deno.serve(async (req) => {
     const remoteDir = body.remote_dir || "/opt/screenflow";
     const appPort = body.app_port || "8080";
     const branch = body.git_branch || "main";
+    const enableHttps = !!body.enable_https;
+    const httpsPort = body.https_port || "8443";
+    const httpsDomain = (body.https_domain || body.host).trim();
 
     let gitUrl = body.git_url.trim();
     if (body.git_token && /^https?:\/\//.test(gitUrl)) {
@@ -231,7 +237,26 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 CMD ["nginx","-g","daemon off;"]
 `;
-      const nginxConf = `server {
+      const nginxConf = enableHttps
+        ? `server {
+  listen 80;
+  server_name _;
+  return 301 https://$host:${httpsPort}$request_uri;
+}
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name _;
+  ssl_certificate /etc/nginx/ssl/server.crt;
+  ssl_certificate_key /etc/nginx/ssl/server.key;
+  ssl_protocols TLSv1.2 TLSv1.3;
+  root /usr/share/nginx/html;
+  index index.html;
+  location / { try_files $uri $uri/ /index.html; }
+  location /assets/ { expires 1y; add_header Cache-Control "public, immutable"; }
+}
+`
+        : `server {
   listen 80;
   server_name _;
   root /usr/share/nginx/html;
@@ -240,6 +265,14 @@ CMD ["nginx","-g","daemon off;"]
   location /assets/ { expires 1y; add_header Cache-Control "public, immutable"; }
 }
 `;
+      const portsBlock = enableHttps
+        ? `    ports:
+      - "${appPort}:80"
+      - "${httpsPort}:443"
+    volumes:
+      - ./ssl:/etc/nginx/ssl:ro`
+        : `    ports:
+      - "${appPort}:80"`;
       const compose = `services:
   web:
     build:
@@ -248,8 +281,7 @@ CMD ["nginx","-g","daemon off;"]
         VITE_SUPABASE_URL: '${escEnv(body.vite_supabase_url || "")}'
         VITE_SUPABASE_PUBLISHABLE_KEY: '${escEnv(body.vite_supabase_key || "")}'
         VITE_SUPABASE_PROJECT_ID: '${escEnv(body.vite_supabase_project_id || "")}'
-    ports:
-      - "${appPort}:80"
+${portsBlock}
     restart: unless-stopped
 `;
       await uploadFile(conn, `${remoteDir}/repo/Dockerfile`, Buffer.from(dockerfile));
@@ -257,6 +289,23 @@ CMD ["nginx","-g","daemon off;"]
       await uploadFile(conn, `${remoteDir}/repo/docker-compose.yml`, Buffer.from(compose));
       log("✓ Build files ready");
 
+      if (enableHttps) {
+        log("→ Generating self-signed SSL certificate…");
+        const cnEsc = httpsDomain.replace(/'/g, "");
+        const sslCmd = `mkdir -p ${remoteDir}/repo/ssl && \
+(command -v openssl || ${sudoPrefix}sh -c "(apt-get install -y openssl) || (dnf install -y openssl) || (yum install -y openssl)") && \
+openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
+  -keyout ${remoteDir}/repo/ssl/server.key \
+  -out ${remoteDir}/repo/ssl/server.crt \
+  -subj "/CN=${cnEsc}" \
+  -addext "subjectAltName=DNS:${cnEsc},IP:${body.host}" 2>&1`;
+        const ssl = await exec(conn, sslCmd);
+        log(ssl.stdout.slice(-800));
+        if (ssl.code !== 0) {
+          throw new Error("Échec de génération du certificat SSL: " + ssl.stderr.slice(-300));
+        }
+        log("✓ Certificat SSL généré");
+      }
 
       log("→ Building & starting containers (docker compose up -d --build)…");
       const composeCmd = `cd ${remoteDir}/repo && (docker compose up -d --build || docker-compose up -d --build) 2>&1`;
@@ -272,7 +321,7 @@ CMD ["nginx","-g","daemon off;"]
       log(ps.stdout);
 
       conn.end();
-      const url = `http://${body.host}:${appPort}`;
+      const url = enableHttps ? `https://${body.host}:${httpsPort}` : `http://${body.host}:${appPort}`;
       log(`🚀 Deployment complete — accessible at ${url}`);
 
       return new Response(JSON.stringify({ success: true, url, logs }), {
