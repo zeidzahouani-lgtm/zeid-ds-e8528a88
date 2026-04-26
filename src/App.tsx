@@ -41,6 +41,7 @@ const Resources = lazy(() => import("./pages/Resources"));
 const AdminStats = lazy(() => import("./pages/AdminStats"));
 const AssignLicense = lazy(() => import("./pages/AssignLicense"));
 const Team = lazy(() => import("./pages/Team"));
+const AdminBackup = lazy(() => import("./pages/AdminBackup"));
 
 const queryClient = new QueryClient();
 
