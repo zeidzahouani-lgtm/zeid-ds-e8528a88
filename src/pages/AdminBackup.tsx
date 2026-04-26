@@ -164,6 +164,18 @@ export default function AdminBackup() {
   const [envProjectId, setEnvProjectId] = useState(import.meta.env.VITE_SUPABASE_PROJECT_ID || "");
   const [envPort, setEnvPort] = useState("8080");
 
+  // SSH Deploy state
+  const [sshHost, setSshHost] = useState("");
+  const [sshPort, setSshPort] = useState("22");
+  const [sshUser, setSshUser] = useState("root");
+  const [sshPassword, setSshPassword] = useState("");
+  const [sshRemoteDir, setSshRemoteDir] = useState("/opt/screenflow");
+  const [sshAppPort, setSshAppPort] = useState("8080");
+  const [sshAutoInstallDocker, setSshAutoInstallDocker] = useState(true);
+  const [sshDeploying, setSshDeploying] = useState(false);
+  const [sshLogs, setSshLogs] = useState<string[]>([]);
+  const [sshDeployedUrl, setSshDeployedUrl] = useState<string | null>(null);
+
   if (!isGlobalAdmin) return <Navigate to="/" replace />;
 
   // ============ EXPORTS ============
