@@ -626,13 +626,15 @@ To rebuild manually: docker compose up -d --build
       toast.error("Renseignez l'IP, l'utilisateur et le mot de passe");
       return;
     }
+    if (!sshGitUrl) {
+      toast.error("Renseignez l'URL du dépôt Git");
+      return;
+    }
     setSshDeploying(true);
     setSshLogs([]);
     setSshDeployedUrl(null);
     try {
-      setSshLogs(["📦 Préparation de l'archive du projet…"]);
-      const project_zip_b64 = await buildProjectZip();
-      setSshLogs(prev => [...prev, "✓ Archive prête, connexion au serveur…"]);
+      setSshLogs(["🔌 Connexion au serveur…"]);
 
       const { data, error } = await supabase.functions.invoke("ssh-deploy", {
         body: {
@@ -646,7 +648,9 @@ To rebuild manually: docker compose up -d --build
           vite_supabase_url: envUrl,
           vite_supabase_key: envKey,
           vite_supabase_project_id: envProjectId,
-          project_zip_b64,
+          git_url: sshGitUrl.trim(),
+          git_branch: sshGitBranch.trim() || "main",
+          git_token: sshGitToken.trim() || undefined,
         },
       });
       if (error) throw error;
