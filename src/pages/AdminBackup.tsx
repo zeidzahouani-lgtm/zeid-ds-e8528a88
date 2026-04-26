@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import JSZip from "jszip";
 import { Textarea } from "@/components/ui/textarea";
-import { DeployAuthGate } from "@/components/admin/DeployAuthGate";
 
 const TABLES = [
   "profiles", "user_roles", "user_establishments", "establishments", "establishment_settings",
@@ -1265,7 +1264,6 @@ To rebuild manually: docker compose up -d --build
 
         {/* ============ SSH DEPLOY TAB ============ */}
         <TabsContent value="ssh" className="space-y-4">
-          <DeployAuthGate>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -1526,7 +1524,6 @@ To rebuild manually: docker compose up -d --build
               )}
             </CardContent>
           </Card>
-          </DeployAuthGate>
         </TabsContent>
       </Tabs>
     </div>
