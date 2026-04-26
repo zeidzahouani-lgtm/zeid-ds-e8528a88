@@ -189,9 +189,13 @@ function buildDirectKongAuthLoginCommand(supaDir: string, anonKey: string, email
 
 async function ensureLocalAuthGateway(conn: Client, supaDir: string, kongPort: string, log: (m: string) => Promise<void> | void) {
   await log(`→ Vérification de la gateway Auth locale (port ${kongPort})…`);
-  const up = await exec(conn, `cd ${supaDir} && docker compose up -d kong auth rest realtime storage 2>&1 || docker compose up -d 2>&1`);
-  if (up.code !== 0) {
-    await log("⚠ Redémarrage gateway Auth incomplet : " + (up.stdout + up.stderr).slice(-1200));
+  const up = await exec(
+    conn,
+    `cd ${supaDir} && (docker compose up -d db kong auth rest realtime storage meta 2>&1 || docker compose up -d kong auth rest storage 2>&1 || true)`
+  );
+  const upOutput = `${up.stdout}${up.stderr}`;
+  if (/unhealthy|dependency failed|failed to start|Error/i.test(upOutput)) {
+    await log("⚠ Redémarrage gateway Auth partiel, vérification des services essentiels : " + upOutput.slice(-1200));
   }
   const probe = await exec(
     conn,
