@@ -113,6 +113,7 @@ async function verifyAuthLoginFromServer(
   email: string,
   password: string,
   log: (m: string) => Promise<void> | void,
+  fallbackCommand?: string,
 ) {
   const payloadB64 = btoa(JSON.stringify({ email, password }));
   const command =
@@ -121,12 +122,15 @@ async function verifyAuthLoginFromServer(
     shQuote(`body=$(printf "%s" "$BODY_B64" | base64 -d); curl -k -sS -m 20 -w "\\nHTTP_STATUS:%{http_code}" -X POST "$AUTH_URL" -H "apikey: $ANON_KEY" -H "Authorization: Bearer $ANON_KEY" -H "Content-Type: application/json" --data "$body"`);
 
   let lastOutput = "";
-  for (let attempt = 1; attempt <= 12; attempt++) {
-    const result = await exec(conn, command);
+  for (let attempt = 1; attempt <= 45; attempt++) {
+    const result = await exec(conn, attempt > 20 && fallbackCommand ? fallbackCommand : command);
     lastOutput = `${result.stdout}${result.stderr}`;
     if (result.code === 0 && /HTTP_STATUS:200/.test(lastOutput) && /"access_token"/.test(lastOutput)) {
       await log(`✓ Test login Auth réussi depuis le serveur (${authBaseUrl})`);
       return;
+    }
+    if (attempt === 20 && fallbackCommand) {
+      await log(`⚠ Port Auth ${authBaseUrl} indisponible depuis l'hôte, test direct dans le conteneur kong…`);
     }
     await exec(conn, "sleep 2");
   }
