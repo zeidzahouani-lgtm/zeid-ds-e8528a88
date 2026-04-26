@@ -654,6 +654,9 @@ To rebuild manually: docker compose up -d --build
           git_url: sshGitUrl.trim(),
           git_branch: sshGitBranch.trim() || "main",
           git_token: sshGitToken.trim() || undefined,
+          enable_https: sshEnableHttps,
+          https_port: sshHttpsPort,
+          https_domain: sshHttpsDomain.trim() || undefined,
         },
       });
       if (error) throw error;
