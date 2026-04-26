@@ -1163,6 +1163,28 @@ To rebuild manually: docker compose up -d --build
                 </div>
               </div>
 
+              <Separator />
+              <div>
+                <h4 className="text-sm font-semibold mb-2 flex items-center gap-2"><FileCode className="h-4 w-4" />Source du code (Git)</h4>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Le serveur va cloner votre dépôt puis builder l'image Docker. Connectez votre projet à GitHub via Connectors si ce n'est pas déjà fait.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>URL du dépôt Git</Label>
+                    <Input value={sshGitUrl} onChange={e => setSshGitUrl(e.target.value)} placeholder="https://github.com/user/repo.git" disabled={sshDeploying} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Branche</Label>
+                    <Input value={sshGitBranch} onChange={e => setSshGitBranch(e.target.value)} placeholder="main" disabled={sshDeploying} />
+                  </div>
+                  <div className="space-y-2 md:col-span-3">
+                    <Label className="flex items-center gap-2"><KeyRound className="h-3.5 w-3.5" />Token GitHub (optionnel, pour repo privé)</Label>
+                    <Input type="password" value={sshGitToken} onChange={e => setSshGitToken(e.target.value)} placeholder="ghp_xxx…" disabled={sshDeploying} />
+                  </div>
+                </div>
+              </div>
+
               <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/40 border">
                 <Switch checked={sshAutoInstallDocker} onCheckedChange={setSshAutoInstallDocker} disabled={sshDeploying} />
                 <div className="text-sm">
