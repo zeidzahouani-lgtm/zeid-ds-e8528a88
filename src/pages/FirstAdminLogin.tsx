@@ -402,7 +402,7 @@ function OverallBadge({ status }: { status: StatusBadge }) {
   if (status === "unknown")
     return <Badge variant="outline">Non vérifié</Badge>;
   if (status === "ok")
-    return <Badge className="bg-green-600 hover:bg-green-700"><CheckCircle2 className="h-3 w-3 mr-1" />Opérationnel</Badge>;
+    return <Badge className="bg-success text-success-foreground hover:bg-success/90"><CheckCircle2 className="h-3 w-3 mr-1" />Opérationnel</Badge>;
   if (status === "missing")
     return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Manquant</Badge>;
   return <Badge variant="destructive"><AlertCircle className="h-3 w-3 mr-1" />À réparer</Badge>;
