@@ -379,6 +379,8 @@ Deno.serve(async (req) => {
       status_key: `ssh_deploy_job:${jobId}`,
       message: action === "reset_admin_password"
         ? "Réinitialisation du mot de passe admin lancée en arrière-plan."
+        : action === "check_admin_status"
+        ? "Vérification du compte admin lancée en arrière-plan."
         : "Déploiement lancé en arrière-plan. Suivez la progression via le polling.",
     }), {
       status: 202,
