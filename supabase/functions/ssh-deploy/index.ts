@@ -106,6 +106,17 @@ const DEFAULT_ADMIN_PASSWORD = "260390DS";
 
 const shQuote = (value: string) => `'${value.replace(/'/g, `'\\''`)}'`;
 
+function dockerPsql(connDir: string, sqlB64: string, onErrorStop = true) {
+  const psql = `PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=${onErrorStop ? 1 : 0}`;
+  return `cd ${connDir} && printf '%s' '${sqlB64}' | base64 -d | docker compose exec -T --user postgres db sh -lc ${shQuote(psql)} 2>&1`;
+}
+
+function dockerPsqlSelect(connDir: string, sql: string) {
+  const sqlB64 = btoa(sql);
+  const psql = `PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U postgres -d postgres -At -c "$(printf '%s' '${sqlB64}' | base64 -d)"`;
+  return `cd ${connDir} && docker compose exec -T --user postgres db sh -lc ${shQuote(psql)} 2>/dev/null || true`;
+}
+
 interface RemotePreflightResult {
   dockerOk: boolean;
   composeOk: boolean;
