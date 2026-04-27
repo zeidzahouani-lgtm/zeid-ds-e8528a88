@@ -1020,10 +1020,11 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
       // ===== Apply app migrations to local Supabase, then promote admin =====
       const pending = (globalThis as any).__pendingAdminPromotion;
       if (pending?.supaDir) {
+        await ensurePostgresSqlAccess(conn, pending.supaDir, log);
         log("→ Application des migrations de l'application sur Supabase local…");
         const migDir = `${remoteDir}/repo/supabase/migrations`;
         // Concat all .sql files in order and pipe to psql
-        const applyMig = await exec(
+        let applyMig = await exec(
           conn,
           `if [ -d "${migDir}" ]; then ` +
           `for f in $(ls ${migDir}/*.sql 2>/dev/null | sort); do ` +
@@ -1031,10 +1032,22 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
           `done | (cd ${pending.supaDir} && docker compose exec -T --user postgres db sh -lc ${shQuote('PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=0')}) 2>&1 | tail -100; ` +
           `else echo "no migrations dir"; fi`
         );
+        if (/Permission denied|pg_filenode\.map/i.test(`${applyMig.stdout}${applyMig.stderr}`)) {
+          await log("⚠ Postgres a reperdu l'accès au volume pendant les migrations — réparation et nouvelle tentative…");
+          await ensurePostgresSqlAccess(conn, pending.supaDir, log);
+          applyMig = await exec(
+            conn,
+            `if [ -d "${migDir}" ]; then ` +
+            `for f in $(ls ${migDir}/*.sql 2>/dev/null | sort); do echo "-- $f"; cat "$f"; echo ""; done | ` +
+            `(cd ${pending.supaDir} && docker compose exec -T --user postgres db sh -lc ${shQuote('PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=0')}) 2>&1 | tail -100; ` +
+            `else echo "no migrations dir"; fi`
+          );
+        }
         log(applyMig.stdout.slice(-1500));
         log("✓ Migrations appliquées (les erreurs 'already exists' sont normales)");
 
         log("→ Promotion du compte screenflow en admin global…");
+        await ensurePostgresSqlAccess(conn, pending.supaDir, log);
         await ensureDefaultAdminRole(conn, pending.supaDir, log);
 
         await log("→ Test réel du login admin local…");
