@@ -982,7 +982,9 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
       }
 
       log(`→ Preparing remote directory ${remoteDir}…`);
-      await exec(conn, `${sudoPrefix}mkdir -p ${remoteDir} && ${sudoPrefix}chown -R ${body.username}:${body.username} ${remoteDir}`);
+      // Ne jamais chown -R tout remoteDir ici : il contient aussi le volume Postgres local,
+      // et un chown récursif casse global/pg_filenode.map. On ne touche qu'au dossier repo.
+      await exec(conn, `${sudoPrefix}mkdir -p ${remoteDir} && ${sudoPrefix}chown ${body.username}:${body.username} ${remoteDir} && if [ -d ${remoteDir}/repo ]; then ${sudoPrefix}chown -R ${body.username}:${body.username} ${remoteDir}/repo; fi`);
       log("✓ Remote directory ready");
 
       if (isExistingInstall) {
