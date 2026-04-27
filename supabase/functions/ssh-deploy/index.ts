@@ -199,52 +199,77 @@ async function handleAnalyticsUnhealthy(conn: Client, supaDir: string, log: (m: 
  * et on commente le service analytics + vector. Idempotent (sentinelle).
  */
 async function patchComposeRemoveAnalytics(conn: Client, supaDir: string, log: (m: string) => Promise<void> | void) {
-  const sentinel = "# LOVABLE_NO_ANALYTICS_PATCH";
-  const check = await exec(conn, `grep -q '${sentinel}' ${supaDir}/docker-compose.yml && echo PATCHED || echo TODO`);
+  const sentinel = "# LOVABLE_NO_ANALYTICS_PATCH_V2";
+  const composePath = `${supaDir}/docker-compose.yml`;
+
+  // 0) Si un patch précédent (V1 regex) a corrompu le fichier, restaurer le backup le plus ancien
+  const validate = await exec(conn, `docker compose -f ${composePath} config --quiet 2>&1; echo EXIT=$?`);
+  const validOut = `${validate.stdout}${validate.stderr}`;
+  if (/EXIT=[^0]/.test(validOut) || /yaml:|mapping key.*already defined|failed to parse/i.test(validOut)) {
+    await log("⚠ docker-compose.yml invalide détecté — restauration depuis backup…");
+    const restore = await exec(
+      conn,
+      `set -e; bak=$(ls -1t ${composePath}.bak.* 2>/dev/null | tail -1); ` +
+      `if [ -n "$bak" ]; then cp "$bak" ${composePath} && echo "RESTORED=$bak"; else echo NO_BACKUP; fi`
+    );
+    await log((`${restore.stdout}${restore.stderr}`).slice(-400));
+    if (/NO_BACKUP/.test(restore.stdout)) {
+      // Aucun backup -> recloner depuis git
+      await log("→ Aucun backup — réinitialisation via git checkout du compose…");
+      await exec(conn, `cd ${supaDir} && git checkout -- docker-compose.yml 2>&1 || true`);
+    }
+  }
+
+  const check = await exec(conn, `grep -q '${sentinel}' ${composePath} && echo PATCHED || echo TODO`);
   if (/PATCHED/.test(check.stdout)) {
     await log("✓ docker-compose déjà patché (analytics désactivé).");
     return;
   }
 
-  await log("→ Patch docker-compose.yml : suppression dépendance analytics (Logflare unhealthy connu)…");
-  await exec(conn, `cp ${supaDir}/docker-compose.yml ${supaDir}/docker-compose.yml.bak.$(date +%s) 2>&1 || true`);
+  await log("→ Patch docker-compose.yml via PyYAML (suppression dépendance analytics)…");
+  await exec(conn, `cp ${composePath} ${composePath}.bak.$(date +%s) 2>&1 || true`);
 
-  // Script Python pour éditer proprement le YAML sans casser l'indentation.
+  // Assurer la présence de PyYAML (silencieux)
+  await exec(conn, `python3 -c "import yaml" 2>/dev/null || (apt-get install -y python3-yaml 2>/dev/null || pip3 install --quiet pyyaml 2>/dev/null) || true`);
+
+  // Script Python utilisant PyYAML : supprime UNIQUEMENT les entrées "analytics" dans depends_on
   const py = `
-import re, sys, pathlib
-p = pathlib.Path("${supaDir}/docker-compose.yml")
-src = p.read_text()
-
-# 1) Supprimer toute clé "analytics:" sous un depends_on (avec sa condition éventuelle)
-#    Pattern: lignes "      analytics:" suivies optionnellement de "        condition: ..."
-src = re.sub(
-    r'^[ \\t]+analytics:\\s*\\n(?:[ \\t]+condition:[^\\n]*\\n)?',
-    '',
-    src,
-    flags=re.MULTILINE,
-)
-
-# 2) Si après suppression un "depends_on:" se retrouve vide (suivi d'une autre clé de même indent), le retirer
-src = re.sub(
-    r'^([ \\t]+)depends_on:\\s*\\n(?=\\1[A-Za-z_])',
-    '',
-    src,
-    flags=re.MULTILINE,
-)
-
-# 3) Marqueur sentinelle en tête
-if "${sentinel}" not in src:
-    src = "${sentinel}\\n" + src
-
-p.write_text(src)
-print("OK")
+import sys, pathlib, yaml
+p = pathlib.Path("${composePath}")
+data = yaml.safe_load(p.read_text())
+services = data.get("services", {}) if isinstance(data, dict) else {}
+changed = 0
+for name, svc in list(services.items()):
+    if not isinstance(svc, dict):
+        continue
+    dep = svc.get("depends_on")
+    if isinstance(dep, dict) and "analytics" in dep:
+        dep.pop("analytics", None)
+        changed += 1
+        if not dep:
+            svc.pop("depends_on", None)
+    elif isinstance(dep, list) and "analytics" in dep:
+        svc["depends_on"] = [d for d in dep if d != "analytics"]
+        changed += 1
+        if not svc["depends_on"]:
+            svc.pop("depends_on", None)
+out = "${sentinel}\\n" + yaml.safe_dump(data, sort_keys=False, default_flow_style=False, width=4096)
+p.write_text(out)
+print("OK changed=%d" % changed)
 `;
   const enc = btoa(unescape(encodeURIComponent(py)));
   const run = await exec(conn, `echo '${enc}' | base64 -d | python3 - 2>&1`);
   await log((`${run.stdout}${run.stderr}`).slice(-600));
-  if (!/OK/.test(run.stdout)) {
-    await log("⚠ Patch compose échoué — fallback : tentatives de démarrage sans analytics.");
+
+  // Validation finale du YAML
+  const verify = await exec(conn, `docker compose -f ${composePath} config --quiet 2>&1; echo EXIT=$?`);
+  const verifyOut = `${verify.stdout}${verify.stderr}`;
+  if (!/EXIT=0/.test(verifyOut)) {
+    await log("⚠ Validation compose échouée après patch — restauration backup.");
+    await exec(conn, `bak=$(ls -1t ${composePath}.bak.* | head -1); [ -n "$bak" ] && cp "$bak" ${composePath} || true`);
+    throw new Error("Patch docker-compose invalide : " + verifyOut.slice(-400));
   }
+  await log("✓ docker-compose.yml patché et validé.");
 }
 
 async function startLocalSupabaseEssentials(conn: Client, supaDir: string, log: (m: string) => Promise<void> | void) {
