@@ -1227,43 +1227,8 @@ async function runResetAdminPassword(body: DeployBody, log: (m: string) => Promi
     }
     await log(`✓ Stack Supabase locale détectée dans ${supaDir}`);
 
-    // Wait for Postgres to be ready
     await log("→ Vérification que Postgres est prêt…");
-    await exec(conn, `cd ${supaDir} && for i in $(seq 1 30); do docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && break || sleep 2; done`);
-
-    // Sanity check : un "pg_isready" OK ne garantit pas que psql peut lire les fichiers.
-    // Si le datadir a des permissions cassées (fréquent après redémarrage Docker / changement d'UID),
-    // on les répare en root dans le conteneur, puis on redémarre Postgres.
-    const probe = await exec(
-      conn,
-      `cd ${supaDir} && docker compose exec -T db psql -U postgres -d postgres -c "select 1" 2>&1 || true`
-    );
-    const probeOut = (probe.stdout || "") + (probe.stderr || "");
-    if (probeOut.includes("Permission denied") || probeOut.includes("pg_filenode.map")) {
-      await log("⚠ Permissions du datadir Postgres cassées — réparation en cours…");
-      await exec(
-        conn,
-        `cd ${supaDir} && docker compose exec -T -u 0 db sh -c "chown -R postgres:postgres /var/lib/postgresql/data && chmod -R u+rwX,go-rwx /var/lib/postgresql/data" 2>&1 || true`
-      );
-      await log("→ Redémarrage du conteneur db…");
-      await exec(conn, `cd ${supaDir} && docker compose restart db 2>&1 || true`);
-      await exec(conn, `cd ${supaDir} && for i in $(seq 1 60); do docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && break || sleep 2; done`);
-      const probe2 = await exec(
-        conn,
-        `cd ${supaDir} && docker compose exec -T db psql -U postgres -d postgres -c "select 1" 2>&1 || true`
-      );
-      const probe2Out = (probe2.stdout || "") + (probe2.stderr || "");
-      if (probe2Out.includes("Permission denied") || probe2Out.includes("pg_filenode.map")) {
-        throw new Error(
-          "Le datadir Postgres reste inaccessible même après réparation. " +
-          "Connectez-vous en SSH et exécutez manuellement : " +
-          `cd ${supaDir} && docker compose down && ` +
-          `sudo chown -R 70:70 volumes/db/data || sudo chown -R 999:999 volumes/db/data ; ` +
-          `docker compose up -d db. Détail : ` + probe2Out.slice(-300)
-        );
-      }
-      await log("✓ Permissions réparées et Postgres opérationnel");
-    }
+    await ensurePostgresSqlAccess(conn, supaDir, log);
 
     const kongPort = await readRemoteEnv(conn, `${supaDir}/.env`, "KONG_HTTP_PORT") || "8000";
     const publicUrl = await readRemoteEnv(conn, `${supaDir}/.env`, "SUPABASE_PUBLIC_URL") || await readRemoteEnv(conn, `${supaDir}/.env`, "API_EXTERNAL_URL") || `http://${body.host}:${kongPort}`;
