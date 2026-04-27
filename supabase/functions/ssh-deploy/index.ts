@@ -479,11 +479,13 @@ async function ensureLocalAuthGateway(conn: Client, supaDir: string, kongPort: s
   }
   const probe = await exec(
     conn,
-    `for i in $(seq 1 45); do curl -fsS -m 5 http://127.0.0.1:${kongPort}/auth/v1/settings >/dev/null 2>&1 && echo OK && exit 0; sleep 2; done; ` +
+    `for i in $(seq 1 45); do status=$(curl -k -sS -m 5 -o /tmp/screenflow_auth_probe.txt -w "%{http_code}" http://127.0.0.1:${kongPort}/auth/v1/settings 2>/dev/null || true); ` +
+    `case "$status" in 200|401|403) echo OK_HTTP_STATUS:$status && exit 0;; esac; sleep 2; done; ` +
     `echo FAIL; cd ${supaDir} && docker compose ps && docker compose logs --tail=80 kong 2>&1`
   );
-  if (probe.stdout.includes("OK")) {
-    await log(`✓ Gateway Auth locale accessible sur http://127.0.0.1:${kongPort}`);
+  const okStatus = probe.stdout.match(/OK_HTTP_STATUS:(\d+)/)?.[1];
+  if (okStatus) {
+    await log(`✓ Gateway Auth locale accessible sur http://127.0.0.1:${kongPort} (HTTP ${okStatus})`);
     return;
   }
   throw new Error(
