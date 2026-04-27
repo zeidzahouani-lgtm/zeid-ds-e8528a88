@@ -445,6 +445,7 @@ function buildDirectKongAuthLoginCommand(supaDir: string, anonKey: string, email
 
 async function ensureLocalAuthGateway(conn: Client, supaDir: string, kongPort: string, log: (m: string) => Promise<void> | void) {
   await log(`→ Vérification de la gateway Auth locale (port ${kongPort})…`);
+  await patchKongKeyauthCredentials(conn, supaDir, log);
   const up = await exec(
     conn,
     `cd ${supaDir} && (docker compose up -d db kong auth rest realtime storage meta 2>&1 || docker compose up -d kong auth rest storage 2>&1 || true)`
@@ -770,8 +771,8 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
           `JWT_SECRET=${jwtSecret}`,
           `ANON_KEY=${anonKey}`,
           `SERVICE_ROLE_KEY=${serviceKey}`,
-          `SUPABASE_PUBLISHABLE_KEY=${anonKey}`,
-          `SUPABASE_SECRET_KEY=${serviceKey}`,
+          `SUPABASE_PUBLISHABLE_KEY=`,
+          `SUPABASE_SECRET_KEY=`,
           `DASHBOARD_USERNAME=admin`,
           `DASHBOARD_PASSWORD=${dashboardPw}`,
           `SITE_URL=${appPublicUrl}`,
