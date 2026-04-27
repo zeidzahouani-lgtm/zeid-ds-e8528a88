@@ -623,13 +623,8 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
         const envB64 = btoa(envPatch);
         await exec(conn, `cd ${supaDir} && for k in POSTGRES_PASSWORD JWT_SECRET ANON_KEY SERVICE_ROLE_KEY SUPABASE_PUBLISHABLE_KEY SUPABASE_SECRET_KEY DASHBOARD_USERNAME DASHBOARD_PASSWORD SITE_URL API_EXTERNAL_URL SUPABASE_PUBLIC_URL KONG_HTTP_PORT KONG_HTTPS_PORT STUDIO_PORT POSTGRES_PORT ENABLE_EMAIL_SIGNUP ENABLE_EMAIL_AUTOCONFIRM ENABLE_ANONYMOUS_USERS DISABLE_SIGNUP; do sed -i "/^$k=/d" .env; done && echo "${envB64}" | base64 -d >> .env && serviceKey="${serviceKey}" && echo "_OK"`);
 
-        log(`→ Starting Supabase containers (kong:${supaKongPort}, studio:${supaStudioPort}, db:${supaDbPort})…`);
-        const supaUp = await exec(conn, `cd ${supaDir} && (docker compose pull 2>&1 | tail -20) && (docker compose up -d 2>&1 | tail -40)`);
-        log(supaUp.stdout.slice(-2000));
-        if (supaUp.code !== 0) {
-          log("⚠ Supabase compose stderr: " + supaUp.stderr.slice(-1000));
-          throw new Error("Échec du démarrage de Supabase local");
-        }
+        log(`→ Starting Supabase containers essentiels (kong:${supaKongPort}, studio:${supaStudioPort}, db:${supaDbPort})…`);
+        await startLocalSupabaseEssentials(conn, supaDir, log);
 
         supabaseUrlOverride = supaBrowserUrl;
         supabaseAnonOverride = anonKey;
