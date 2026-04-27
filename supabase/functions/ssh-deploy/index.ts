@@ -443,6 +443,29 @@ function buildDirectKongAuthLoginCommand(supaDir: string, anonKey: string, email
     shQuote(`body=$(printf "%s" "$BODY_B64" | base64 -d); curl -k -sS -m 20 -w "\\nHTTP_STATUS:%{http_code}" -X POST "$AUTH_URL" -H "apikey: $ANON_KEY" -H "Authorization: Bearer $ANON_KEY" -H "Content-Type: application/json" --data "$body"`);
 }
 
+function chooseKongHttpsPort(kongHttpPort: string, reservedPorts: string[] = []) {
+  const http = Number.parseInt(kongHttpPort, 10);
+  let candidate = Number.isFinite(http) ? http + 443 : 8443;
+  const reserved = new Set(reservedPorts.map((p) => Number.parseInt(p, 10)).filter((p) => Number.isFinite(p)));
+  while (reserved.has(candidate) || candidate === http) candidate += 1;
+  return String(candidate);
+}
+
+async function syncSupabaseKongPorts(conn: Client, supaDir: string, kongHttpPort: string, kongHttpsPort: string, log: (m: string) => Promise<void> | void) {
+  const cmd = `cd ${supaDir} && touch .env && ` +
+    `cur_http=$(grep -E '^KONG_HTTP_PORT=' .env | head -1 | cut -d= -f2-); ` +
+    `cur_https=$(grep -E '^KONG_HTTPS_PORT=' .env | head -1 | cut -d= -f2-); ` +
+    `changed=0; ` +
+    `if [ "$cur_http" != ${shQuote(kongHttpPort)} ]; then sed -i '/^KONG_HTTP_PORT=/d' .env; printf 'KONG_HTTP_PORT=%s\n' ${shQuote(kongHttpPort)} >> .env; changed=1; fi; ` +
+    `if [ "$cur_https" != ${shQuote(kongHttpsPort)} ]; then sed -i '/^KONG_HTTPS_PORT=/d' .env; printf 'KONG_HTTPS_PORT=%s\n' ${shQuote(kongHttpsPort)} >> .env; changed=1; fi; ` +
+    `if [ "$changed" = 1 ]; then docker compose rm -sf kong 2>&1 || true; echo CHANGED; else echo OK; fi`;
+  const result = await exec(conn, cmd);
+  const output = `${result.stdout}${result.stderr}`;
+  if (/CHANGED/.test(output)) {
+    await log(`✓ Ports Kong Supabase alignés : HTTP ${kongHttpPort}, HTTPS ${kongHttpsPort} (évite le conflit avec l'application)`);
+  }
+}
+
 async function ensureLocalAuthGateway(conn: Client, supaDir: string, kongPort: string, log: (m: string) => Promise<void> | void) {
   await log(`→ Vérification de la gateway Auth locale (port ${kongPort})…`);
   await patchKongKeyauthCredentials(conn, supaDir, log);
