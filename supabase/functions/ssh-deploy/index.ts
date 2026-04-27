@@ -532,18 +532,10 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
   await log("✓ SSH connection established");
 
     try {
-      log("→ Checking Docker installation…");
-      const dockerCheck = await exec(conn, "command -v docker && docker --version || echo MISSING");
-      const hasDocker = !dockerCheck.stdout.includes("MISSING") && dockerCheck.code === 0;
-      log(hasDocker ? `✓ Docker present: ${dockerCheck.stdout.trim()}` : "✗ Docker missing");
-
-      const composeCheck = await exec(conn, "docker compose version || docker-compose --version || echo MISSING");
-      const hasCompose = !composeCheck.stdout.includes("MISSING");
-      log(hasCompose ? `✓ Docker Compose present` : "✗ Docker Compose missing");
-
       const sudoPrefix = `echo '${body.password.replace(/'/g, "'\\''")}' | sudo -S `;
+      const preflight = await runRemotePreflight(conn, body, remoteDir, installSupabase, log);
 
-      if ((!hasDocker || !hasCompose) && body.install_docker) {
+      if ((!preflight.dockerOk || !preflight.composeOk) && body.install_docker) {
         log("→ Installing Docker (this may take 1-3 minutes)…");
         await exec(conn, `${sudoPrefix}sh -c "(command -v apt-get && apt-get update -y && apt-get install -y curl ca-certificates git) || (command -v dnf && dnf install -y curl ca-certificates git) || (command -v yum && yum install -y curl ca-certificates git) || true"`);
         const installCmd = `${sudoPrefix}sh -c "
@@ -567,8 +559,6 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
           throw new Error("Échec de l'installation de Docker. Voir les logs.");
         }
         log("✓ Docker installed");
-      } else if (!hasDocker || !hasCompose) {
-        throw new Error("Docker n'est pas installé. Activez 'Auto-installer Docker'.");
       }
 
       // Ensure git
