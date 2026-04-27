@@ -128,10 +128,10 @@ async function runRemotePreflight(
 ): Promise<RemotePreflightResult> {
   await log("→ Pré-vérification serveur : Docker, espace disque, Node/Postgres…");
 
-  const dockerCheck = await exec(conn, "command -v docker >/dev/null 2>&1 && docker --version || echo MISSING");
+  const dockerCheck = await exec(conn, "command -v docker >/dev/null 2>&1 && docker --version && (docker info >/dev/null 2>&1 && echo DOCKER_READY || echo DOCKER_DAEMON_UNAVAILABLE) || echo MISSING");
   const dockerOutput = `${dockerCheck.stdout}${dockerCheck.stderr}`.trim();
-  const dockerOk = !dockerOutput.includes("MISSING") && dockerCheck.code === 0;
-  await log(dockerOk ? `✓ Docker disponible : ${dockerOutput}` : "✗ Docker indisponible sur le serveur");
+  const dockerOk = dockerOutput.includes("DOCKER_READY") && dockerCheck.code === 0;
+  await log(dockerOk ? `✓ Docker disponible : ${dockerOutput.replace("DOCKER_READY", "").trim()}` : `✗ Docker indisponible ou daemon inaccessible : ${dockerOutput}`);
 
   const composeCheck = await exec(conn, "(docker compose version || docker-compose --version) 2>&1 || echo MISSING");
   const composeOutput = `${composeCheck.stdout}${composeCheck.stderr}`.trim();
