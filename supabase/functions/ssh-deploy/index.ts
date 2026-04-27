@@ -495,6 +495,24 @@ async function syncSupabaseKongPorts(conn: Client, supaDir: string, kongHttpPort
   }
 }
 
+async function syncLocalAuthSafeEnv(conn: Client, supaDir: string, log: (m: string) => Promise<void> | void) {
+  const envPatch = [
+    "ENABLE_EMAIL_AUTOCONFIRM=true",
+    "ENABLE_PHONE_SIGNUP=false",
+    "ENABLE_PHONE_AUTOCONFIRM=true",
+    "HOOK_CUSTOM_ACCESS_TOKEN_ENABLED=false",
+    "HOOK_SEND_EMAIL_ENABLED=false",
+    "HOOK_SEND_SMS_ENABLED=false",
+    "HOOK_MFA_VERIFICATION_ATTEMPT_ENABLED=false",
+    "HOOK_PASSWORD_VERIFICATION_ATTEMPT_ENABLED=false",
+  ].join("\n") + "\n";
+  const keys = envPatch.split("\n").map((line) => line.split("=")[0]).filter(Boolean).join(" ");
+  const b64 = btoa(envPatch);
+  const cmd = `cd ${supaDir} && for k in ${keys}; do sed -i "/^$k=/d" .env; done && printf '%s' '${b64}' | base64 -d >> .env && docker compose rm -sf auth 2>&1 || true`;
+  await exec(conn, cmd);
+  await log("✓ Configuration Auth locale sécurisée (hooks réseau désactivés)");
+}
+
 async function ensureLocalAuthGateway(conn: Client, supaDir: string, kongPort: string, log: (m: string) => Promise<void> | void) {
   await log(`→ Vérification de la gateway Auth locale (port ${kongPort})…`);
   await patchKongKeyauthCredentials(conn, supaDir, log);
