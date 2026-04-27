@@ -735,8 +735,27 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
         await exec(conn, `${sudoPrefix}sh -c "(apt-get update -y && apt-get install -y git) || (dnf install -y git) || (yum install -y git)"`);
       }
 
+      // ===== Detect existing installation (incremental update mode) =====
+      const existingCheck = await exec(
+        conn,
+        `test -d ${remoteDir}/repo/.git && test -f ${remoteDir}/repo/docker-compose.yml && echo EXISTS || echo NEW`,
+      );
+      const isExistingInstall = existingCheck.stdout.includes("EXISTS");
+      const supaDirCheck = await exec(
+        conn,
+        `test -f ${remoteDir}/supabase/docker-compose.yml && test -f ${remoteDir}/supabase/.env && echo EXISTS || echo NEW`,
+      );
+      const isExistingSupabase = supaDirCheck.stdout.includes("EXISTS");
+
+      if (isExistingInstall) {
+        await log(`✓ Installation existante détectée dans ${remoteDir} — mode mise à jour activé`);
+      }
+      if (installSupabase && isExistingSupabase) {
+        await log(`✓ Supabase local déjà installé dans ${remoteDir}/supabase — réutilisation de la configuration existante`);
+      }
+
       // ===== Optional: install self-hosted Supabase on the same server =====
-      if (installSupabase) {
+      if (installSupabase && !isExistingSupabase) {
         const supaDir = `${remoteDir}/supabase`;
         log("→ Installing self-hosted Supabase (this may take 3-5 minutes)…");
         await exec(conn, `${sudoPrefix}mkdir -p ${supaDir} && ${sudoPrefix}chown -R ${body.username}:${body.username} ${supaDir}`);
