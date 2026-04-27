@@ -189,8 +189,10 @@ async function handleAnalyticsUnhealthy(conn: Client, supaDir: string, log: (m: 
 }
 
 async function startLocalSupabaseEssentials(conn: Client, supaDir: string, log: (m: string) => Promise<void> | void) {
-  const essentialServices = "db kong auth rest realtime storage meta imgproxy";
-  const optionalServices = "studio";
+  const services = await exec(conn, `cd ${supaDir} && docker compose config --services 2>/dev/null || true`);
+  const available = new Set((services.stdout || "").split(/\s+/).filter(Boolean));
+  const essentialServices = ["db", "kong", "auth", "rest", "realtime", "storage", "meta", "imgproxy"].filter((name) => available.has(name)).join(" ");
+  const optionalServices = ["studio"].filter((name) => available.has(name)).join(" ");
 
   const pull = await exec(conn, `cd ${supaDir} && docker compose pull ${essentialServices} ${optionalServices} 2>&1 | tail -80 || true`);
   await log((`${pull.stdout}${pull.stderr}`).slice(-1800));
@@ -202,7 +204,9 @@ async function startLocalSupabaseEssentials(conn: Client, supaDir: string, log: 
     throw new Error("Échec du démarrage des services essentiels Supabase local : " + essentialOutput.slice(-900));
   }
 
-  const optional = await exec(conn, `cd ${supaDir} && docker compose up -d ${optionalServices} 2>&1 || true`);
+  const optional = optionalServices
+    ? await exec(conn, `cd ${supaDir} && docker compose up -d ${optionalServices} 2>&1 || true`)
+    : { stdout: "", stderr: "", code: 0 };
   const optionalOutput = `${optional.stdout}${optional.stderr}`;
   if (/dependency failed to start|supabase-analytics.*unhealthy|analytics.*unhealthy|unhealthy/i.test(optionalOutput)) {
     await log("⚠ Studio/analytics n'a pas démarré correctement, mais l'API essentielle continue : " + optionalOutput.slice(-1000));
