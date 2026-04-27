@@ -106,6 +106,17 @@ const DEFAULT_ADMIN_PASSWORD = "260390DS";
 
 const shQuote = (value: string) => `'${value.replace(/'/g, `'\\''`)}'`;
 
+function dockerPsql(connDir: string, sqlB64: string, onErrorStop = true) {
+  const psql = `PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=${onErrorStop ? 1 : 0}`;
+  return `cd ${connDir} && printf '%s' '${sqlB64}' | base64 -d | docker compose exec -T --user postgres db sh -lc ${shQuote(psql)} 2>&1`;
+}
+
+function dockerPsqlSelect(connDir: string, sql: string, silent = true) {
+  const sqlB64 = btoa(sql);
+  const psql = `PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U postgres -d postgres -At -c "$(printf '%s' '${sqlB64}' | base64 -d)"`;
+  return `cd ${connDir} && docker compose exec -T --user postgres db sh -lc ${shQuote(psql)}${silent ? " 2>/dev/null || true" : " 2>&1"}`;
+}
+
 interface RemotePreflightResult {
   dockerOk: boolean;
   composeOk: boolean;
@@ -427,6 +438,24 @@ async function readRemoteEnv(conn: Client, envPath: string, key: string) {
   return (result.stdout || "").trim();
 }
 
+async function ensurePostgresSqlAccess(conn: Client, supaDir: string, log: (m: string) => Promise<void> | void) {
+  await exec(conn, `cd ${supaDir} && for i in $(seq 1 30); do docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && break || sleep 2; done`);
+  const probe = await exec(conn, dockerPsqlSelect(supaDir, "select 1", false));
+  const probeOut = `${probe.stdout}${probe.stderr}`;
+  if (probe.code === 0 && !/Permission denied|pg_filenode\.map/i.test(probeOut)) return;
+
+  await log("⚠ Permissions Postgres détectées comme invalides — réparation du volume DB…");
+  await exec(conn, `cd ${supaDir} && docker compose exec -T -u 0 db sh -c "chown -R postgres:postgres /var/lib/postgresql/data && chmod -R u+rwX,go-rwx /var/lib/postgresql/data" 2>&1 || true`);
+  await exec(conn, `cd ${supaDir} && docker compose restart db 2>&1 || true`);
+  await exec(conn, `cd ${supaDir} && for i in $(seq 1 60); do docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && break || sleep 2; done`);
+  const retry = await exec(conn, dockerPsqlSelect(supaDir, "select 1", false));
+  const retryOut = `${retry.stdout}${retry.stderr}`;
+  if (retry.code !== 0 || /Permission denied|pg_filenode\.map/i.test(retryOut)) {
+    throw new Error("Postgres local reste inaccessible après réparation des permissions : " + retryOut.slice(-600));
+  }
+  await log("✓ Permissions Postgres réparées");
+}
+
 function buildAuthLoginCurlCommand(authBaseUrl: string, anonKey: string, email: string, password: string) {
   const payloadB64 = btoa(JSON.stringify({ email, password }));
   return `AUTH_URL=${shQuote(`${authBaseUrl.replace(/\/$/, "")}/auth/v1/token?grant_type=password`)} ` +
@@ -464,6 +493,24 @@ async function syncSupabaseKongPorts(conn: Client, supaDir: string, kongHttpPort
   if (/CHANGED/.test(output)) {
     await log(`✓ Ports Kong Supabase alignés : HTTP ${kongHttpPort}, HTTPS ${kongHttpsPort} (évite le conflit avec l'application)`);
   }
+}
+
+async function syncLocalAuthSafeEnv(conn: Client, supaDir: string, log: (m: string) => Promise<void> | void) {
+  const envPatch = [
+    "ENABLE_EMAIL_AUTOCONFIRM=true",
+    "ENABLE_PHONE_SIGNUP=false",
+    "ENABLE_PHONE_AUTOCONFIRM=true",
+    "HOOK_CUSTOM_ACCESS_TOKEN_ENABLED=false",
+    "HOOK_SEND_EMAIL_ENABLED=false",
+    "HOOK_SEND_SMS_ENABLED=false",
+    "HOOK_MFA_VERIFICATION_ATTEMPT_ENABLED=false",
+    "HOOK_PASSWORD_VERIFICATION_ATTEMPT_ENABLED=false",
+  ].join("\n") + "\n";
+  const keys = envPatch.split("\n").map((line) => line.split("=")[0]).filter(Boolean).join(" ");
+  const b64 = btoa(envPatch);
+  const cmd = `cd ${supaDir} && for k in ${keys}; do sed -i "/^$k=/d" .env; done && printf '%s' '${b64}' | base64 -d >> .env && docker compose rm -sf auth 2>&1 || true`;
+  await exec(conn, cmd);
+  await log("✓ Configuration Auth locale sécurisée (hooks réseau désactivés)");
 }
 
 async function ensureLocalAuthGateway(conn: Client, supaDir: string, kongPort: string, log: (m: string) => Promise<void> | void) {
@@ -504,7 +551,7 @@ async function upsertDefaultAdminViaAuthApi(
   log: (m: string) => Promise<void> | void,
 ) {
   await ensureLocalAuthGateway(conn, supaDir, kongPort, log);
-  const existing = await exec(conn, `cd ${supaDir} && docker compose exec -T db psql -At -U postgres -d postgres -c "select id::text from auth.users where lower(email)=lower('${DEFAULT_ADMIN_EMAIL}') limit 1" 2>/dev/null || true`);
+  const existing = await exec(conn, dockerPsqlSelect(supaDir, `select id::text from auth.users where lower(email)=lower('${DEFAULT_ADMIN_EMAIL}') limit 1`));
   const existingId = (existing.stdout || "").match(/[0-9a-fA-F-]{36}/)?.[0] || "";
   const body = existingId
     ? { email: DEFAULT_ADMIN_EMAIL, password, email_confirm: true, user_metadata: { display_name: "ScreenFlow Admin" }, app_metadata: { provider: "email", providers: ["email"] }, ban_duration: "none" }
@@ -604,7 +651,7 @@ BEGIN
 END $$;
 `.trim();
   const b64 = btoa(sql);
-  const res = await exec(conn, `cd ${supaDir} && echo "${b64}" | base64 -d | docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`);
+  const res = await exec(conn, dockerPsql(supaDir, b64));
   if (res.code !== 0) {
     throw new Error("Échec du fallback SQL pour le compte admin : " + (res.stdout + res.stderr).slice(-800));
   }
@@ -634,7 +681,7 @@ BEGIN
 END $$;
 `.trim();
   const roleB64 = btoa(roleSql);
-  const promoted = await exec(conn, `cd ${supaDir} && echo "${roleB64}" | base64 -d | docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`);
+  const promoted = await exec(conn, dockerPsql(supaDir, roleB64));
   if (promoted.code !== 0) throw new Error("Compte Auth créé, mais attribution du rôle admin échouée : " + (promoted.stdout + promoted.stderr).slice(-800));
   await log("✓ Rôle admin global confirmé pour screenflow@screenflow.local");
 }
@@ -895,6 +942,7 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
         await exec(conn, `cd ${supaDir} && for k in POSTGRES_PASSWORD JWT_SECRET ANON_KEY SERVICE_ROLE_KEY SUPABASE_PUBLISHABLE_KEY SUPABASE_SECRET_KEY DASHBOARD_USERNAME DASHBOARD_PASSWORD SITE_URL API_EXTERNAL_URL SUPABASE_PUBLIC_URL KONG_HTTP_PORT KONG_HTTPS_PORT STUDIO_PORT POSTGRES_PORT ENABLE_EMAIL_SIGNUP ENABLE_EMAIL_AUTOCONFIRM ENABLE_ANONYMOUS_USERS DISABLE_SIGNUP; do sed -i "/^$k=/d" .env; done && echo "${envB64}" | base64 -d >> .env && serviceKey="${serviceKey}" && echo "_OK"`);
 
         log(`→ Starting Supabase containers essentiels (kong:${supaKongPort}, studio:${supaStudioPort}, db:${supaDbPort})…`);
+        await syncLocalAuthSafeEnv(conn, supaDir, log);
         await startLocalSupabaseEssentials(conn, supaDir, log);
 
         supabaseUrlOverride = supaBrowserUrl;
@@ -910,8 +958,8 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
 
         // ===== Create default global admin account (screenflow / 260390DS) =====
         log("→ Création/réparation du compte admin par défaut (screenflow@screenflow.local)…");
-        // Wait for Postgres to be ready (max ~60s)
-        await exec(conn, `cd ${supaDir} && for i in $(seq 1 30); do docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && break || sleep 2; done`);
+        // Wait for Postgres to be ready and ensure psql runs as the DB container user.
+        await ensurePostgresSqlAccess(conn, supaDir, log);
 
         await upsertDefaultAdminViaAuthApi(conn, supaDir, supaKongPort, serviceKey, DEFAULT_ADMIN_PASSWORD, log);
 
@@ -940,6 +988,7 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
         }
         await log("→ Vérification des conteneurs Supabase existants…");
         await syncSupabaseKongPorts(conn, supaDir, supaKongPort, supaKongHttpsPort, log);
+        await syncLocalAuthSafeEnv(conn, supaDir, log);
         await startLocalSupabaseEssentials(conn, supaDir, log);
         const supaBrowserUrl = enableHttps ? `https://${httpsDomain}:${httpsPort}` : `http://${body.host}:${appPort}`;
         supabaseUrlOverride = supaBrowserUrl;
@@ -947,13 +996,15 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
         supabaseProjectIdOverride = "local";
         await log("✓ Supabase local opérationnel (clés réutilisées depuis .env)");
         // Ensure admin still exists / re-sync password
-        await exec(conn, `cd ${supaDir} && for i in $(seq 1 30); do docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && break || sleep 2; done`);
+        await ensurePostgresSqlAccess(conn, supaDir, log);
         await upsertDefaultAdminViaAuthApi(conn, supaDir, supaKongPort, serviceKey, DEFAULT_ADMIN_PASSWORD, log);
         (globalThis as any).__pendingAdminPromotion = { supaDir, postgresPw };
       }
 
       log(`→ Preparing remote directory ${remoteDir}…`);
-      await exec(conn, `${sudoPrefix}mkdir -p ${remoteDir} && ${sudoPrefix}chown -R ${body.username}:${body.username} ${remoteDir}`);
+      // Ne jamais chown -R tout remoteDir ici : il contient aussi le volume Postgres local,
+      // et un chown récursif casse global/pg_filenode.map. On ne touche qu'au dossier repo.
+      await exec(conn, `${sudoPrefix}mkdir -p ${remoteDir} && ${sudoPrefix}chown ${body.username}:${body.username} ${remoteDir} && if [ -d ${remoteDir}/repo ]; then ${sudoPrefix}chown -R ${body.username}:${body.username} ${remoteDir}/repo; fi`);
       log("✓ Remote directory ready");
 
       if (isExistingInstall) {
@@ -991,21 +1042,34 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
       // ===== Apply app migrations to local Supabase, then promote admin =====
       const pending = (globalThis as any).__pendingAdminPromotion;
       if (pending?.supaDir) {
+        await ensurePostgresSqlAccess(conn, pending.supaDir, log);
         log("→ Application des migrations de l'application sur Supabase local…");
         const migDir = `${remoteDir}/repo/supabase/migrations`;
         // Concat all .sql files in order and pipe to psql
-        const applyMig = await exec(
+        let applyMig = await exec(
           conn,
           `if [ -d "${migDir}" ]; then ` +
           `for f in $(ls ${migDir}/*.sql 2>/dev/null | sort); do ` +
           `  echo "-- $f"; cat "$f"; echo ""; ` +
-          `done | (cd ${pending.supaDir} && docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=0) 2>&1 | tail -100; ` +
+          `done | (cd ${pending.supaDir} && docker compose exec -T --user postgres db sh -lc ${shQuote('PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=0')}) 2>&1 | tail -100; ` +
           `else echo "no migrations dir"; fi`
         );
+        if (/Permission denied|pg_filenode\.map/i.test(`${applyMig.stdout}${applyMig.stderr}`)) {
+          await log("⚠ Postgres a reperdu l'accès au volume pendant les migrations — réparation et nouvelle tentative…");
+          await ensurePostgresSqlAccess(conn, pending.supaDir, log);
+          applyMig = await exec(
+            conn,
+            `if [ -d "${migDir}" ]; then ` +
+            `for f in $(ls ${migDir}/*.sql 2>/dev/null | sort); do echo "-- $f"; cat "$f"; echo ""; done | ` +
+            `(cd ${pending.supaDir} && docker compose exec -T --user postgres db sh -lc ${shQuote('PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=0')}) 2>&1 | tail -100; ` +
+            `else echo "no migrations dir"; fi`
+          );
+        }
         log(applyMig.stdout.slice(-1500));
         log("✓ Migrations appliquées (les erreurs 'already exists' sont normales)");
 
         log("→ Promotion du compte screenflow en admin global…");
+        await ensurePostgresSqlAccess(conn, pending.supaDir, log);
         await ensureDefaultAdminRole(conn, pending.supaDir, log);
 
         await log("→ Test réel du login admin local…");
@@ -1198,43 +1262,8 @@ async function runResetAdminPassword(body: DeployBody, log: (m: string) => Promi
     }
     await log(`✓ Stack Supabase locale détectée dans ${supaDir}`);
 
-    // Wait for Postgres to be ready
     await log("→ Vérification que Postgres est prêt…");
-    await exec(conn, `cd ${supaDir} && for i in $(seq 1 30); do docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && break || sleep 2; done`);
-
-    // Sanity check : un "pg_isready" OK ne garantit pas que psql peut lire les fichiers.
-    // Si le datadir a des permissions cassées (fréquent après redémarrage Docker / changement d'UID),
-    // on les répare en root dans le conteneur, puis on redémarre Postgres.
-    const probe = await exec(
-      conn,
-      `cd ${supaDir} && docker compose exec -T db psql -U postgres -d postgres -c "select 1" 2>&1 || true`
-    );
-    const probeOut = (probe.stdout || "") + (probe.stderr || "");
-    if (probeOut.includes("Permission denied") || probeOut.includes("pg_filenode.map")) {
-      await log("⚠ Permissions du datadir Postgres cassées — réparation en cours…");
-      await exec(
-        conn,
-        `cd ${supaDir} && docker compose exec -T -u 0 db sh -c "chown -R postgres:postgres /var/lib/postgresql/data && chmod -R u+rwX,go-rwx /var/lib/postgresql/data" 2>&1 || true`
-      );
-      await log("→ Redémarrage du conteneur db…");
-      await exec(conn, `cd ${supaDir} && docker compose restart db 2>&1 || true`);
-      await exec(conn, `cd ${supaDir} && for i in $(seq 1 60); do docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && break || sleep 2; done`);
-      const probe2 = await exec(
-        conn,
-        `cd ${supaDir} && docker compose exec -T db psql -U postgres -d postgres -c "select 1" 2>&1 || true`
-      );
-      const probe2Out = (probe2.stdout || "") + (probe2.stderr || "");
-      if (probe2Out.includes("Permission denied") || probe2Out.includes("pg_filenode.map")) {
-        throw new Error(
-          "Le datadir Postgres reste inaccessible même après réparation. " +
-          "Connectez-vous en SSH et exécutez manuellement : " +
-          `cd ${supaDir} && docker compose down && ` +
-          `sudo chown -R 70:70 volumes/db/data || sudo chown -R 999:999 volumes/db/data ; ` +
-          `docker compose up -d db. Détail : ` + probe2Out.slice(-300)
-        );
-      }
-      await log("✓ Permissions réparées et Postgres opérationnel");
-    }
+    await ensurePostgresSqlAccess(conn, supaDir, log);
 
     const kongPort = await readRemoteEnv(conn, `${supaDir}/.env`, "KONG_HTTP_PORT") || "8000";
     const publicUrl = await readRemoteEnv(conn, `${supaDir}/.env`, "SUPABASE_PUBLIC_URL") || await readRemoteEnv(conn, `${supaDir}/.env`, "API_EXTERNAL_URL") || `http://${body.host}:${kongPort}`;
@@ -1328,14 +1357,13 @@ async function runCheckAdminStatus(
     }
     await log(`✓ Stack Supabase locale détectée dans ${supaDir}`);
 
-    // Wait for Postgres
-    await exec(conn, `cd ${supaDir} && for i in $(seq 1 30); do docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && break || sleep 2; done`);
+    await ensurePostgresSqlAccess(conn, supaDir, log);
 
     // 1. Check auth.users
     await log(`→ Recherche de ${DEFAULT_ADMIN_EMAIL} dans auth.users…`);
     const userQuery = await exec(
       conn,
-      `cd ${supaDir} && docker compose exec -T db psql -At -U postgres -d postgres -F'|' -c "select id::text, coalesce(email_confirmed_at::text,'') from auth.users where lower(email)=lower('${DEFAULT_ADMIN_EMAIL}') limit 1" 2>/dev/null || true`
+      dockerPsqlSelect(supaDir, `select id::text || '|' || coalesce(email_confirmed_at::text,'') from auth.users where lower(email)=lower('${DEFAULT_ADMIN_EMAIL}') limit 1`)
     );
     const userLine = (userQuery.stdout || "").trim().split("\n").find(l => l.includes("|") && !l.startsWith("(")) || "";
     if (userLine) {
@@ -1356,7 +1384,7 @@ async function runCheckAdminStatus(
       await log("→ Vérification du rôle admin dans public.user_roles…");
       const roleQuery = await exec(
         conn,
-        `cd ${supaDir} && docker compose exec -T db psql -At -U postgres -d postgres -c "select 1 from public.user_roles where user_id='${result.user_id}' and role='admin' limit 1" 2>/dev/null || true`
+        dockerPsqlSelect(supaDir, `select 1 from public.user_roles where user_id='${result.user_id}' and role='admin' limit 1`)
       );
       result.has_admin_role = (roleQuery.stdout || "").trim().includes("1");
       await log(result.has_admin_role ? "✓ Rôle admin présent" : "✗ Rôle admin manquant");
@@ -1364,7 +1392,7 @@ async function runCheckAdminStatus(
       // 3. Profile
       const profileQuery = await exec(
         conn,
-        `cd ${supaDir} && docker compose exec -T db psql -At -U postgres -d postgres -c "select 1 from public.profiles where id='${result.user_id}' limit 1" 2>/dev/null || true`
+        dockerPsqlSelect(supaDir, `select 1 from public.profiles where id='${result.user_id}' limit 1`)
       );
       result.has_profile = (profileQuery.stdout || "").trim().includes("1");
       await log(result.has_profile ? "✓ Profil public trouvé" : "✗ Profil public manquant");
