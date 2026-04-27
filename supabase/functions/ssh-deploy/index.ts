@@ -138,7 +138,7 @@ async function runRemotePreflight(
   const composeOk = !composeOutput.includes("MISSING");
   await log(composeOk ? `✓ Docker Compose disponible : ${composeOutput.split("\n").slice(-1)[0]}` : "✗ Docker Compose indisponible");
 
-  const diskCheck = await exec(conn, `mkdir -p ${remoteDir} 2>/dev/null || true; df -Pm ${remoteDir} 2>/dev/null | awk 'NR==2{print $4"|"$5"|"$6}'`);
+  const diskCheck = await exec(conn, `mkdir -p ${remoteDir} 2>/dev/null || true; (df -Pm ${remoteDir} 2>/dev/null || df -Pm $(dirname ${remoteDir}) 2>/dev/null || df -Pm /) | awk 'NR==2{print $4"|"$5"|"$6}'`);
   const diskLine = (diskCheck.stdout || "").trim().split("\n").pop() || "0||";
   const [freeRaw, usedPctRaw, mountRaw] = diskLine.split("|");
   const freeMb = Number.parseInt(freeRaw || "0", 10) || 0;
