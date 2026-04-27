@@ -182,37 +182,112 @@ async function handleAnalyticsUnhealthy(conn: Client, supaDir: string, log: (m: 
   const psOutput = `${ps.stdout}${ps.stderr}`;
   if (!/supabase-analytics|analytics/i.test(psOutput) || !/unhealthy|Exit|Restarting/i.test(psOutput)) return;
 
-  await log("⚠ supabase-analytics est unhealthy. Service non critique pour l'app : diagnostic puis démarrage sans analytics…");
+  await log("⚠ supabase-analytics est unhealthy. Service non critique : diagnostic puis arrêt…");
   const logs = await exec(conn, `cd ${supaDir} && docker compose logs --tail=80 analytics 2>&1 || true`);
   await log((`${logs.stdout}${logs.stderr}`).slice(-1600));
   await exec(conn, `cd ${supaDir} && docker compose stop analytics vector 2>&1 || true`);
+  await exec(conn, `cd ${supaDir} && docker compose rm -f analytics vector 2>&1 || true`);
+}
+
+/**
+ * Le docker-compose.yml officiel Supabase déclare:
+ *   kong/auth/storage/rest/realtime/meta:
+ *     depends_on:
+ *       analytics: { condition: service_healthy }
+ * Si analytics (Logflare) est unhealthy, RIEN ne démarre.
+ * On neutralise une fois pour toutes : on retire le bloc analytics des depends_on
+ * et on commente le service analytics + vector. Idempotent (sentinelle).
+ */
+async function patchComposeRemoveAnalytics(conn: Client, supaDir: string, log: (m: string) => Promise<void> | void) {
+  const sentinel = "# LOVABLE_NO_ANALYTICS_PATCH";
+  const check = await exec(conn, `grep -q '${sentinel}' ${supaDir}/docker-compose.yml && echo PATCHED || echo TODO`);
+  if (/PATCHED/.test(check.stdout)) {
+    await log("✓ docker-compose déjà patché (analytics désactivé).");
+    return;
+  }
+
+  await log("→ Patch docker-compose.yml : suppression dépendance analytics (Logflare unhealthy connu)…");
+  await exec(conn, `cp ${supaDir}/docker-compose.yml ${supaDir}/docker-compose.yml.bak.$(date +%s) 2>&1 || true`);
+
+  // Script Python pour éditer proprement le YAML sans casser l'indentation.
+  const py = `
+import re, sys, pathlib
+p = pathlib.Path("${supaDir}/docker-compose.yml")
+src = p.read_text()
+
+# 1) Supprimer toute clé "analytics:" sous un depends_on (avec sa condition éventuelle)
+#    Pattern: lignes "      analytics:" suivies optionnellement de "        condition: ..."
+src = re.sub(
+    r'^[ \\t]+analytics:\\s*\\n(?:[ \\t]+condition:[^\\n]*\\n)?',
+    '',
+    src,
+    flags=re.MULTILINE,
+)
+
+# 2) Si après suppression un "depends_on:" se retrouve vide (suivi d'une autre clé de même indent), le retirer
+src = re.sub(
+    r'^([ \\t]+)depends_on:\\s*\\n(?=\\1[A-Za-z_])',
+    '',
+    src,
+    flags=re.MULTILINE,
+)
+
+# 3) Marqueur sentinelle en tête
+if "${sentinel}" not in src:
+    src = "${sentinel}\\n" + src
+
+p.write_text(src)
+print("OK")
+`;
+  const enc = btoa(unescape(encodeURIComponent(py)));
+  const run = await exec(conn, `echo '${enc}' | base64 -d | python3 - 2>&1`);
+  await log((`${run.stdout}${run.stderr}`).slice(-600));
+  if (!/OK/.test(run.stdout)) {
+    await log("⚠ Patch compose échoué — fallback : tentatives de démarrage sans analytics.");
+  }
 }
 
 async function startLocalSupabaseEssentials(conn: Client, supaDir: string, log: (m: string) => Promise<void> | void) {
+  // 0) Patcher le compose pour retirer la dépendance bloquante sur analytics
+  await patchComposeRemoveAnalytics(conn, supaDir, log);
+
   const services = await exec(conn, `cd ${supaDir} && docker compose config --services 2>/dev/null || true`);
   const available = new Set((services.stdout || "").split(/\s+/).filter(Boolean));
   const essentialServices = ["db", "kong", "auth", "rest", "realtime", "storage", "meta", "imgproxy"].filter((name) => available.has(name)).join(" ");
   const optionalServices = ["studio"].filter((name) => available.has(name)).join(" ");
 
+  // S'assurer qu'analytics/vector ne tournent pas et ne bloquent rien
+  await exec(conn, `cd ${supaDir} && docker compose stop analytics vector 2>&1 || true`);
+  await exec(conn, `cd ${supaDir} && docker compose rm -f analytics vector 2>&1 || true`);
+
   const pull = await exec(conn, `cd ${supaDir} && docker compose pull ${essentialServices} ${optionalServices} 2>&1 | tail -80 || true`);
   await log((`${pull.stdout}${pull.stderr}`).slice(-1800));
 
-  const upEssential = await exec(conn, `cd ${supaDir} && docker compose up -d ${essentialServices} 2>&1`);
+  const upEssential = await exec(conn, `cd ${supaDir} && docker compose up -d --no-deps ${essentialServices} 2>&1`);
   const essentialOutput = `${upEssential.stdout}${upEssential.stderr}`;
   await log(essentialOutput.slice(-2400));
+
   if (upEssential.code !== 0) {
-    throw new Error("Échec du démarrage des services essentiels Supabase local : " + essentialOutput.slice(-900));
+    // Dernier recours : démarrer un par un, sans dépendances
+    await log("⚠ Échec démarrage groupé — tentative service par service (--no-deps)…");
+    const ordered = ["db", "kong", "rest", "auth", "storage", "meta", "realtime", "imgproxy"].filter((s) => available.has(s));
+    let lastOut = "";
+    for (const svc of ordered) {
+      const r = await exec(conn, `cd ${supaDir} && docker compose up -d --no-deps ${svc} 2>&1`);
+      lastOut = `${r.stdout}${r.stderr}`;
+      await log(`[${svc}] ${lastOut.slice(-300)}`);
+    }
+    // Vérifier que kong est up
+    const psKong = await exec(conn, `cd ${supaDir} && docker compose ps kong 2>&1 || true`);
+    if (!/Up|running/i.test(psKong.stdout)) {
+      throw new Error("Échec du démarrage des services essentiels Supabase local : " + (lastOut || essentialOutput).slice(-900));
+    }
   }
 
-  const optional = optionalServices
-    ? await exec(conn, `cd ${supaDir} && docker compose up -d ${optionalServices} 2>&1 || true`)
-    : { stdout: "", stderr: "", code: 0 };
-  const optionalOutput = `${optional.stdout}${optional.stderr}`;
-  if (/dependency failed to start|supabase-analytics.*unhealthy|analytics.*unhealthy|unhealthy/i.test(optionalOutput)) {
-    await log("⚠ Studio/analytics n'a pas démarré correctement, mais l'API essentielle continue : " + optionalOutput.slice(-1000));
-    await handleAnalyticsUnhealthy(conn, supaDir, log);
-  } else if (optionalOutput.trim()) {
-    await log(optionalOutput.slice(-1000));
+  if (optionalServices) {
+    const optional = await exec(conn, `cd ${supaDir} && docker compose up -d --no-deps ${optionalServices} 2>&1 || true`);
+    const optionalOutput = `${optional.stdout}${optional.stderr}`;
+    if (optionalOutput.trim()) await log(optionalOutput.slice(-800));
   }
 
   await handleAnalyticsUnhealthy(conn, supaDir, log);
