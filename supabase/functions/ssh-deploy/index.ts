@@ -515,7 +515,7 @@ async function upsertDefaultAdminViaAuthApi(
   log: (m: string) => Promise<void> | void,
 ) {
   await ensureLocalAuthGateway(conn, supaDir, kongPort, log);
-  const existing = await exec(conn, `cd ${supaDir} && docker compose exec -T db psql -At -U postgres -d postgres -c "select id::text from auth.users where lower(email)=lower('${DEFAULT_ADMIN_EMAIL}') limit 1" 2>/dev/null || true`);
+  const existing = await exec(conn, dockerPsqlSelect(supaDir, `select id::text from auth.users where lower(email)=lower('${DEFAULT_ADMIN_EMAIL}') limit 1`));
   const existingId = (existing.stdout || "").match(/[0-9a-fA-F-]{36}/)?.[0] || "";
   const body = existingId
     ? { email: DEFAULT_ADMIN_EMAIL, password, email_confirm: true, user_metadata: { display_name: "ScreenFlow Admin" }, app_metadata: { provider: "email", providers: ["email"] }, ban_duration: "none" }
@@ -615,7 +615,7 @@ BEGIN
 END $$;
 `.trim();
   const b64 = btoa(sql);
-  const res = await exec(conn, `cd ${supaDir} && echo "${b64}" | base64 -d | docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`);
+  const res = await exec(conn, dockerPsql(supaDir, b64));
   if (res.code !== 0) {
     throw new Error("Échec du fallback SQL pour le compte admin : " + (res.stdout + res.stderr).slice(-800));
   }
@@ -645,7 +645,7 @@ BEGIN
 END $$;
 `.trim();
   const roleB64 = btoa(roleSql);
-  const promoted = await exec(conn, `cd ${supaDir} && echo "${roleB64}" | base64 -d | docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`);
+  const promoted = await exec(conn, dockerPsql(supaDir, roleB64));
   if (promoted.code !== 0) throw new Error("Compte Auth créé, mais attribution du rôle admin échouée : " + (promoted.stdout + promoted.stderr).slice(-800));
   await log("✓ Rôle admin global confirmé pour screenflow@screenflow.local");
 }
