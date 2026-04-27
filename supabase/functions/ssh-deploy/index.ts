@@ -111,10 +111,10 @@ function dockerPsql(connDir: string, sqlB64: string, onErrorStop = true) {
   return `cd ${connDir} && printf '%s' '${sqlB64}' | base64 -d | docker compose exec -T --user postgres db sh -lc ${shQuote(psql)} 2>&1`;
 }
 
-function dockerPsqlSelect(connDir: string, sql: string) {
+function dockerPsqlSelect(connDir: string, sql: string, silent = true) {
   const sqlB64 = btoa(sql);
   const psql = `PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U postgres -d postgres -At -c "$(printf '%s' '${sqlB64}' | base64 -d)"`;
-  return `cd ${connDir} && docker compose exec -T --user postgres db sh -lc ${shQuote(psql)} 2>/dev/null || true`;
+  return `cd ${connDir} && docker compose exec -T --user postgres db sh -lc ${shQuote(psql)}${silent ? " 2>/dev/null || true" : " 2>&1"}`;
 }
 
 interface RemotePreflightResult {
@@ -440,7 +440,7 @@ async function readRemoteEnv(conn: Client, envPath: string, key: string) {
 
 async function ensurePostgresSqlAccess(conn: Client, supaDir: string, log: (m: string) => Promise<void> | void) {
   await exec(conn, `cd ${supaDir} && for i in $(seq 1 30); do docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && break || sleep 2; done`);
-  const probe = await exec(conn, dockerPsqlSelect(supaDir, "select 1"));
+  const probe = await exec(conn, dockerPsqlSelect(supaDir, "select 1", false));
   const probeOut = `${probe.stdout}${probe.stderr}`;
   if (probe.code === 0 && !/Permission denied|pg_filenode\.map/i.test(probeOut)) return;
 
@@ -448,7 +448,7 @@ async function ensurePostgresSqlAccess(conn: Client, supaDir: string, log: (m: s
   await exec(conn, `cd ${supaDir} && docker compose exec -T -u 0 db sh -c "chown -R postgres:postgres /var/lib/postgresql/data && chmod -R u+rwX,go-rwx /var/lib/postgresql/data" 2>&1 || true`);
   await exec(conn, `cd ${supaDir} && docker compose restart db 2>&1 || true`);
   await exec(conn, `cd ${supaDir} && for i in $(seq 1 60); do docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && break || sleep 2; done`);
-  const retry = await exec(conn, dockerPsqlSelect(supaDir, "select 1"));
+  const retry = await exec(conn, dockerPsqlSelect(supaDir, "select 1", false));
   const retryOut = `${retry.stdout}${retry.stderr}`;
   if (retry.code !== 0 || /Permission denied|pg_filenode\.map/i.test(retryOut)) {
     throw new Error("Postgres local reste inaccessible après réparation des permissions : " + retryOut.slice(-600));
