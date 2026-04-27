@@ -442,9 +442,27 @@ async function upsertDefaultAdminViaAuthApi(
   const payloadB64 = btoa(JSON.stringify(body));
   const method = existingId ? "PUT" : "POST";
   const path = existingId ? `/auth/v1/admin/users/${existingId}` : "/auth/v1/admin/users";
-  const call = (baseUrl: string) =>
-    `API_BASE=${shQuote(baseUrl.replace(/\/$/, ""))} SERVICE_KEY=${shQuote(serviceKey)} METHOD=${method} PATH=${shQuote(path)} BODY_B64=${shQuote(payloadB64)} sh -c ` +
-    shQuote(`body=$(printf "%s" "$BODY_B64" | base64 -d); curl -k -sS -m 30 -w "\\nHTTP_STATUS:%{http_code}" -X "$METHOD" "$API_BASE$PATH" -H "apikey: $SERVICE_KEY" -H "Authorization: Bearer $SERVICE_KEY" -H "Content-Type: application/json" --data "$body"`);
+  const serviceKeyB64 = btoa(serviceKey);
+
+  // Exécution directe via bash -c : on décode en variables locales, puis curl.
+  // Évite tout problème avec `sh` absent du PATH ou des quotes mal échappées.
+  const call = (baseUrl: string) => {
+    const baseB64 = btoa(baseUrl.replace(/\/$/, ""));
+    const pathB64 = btoa(path);
+    const script =
+      `set -e; ` +
+      `API_BASE=$(printf '%s' '${baseB64}' | base64 -d); ` +
+      `SERVICE_KEY=$(printf '%s' '${serviceKeyB64}' | base64 -d); ` +
+      `REQ_PATH=$(printf '%s' '${pathB64}' | base64 -d); ` +
+      `BODY=$(printf '%s' '${payloadB64}' | base64 -d); ` +
+      `curl -k -sS -m 30 -w '\\nHTTP_STATUS:%{http_code}' -X ${method} ` +
+      `"$API_BASE$REQ_PATH" ` +
+      `-H "apikey: $SERVICE_KEY" ` +
+      `-H "Authorization: Bearer $SERVICE_KEY" ` +
+      `-H "Content-Type: application/json" ` +
+      `--data "$BODY"`;
+    return `bash -c ${shQuote(script)}`;
+  };
 
   let result = await exec(conn, call(`http://127.0.0.1:${kongPort}`));
   let output = `${result.stdout}${result.stderr}`;
