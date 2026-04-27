@@ -706,6 +706,7 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
   const httpsDomain = (body.https_domain || body.host).trim();
   const installSupabase = !!body.install_supabase_local;
   const supaKongPort = body.supabase_kong_http_port || "8000";
+  const supaKongHttpsPort = chooseKongHttpsPort(supaKongPort, [enableHttps ? httpsPort : ""]);
   const supaStudioPort = body.supabase_studio_port || "3001";
   const supaDbPort = body.supabase_db_port || "5432";
   let supabaseUrlOverride = "";
@@ -821,7 +822,7 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
           `API_EXTERNAL_URL=${supaBrowserUrl}`,
           `SUPABASE_PUBLIC_URL=${supaBrowserUrl}`,
           `KONG_HTTP_PORT=${supaKongPort}`,
-          `KONG_HTTPS_PORT=${parseInt(supaKongPort) + 443}`,
+          `KONG_HTTPS_PORT=${supaKongHttpsPort}`,
           `STUDIO_PORT=${supaStudioPort}`,
           `POSTGRES_PORT=${supaDbPort}`,
           `ENABLE_EMAIL_SIGNUP=true`,
@@ -877,6 +878,7 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
           throw new Error("Installation Supabase existante détectée mais ANON_KEY/SERVICE_ROLE_KEY introuvables dans .env. Réinstallez ou complétez le fichier .env.");
         }
         await log("→ Vérification des conteneurs Supabase existants…");
+        await syncSupabaseKongPorts(conn, supaDir, supaKongPort, supaKongHttpsPort, log);
         await startLocalSupabaseEssentials(conn, supaDir, log);
         const supaBrowserUrl = enableHttps ? `https://${httpsDomain}:${httpsPort}` : `http://${body.host}:${appPort}`;
         supabaseUrlOverride = supaBrowserUrl;
