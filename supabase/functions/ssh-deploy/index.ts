@@ -106,6 +106,118 @@ const DEFAULT_ADMIN_PASSWORD = "260390DS";
 
 const shQuote = (value: string) => `'${value.replace(/'/g, `'\\''`)}'`;
 
+interface RemotePreflightResult {
+  dockerOk: boolean;
+  composeOk: boolean;
+  freeMb: number;
+  nodeMajor: number | null;
+  postgresMajor: number | null;
+}
+
+function parseMajorVersion(output: string, marker: RegExp): number | null {
+  const match = output.match(marker);
+  return match ? Number.parseInt(match[1], 10) : null;
+}
+
+async function runRemotePreflight(
+  conn: Client,
+  body: DeployBody,
+  remoteDir: string,
+  installSupabase: boolean,
+  log: (m: string) => Promise<void> | void,
+): Promise<RemotePreflightResult> {
+  await log("→ Pré-vérification serveur : Docker, espace disque, Node/Postgres…");
+
+  const dockerCheck = await exec(conn, "command -v docker >/dev/null 2>&1 && docker --version && (docker info >/dev/null 2>&1 && echo DOCKER_READY || echo DOCKER_DAEMON_UNAVAILABLE) || echo MISSING");
+  const dockerOutput = `${dockerCheck.stdout}${dockerCheck.stderr}`.trim();
+  const dockerOk = dockerOutput.includes("DOCKER_READY") && dockerCheck.code === 0;
+  await log(dockerOk ? `✓ Docker disponible : ${dockerOutput.replace("DOCKER_READY", "").trim()}` : `✗ Docker indisponible ou daemon inaccessible : ${dockerOutput}`);
+
+  const composeCheck = await exec(conn, "(docker compose version || docker-compose --version) 2>&1 || echo MISSING");
+  const composeOutput = `${composeCheck.stdout}${composeCheck.stderr}`.trim();
+  const composeOk = !composeOutput.includes("MISSING");
+  await log(composeOk ? `✓ Docker Compose disponible : ${composeOutput.split("\n").slice(-1)[0]}` : "✗ Docker Compose indisponible");
+
+  const diskCheck = await exec(conn, `mkdir -p ${remoteDir} 2>/dev/null || true; (df -Pm ${remoteDir} 2>/dev/null || df -Pm $(dirname ${remoteDir}) 2>/dev/null || df -Pm /) | awk 'NR==2{print $4"|"$5"|"$6}'`);
+  const diskLine = (diskCheck.stdout || "").trim().split("\n").pop() || "0||";
+  const [freeRaw, usedPctRaw, mountRaw] = diskLine.split("|");
+  const freeMb = Number.parseInt(freeRaw || "0", 10) || 0;
+  const minFreeMb = installSupabase ? 8192 : 2048;
+  await log(`✓ Espace disque libre : ${Math.round(freeMb / 1024)} Go sur ${mountRaw || remoteDir} (${usedPctRaw || "?"} utilisé)`);
+  if (freeMb < minFreeMb) {
+    throw new Error(`Espace disque insuffisant : ${Math.round(freeMb / 1024)} Go libres, minimum requis ${Math.round(minFreeMb / 1024)} Go.`);
+  }
+
+  const nodeCheck = await exec(conn, "command -v node >/dev/null 2>&1 && node --version || echo MISSING");
+  const nodeOutput = `${nodeCheck.stdout}${nodeCheck.stderr}`.trim();
+  const nodeMajor = parseMajorVersion(nodeOutput, /v(\d+)/);
+  if (nodeMajor === null) {
+    await log("⚠ Node.js absent sur l'hôte — OK, le build utilise Node 20 dans Docker.");
+  } else if (nodeMajor < 18) {
+    await log(`⚠ Node.js hôte ancien (${nodeOutput}) — OK pour Docker, mais Node 18+ est recommandé.`);
+  } else {
+    await log(`✓ Node.js hôte : ${nodeOutput}`);
+  }
+
+  const pgCheck = await exec(conn, "(command -v psql >/dev/null 2>&1 && psql --version) || (command -v postgres >/dev/null 2>&1 && postgres --version) || echo MISSING");
+  const pgOutput = `${pgCheck.stdout}${pgCheck.stderr}`.trim();
+  const postgresMajor = parseMajorVersion(pgOutput, /(?:PostgreSQL\)|postgres)\s+(\d+)/i);
+  if (postgresMajor === null) {
+    await log("⚠ Postgres absent sur l'hôte — OK, la base locale utilise Postgres dans Docker.");
+  } else if (postgresMajor < 15) {
+    await log(`⚠ Postgres hôte ancien (${pgOutput}) — Postgres 15+ recommandé si vous utilisez une base hors Docker.`);
+  } else {
+    await log(`✓ Postgres hôte : ${pgOutput}`);
+  }
+
+  if ((!dockerOk || !composeOk) && !body.install_docker) {
+    throw new Error("Docker ou Docker Compose manque. Activez 'Auto-installer Docker' ou installez-les avant le déploiement.");
+  }
+
+  return { dockerOk, composeOk, freeMb, nodeMajor, postgresMajor };
+}
+
+async function handleAnalyticsUnhealthy(conn: Client, supaDir: string, log: (m: string) => Promise<void> | void) {
+  const ps = await exec(conn, `cd ${supaDir} && docker compose ps -a 2>&1 || true`);
+  const psOutput = `${ps.stdout}${ps.stderr}`;
+  if (!/supabase-analytics|analytics/i.test(psOutput) || !/unhealthy|Exit|Restarting/i.test(psOutput)) return;
+
+  await log("⚠ supabase-analytics est unhealthy. Service non critique pour l'app : diagnostic puis démarrage sans analytics…");
+  const logs = await exec(conn, `cd ${supaDir} && docker compose logs --tail=80 analytics 2>&1 || true`);
+  await log((`${logs.stdout}${logs.stderr}`).slice(-1600));
+  await exec(conn, `cd ${supaDir} && docker compose stop analytics vector 2>&1 || true`);
+}
+
+async function startLocalSupabaseEssentials(conn: Client, supaDir: string, log: (m: string) => Promise<void> | void) {
+  const services = await exec(conn, `cd ${supaDir} && docker compose config --services 2>/dev/null || true`);
+  const available = new Set((services.stdout || "").split(/\s+/).filter(Boolean));
+  const essentialServices = ["db", "kong", "auth", "rest", "realtime", "storage", "meta", "imgproxy"].filter((name) => available.has(name)).join(" ");
+  const optionalServices = ["studio"].filter((name) => available.has(name)).join(" ");
+
+  const pull = await exec(conn, `cd ${supaDir} && docker compose pull ${essentialServices} ${optionalServices} 2>&1 | tail -80 || true`);
+  await log((`${pull.stdout}${pull.stderr}`).slice(-1800));
+
+  const upEssential = await exec(conn, `cd ${supaDir} && docker compose up -d ${essentialServices} 2>&1`);
+  const essentialOutput = `${upEssential.stdout}${upEssential.stderr}`;
+  await log(essentialOutput.slice(-2400));
+  if (upEssential.code !== 0) {
+    throw new Error("Échec du démarrage des services essentiels Supabase local : " + essentialOutput.slice(-900));
+  }
+
+  const optional = optionalServices
+    ? await exec(conn, `cd ${supaDir} && docker compose up -d ${optionalServices} 2>&1 || true`)
+    : { stdout: "", stderr: "", code: 0 };
+  const optionalOutput = `${optional.stdout}${optional.stderr}`;
+  if (/dependency failed to start|supabase-analytics.*unhealthy|analytics.*unhealthy|unhealthy/i.test(optionalOutput)) {
+    await log("⚠ Studio/analytics n'a pas démarré correctement, mais l'API essentielle continue : " + optionalOutput.slice(-1000));
+    await handleAnalyticsUnhealthy(conn, supaDir, log);
+  } else if (optionalOutput.trim()) {
+    await log(optionalOutput.slice(-1000));
+  }
+
+  await handleAnalyticsUnhealthy(conn, supaDir, log);
+}
+
 async function verifyAuthLoginFromServer(
   conn: Client,
   authBaseUrl: string,
@@ -424,18 +536,10 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
   await log("✓ SSH connection established");
 
     try {
-      log("→ Checking Docker installation…");
-      const dockerCheck = await exec(conn, "command -v docker && docker --version || echo MISSING");
-      const hasDocker = !dockerCheck.stdout.includes("MISSING") && dockerCheck.code === 0;
-      log(hasDocker ? `✓ Docker present: ${dockerCheck.stdout.trim()}` : "✗ Docker missing");
-
-      const composeCheck = await exec(conn, "docker compose version || docker-compose --version || echo MISSING");
-      const hasCompose = !composeCheck.stdout.includes("MISSING");
-      log(hasCompose ? `✓ Docker Compose present` : "✗ Docker Compose missing");
-
       const sudoPrefix = `echo '${body.password.replace(/'/g, "'\\''")}' | sudo -S `;
+      const preflight = await runRemotePreflight(conn, body, remoteDir, installSupabase, log);
 
-      if ((!hasDocker || !hasCompose) && body.install_docker) {
+      if ((!preflight.dockerOk || !preflight.composeOk) && body.install_docker) {
         log("→ Installing Docker (this may take 1-3 minutes)…");
         await exec(conn, `${sudoPrefix}sh -c "(command -v apt-get && apt-get update -y && apt-get install -y curl ca-certificates git) || (command -v dnf && dnf install -y curl ca-certificates git) || (command -v yum && yum install -y curl ca-certificates git) || true"`);
         const installCmd = `${sudoPrefix}sh -c "
@@ -459,8 +563,6 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
           throw new Error("Échec de l'installation de Docker. Voir les logs.");
         }
         log("✓ Docker installed");
-      } else if (!hasDocker || !hasCompose) {
-        throw new Error("Docker n'est pas installé. Activez 'Auto-installer Docker'.");
       }
 
       // Ensure git
@@ -525,13 +627,8 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
         const envB64 = btoa(envPatch);
         await exec(conn, `cd ${supaDir} && for k in POSTGRES_PASSWORD JWT_SECRET ANON_KEY SERVICE_ROLE_KEY SUPABASE_PUBLISHABLE_KEY SUPABASE_SECRET_KEY DASHBOARD_USERNAME DASHBOARD_PASSWORD SITE_URL API_EXTERNAL_URL SUPABASE_PUBLIC_URL KONG_HTTP_PORT KONG_HTTPS_PORT STUDIO_PORT POSTGRES_PORT ENABLE_EMAIL_SIGNUP ENABLE_EMAIL_AUTOCONFIRM ENABLE_ANONYMOUS_USERS DISABLE_SIGNUP; do sed -i "/^$k=/d" .env; done && echo "${envB64}" | base64 -d >> .env && serviceKey="${serviceKey}" && echo "_OK"`);
 
-        log(`→ Starting Supabase containers (kong:${supaKongPort}, studio:${supaStudioPort}, db:${supaDbPort})…`);
-        const supaUp = await exec(conn, `cd ${supaDir} && (docker compose pull 2>&1 | tail -20) && (docker compose up -d 2>&1 | tail -40)`);
-        log(supaUp.stdout.slice(-2000));
-        if (supaUp.code !== 0) {
-          log("⚠ Supabase compose stderr: " + supaUp.stderr.slice(-1000));
-          throw new Error("Échec du démarrage de Supabase local");
-        }
+        log(`→ Starting Supabase containers essentiels (kong:${supaKongPort}, studio:${supaStudioPort}, db:${supaDbPort})…`);
+        await startLocalSupabaseEssentials(conn, supaDir, log);
 
         supabaseUrlOverride = supaBrowserUrl;
         supabaseAnonOverride = anonKey;
