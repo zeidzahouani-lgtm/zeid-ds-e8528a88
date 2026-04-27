@@ -939,8 +939,8 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
 
         // ===== Create default global admin account (screenflow / 260390DS) =====
         log("→ Création/réparation du compte admin par défaut (screenflow@screenflow.local)…");
-        // Wait for Postgres to be ready (max ~60s)
-        await exec(conn, `cd ${supaDir} && for i in $(seq 1 30); do docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && break || sleep 2; done`);
+        // Wait for Postgres to be ready and ensure psql runs as the DB container user.
+        await ensurePostgresSqlAccess(conn, supaDir, log);
 
         await upsertDefaultAdminViaAuthApi(conn, supaDir, supaKongPort, serviceKey, DEFAULT_ADMIN_PASSWORD, log);
 
@@ -976,7 +976,7 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
         supabaseProjectIdOverride = "local";
         await log("✓ Supabase local opérationnel (clés réutilisées depuis .env)");
         // Ensure admin still exists / re-sync password
-        await exec(conn, `cd ${supaDir} && for i in $(seq 1 30); do docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && break || sleep 2; done`);
+        await ensurePostgresSqlAccess(conn, supaDir, log);
         await upsertDefaultAdminViaAuthApi(conn, supaDir, supaKongPort, serviceKey, DEFAULT_ADMIN_PASSWORD, log);
         (globalThis as any).__pendingAdminPromotion = { supaDir, postgresPw };
       }
@@ -1028,7 +1028,7 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
           `if [ -d "${migDir}" ]; then ` +
           `for f in $(ls ${migDir}/*.sql 2>/dev/null | sort); do ` +
           `  echo "-- $f"; cat "$f"; echo ""; ` +
-          `done | (cd ${pending.supaDir} && docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=0) 2>&1 | tail -100; ` +
+          `done | (cd ${pending.supaDir} && docker compose exec -T --user postgres db sh -lc ${shQuote('PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -U postgres -d postgres -v ON_ERROR_STOP=0')}) 2>&1 | tail -100; ` +
           `else echo "no migrations dir"; fi`
         );
         log(applyMig.stdout.slice(-1500));
