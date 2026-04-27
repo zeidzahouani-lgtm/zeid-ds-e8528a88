@@ -443,6 +443,29 @@ function buildDirectKongAuthLoginCommand(supaDir: string, anonKey: string, email
     shQuote(`body=$(printf "%s" "$BODY_B64" | base64 -d); curl -k -sS -m 20 -w "\\nHTTP_STATUS:%{http_code}" -X POST "$AUTH_URL" -H "apikey: $ANON_KEY" -H "Authorization: Bearer $ANON_KEY" -H "Content-Type: application/json" --data "$body"`);
 }
 
+function chooseKongHttpsPort(kongHttpPort: string, reservedPorts: string[] = []) {
+  const http = Number.parseInt(kongHttpPort, 10);
+  let candidate = Number.isFinite(http) ? http + 443 : 8443;
+  const reserved = new Set(reservedPorts.map((p) => Number.parseInt(p, 10)).filter((p) => Number.isFinite(p)));
+  while (reserved.has(candidate) || candidate === http) candidate += 1;
+  return String(candidate);
+}
+
+async function syncSupabaseKongPorts(conn: Client, supaDir: string, kongHttpPort: string, kongHttpsPort: string, log: (m: string) => Promise<void> | void) {
+  const cmd = `cd ${supaDir} && touch .env && ` +
+    `cur_http=$(grep -E '^KONG_HTTP_PORT=' .env | head -1 | cut -d= -f2-); ` +
+    `cur_https=$(grep -E '^KONG_HTTPS_PORT=' .env | head -1 | cut -d= -f2-); ` +
+    `changed=0; ` +
+    `if [ "$cur_http" != ${shQuote(kongHttpPort)} ]; then sed -i '/^KONG_HTTP_PORT=/d' .env; printf 'KONG_HTTP_PORT=%s\n' ${shQuote(kongHttpPort)} >> .env; changed=1; fi; ` +
+    `if [ "$cur_https" != ${shQuote(kongHttpsPort)} ]; then sed -i '/^KONG_HTTPS_PORT=/d' .env; printf 'KONG_HTTPS_PORT=%s\n' ${shQuote(kongHttpsPort)} >> .env; changed=1; fi; ` +
+    `if [ "$changed" = 1 ]; then docker compose rm -sf kong 2>&1 || true; echo CHANGED; else echo OK; fi`;
+  const result = await exec(conn, cmd);
+  const output = `${result.stdout}${result.stderr}`;
+  if (/CHANGED/.test(output)) {
+    await log(`✓ Ports Kong Supabase alignés : HTTP ${kongHttpPort}, HTTPS ${kongHttpsPort} (évite le conflit avec l'application)`);
+  }
+}
+
 async function ensureLocalAuthGateway(conn: Client, supaDir: string, kongPort: string, log: (m: string) => Promise<void> | void) {
   await log(`→ Vérification de la gateway Auth locale (port ${kongPort})…`);
   await patchKongKeyauthCredentials(conn, supaDir, log);
@@ -683,6 +706,7 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
   const httpsDomain = (body.https_domain || body.host).trim();
   const installSupabase = !!body.install_supabase_local;
   const supaKongPort = body.supabase_kong_http_port || "8000";
+  const supaKongHttpsPort = chooseKongHttpsPort(supaKongPort, [enableHttps ? httpsPort : ""]);
   const supaStudioPort = body.supabase_studio_port || "3001";
   const supaDbPort = body.supabase_db_port || "5432";
   let supabaseUrlOverride = "";
@@ -798,7 +822,7 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
           `API_EXTERNAL_URL=${supaBrowserUrl}`,
           `SUPABASE_PUBLIC_URL=${supaBrowserUrl}`,
           `KONG_HTTP_PORT=${supaKongPort}`,
-          `KONG_HTTPS_PORT=${parseInt(supaKongPort) + 443}`,
+          `KONG_HTTPS_PORT=${supaKongHttpsPort}`,
           `STUDIO_PORT=${supaStudioPort}`,
           `POSTGRES_PORT=${supaDbPort}`,
           `ENABLE_EMAIL_SIGNUP=true`,
@@ -854,6 +878,7 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
           throw new Error("Installation Supabase existante détectée mais ANON_KEY/SERVICE_ROLE_KEY introuvables dans .env. Réinstallez ou complétez le fichier .env.");
         }
         await log("→ Vérification des conteneurs Supabase existants…");
+        await syncSupabaseKongPorts(conn, supaDir, supaKongPort, supaKongHttpsPort, log);
         await startLocalSupabaseEssentials(conn, supaDir, log);
         const supaBrowserUrl = enableHttps ? `https://${httpsDomain}:${httpsPort}` : `http://${body.host}:${appPort}`;
         supabaseUrlOverride = supaBrowserUrl;
