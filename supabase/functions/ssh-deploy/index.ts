@@ -1322,14 +1322,13 @@ async function runCheckAdminStatus(
     }
     await log(`✓ Stack Supabase locale détectée dans ${supaDir}`);
 
-    // Wait for Postgres
-    await exec(conn, `cd ${supaDir} && for i in $(seq 1 30); do docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && break || sleep 2; done`);
+    await ensurePostgresSqlAccess(conn, supaDir, log);
 
     // 1. Check auth.users
     await log(`→ Recherche de ${DEFAULT_ADMIN_EMAIL} dans auth.users…`);
     const userQuery = await exec(
       conn,
-      `cd ${supaDir} && docker compose exec -T db psql -At -U postgres -d postgres -F'|' -c "select id::text, coalesce(email_confirmed_at::text,'') from auth.users where lower(email)=lower('${DEFAULT_ADMIN_EMAIL}') limit 1" 2>/dev/null || true`
+      dockerPsqlSelect(supaDir, `select id::text || '|' || coalesce(email_confirmed_at::text,'') from auth.users where lower(email)=lower('${DEFAULT_ADMIN_EMAIL}') limit 1`)
     );
     const userLine = (userQuery.stdout || "").trim().split("\n").find(l => l.includes("|") && !l.startsWith("(")) || "";
     if (userLine) {
@@ -1350,7 +1349,7 @@ async function runCheckAdminStatus(
       await log("→ Vérification du rôle admin dans public.user_roles…");
       const roleQuery = await exec(
         conn,
-        `cd ${supaDir} && docker compose exec -T db psql -At -U postgres -d postgres -c "select 1 from public.user_roles where user_id='${result.user_id}' and role='admin' limit 1" 2>/dev/null || true`
+        dockerPsqlSelect(supaDir, `select 1 from public.user_roles where user_id='${result.user_id}' and role='admin' limit 1`)
       );
       result.has_admin_role = (roleQuery.stdout || "").trim().includes("1");
       await log(result.has_admin_role ? "✓ Rôle admin présent" : "✗ Rôle admin manquant");
@@ -1358,7 +1357,7 @@ async function runCheckAdminStatus(
       // 3. Profile
       const profileQuery = await exec(
         conn,
-        `cd ${supaDir} && docker compose exec -T db psql -At -U postgres -d postgres -c "select 1 from public.profiles where id='${result.user_id}' limit 1" 2>/dev/null || true`
+        dockerPsqlSelect(supaDir, `select 1 from public.profiles where id='${result.user_id}' limit 1`)
       );
       result.has_profile = (profileQuery.stdout || "").trim().includes("1");
       await log(result.has_profile ? "✓ Profil public trouvé" : "✗ Profil public manquant");
