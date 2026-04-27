@@ -547,9 +547,68 @@ async function upsertDefaultAdminViaAuthApi(
     }
   }
   if (!(result.code === 0 && /HTTP_STATUS:20[01]/.test(output))) {
+    // Détection des erreurs réseau internes à GoTrue (DNS, webhook, SMTP) → fallback SQL direct
+    const isNameResolution = /name resolution failed|no such host|dial tcp|HTTP_STATUS:50[0-9]/i.test(output);
+    if (isNameResolution) {
+      await log("⚠ API Admin GoTrue indisponible (résolution DNS interne échouée). Bascule en création SQL directe…");
+      await upsertDefaultAdminViaSql(conn, supaDir, password, log);
+      return;
+    }
     throw new Error(`Impossible de créer/réparer le compte admin via l'API Auth locale. Réponse : ${output.slice(-900)}`);
   }
   await log(existingId ? "✓ Compte admin Auth réparé via API officielle" : "✓ Compte admin Auth créé via API officielle");
+}
+
+// Fallback : crée/met à jour directement le compte admin dans auth.users via SQL (bcrypt via pgcrypto).
+// Utilisé quand GoTrue échoue avec "name resolution failed" (souvent dû à un webhook/SMTP non résolvable).
+async function upsertDefaultAdminViaSql(
+  conn: Client,
+  supaDir: string,
+  password: string,
+  log: (m: string) => Promise<void> | void,
+) {
+  const sql = `
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+DO $$
+DECLARE
+  uid uuid;
+  hashed text;
+BEGIN
+  hashed := crypt('${password.replace(/'/g, "''")}', gen_salt('bf'));
+  SELECT id INTO uid FROM auth.users WHERE lower(email)=lower('${DEFAULT_ADMIN_EMAIL}') LIMIT 1;
+  IF uid IS NULL THEN
+    uid := gen_random_uuid();
+    INSERT INTO auth.users (
+      instance_id, id, aud, role, email, encrypted_password,
+      email_confirmed_at, created_at, updated_at,
+      raw_app_meta_data, raw_user_meta_data, is_super_admin, is_sso_user
+    ) VALUES (
+      '00000000-0000-0000-0000-000000000000', uid, 'authenticated', 'authenticated',
+      '${DEFAULT_ADMIN_EMAIL}', hashed, now(), now(), now(),
+      '{"provider":"email","providers":["email"]}'::jsonb,
+      '{"display_name":"ScreenFlow Admin"}'::jsonb,
+      false, false
+    );
+    INSERT INTO auth.identities (id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+    VALUES (gen_random_uuid(), uid, uid::text, jsonb_build_object('sub', uid::text, 'email', '${DEFAULT_ADMIN_EMAIL}', 'email_verified', true), 'email', now(), now(), now())
+    ON CONFLICT DO NOTHING;
+  ELSE
+    UPDATE auth.users SET
+      encrypted_password = hashed,
+      email_confirmed_at = COALESCE(email_confirmed_at, now()),
+      updated_at = now(),
+      banned_until = NULL,
+      raw_app_meta_data = COALESCE(raw_app_meta_data, '{}'::jsonb) || '{"provider":"email","providers":["email"]}'::jsonb
+    WHERE id = uid;
+  END IF;
+END $$;
+`.trim();
+  const b64 = btoa(sql);
+  const res = await exec(conn, `cd ${supaDir} && echo "${b64}" | base64 -d | docker compose exec -T db psql -U postgres -d postgres -v ON_ERROR_STOP=1 2>&1`);
+  if (res.code !== 0) {
+    throw new Error("Échec du fallback SQL pour le compte admin : " + (res.stdout + res.stderr).slice(-800));
+  }
+  await log("✓ Compte admin créé/réparé directement en base (fallback SQL)");
 }
 
 async function ensureDefaultAdminRole(conn: Client, supaDir: string, log: (m: string) => Promise<void> | void) {
