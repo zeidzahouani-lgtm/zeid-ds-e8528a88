@@ -272,9 +272,53 @@ print("OK changed=%d" % changed)
   await log("✓ docker-compose.yml patché et validé.");
 }
 
+async function patchKongKeyauthCredentials(conn: Client, supaDir: string, log: (m: string) => Promise<void> | void) {
+  const sentinel = "# LOVABLE_KONG_DEDUPE_KEYAUTH_V1";
+  const kongPath = `${supaDir}/volumes/api/kong.yml`;
+  const check = await exec(conn, `[ -f ${kongPath} ] && (grep -q '${sentinel}' ${kongPath} && echo PATCHED || echo TODO) || echo MISSING`);
+  if (/MISSING/.test(check.stdout)) return;
+  if (/PATCHED/.test(check.stdout)) {
+    await log("✓ kong.yml déjà patché (clés Auth dédupliquées).");
+    return;
+  }
+
+  await log("→ Patch kong.yml (suppression des clés Auth dupliquées)…");
+  await exec(conn, `cp ${kongPath} ${kongPath}.bak.$(date +%s) 2>&1 || true`);
+  const py = `
+import pathlib, re
+p = pathlib.Path("${kongPath}")
+lines = p.read_text().splitlines()
+out = ["${sentinel}"]
+seen_keys = set()
+removed = 0
+for line in lines:
+    if line.strip() == "${sentinel}":
+        continue
+    if re.search(r'-\\s+key:\\s*\\$SUPABASE_(PUBLISHABLE_KEY|SECRET_KEY)\\s*$', line):
+        removed += 1
+        continue
+    m = re.match(r'^(\\s*-\\s+key:\\s*)(.+?)\\s*$', line)
+    if m:
+        key = m.group(2).strip().strip('"\\'')
+        if key and not key.startswith('$'):
+            if key in seen_keys:
+                removed += 1
+                continue
+            seen_keys.add(key)
+    out.append(line)
+p.write_text("\\n".join(out) + "\\n")
+print(f"OK removed={removed}")
+`;
+  const enc = btoa(unescape(encodeURIComponent(py)));
+  const run = await exec(conn, `echo '${enc}' | base64 -d | python3 - 2>&1`);
+  await log((`${run.stdout}${run.stderr}`).slice(-600));
+  await exec(conn, `cd ${supaDir} && docker compose rm -sf kong 2>&1 || true`);
+}
+
 async function startLocalSupabaseEssentials(conn: Client, supaDir: string, log: (m: string) => Promise<void> | void) {
   // 0) Patcher le compose pour retirer la dépendance bloquante sur analytics
   await patchComposeRemoveAnalytics(conn, supaDir, log);
+  await patchKongKeyauthCredentials(conn, supaDir, log);
 
   const services = await exec(conn, `cd ${supaDir} && docker compose config --services 2>/dev/null || true`);
   const available = new Set((services.stdout || "").split(/\s+/).filter(Boolean));
