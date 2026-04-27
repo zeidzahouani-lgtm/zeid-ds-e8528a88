@@ -438,6 +438,24 @@ async function readRemoteEnv(conn: Client, envPath: string, key: string) {
   return (result.stdout || "").trim();
 }
 
+async function ensurePostgresSqlAccess(conn: Client, supaDir: string, log: (m: string) => Promise<void> | void) {
+  await exec(conn, `cd ${supaDir} && for i in $(seq 1 30); do docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && break || sleep 2; done`);
+  const probe = await exec(conn, dockerPsqlSelect(supaDir, "select 1"));
+  const probeOut = `${probe.stdout}${probe.stderr}`;
+  if (probe.code === 0 && !/Permission denied|pg_filenode\.map/i.test(probeOut)) return;
+
+  await log("⚠ Permissions Postgres détectées comme invalides — réparation du volume DB…");
+  await exec(conn, `cd ${supaDir} && docker compose exec -T -u 0 db sh -c "chown -R postgres:postgres /var/lib/postgresql/data && chmod -R u+rwX,go-rwx /var/lib/postgresql/data" 2>&1 || true`);
+  await exec(conn, `cd ${supaDir} && docker compose restart db 2>&1 || true`);
+  await exec(conn, `cd ${supaDir} && for i in $(seq 1 60); do docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && break || sleep 2; done`);
+  const retry = await exec(conn, dockerPsqlSelect(supaDir, "select 1"));
+  const retryOut = `${retry.stdout}${retry.stderr}`;
+  if (retry.code !== 0 || /Permission denied|pg_filenode\.map/i.test(retryOut)) {
+    throw new Error("Postgres local reste inaccessible après réparation des permissions : " + retryOut.slice(-600));
+  }
+  await log("✓ Permissions Postgres réparées");
+}
+
 function buildAuthLoginCurlCommand(authBaseUrl: string, anonKey: string, email: string, password: string) {
   const payloadB64 = btoa(JSON.stringify({ email, password }));
   return `AUTH_URL=${shQuote(`${authBaseUrl.replace(/\/$/, "")}/auth/v1/token?grant_type=password`)} ` +
