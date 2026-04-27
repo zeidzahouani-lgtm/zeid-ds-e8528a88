@@ -835,18 +835,72 @@ async function runDeployment(body: DeployBody, log: (m: string) => Promise<void>
         (globalThis as any).__pendingAdminPromotion = { supaDir, postgresPw: postgresPw };
       }
 
+      // ===== Existing Supabase: extract keys from existing .env and ensure containers are up =====
+      if (installSupabase && isExistingSupabase) {
+        const supaDir = `${remoteDir}/supabase`;
+        const envRead = await exec(
+          conn,
+          `cd ${supaDir} && grep -E '^(ANON_KEY|SERVICE_ROLE_KEY|POSTGRES_PASSWORD|JWT_SECRET)=' .env || true`,
+        );
+        const envMap: Record<string, string> = {};
+        for (const line of (envRead.stdout || "").split("\n")) {
+          const m = line.match(/^([A-Z_]+)=(.*)$/);
+          if (m) envMap[m[1]] = m[2].trim();
+        }
+        const anonKey = envMap.ANON_KEY || "";
+        const serviceKey = envMap.SERVICE_ROLE_KEY || "";
+        const postgresPw = envMap.POSTGRES_PASSWORD || "";
+        if (!anonKey || !serviceKey) {
+          throw new Error("Installation Supabase existante détectée mais ANON_KEY/SERVICE_ROLE_KEY introuvables dans .env. Réinstallez ou complétez le fichier .env.");
+        }
+        await log("→ Vérification des conteneurs Supabase existants…");
+        await startLocalSupabaseEssentials(conn, supaDir, log);
+        const supaBrowserUrl = enableHttps ? `https://${httpsDomain}:${httpsPort}` : `http://${body.host}:${appPort}`;
+        supabaseUrlOverride = supaBrowserUrl;
+        supabaseAnonOverride = anonKey;
+        supabaseProjectIdOverride = "local";
+        await log("✓ Supabase local opérationnel (clés réutilisées depuis .env)");
+        // Ensure admin still exists / re-sync password
+        await exec(conn, `cd ${supaDir} && for i in $(seq 1 30); do docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1 && break || sleep 2; done`);
+        await upsertDefaultAdminViaAuthApi(conn, supaDir, supaKongPort, serviceKey, DEFAULT_ADMIN_PASSWORD, log);
+        (globalThis as any).__pendingAdminPromotion = { supaDir, postgresPw };
+      }
+
       log(`→ Preparing remote directory ${remoteDir}…`);
       await exec(conn, `${sudoPrefix}mkdir -p ${remoteDir} && ${sudoPrefix}chown -R ${body.username}:${body.username} ${remoteDir}`);
       log("✓ Remote directory ready");
 
-      log(`→ Cloning ${body.git_url} (branch: ${branch})…`);
-      await exec(conn, `rm -rf ${remoteDir}/repo`);
-      const clone = await exec(conn, `git clone --depth 1 --branch ${branch} '${gitUrl}' ${remoteDir}/repo 2>&1`);
-      log(clone.stdout.slice(-1500));
-      if (clone.code !== 0) {
-        throw new Error(`Échec du clone Git. Vérifiez l'URL/branche/token. ${clone.stderr.slice(-300)}`);
+      if (isExistingInstall) {
+        await log(`→ Mise à jour du repo existant (git fetch + reset --hard origin/${branch})…`);
+        const pull = await exec(
+          conn,
+          `cd ${remoteDir}/repo && ` +
+          `git remote set-url origin '${gitUrl}' 2>&1 && ` +
+          `git fetch --depth 1 origin ${branch} 2>&1 && ` +
+          `git reset --hard origin/${branch} 2>&1 && ` +
+          `git clean -fd 2>&1`,
+        );
+        log(pull.stdout.slice(-1500));
+        if (pull.code !== 0) {
+          await log("⚠ git pull a échoué, fallback sur clone complet…");
+          await exec(conn, `rm -rf ${remoteDir}/repo`);
+          const clone = await exec(conn, `git clone --depth 1 --branch ${branch} '${gitUrl}' ${remoteDir}/repo 2>&1`);
+          log(clone.stdout.slice(-1500));
+          if (clone.code !== 0) {
+            throw new Error(`Échec du clone Git de secours. ${clone.stderr.slice(-300)}`);
+          }
+        }
+        await log("✓ Repo mis à jour vers la dernière version");
+      } else {
+        log(`→ Cloning ${body.git_url} (branch: ${branch})…`);
+        await exec(conn, `rm -rf ${remoteDir}/repo`);
+        const clone = await exec(conn, `git clone --depth 1 --branch ${branch} '${gitUrl}' ${remoteDir}/repo 2>&1`);
+        log(clone.stdout.slice(-1500));
+        if (clone.code !== 0) {
+          throw new Error(`Échec du clone Git. Vérifiez l'URL/branche/token. ${clone.stderr.slice(-300)}`);
+        }
+        log("✓ Repo cloned");
       }
-      log("✓ Repo cloned");
 
       // ===== Apply app migrations to local Supabase, then promote admin =====
       const pending = (globalThis as any).__pendingAdminPromotion;
