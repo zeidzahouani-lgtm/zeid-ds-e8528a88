@@ -106,6 +106,114 @@ const DEFAULT_ADMIN_PASSWORD = "260390DS";
 
 const shQuote = (value: string) => `'${value.replace(/'/g, `'\\''`)}'`;
 
+interface RemotePreflightResult {
+  dockerOk: boolean;
+  composeOk: boolean;
+  freeMb: number;
+  nodeMajor: number | null;
+  postgresMajor: number | null;
+}
+
+function parseMajorVersion(output: string, marker: RegExp): number | null {
+  const match = output.match(marker);
+  return match ? Number.parseInt(match[1], 10) : null;
+}
+
+async function runRemotePreflight(
+  conn: Client,
+  body: DeployBody,
+  remoteDir: string,
+  installSupabase: boolean,
+  log: (m: string) => Promise<void> | void,
+): Promise<RemotePreflightResult> {
+  await log("→ Pré-vérification serveur : Docker, espace disque, Node/Postgres…");
+
+  const dockerCheck = await exec(conn, "command -v docker >/dev/null 2>&1 && docker --version || echo MISSING");
+  const dockerOutput = `${dockerCheck.stdout}${dockerCheck.stderr}`.trim();
+  const dockerOk = !dockerOutput.includes("MISSING") && dockerCheck.code === 0;
+  await log(dockerOk ? `✓ Docker disponible : ${dockerOutput}` : "✗ Docker indisponible sur le serveur");
+
+  const composeCheck = await exec(conn, "(docker compose version || docker-compose --version) 2>&1 || echo MISSING");
+  const composeOutput = `${composeCheck.stdout}${composeCheck.stderr}`.trim();
+  const composeOk = !composeOutput.includes("MISSING");
+  await log(composeOk ? `✓ Docker Compose disponible : ${composeOutput.split("\n").slice(-1)[0]}` : "✗ Docker Compose indisponible");
+
+  const diskCheck = await exec(conn, `mkdir -p ${remoteDir} 2>/dev/null || true; df -Pm ${remoteDir} 2>/dev/null | awk 'NR==2{print $4"|"$5"|"$6}'`);
+  const diskLine = (diskCheck.stdout || "").trim().split("\n").pop() || "0||";
+  const [freeRaw, usedPctRaw, mountRaw] = diskLine.split("|");
+  const freeMb = Number.parseInt(freeRaw || "0", 10) || 0;
+  const minFreeMb = installSupabase ? 8192 : 2048;
+  await log(`✓ Espace disque libre : ${Math.round(freeMb / 1024)} Go sur ${mountRaw || remoteDir} (${usedPctRaw || "?"} utilisé)`);
+  if (freeMb < minFreeMb) {
+    throw new Error(`Espace disque insuffisant : ${Math.round(freeMb / 1024)} Go libres, minimum requis ${Math.round(minFreeMb / 1024)} Go.`);
+  }
+
+  const nodeCheck = await exec(conn, "command -v node >/dev/null 2>&1 && node --version || echo MISSING");
+  const nodeOutput = `${nodeCheck.stdout}${nodeCheck.stderr}`.trim();
+  const nodeMajor = parseMajorVersion(nodeOutput, /v(\d+)/);
+  if (nodeMajor === null) {
+    await log("⚠ Node.js absent sur l'hôte — OK, le build utilise Node 20 dans Docker.");
+  } else if (nodeMajor < 18) {
+    await log(`⚠ Node.js hôte ancien (${nodeOutput}) — OK pour Docker, mais Node 18+ est recommandé.`);
+  } else {
+    await log(`✓ Node.js hôte : ${nodeOutput}`);
+  }
+
+  const pgCheck = await exec(conn, "(command -v psql >/dev/null 2>&1 && psql --version) || (command -v postgres >/dev/null 2>&1 && postgres --version) || echo MISSING");
+  const pgOutput = `${pgCheck.stdout}${pgCheck.stderr}`.trim();
+  const postgresMajor = parseMajorVersion(pgOutput, /(?:PostgreSQL\)|postgres)\s+(\d+)/i);
+  if (postgresMajor === null) {
+    await log("⚠ Postgres absent sur l'hôte — OK, la base locale utilise Postgres dans Docker.");
+  } else if (postgresMajor < 15) {
+    await log(`⚠ Postgres hôte ancien (${pgOutput}) — Postgres 15+ recommandé si vous utilisez une base hors Docker.`);
+  } else {
+    await log(`✓ Postgres hôte : ${pgOutput}`);
+  }
+
+  if ((!dockerOk || !composeOk) && !body.install_docker) {
+    throw new Error("Docker ou Docker Compose manque. Activez 'Auto-installer Docker' ou installez-les avant le déploiement.");
+  }
+
+  return { dockerOk, composeOk, freeMb, nodeMajor, postgresMajor };
+}
+
+async function handleAnalyticsUnhealthy(conn: Client, supaDir: string, log: (m: string) => Promise<void> | void) {
+  const ps = await exec(conn, `cd ${supaDir} && docker compose ps -a 2>&1 || true`);
+  const psOutput = `${ps.stdout}${ps.stderr}`;
+  if (!/supabase-analytics|analytics/i.test(psOutput) || !/unhealthy|Exit|Restarting/i.test(psOutput)) return;
+
+  await log("⚠ supabase-analytics est unhealthy. Service non critique pour l'app : diagnostic puis démarrage sans analytics…");
+  const logs = await exec(conn, `cd ${supaDir} && docker compose logs --tail=80 analytics 2>&1 || true`);
+  await log((`${logs.stdout}${logs.stderr}`).slice(-1600));
+  await exec(conn, `cd ${supaDir} && docker compose stop analytics vector 2>&1 || true`);
+}
+
+async function startLocalSupabaseEssentials(conn: Client, supaDir: string, log: (m: string) => Promise<void> | void) {
+  const essentialServices = "db kong auth rest realtime storage meta imgproxy";
+  const optionalServices = "studio";
+
+  const pull = await exec(conn, `cd ${supaDir} && docker compose pull ${essentialServices} ${optionalServices} 2>&1 | tail -80 || true`);
+  await log((`${pull.stdout}${pull.stderr}`).slice(-1800));
+
+  const upEssential = await exec(conn, `cd ${supaDir} && docker compose up -d ${essentialServices} 2>&1`);
+  const essentialOutput = `${upEssential.stdout}${upEssential.stderr}`;
+  await log(essentialOutput.slice(-2400));
+  if (upEssential.code !== 0) {
+    throw new Error("Échec du démarrage des services essentiels Supabase local : " + essentialOutput.slice(-900));
+  }
+
+  const optional = await exec(conn, `cd ${supaDir} && docker compose up -d ${optionalServices} 2>&1 || true`);
+  const optionalOutput = `${optional.stdout}${optional.stderr}`;
+  if (/dependency failed to start|supabase-analytics.*unhealthy|analytics.*unhealthy|unhealthy/i.test(optionalOutput)) {
+    await log("⚠ Studio/analytics n'a pas démarré correctement, mais l'API essentielle continue : " + optionalOutput.slice(-1000));
+    await handleAnalyticsUnhealthy(conn, supaDir, log);
+  } else if (optionalOutput.trim()) {
+    await log(optionalOutput.slice(-1000));
+  }
+
+  await handleAnalyticsUnhealthy(conn, supaDir, log);
+}
+
 async function verifyAuthLoginFromServer(
   conn: Client,
   authBaseUrl: string,
