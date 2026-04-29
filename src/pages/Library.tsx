@@ -200,9 +200,35 @@ export default function Library() {
         <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
           {filtered.map((item) => (
             <Card key={item.id} className="glass-panel overflow-hidden group cursor-pointer" onClick={() => setPreview(item)}>
-              <div className="aspect-video bg-secondary relative">
-                {item.type === "image" && <img src={item.url} alt={item.name} className="w-full h-full object-cover" />}
-                {item.type === "video" && <video src={item.url} className="w-full h-full object-cover" muted />}
+              <div className="aspect-video bg-secondary relative overflow-hidden">
+                {item.type === "image" && (
+                  <img
+                    src={item.url}
+                    alt={item.name}
+                    loading="lazy"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const img = e.currentTarget as HTMLImageElement;
+                      img.style.display = "none";
+                      const parent = img.parentElement;
+                      if (parent && !parent.querySelector(".media-fallback")) {
+                        const fb = document.createElement("div");
+                        fb.className = "media-fallback absolute inset-0 flex items-center justify-center text-muted-foreground/50 text-xs";
+                        fb.textContent = "Image indisponible";
+                        parent.appendChild(fb);
+                      }
+                    }}
+                  />
+                )}
+                {item.type === "video" && (
+                  <video
+                    src={`${item.url}#t=0.5`}
+                    className="w-full h-full object-cover"
+                    muted
+                    playsInline
+                    preload="metadata"
+                  />
+                )}
                 {item.type === "iframe" && (
                   <div className="w-full h-full flex items-center justify-center">
                     <Globe className="h-10 w-10 text-muted-foreground/40" />
