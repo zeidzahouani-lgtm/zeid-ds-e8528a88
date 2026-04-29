@@ -262,9 +262,19 @@ export default function Library() {
         <div className="space-y-2">
           {filtered.map((item) => (
             <Card key={item.id} className="glass-panel p-3 flex items-center gap-4 group">
-              <div className="h-12 w-20 bg-secondary rounded overflow-hidden shrink-0">
-                {item.type === "image" && <img src={item.url} alt={item.name} className="w-full h-full object-cover" />}
-                {item.type === "video" && <video src={item.url} className="w-full h-full object-cover" muted />}
+              <div className="h-12 w-20 bg-secondary rounded overflow-hidden shrink-0 relative">
+                {item.type === "image" && (
+                  <img
+                    src={item.url}
+                    alt={item.name}
+                    loading="lazy"
+                    className="w-full h-full object-cover"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }}
+                  />
+                )}
+                {item.type === "video" && (
+                  <video src={`${item.url}#t=0.5`} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+                )}
                 {item.type === "iframe" && <div className="w-full h-full flex items-center justify-center"><Globe className="h-5 w-5 text-muted-foreground/40" /></div>}
               </div>
               <div className="flex-1 min-w-0">
@@ -291,13 +301,41 @@ export default function Library() {
       )}
 
       {/* Preview dialog */}
-      <Dialog open={!!preview} onOpenChange={() => setPreview(null)}>
+      <Dialog open={!!preview} onOpenChange={(open) => { if (!open) setPreview(null); }}>
         <DialogContent className="max-w-3xl">
           <DialogTitle>{preview?.name}</DialogTitle>
-          <div className="aspect-video bg-secondary rounded-lg overflow-hidden">
-            {preview?.type === "image" && <img src={preview.url} alt={preview.name} className="w-full h-full object-contain" />}
-            {preview?.type === "video" && <video src={preview.url} className="w-full h-full" controls autoPlay />}
-            {preview?.type === "iframe" && <iframe src={preview.url} className="w-full h-full border-0" title={preview.name} />}
+          <DialogDescription className="sr-only">Aperçu du média {preview?.name}</DialogDescription>
+          <div className="aspect-video bg-secondary rounded-lg overflow-hidden flex items-center justify-center">
+            {preview?.type === "image" && (
+              <img
+                src={preview.url}
+                alt={preview.name}
+                className="max-w-full max-h-full object-contain"
+                onError={(e) => {
+                  const img = e.currentTarget as HTMLImageElement;
+                  img.outerHTML = '<div class="text-muted-foreground text-sm">Impossible de charger l\u2019image</div>';
+                }}
+              />
+            )}
+            {preview?.type === "video" && (
+              <video
+                key={preview.id}
+                src={preview.url}
+                className="w-full h-full object-contain bg-black"
+                controls
+                autoPlay
+                playsInline
+                preload="metadata"
+              />
+            )}
+            {preview?.type === "iframe" && (
+              <iframe
+                src={preview.url}
+                className="w-full h-full border-0"
+                title={preview.name}
+                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+              />
+            )}
           </div>
         </DialogContent>
       </Dialog>
