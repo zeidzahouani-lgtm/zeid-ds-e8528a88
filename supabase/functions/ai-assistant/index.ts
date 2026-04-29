@@ -39,7 +39,13 @@ function getImageProvider(): AIProvider {
   return { name: "lovable", baseUrl: "https://ai.gateway.lovable.dev/v1/chat/completions", apiKey: lovableKey, defaultModel: "google/gemini-2.5-flash", imageModel: "google/gemini-3.1-flash-image-preview", supportsModalities: true };
 }
 
-async function callAI(provider: AIProvider, body: Record<string, unknown>) {
+function getLovableFallback(): AIProvider | null {
+  const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!lovableKey) return null;
+  return { name: "lovable", baseUrl: "https://ai.gateway.lovable.dev/v1/chat/completions", apiKey: lovableKey, defaultModel: "google/gemini-2.5-flash", imageModel: "google/gemini-3.1-flash-image-preview", supportsModalities: true };
+}
+
+async function callAI(provider: AIProvider, body: Record<string, unknown>, _retryCount = 0): Promise<any> {
   const response = await fetch(provider.baseUrl, {
     method: "POST",
     headers: { Authorization: `Bearer ${provider.apiKey}`, "Content-Type": "application/json" },
@@ -47,9 +53,23 @@ async function callAI(provider: AIProvider, body: Record<string, unknown>) {
   });
   if (response.status === 429) { await response.text(); throw { status: 429, message: "Limite de requêtes atteinte, réessayez dans quelques minutes." }; }
   if (response.status === 402) { await response.text(); throw { status: 402, message: "Crédits IA insuffisants." }; }
-  if (!response.ok) { const text = await response.text(); console.error(`AI ${provider.name} ${response.status}:`, text); throw { status: 503, message: `Service IA (${provider.name}) temporairement indisponible.` }; }
+  if (!response.ok) {
+    const text = await response.text();
+    console.error(`AI ${provider.name} ${response.status}:`, text);
+    // Auto-fallback vers Lovable AI Gateway si provider externe indisponible (5xx)
+    if (response.status >= 500 && provider.name !== "lovable" && _retryCount === 0) {
+      const fb = getLovableFallback();
+      if (fb) {
+        console.log(`Fallback automatique de ${provider.name} → lovable`);
+        const fbBody = { ...body, model: fb.defaultModel };
+        return await callAI(fb, fbBody, 1);
+      }
+    }
+    throw { status: 503, message: `Service IA (${provider.name}) temporairement indisponible.` };
+  }
   return await response.json();
 }
+
 
 async function logRequest(authHeader: string | null, action: string, model: string, tokensUsed: number) {
   try {
