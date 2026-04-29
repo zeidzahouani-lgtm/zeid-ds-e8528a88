@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useMedia } from "@/hooks/useMedia";
 import { useEstablishments } from "@/hooks/useEstablishments";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
