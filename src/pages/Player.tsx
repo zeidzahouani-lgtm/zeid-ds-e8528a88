@@ -477,6 +477,20 @@ function ScreenNameOverlay({ name, show }: { name: string; show: boolean }) {
   );
 }
 
+function PlayerSignature({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <div style={{
+      position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)",
+      zIndex: 50, color: "rgba(255,255,255,0.15)", fontSize: 10,
+      fontWeight: 400, letterSpacing: "0.1em", pointerEvents: "none",
+      whiteSpace: "nowrap",
+    }}>
+      ScreenFlow by Dravox
+    </div>
+  );
+}
+
 function LayoutRenderer({
   layoutId,
   screenOrientation,
