@@ -1,0 +1,1 @@
+ALTER TABLE public.screens ADD COLUMN show_name boolean DEFAULT false;
