@@ -460,6 +460,23 @@ function Watermark({ text }: { text: string }) {
   );
 }
 
+function ScreenNameOverlay({ name, show }: { name: string; show: boolean }) {
+  if (!show) return null;
+  return (
+    <div style={{
+      position: "absolute", top: 16, right: 16, zIndex: 50,
+      backgroundColor: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
+      color: "rgba(255,255,255,0.9)", fontSize: 14, fontWeight: 600,
+      letterSpacing: "0.05em", pointerEvents: "none",
+      padding: "6px 14px", borderRadius: 8,
+      border: "1px solid rgba(255,255,255,0.1)",
+      textTransform: "uppercase",
+    }}>
+      {name}
+    </div>
+  );
+}
+
 function PlayerSignature({ show }: { show: boolean }) {
   if (!show) return null;
   return (
@@ -1101,6 +1118,7 @@ export default function Player() {
         </ResolutionFrame>
         <Watermark text={branding.watermark} />
         <PlayerSignature show={branding.showSignatureOnPlayer} />
+        <ScreenNameOverlay name={screen.name} show={(screen as any)?.show_name ?? false} />
       </div>
     );
   }
@@ -1175,6 +1193,7 @@ export default function Player() {
       </ResolutionFrame>
       <Watermark text={branding.watermark} />
       <PlayerSignature show={branding.showSignatureOnPlayer} />
+      <ScreenNameOverlay name={screen.name} show={(screen as any)?.show_name ?? false} />
     </div>
   );
 }

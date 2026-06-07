@@ -3,7 +3,7 @@ import ScreenDetailDialog from "@/components/dashboard/ScreenDetailDialog";
 import { QuickPlaylistDialog } from "@/components/dashboard/QuickPlaylistDialog";
 import { VideoWallDialog } from "@/components/dashboard/VideoWallDialog";
 import { WallConfigDialog } from "@/components/dashboard/WallConfigDialog";
-import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock, RefreshCw, Tv, Power, Eye, ShieldAlert, ShieldOff, Bug, AlertTriangle, Sparkles, Grid3x3, Settings } from "lucide-react";
+import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock, RefreshCw, Tv, Power, Eye, ShieldAlert, ShieldOff, Bug, AlertTriangle, Sparkles, Grid3x3, Settings, Type } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -634,6 +634,15 @@ export function ScreenManager() {
                     title="Ouvrir le player"
                   >
                     <ExternalLink className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    title={((screen as any).show_name ?? false) ? "Masquer le nom sur l'écran" : "Afficher le nom sur l'écran"}
+                    className={((screen as any).show_name ?? false) ? "text-primary border-primary/30 hover:bg-primary/10" : ""}
+                    onClick={() => updateScreen.mutate({ id: screen.id, show_name: !((screen as any).show_name ?? false) })}
+                  >
+                    <Type className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="destructive"

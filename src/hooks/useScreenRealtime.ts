@@ -18,6 +18,7 @@ interface ScreenData {
   layout_id: string | null;
   playlist_id: string | null;
   program_id: string | null;
+  show_name?: boolean;
 }
 
 interface PlaylistItem {
