@@ -636,6 +636,15 @@ export function ScreenManager() {
                     <ExternalLink className="h-4 w-4" />
                   </Button>
                   <Button
+                    variant="outline"
+                    size="icon"
+                    title={((screen as any).show_name ?? false) ? "Masquer le nom sur l'écran" : "Afficher le nom sur l'écran"}
+                    className={((screen as any).show_name ?? false) ? "text-primary border-primary/30 hover:bg-primary/10" : ""}
+                    onClick={() => updateScreen.mutate({ id: screen.id, show_name: !((screen as any).show_name ?? false) })}
+                  >
+                    <Type className="h-4 w-4" />
+                  </Button>
+                  <Button
                     variant="destructive"
                     size="icon"
                     onClick={() => deleteScreen.mutate(screen.id)}
