@@ -460,16 +460,19 @@ function Watermark({ text }: { text: string }) {
   );
 }
 
-function PlayerSignature({ show }: { show: boolean }) {
+function ScreenNameOverlay({ name, show }: { name: string; show: boolean }) {
   if (!show) return null;
   return (
     <div style={{
-      position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)",
-      zIndex: 50, color: "rgba(255,255,255,0.15)", fontSize: 10,
-      fontWeight: 400, letterSpacing: "0.1em", pointerEvents: "none",
-      whiteSpace: "nowrap",
+      position: "absolute", top: 16, right: 16, zIndex: 50,
+      backgroundColor: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
+      color: "rgba(255,255,255,0.9)", fontSize: 14, fontWeight: 600,
+      letterSpacing: "0.05em", pointerEvents: "none",
+      padding: "6px 14px", borderRadius: 8,
+      border: "1px solid rgba(255,255,255,0.1)",
+      textTransform: "uppercase",
     }}>
-      ScreenFlow by Dravox
+      {name}
     </div>
   );
 }
