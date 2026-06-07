@@ -1118,6 +1118,7 @@ export default function Player() {
         </ResolutionFrame>
         <Watermark text={branding.watermark} />
         <PlayerSignature show={branding.showSignatureOnPlayer} />
+        <ScreenNameOverlay name={screen.name} show={(screen as any)?.show_name ?? false} />
       </div>
     );
   }
