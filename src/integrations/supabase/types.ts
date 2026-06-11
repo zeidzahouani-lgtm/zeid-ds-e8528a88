@@ -186,6 +186,57 @@ export type Database = {
           },
         ]
       }
+      email_mailboxes: {
+        Row: {
+          created_at: string
+          host: string
+          id: string
+          is_active: boolean
+          label: string
+          last_test_at: string | null
+          last_test_message: string | null
+          last_test_success: boolean | null
+          password: string | null
+          port: number
+          protocol: string
+          updated_at: string
+          use_tls: boolean
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          host: string
+          id?: string
+          is_active?: boolean
+          label: string
+          last_test_at?: string | null
+          last_test_message?: string | null
+          last_test_success?: boolean | null
+          password?: string | null
+          port: number
+          protocol: string
+          updated_at?: string
+          use_tls?: boolean
+          username: string
+        }
+        Update: {
+          created_at?: string
+          host?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          last_test_at?: string | null
+          last_test_message?: string | null
+          last_test_success?: boolean | null
+          password?: string | null
+          port?: number
+          protocol?: string
+          updated_at?: string
+          use_tls?: boolean
+          username?: string
+        }
+        Relationships: []
+      }
       establishment_settings: {
         Row: {
           establishment_id: string
