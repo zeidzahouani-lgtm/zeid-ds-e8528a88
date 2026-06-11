@@ -197,6 +197,46 @@ serve(async (req) => {
       return await testImapAuth(host, port, user, password, authMethod, oauthConfig);
     }
 
+    if (type === "pop3" || type === "pop") {
+      const host = config.pop_host || config.imap_host;
+      const port = parseInt(config.pop_port || config.imap_port || "995");
+      const user = config.pop_user || config.imap_user;
+      const password = config.pop_password || config.imap_password;
+      if (!host || !user) {
+        return new Response(JSON.stringify({ error: "Serveur POP3 ou utilisateur non configuré" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      try {
+        const useTls = port === 995;
+        const conn = useTls
+          ? await Deno.connectTls({ hostname: host, port })
+          : await Deno.connect({ hostname: host, port });
+        const read = async () => { const buf = new Uint8Array(4096); const n = await conn.read(buf); return n ? new TextDecoder().decode(buf.subarray(0, n)) : ""; };
+        const write = async (cmd: string) => { await conn.write(new TextEncoder().encode(cmd + "\r\n")); return await read(); };
+        const greet = await read();
+        if (!greet.startsWith("+OK")) {
+          conn.close();
+          return new Response(JSON.stringify({ success: false, error: `POP3 greeting inattendu: ${greet.trim().slice(0,150)}` }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        const userResp = await write(`USER ${user}`);
+        if (!userResp.startsWith("+OK")) {
+          conn.close();
+          return new Response(JSON.stringify({ success: false, error: `POP3 USER refusé: ${userResp.trim().slice(0,150)}` }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        const passResp = await write(`PASS ${password}`);
+        if (passResp.startsWith("+OK")) {
+          await write("QUIT");
+          conn.close();
+          return new Response(JSON.stringify({ success: true, message: `Connexion POP3 réussie à ${host}:${port}. Authentification validée ✅` }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        }
+        conn.close();
+        return new Response(JSON.stringify({ success: false, error: `Échec POP3: ${passResp.trim().slice(0,200)}` }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      } catch (e: any) {
+        return new Response(JSON.stringify({ success: false, error: `Erreur POP3 ${host}:${port} — ${e.message}` }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
+
     if (type === "smtp") {
       const host = config.smtp_host;
       const port = parseInt(config.smtp_port || "587");
