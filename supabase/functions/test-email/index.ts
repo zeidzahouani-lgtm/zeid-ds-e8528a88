@@ -172,7 +172,12 @@ serve(async (req) => {
       });
     }
 
-    const authMethod = config.auth_method || "basic";
+    let authMethod = config.auth_method || "basic";
+    const hasOauth = !!(config.oauth_tenant_id && config.oauth_client_id && config.oauth_client_secret);
+    // Auto-fallback: si oauth2 demandé mais champs vides, basculer en basic
+    if (authMethod === "oauth2" && !hasOauth) {
+      authMethod = "basic";
+    }
     const oauthConfig = authMethod === "oauth2" ? {
       tenant_id: config.oauth_tenant_id,
       client_id: config.oauth_client_id,
