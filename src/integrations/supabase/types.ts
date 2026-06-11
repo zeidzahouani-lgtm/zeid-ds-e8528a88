@@ -188,6 +188,7 @@ export type Database = {
       }
       email_mailboxes: {
         Row: {
+          auth_method: string
           created_at: string
           host: string
           id: string
@@ -196,14 +197,19 @@ export type Database = {
           last_test_at: string | null
           last_test_message: string | null
           last_test_success: boolean | null
+          oauth_client_id: string | null
+          oauth_client_secret: string | null
+          oauth_tenant_id: string | null
           password: string | null
           port: number
           protocol: string
+          provider: string | null
           updated_at: string
           use_tls: boolean
           username: string
         }
         Insert: {
+          auth_method?: string
           created_at?: string
           host: string
           id?: string
@@ -212,14 +218,19 @@ export type Database = {
           last_test_at?: string | null
           last_test_message?: string | null
           last_test_success?: boolean | null
+          oauth_client_id?: string | null
+          oauth_client_secret?: string | null
+          oauth_tenant_id?: string | null
           password?: string | null
           port: number
           protocol: string
+          provider?: string | null
           updated_at?: string
           use_tls?: boolean
           username: string
         }
         Update: {
+          auth_method?: string
           created_at?: string
           host?: string
           id?: string
@@ -228,9 +239,13 @@ export type Database = {
           last_test_at?: string | null
           last_test_message?: string | null
           last_test_success?: boolean | null
+          oauth_client_id?: string | null
+          oauth_client_secret?: string | null
+          oauth_tenant_id?: string | null
           password?: string | null
           port?: number
           protocol?: string
+          provider?: string | null
           updated_at?: string
           use_tls?: boolean
           username?: string
