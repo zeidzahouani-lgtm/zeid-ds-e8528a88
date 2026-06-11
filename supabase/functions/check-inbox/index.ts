@@ -564,10 +564,15 @@ serve(async (req) => {
     const imapPort = parseInt(cfg.email_imap_port || "993");
     const imapUser = cfg.email_imap_user;
     const imapPass = cfg.email_imap_password;
-    const authMethod = cfg.email_auth_method || "basic";
+    let authMethod = cfg.email_auth_method || "basic";
     const oauthTenantId = cfg.email_oauth_tenant_id;
     const oauthClientId = cfg.email_oauth_client_id;
     const oauthClientSecret = cfg.email_oauth_client_secret;
+    // Auto-fallback: oauth2 demandé mais champs vides → bascule en basic
+    if (authMethod === "oauth2" && (!oauthTenantId || !oauthClientId || !oauthClientSecret)) {
+      console.log("⚠️ OAuth2 configuré sans credentials, bascule sur auth basic");
+      authMethod = "basic";
+    }
 
     if (!imapHost || !imapUser) {
       return new Response(JSON.stringify({ error: "IMAP non configuré" }), {
@@ -583,12 +588,6 @@ serve(async (req) => {
       });
     }
 
-    if (authMethod === "oauth2" && (!oauthTenantId || !oauthClientId || !oauthClientSecret)) {
-      return new Response(JSON.stringify({ error: "Configuration OAuth2 incomplète" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     console.log(`📬 Connecting to IMAP ${imapHost}:${imapPort} (auth: ${authMethod})...`);
 
