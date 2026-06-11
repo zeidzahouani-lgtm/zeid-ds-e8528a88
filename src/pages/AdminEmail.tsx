@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import MailboxesManager from "@/components/admin/MailboxesManager";
+import InboxViewer from "@/components/admin/InboxViewer";
 
 interface EmailConfig {
   imap_host: string;
@@ -481,6 +482,10 @@ export default function AdminEmail() {
       </div>
 
       <MailboxesManager />
+
+      <InboxViewer />
+
+
 
 
       <div className="flex gap-3 flex-wrap">
