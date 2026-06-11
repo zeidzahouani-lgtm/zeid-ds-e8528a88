@@ -11,6 +11,7 @@ import { Mail, Server, Save, Loader2, CheckCircle, XCircle, Zap, Eye, EyeOff, Sh
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import MailboxesManager from "@/components/admin/MailboxesManager";
 
 interface EmailConfig {
   imap_host: string;
