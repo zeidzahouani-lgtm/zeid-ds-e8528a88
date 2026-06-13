@@ -86,7 +86,8 @@ serve(async (req) => {
     await write("DATA");
 
     const boundary = `b_${Date.now()}`;
-    const msg = [`From: "${fromName}" <${fromEmail}>`, `To: ${content.sender_email}`, `Subject: ${subject}`, `References: <content-${content.id}@signage>`, `Message-ID: <ack-resend-${content.id}-${Date.now()}@signage>`, `MIME-Version: 1.0`, `Content-Type: multipart/alternative; boundary="${boundary}"`, ``, `--${boundary}`, `Content-Type: text/plain; charset=utf-8`, ``, textBody, ``, `--${boundary}`, `Content-Type: text/html; charset=utf-8`, ``, htmlBody, ``, `--${boundary}--`, `.`].join("\r\n");
+    const b64wrap = (s: string) => { const b = btoa(unescape(encodeURIComponent(s))); return b.match(/.{1,76}/g)?.join("\r\n") ?? b; };
+    const msg = [`From: "${fromName}" <${fromEmail}>`, `To: ${content.sender_email}`, `Subject: ${subject}`, `References: <content-${content.id}@signage>`, `Message-ID: <ack-resend-${content.id}-${Date.now()}@signage>`, `MIME-Version: 1.0`, `Content-Type: multipart/alternative; boundary="${boundary}"`, ``, `--${boundary}`, `Content-Type: text/plain; charset=utf-8`, `Content-Transfer-Encoding: base64`, ``, b64wrap(textBody), ``, `--${boundary}`, `Content-Type: text/html; charset=utf-8`, `Content-Transfer-Encoding: base64`, ``, b64wrap(htmlBody), ``, `--${boundary}--`, `.`].join("\r\n");
     await write(msg);
     await write("QUIT");
     finalConn.close();
