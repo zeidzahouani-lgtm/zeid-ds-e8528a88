@@ -55,10 +55,16 @@ serve(async (req) => {
     const write = async (cmd: string) => { await finalConn.write(new TextEncoder().encode(cmd + "\r\n")); return await read(); };
 
     if (smtpPort !== 587) await read();
-    await write("EHLO localhost");
+    const ehloResp = await write("EHLO localhost");
+    const supportsDsn = /\bDSN\b/i.test(ehloResp);
     await write(`AUTH PLAIN ${btoa(`\0${smtpUser}\0${smtpPass}`)}`);
-    await write(`MAIL FROM:<${fromEmail}>`);
-    await write(`RCPT TO:<${to}>`);
+    await write(`MAIL FROM:<${fromEmail}>${supportsDsn ? " RET=HDRS" : ""}`);
+    const rcptOpts = supportsDsn ? " NOTIFY=SUCCESS,FAILURE,DELAY" : "";
+    await write(`RCPT TO:<${to}>${rcptOpts}`);
+    // BCC to sender mailbox so user keeps a copy in their inbox
+    if (fromEmail && fromEmail.toLowerCase() !== to.toLowerCase()) {
+      await write(`RCPT TO:<${fromEmail}>${rcptOpts}`);
+    }
     await write("DATA");
 
     const b64wrap = (s: string) => { const b = btoa(unescape(encodeURIComponent(s))); return b.match(/.{1,76}/g)?.join("\r\n") ?? b; };
@@ -73,6 +79,8 @@ serve(async (req) => {
       `MIME-Version: 1.0`,
       `Content-Type: text/html; charset=utf-8`,
       `Content-Transfer-Encoding: base64`,
+      `Disposition-Notification-To: ${fromEmail}`,
+      `Return-Receipt-To: ${fromEmail}`,
     ];
     if (in_reply_to) headers.push(`In-Reply-To: ${in_reply_to}`, `References: ${in_reply_to}`);
 
