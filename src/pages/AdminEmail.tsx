@@ -7,8 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Mail, Server, Save, Loader2, CheckCircle, XCircle, Zap, Eye, EyeOff, Shield, Inbox, Clock, History, Plus, KeyRound } from "lucide-react";
+import { Mail, Server, Save, Loader2, CheckCircle, XCircle, Zap, Eye, EyeOff, Shield, Inbox, Clock, History, Plus, KeyRound, Settings, Users } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import MailboxesManager from "@/components/admin/MailboxesManager";
@@ -201,397 +202,418 @@ export default function AdminEmail() {
         </div>
       </div>
 
-      {/* Quick provider presets */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <Plus className="h-4 w-4 text-primary icon-neon" />
-            Configuration rapide — Fournisseur de messagerie
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-xs text-muted-foreground mb-4 normal-case">
-            Sélectionnez votre fournisseur pour pré-remplir les paramètres serveur. Vous devrez ensuite entrer votre adresse email et votre mot de passe d'application.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {/* Gmail */}
-            <button
-              type="button"
-              className="flex items-center gap-3 p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/60 hover:border-primary/30 transition-all text-left group"
-              onClick={() => {
-                setConfig(prev => ({
-                  ...prev,
-                  imap_host: "imap.gmail.com",
-                  imap_port: "993",
-                  imap_tls: true,
-                  smtp_host: "smtp.gmail.com",
-                  smtp_port: "587",
-                  smtp_tls: true,
-                }));
-                toast.success("Paramètres Gmail pré-remplis. Entrez votre email et mot de passe d'application Google.");
+      <Tabs defaultValue="inbox" className="w-full">
+        <TabsList className="grid grid-cols-4 w-full max-w-2xl">
+          <TabsTrigger value="inbox" className="gap-2"><Inbox className="h-4 w-4" /> Boîte</TabsTrigger>
+          <TabsTrigger value="config" className="gap-2"><Settings className="h-4 w-4" /> Config</TabsTrigger>
+          <TabsTrigger value="mailboxes" className="gap-2"><Users className="h-4 w-4" /> Boîtes</TabsTrigger>
+          <TabsTrigger value="history" className="gap-2"><History className="h-4 w-4" /> Historique</TabsTrigger>
+        </TabsList>
+
+        {/* ============ INBOX TAB ============ */}
+        <TabsContent value="inbox" className="space-y-6 mt-6">
+          <InboxViewer />
+
+          <div className="flex gap-3 flex-wrap">
+            <Button
+              variant="outline"
+              disabled={checkingReplies}
+              className="gap-2"
+              onClick={async () => {
+                setCheckingReplies(true);
+                setRepliesResult(null);
+                try {
+                  const { data, error } = await supabase.functions.invoke("check-email-replies");
+                  if (error) throw error;
+                  setRepliesResult(data);
+                  if (data?.processed > 0) {
+                    toast.success(`${data.processed} réponse(s) email traitée(s)`);
+                  } else {
+                    toast.info("Aucune nouvelle réponse email");
+                  }
+                } catch (e: any) {
+                  toast.error("Erreur: " + (e.message || "Impossible de vérifier"));
+                } finally {
+                  setCheckingReplies(false);
+                }
               }}
             >
-              <div className="h-10 w-10 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0 group-hover:bg-red-500/20 transition-colors">
-                <Mail className="h-5 w-5 text-red-400" />
-              </div>
-              <div>
-                <p className="font-medium text-sm">Gmail</p>
-                <p className="text-[11px] text-muted-foreground normal-case">Google — mot de passe d'application requis</p>
-              </div>
-            </button>
-
-            {/* Microsoft / Outlook (OAuth2) */}
-            <button
-              type="button"
-              className="flex items-center gap-3 p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/60 hover:border-primary/30 transition-all text-left group"
-              onClick={() => {
-                setConfig(prev => ({
-                  ...prev,
-                  imap_host: "outlook.office365.com",
-                  imap_port: "993",
-                  imap_tls: true,
-                  smtp_host: "smtp.office365.com",
-                  smtp_port: "587",
-                  smtp_tls: true,
-                  auth_method: "oauth2",
-                }));
-                toast.success("Microsoft Exchange sélectionné. Renseignez les identifiants OAuth2 Azure AD ci-dessous.");
-              }}
-            >
-              <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0 group-hover:bg-blue-500/20 transition-colors">
-                <Mail className="h-5 w-5 text-blue-400" />
-              </div>
-              <div>
-                <p className="font-medium text-sm">Microsoft Exchange / Outlook.com</p>
-                <p className="text-[11px] text-muted-foreground normal-case">OAuth2 — authentification moderne (recommandé)</p>
-              </div>
-            </button>
-
-            {/* OVH */}
-            <button
-              type="button"
-              className="flex items-center gap-3 p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/60 hover:border-primary/30 transition-all text-left group"
-              onClick={() => {
-                setConfig(prev => ({
-                  ...prev,
-                  imap_host: "ssl0.ovh.net",
-                  imap_port: "993",
-                  imap_tls: true,
-                  smtp_host: "ssl0.ovh.net",
-                  smtp_port: "465",
-                  smtp_tls: true,
-                }));
-                toast.success("Paramètres OVH pré-remplis. Entrez votre email et mot de passe OVH.");
-              }}
-            >
-              <div className="h-10 w-10 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0 group-hover:bg-indigo-500/20 transition-colors">
-                <Server className="h-5 w-5 text-indigo-400" />
-              </div>
-              <div>
-                <p className="font-medium text-sm">OVH</p>
-                <p className="text-[11px] text-muted-foreground normal-case">OVH Mail Pro / MX Plan</p>
-              </div>
-            </button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Auth Method */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <KeyRound className="h-4 w-4 text-primary icon-neon" />
-            Méthode d'authentification
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Type d'authentification</Label>
-            <Select value={config.auth_method} onValueChange={v => setConfig({ ...config, auth_method: v })}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="basic">Basique (mot de passe)</SelectItem>
-                <SelectItem value="oauth2">OAuth2 / Microsoft Exchange (authentification moderne)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {config.auth_method === "oauth2" && (
-            <div className="space-y-4 p-4 rounded-lg border border-primary/20 bg-primary/5">
-              <div className="flex items-center gap-2 text-sm font-medium text-primary">
-                <Shield className="h-4 w-4" />
-                Configuration Azure AD (OAuth2)
-              </div>
-              <p className="text-xs text-muted-foreground normal-case leading-relaxed">
-                Créez une application dans <strong>Azure AD → Inscriptions d'applications</strong>, puis accordez les permissions 
-                <code className="mx-1 px-1 py-0.5 bg-muted rounded text-[11px]">IMAP.AccessAsApp</code> et 
-                <code className="mx-1 px-1 py-0.5 bg-muted rounded text-[11px]">SMTP.SendAsApp</code> avec consentement administrateur.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Tenant ID</Label>
-                  <Input value={config.oauth_tenant_id} onChange={e => setConfig({ ...config, oauth_tenant_id: e.target.value })} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Client ID</Label>
-                  <Input value={config.oauth_client_id} onChange={e => setConfig({ ...config, oauth_client_id: e.target.value })} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Client Secret</Label>
-                  <Input type="password" value={config.oauth_client_secret} onChange={e => setConfig({ ...config, oauth_client_secret: e.target.value })} placeholder="~xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
-                </div>
-              </div>
-              <div className="text-[11px] text-muted-foreground normal-case p-2 rounded bg-muted/50">
-                💡 Le mot de passe n'est pas utilisé avec OAuth2. Seuls le Tenant ID, Client ID, Client Secret et l'adresse email sont nécessaires.
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* IMAP */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Mail className="h-4 w-4 text-primary icon-neon" />
-              Serveur IMAP (réception)
-              <Badge variant="outline" className="ml-auto text-[10px]">Réception</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-2 col-span-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Serveur</Label>
-                <Input value={config.imap_host} onChange={e => setConfig({ ...config, imap_host: e.target.value })} placeholder="imap.gmail.com" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Port</Label>
-                <Input value={config.imap_port} onChange={e => setConfig({ ...config, imap_port: e.target.value })} placeholder="993" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Utilisateur</Label>
-              <Input value={config.imap_user} onChange={e => setConfig({ ...config, imap_user: e.target.value })} placeholder="votre@email.com" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Mot de passe</Label>
-              <div className="relative">
-                <Input
-                  type={showPasswords.imap ? "text" : "password"}
-                  value={config.imap_password}
-                  onChange={e => setConfig({ ...config, imap_password: e.target.value })}
-                  placeholder="••••••••"
-                  className="pr-10"
-                />
-                <button type="button" onClick={() => setShowPasswords(p => ({ ...p, imap: !p.imap }))} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                  {showPasswords.imap ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <Switch checked={config.imap_tls} onCheckedChange={v => setConfig({ ...config, imap_tls: v })} />
-              <Label className="text-xs flex items-center gap-1.5">
-                <Shield className="h-3.5 w-3.5" /> TLS/SSL
-              </Label>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => handleTest("imap")} disabled={testing === "imap" || !config.imap_host} className="w-full gap-2">
-              {testing === "imap" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-              {testing === "imap" ? "Test en cours..." : "Tester la connexion IMAP"}
+              {checkingReplies ? <Loader2 className="h-4 w-4 animate-spin" /> : <Inbox className="h-4 w-4" />}
+              Vérifier les réponses maintenant
             </Button>
-            {renderTestResult("imap")}
-          </CardContent>
-        </Card>
-
-        {/* SMTP */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Server className="h-4 w-4 text-accent icon-neon" />
-              Serveur SMTP (envoi)
-              <Badge variant="outline" className="ml-auto text-[10px]">Envoi</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-2 col-span-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Serveur</Label>
-                <Input value={config.smtp_host} onChange={e => setConfig({ ...config, smtp_host: e.target.value })} placeholder="smtp.gmail.com" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Port</Label>
-                <Input value={config.smtp_port} onChange={e => setConfig({ ...config, smtp_port: e.target.value })} placeholder="587" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Utilisateur</Label>
-              <Input value={config.smtp_user} onChange={e => setConfig({ ...config, smtp_user: e.target.value })} placeholder="votre@email.com" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Mot de passe</Label>
-              <div className="relative">
-                <Input
-                  type={showPasswords.smtp ? "text" : "password"}
-                  value={config.smtp_password}
-                  onChange={e => setConfig({ ...config, smtp_password: e.target.value })}
-                  placeholder="••••••••"
-                  className="pr-10"
-                />
-                <button type="button" onClick={() => setShowPasswords(p => ({ ...p, smtp: !p.smtp }))} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                  {showPasswords.smtp ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <Switch checked={config.smtp_tls} onCheckedChange={v => setConfig({ ...config, smtp_tls: v })} />
-              <Label className="text-xs flex items-center gap-1.5">
-                <Shield className="h-3.5 w-3.5" /> TLS/SSL
-              </Label>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => handleTest("smtp")} disabled={testing === "smtp" || !config.smtp_host} className="w-full gap-2">
-              {testing === "smtp" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
-              {testing === "smtp" ? "Test en cours..." : "Tester la connexion SMTP"}
-            </Button>
-            {renderTestResult("smtp")}
-          </CardContent>
-        </Card>
-
-        {/* General settings */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Mail className="h-4 w-4 text-primary icon-neon" />
-              Paramètres généraux
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Nom de l'expéditeur</Label>
-                <Input value={config.from_name} onChange={e => setConfig({ ...config, from_name: e.target.value })} placeholder="Mon Affichage Dynamique" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Email de l'expéditeur</Label>
-                <Input value={config.from_email} onChange={e => setConfig({ ...config, from_email: e.target.value })} placeholder="noreply@mondomaine.com" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <MailboxesManager />
-
-      <InboxViewer />
-
-
-
-
-      <div className="flex gap-3 flex-wrap">
-        <Button onClick={handleSave} disabled={saving} className="gap-2">
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          {saving ? "Sauvegarde..." : "Sauvegarder la configuration"}
-        </Button>
-        <Button
-          variant="outline"
-          disabled={checkingReplies}
-          className="gap-2"
-          onClick={async () => {
-            setCheckingReplies(true);
-            setRepliesResult(null);
-            try {
-              const { data, error } = await supabase.functions.invoke("check-email-replies");
-              if (error) throw error;
-              setRepliesResult(data);
-              if (data?.processed > 0) {
-                toast.success(`${data.processed} réponse(s) email traitée(s)`);
-              } else {
-                toast.info("Aucune nouvelle réponse email");
-              }
-            } catch (e: any) {
-              toast.error("Erreur: " + (e.message || "Impossible de vérifier"));
-            } finally {
-              setCheckingReplies(false);
-            }
-          }}
-        >
-          {checkingReplies ? <Loader2 className="h-4 w-4 animate-spin" /> : <Inbox className="h-4 w-4" />}
-          Vérifier les réponses maintenant
-        </Button>
-      </div>
-
-      {repliesResult && (
-        <Card className="p-4 mt-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Inbox className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-medium">Résultat de la vérification</h3>
           </div>
-          {repliesResult.processed === 0 ? (
-            <p className="text-sm text-muted-foreground">Aucune nouvelle réponse à traiter.</p>
-          ) : (
-            <div className="space-y-2">
-              {repliesResult.results?.map((r: any, i: number) => (
-                <div key={i} className={`flex items-center gap-2 text-sm p-2 rounded-lg ${r.action === "validate" ? "bg-green-500/10 text-green-400" : "bg-destructive/10 text-destructive"}`}>
-                  {r.action === "validate" ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
-                  <span>"{r.title}" → {r.action === "validate" ? "Validé" : "Annulé"}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      )}
 
-      {/* Email Action History */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <History className="h-4 w-4 text-primary icon-neon" />
-            Historique des actions email
-            <Badge variant="outline" className="ml-auto text-[10px]">{actions.length} action(s)</Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {actions.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">Aucune action enregistrée pour le moment.</p>
-          ) : (
-            <div className="overflow-auto max-h-[400px]">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs">Date</TableHead>
-                    <TableHead className="text-xs">Action</TableHead>
-                    <TableHead className="text-xs">Email</TableHead>
-                    <TableHead className="text-xs">Détails</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {actions.map((a) => (
-                    <TableRow key={a.id}>
-                      <TableCell className="text-xs whitespace-nowrap">
-                        {new Date(a.created_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "medium" })}
-                      </TableCell>
-                      <TableCell>{actionBadge(a.action_type)}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{a.actor_email || "—"}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground max-w-[300px] truncate">{a.details || "—"}</TableCell>
-                    </TableRow>
+          {repliesResult && (
+            <Card className="p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Inbox className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-medium">Résultat de la vérification</h3>
+              </div>
+              {repliesResult.processed === 0 ? (
+                <p className="text-sm text-muted-foreground">Aucune nouvelle réponse à traiter.</p>
+              ) : (
+                <div className="space-y-2">
+                  {repliesResult.results?.map((r: any, i: number) => (
+                    <div key={i} className={`flex items-center gap-2 text-sm p-2 rounded-lg ${r.action === "validate" ? "bg-green-500/10 text-green-400" : "bg-destructive/10 text-destructive"}`}>
+                      {r.action === "validate" ? <CheckCircle className="h-4 w-4" /> : <XCircle className="h-4 w-4" />}
+                      <span>"{r.title}" → {r.action === "validate" ? "Validé" : "Annulé"}</span>
+                    </div>
                   ))}
-                </TableBody>
-              </Table>
-            </div>
+                </div>
+              )}
+            </Card>
           )}
-        </CardContent>
-      </Card>
 
-      <Card className="p-4 mt-4 bg-muted/30">
-        <div className="flex items-center gap-2">
-          <Clock className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-medium">Vérification automatique</h3>
-        </div>
-        <p className="text-xs text-muted-foreground mt-1">
-          Les réponses email sont vérifiées automatiquement toutes les minutes via un cron job. Les réponses contenant "valider" ou "annuler" sont traitées automatiquement.
-        </p>
-      </Card>
+          <Card className="p-4 bg-muted/30">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-medium">Vérification automatique</h3>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 normal-case">
+              Les réponses email sont vérifiées automatiquement toutes les minutes via un cron job. Les réponses contenant "valider" ou "annuler" sont traitées automatiquement.
+            </p>
+          </Card>
+        </TabsContent>
+
+        {/* ============ CONFIG TAB ============ */}
+        <TabsContent value="config" className="space-y-6 mt-6">
+          {/* Quick provider presets */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Plus className="h-4 w-4 text-primary icon-neon" />
+                Configuration rapide — Fournisseur de messagerie
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-xs text-muted-foreground mb-4 normal-case">
+                Sélectionnez votre fournisseur pour pré-remplir les paramètres serveur. Vous devrez ensuite entrer votre adresse email et votre mot de passe d'application.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {/* Gmail */}
+                <button
+                  type="button"
+                  className="flex items-center gap-3 p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/60 hover:border-primary/30 transition-all text-left group"
+                  onClick={() => {
+                    setConfig(prev => ({
+                      ...prev,
+                      imap_host: "imap.gmail.com",
+                      imap_port: "993",
+                      imap_tls: true,
+                      smtp_host: "smtp.gmail.com",
+                      smtp_port: "587",
+                      smtp_tls: true,
+                    }));
+                    toast.success("Paramètres Gmail pré-remplis. Entrez votre email et mot de passe d'application Google.");
+                  }}
+                >
+                  <div className="h-10 w-10 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0 group-hover:bg-red-500/20 transition-colors">
+                    <Mail className="h-5 w-5 text-red-400" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Gmail</p>
+                    <p className="text-[11px] text-muted-foreground normal-case">Google — mot de passe d'application requis</p>
+                  </div>
+                </button>
+
+                {/* Microsoft / Outlook (OAuth2) */}
+                <button
+                  type="button"
+                  className="flex items-center gap-3 p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/60 hover:border-primary/30 transition-all text-left group"
+                  onClick={() => {
+                    setConfig(prev => ({
+                      ...prev,
+                      imap_host: "outlook.office365.com",
+                      imap_port: "993",
+                      imap_tls: true,
+                      smtp_host: "smtp.office365.com",
+                      smtp_port: "587",
+                      smtp_tls: true,
+                      auth_method: "oauth2",
+                    }));
+                    toast.success("Microsoft Exchange sélectionné. Renseignez les identifiants OAuth2 Azure AD ci-dessous.");
+                  }}
+                >
+                  <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0 group-hover:bg-blue-500/20 transition-colors">
+                    <Mail className="h-5 w-5 text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Microsoft Exchange / Outlook.com</p>
+                    <p className="text-[11px] text-muted-foreground normal-case">OAuth2 — authentification moderne (recommandé)</p>
+                  </div>
+                </button>
+
+                {/* OVH */}
+                <button
+                  type="button"
+                  className="flex items-center gap-3 p-4 rounded-lg border border-border bg-secondary/30 hover:bg-secondary/60 hover:border-primary/30 transition-all text-left group"
+                  onClick={() => {
+                    setConfig(prev => ({
+                      ...prev,
+                      imap_host: "ssl0.ovh.net",
+                      imap_port: "993",
+                      imap_tls: true,
+                      smtp_host: "ssl0.ovh.net",
+                      smtp_port: "465",
+                      smtp_tls: true,
+                    }));
+                    toast.success("Paramètres OVH pré-remplis. Entrez votre email et mot de passe OVH.");
+                  }}
+                >
+                  <div className="h-10 w-10 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0 group-hover:bg-indigo-500/20 transition-colors">
+                    <Server className="h-5 w-5 text-indigo-400" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">OVH</p>
+                    <p className="text-[11px] text-muted-foreground normal-case">OVH Mail Pro / MX Plan</p>
+                  </div>
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Auth Method */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <KeyRound className="h-4 w-4 text-primary icon-neon" />
+                Méthode d'authentification
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Type d'authentification</Label>
+                <Select value={config.auth_method} onValueChange={v => setConfig({ ...config, auth_method: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="basic">Basique (mot de passe)</SelectItem>
+                    <SelectItem value="oauth2">OAuth2 / Microsoft Exchange (authentification moderne)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {config.auth_method === "oauth2" && (
+                <div className="space-y-4 p-4 rounded-lg border border-primary/20 bg-primary/5">
+                  <div className="flex items-center gap-2 text-sm font-medium text-primary">
+                    <Shield className="h-4 w-4" />
+                    Configuration Azure AD (OAuth2)
+                  </div>
+                  <p className="text-xs text-muted-foreground normal-case leading-relaxed">
+                    Créez une application dans <strong>Azure AD → Inscriptions d'applications</strong>, puis accordez les permissions 
+                    <code className="mx-1 px-1 py-0.5 bg-muted rounded text-[11px]">IMAP.AccessAsApp</code> et 
+                    <code className="mx-1 px-1 py-0.5 bg-muted rounded text-[11px]">SMTP.SendAsApp</code> avec consentement administrateur.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">Tenant ID</Label>
+                      <Input value={config.oauth_tenant_id} onChange={e => setConfig({ ...config, oauth_tenant_id: e.target.value })} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">Client ID</Label>
+                      <Input value={config.oauth_client_id} onChange={e => setConfig({ ...config, oauth_client_id: e.target.value })} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">Client Secret</Label>
+                      <Input type="password" value={config.oauth_client_secret} onChange={e => setConfig({ ...config, oauth_client_secret: e.target.value })} placeholder="~xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" />
+                    </div>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground normal-case p-2 rounded bg-muted/50">
+                    💡 Le mot de passe n'est pas utilisé avec OAuth2. Seuls le Tenant ID, Client ID, Client Secret et l'adresse email sont nécessaires.
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* IMAP */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Mail className="h-4 w-4 text-primary icon-neon" />
+                  Serveur IMAP (réception)
+                  <Badge variant="outline" className="ml-auto text-[10px]">Réception</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-2 col-span-2">
+                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">Serveur</Label>
+                    <Input value={config.imap_host} onChange={e => setConfig({ ...config, imap_host: e.target.value })} placeholder="imap.gmail.com" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">Port</Label>
+                    <Input value={config.imap_port} onChange={e => setConfig({ ...config, imap_port: e.target.value })} placeholder="993" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Utilisateur</Label>
+                  <Input value={config.imap_user} onChange={e => setConfig({ ...config, imap_user: e.target.value })} placeholder="votre@email.com" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Mot de passe</Label>
+                  <div className="relative">
+                    <Input
+                      type={showPasswords.imap ? "text" : "password"}
+                      value={config.imap_password}
+                      onChange={e => setConfig({ ...config, imap_password: e.target.value })}
+                      placeholder="••••••••"
+                      className="pr-10"
+                    />
+                    <button type="button" onClick={() => setShowPasswords(p => ({ ...p, imap: !p.imap }))} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                      {showPasswords.imap ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch checked={config.imap_tls} onCheckedChange={v => setConfig({ ...config, imap_tls: v })} />
+                  <Label className="text-xs flex items-center gap-1.5">
+                    <Shield className="h-3.5 w-3.5" /> TLS/SSL
+                  </Label>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => handleTest("imap")} disabled={testing === "imap" || !config.imap_host} className="w-full gap-2">
+                  {testing === "imap" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+                  {testing === "imap" ? "Test en cours..." : "Tester la connexion IMAP"}
+                </Button>
+                {renderTestResult("imap")}
+              </CardContent>
+            </Card>
+
+            {/* SMTP */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Server className="h-4 w-4 text-accent icon-neon" />
+                  Serveur SMTP (envoi)
+                  <Badge variant="outline" className="ml-auto text-[10px]">Envoi</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-2 col-span-2">
+                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">Serveur</Label>
+                    <Input value={config.smtp_host} onChange={e => setConfig({ ...config, smtp_host: e.target.value })} placeholder="smtp.gmail.com" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">Port</Label>
+                    <Input value={config.smtp_port} onChange={e => setConfig({ ...config, smtp_port: e.target.value })} placeholder="587" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Utilisateur</Label>
+                  <Input value={config.smtp_user} onChange={e => setConfig({ ...config, smtp_user: e.target.value })} placeholder="votre@email.com" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Mot de passe</Label>
+                  <div className="relative">
+                    <Input
+                      type={showPasswords.smtp ? "text" : "password"}
+                      value={config.smtp_password}
+                      onChange={e => setConfig({ ...config, smtp_password: e.target.value })}
+                      placeholder="••••••••"
+                      className="pr-10"
+                    />
+                    <button type="button" onClick={() => setShowPasswords(p => ({ ...p, smtp: !p.smtp }))} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                      {showPasswords.smtp ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Switch checked={config.smtp_tls} onCheckedChange={v => setConfig({ ...config, smtp_tls: v })} />
+                  <Label className="text-xs flex items-center gap-1.5">
+                    <Shield className="h-3.5 w-3.5" /> TLS/SSL
+                  </Label>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => handleTest("smtp")} disabled={testing === "smtp" || !config.smtp_host} className="w-full gap-2">
+                  {testing === "smtp" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+                  {testing === "smtp" ? "Test en cours..." : "Tester la connexion SMTP"}
+                </Button>
+                {renderTestResult("smtp")}
+              </CardContent>
+            </Card>
+
+            {/* General settings */}
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Mail className="h-4 w-4 text-primary icon-neon" />
+                  Paramètres généraux
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">Nom de l'expéditeur</Label>
+                    <Input value={config.from_name} onChange={e => setConfig({ ...config, from_name: e.target.value })} placeholder="Mon Affichage Dynamique" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">Email de l'expéditeur</Label>
+                    <Input value={config.from_email} onChange={e => setConfig({ ...config, from_email: e.target.value })} placeholder="noreply@mondomaine.com" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="flex gap-3 flex-wrap">
+            <Button onClick={handleSave} disabled={saving} className="gap-2">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {saving ? "Sauvegarde..." : "Sauvegarder la configuration"}
+            </Button>
+          </div>
+        </TabsContent>
+
+        {/* ============ MAILBOXES TAB ============ */}
+        <TabsContent value="mailboxes" className="space-y-6 mt-6">
+          <MailboxesManager />
+        </TabsContent>
+
+        {/* ============ HISTORY TAB ============ */}
+        <TabsContent value="history" className="space-y-6 mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <History className="h-4 w-4 text-primary icon-neon" />
+                Historique des actions email
+                <Badge variant="outline" className="ml-auto text-[10px]">{actions.length} action(s)</Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {actions.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">Aucune action enregistrée pour le moment.</p>
+              ) : (
+                <div className="overflow-auto max-h-[600px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs">Date</TableHead>
+                        <TableHead className="text-xs">Action</TableHead>
+                        <TableHead className="text-xs">Email</TableHead>
+                        <TableHead className="text-xs">Détails</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {actions.map((a) => (
+                        <TableRow key={a.id}>
+                          <TableCell className="text-xs whitespace-nowrap">
+                            {new Date(a.created_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "medium" })}
+                          </TableCell>
+                          <TableCell>{actionBadge(a.action_type)}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{a.actor_email || "—"}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground max-w-[300px] truncate">{a.details || "—"}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
     </div>
   );
 }
