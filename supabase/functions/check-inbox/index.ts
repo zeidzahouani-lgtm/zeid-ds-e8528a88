@@ -195,6 +195,10 @@ Ou répondez à cet email avec "valider" ou "annuler".`;
     }
 
     const boundary = `b_${Date.now()}`;
+    const b64wrap = (s: string) => {
+      const b = btoa(unescape(encodeURIComponent(s)));
+      return b.match(/.{1,76}/g)?.join("\r\n") ?? b;
+    };
     const msg = [
       `From: "${fromName}" <${fromEmail}>`,
       `To: ${content.sender_email}`,
@@ -206,15 +210,15 @@ Ou répondez à cet email avec "valider" ou "annuler".`;
       ``,
       `--${boundary}`,
       `Content-Type: text/plain; charset=utf-8`,
-      `Content-Transfer-Encoding: 8bit`,
+      `Content-Transfer-Encoding: base64`,
       ``,
-      textBody,
+      b64wrap(textBody),
       ``,
       `--${boundary}`,
       `Content-Type: text/html; charset=utf-8`,
-      `Content-Transfer-Encoding: 8bit`,
+      `Content-Transfer-Encoding: base64`,
       ``,
-      htmlBody,
+      b64wrap(htmlBody),
       ``,
       `--${boundary}--`,
       `.`
