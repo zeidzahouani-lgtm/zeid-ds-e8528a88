@@ -869,6 +869,31 @@ serve(async (req) => {
           }
         }
 
+        // Send a generic reception ACK when no content was created (no attachments)
+        if (!contentId && fromEmail) {
+          try {
+            const pseudoContent = {
+              id: emailRecord?.id || crypto.randomUUID(),
+              title: subject || "(Sans objet)",
+              status: "received",
+              sender_email: fromEmail,
+              created_at: new Date().toISOString(),
+              start_time: null,
+              end_time: null,
+              screen_id: null,
+              image_url: null,
+              confirmation_token: null,
+            };
+            const baseUrl = Deno.env.get("SUPABASE_URL")!;
+            await sendAckEmail(supabase, pseudoContent, baseUrl);
+            console.log(`📨 Generic ACK sent to ${fromEmail}`);
+          } catch (ackErr) {
+            console.error("❌ Generic ACK error:", ackErr);
+          }
+        }
+
+
+
         emails.push({
           id: emailRecord?.id,
           from_email: fromEmail,
