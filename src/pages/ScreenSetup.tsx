@@ -13,16 +13,24 @@ import { useScreens } from "@/hooks/useScreens";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import ReactMarkdown from "react-markdown";
 
-type OsType = "webos" | "tizen" | "android";
+type OsType = "webos" | "tizen" | "android" | "windows" | "macos" | "linux" | "ios";
 const OS_META: Record<OsType, { label: string; color: string }> = {
   webos: { label: "WebOS (LG)", color: "text-pink-500 border-pink-500/30" },
   tizen: { label: "Tizen (Samsung)", color: "text-blue-500 border-blue-500/30" },
   android: { label: "Android", color: "text-green-500 border-green-500/30" },
+  windows: { label: "Windows", color: "text-sky-500 border-sky-500/30" },
+  macos: { label: "macOS", color: "text-zinc-500 border-zinc-500/30" },
+  linux: { label: "Linux", color: "text-amber-500 border-amber-500/30" },
+  ios: { label: "iOS / iPadOS", color: "text-slate-500 border-slate-500/30" },
 };
+
+// OS distants pilotables à distance (reboot/shutdown via HTTP)
+const REMOTE_POWER_OS = new Set<OsType>(["webos", "tizen"]);
 
 function detectOsFromUA(ua: string | null | undefined): OsType | null {
   if (!ua) return null;
   const s = ua.toLowerCase();
+  // TVs en premier (souvent contiennent aussi "linux"/"webkit")
   if (
     s.includes("web0s") ||
     s.includes("webos") ||
@@ -32,12 +40,20 @@ function detectOsFromUA(ua: string | null | undefined): OsType | null {
     /\blg[- ]/.test(s) ||
     s.includes("colt/")
   ) return "webos";
-  if (s.includes("tizen") || s.includes("samsung")) return "tizen";
+  if (s.includes("tizen") || (s.includes("samsung") && s.includes("tv"))) return "tizen";
+  if (s.includes("smarttv") || s.includes("smart-tv") || s.includes("googletv") || s.includes("appletv")) return "webos";
+  // iOS / iPadOS (avant macOS car iPad récents se font passer pour Mac)
+  if (/iphone|ipad|ipod/.test(s) || (s.includes("macintosh") && (navigator?.maxTouchPoints ?? 0) > 1 && s.includes("mobile"))) return "ios";
+  // Android (téléphones/tablettes/TV box)
   if (s.includes("android")) return "android";
-  // Generic SmartTV → assume WebOS family by default (LG most common)
-  if (s.includes("smarttv") || s.includes("smart-tv")) return "webos";
+  // Desktop
+  if (s.includes("windows nt") || s.includes("win64") || s.includes("win32") || s.includes("windows")) return "windows";
+  if (s.includes("mac os x") || s.includes("macintosh") || s.includes("macos")) return "macos";
+  if (s.includes("cros") || s.includes("chrome os")) return "linux";
+  if (s.includes("ubuntu") || s.includes("fedora") || s.includes("debian") || s.includes("linux") || s.includes("x11")) return "linux";
   return null;
 }
+
 
 async function sendDevicePowerHttp(ip: string, osType: "webos" | "tizen", action: "reboot" | "shutdown") {
   const endpoints = {
@@ -451,10 +467,11 @@ function PowerManagementCard({ screens }: { screens: any[] }) {
         if (!ip) return toast.error(`IP locale non détectée pour "${s.name}"`);
         await sendDevicePowerHttp(ip, osType, action).catch(() => {});
         toast.success(`Commande ${action === "reboot" ? "Redémarrage" : "Extinction"} envoyée à ${s.name} (${OS_META[osType].label})`);
-      } else if (osType === "android") {
+      } else {
+        // Android, Windows, macOS, Linux, iOS → action planifiée côté player (pending_action)
         const { error } = await supabase.from("screens").update({ pending_action: action } as any).eq("id", screenId);
         if (error) throw error;
-        toast.success(`Action "${action}" planifiée pour ${s.name} (Android)`);
+        toast.success(`Action "${action}" planifiée pour ${s.name} (${OS_META[osType].label})`);
       }
     } catch (e: any) {
       toast.error(e?.message || "Erreur lors de l'envoi");
