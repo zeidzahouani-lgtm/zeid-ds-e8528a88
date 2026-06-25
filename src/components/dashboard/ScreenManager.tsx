@@ -535,38 +535,6 @@ export function ScreenManager() {
                   </SelectContent>
                 </Select>
 
-                {/* OS type selector */}
-                <Select
-                  value={(screen as any).os_type ?? "none"}
-                  onValueChange={(val) =>
-                    updateScreen.mutate({ id: screen.id, os_type: val === "none" ? null : val } as any)
-                  }
-                >
-                  <SelectTrigger className="w-[130px] sm:w-[150px]" title="Type d'OS de l'écran (pour la gestion de l'alimentation)">
-                    <Tv className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="OS" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">OS non défini</SelectItem>
-                    <SelectItem value="webos">WebOS (LG)</SelectItem>
-                    <SelectItem value="tizen">Tizen (Samsung)</SelectItem>
-                    <SelectItem value="android">Android</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                {/* IP address input (relevant for WebOS/Tizen) */}
-                <Input
-                  placeholder="Adresse IP"
-                  defaultValue={(screen as any).ip_address ?? ""}
-                  onBlur={(e) => {
-                    const v = e.target.value.trim();
-                    if (v !== ((screen as any).ip_address ?? "")) {
-                      updateScreen.mutate({ id: screen.id, ip_address: v || null } as any);
-                    }
-                  }}
-                  className="w-[130px] sm:w-[150px]"
-                  title="Adresse IP locale (WebOS/Tizen)"
-                />
                 </div>
 
                 {/* Actions */}
