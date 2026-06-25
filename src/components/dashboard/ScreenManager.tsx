@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+
 import { useScreens } from "@/hooks/useScreens";
 import { useMedia } from "@/hooks/useMedia";
 import { useLayouts } from "@/hooks/useLayouts";
@@ -41,30 +41,6 @@ const getOrientationPreview = (orientation: string): OrientationPreview =>
 
 import { isScreenReallyOnline } from "@/lib/screen-utils";
 
-type OsType = "webos" | "tizen" | "android";
-
-const OS_META: Record<OsType, { label: string; color: string }> = {
-  webos: { label: "WebOS (LG)", color: "text-pink-500 border-pink-500/30" },
-  tizen: { label: "Tizen (Samsung)", color: "text-blue-500 border-blue-500/30" },
-  android: { label: "Android", color: "text-green-500 border-green-500/30" },
-};
-
-async function sendDevicePowerHttp(ip: string, osType: OsType, action: "reboot" | "shutdown") {
-  // Squelette de requête réseau directe vers l'écran (à adapter selon l'API constructeur réelle)
-  // WebOS : SSAP via WebSocket (port 3000/3001) — ici un POST REST stub
-  // Tizen : API B2B (port 8001/8002) — ici un POST REST stub
-  const endpoints: Record<Exclude<OsType, "android">, string> = {
-    webos: `http://${ip}:3000/api/power/${action}`,
-    tizen: `http://${ip}:8001/api/v2/power/${action}`,
-  };
-  const url = endpoints[osType as "webos" | "tizen"];
-  return fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action }),
-    mode: "no-cors",
-  });
-}
 
 function parseUserAgent(ua: string | null): { device: string; icon: React.ReactNode } {
   if (!ua) return { device: "Inconnu", icon: <Monitor className="h-3 w-3" /> };
@@ -146,53 +122,6 @@ export function ScreenManager() {
   const [detailScreenId, setDetailScreenId] = useState<string | null>(null);
   const detailScreen = useMemo(() => screens.find((s: any) => s.id === detailScreenId) ?? null, [screens, detailScreenId]);
 
-  // Power management
-  const [powerConfirm, setPowerConfirm] = useState<{ scope: "one" | "all"; screenId?: string; screenName?: string; action: "reboot" | "shutdown" } | null>(null);
-
-  const handlePowerAction = async (screenId: string, action: "reboot" | "shutdown") => {
-    const screen = screens.find((s: any) => s.id === screenId);
-    if (!screen) return toast.error("Écran introuvable");
-    const osType = (screen as any).os_type as OsType | null;
-    const ip = (screen as any).ip_address as string | null;
-    if (!osType) return toast.error(`OS non défini pour "${screen.name}"`);
-    try {
-      switch (osType) {
-        case "webos":
-        case "tizen": {
-          if (!ip) {
-            toast.error(`Adresse IP manquante pour "${screen.name}"`);
-            return;
-          }
-          await sendDevicePowerHttp(ip, osType, action).catch(() => {});
-          toast.success(`Commande ${action === "reboot" ? "Redémarrage" : "Extinction"} envoyée à ${screen.name} (${OS_META[osType].label})`);
-          break;
-        }
-        case "android": {
-          const { error } = await supabase
-            .from("screens")
-            .update({ pending_action: action } as any)
-            .eq("id", screenId);
-          if (error) throw error;
-          toast.success(`Action "${action}" planifiée pour ${screen.name} (Android)`);
-          break;
-        }
-        default:
-          toast.error(`OS non supporté : ${osType}`);
-      }
-    } catch (e: any) {
-      toast.error(e?.message || "Erreur lors de l'envoi de la commande");
-    }
-  };
-
-  const handlePowerActionAll = async (action: "reboot" | "shutdown") => {
-    const targets = screens.filter((s: any) => !s.wall_id && s.os_type);
-    if (!targets.length) return toast.info("Aucun écran avec OS configuré");
-    let ok = 0, fail = 0;
-    await Promise.all(targets.map(async (s: any) => {
-      try { await handlePowerAction(s.id, action); ok++; } catch { fail++; }
-    }));
-    toast.success(`Commande envoyée à ${ok}/${targets.length} écran(s)${fail ? ` (${fail} échec)` : ""}`);
-  };
 
   // Bulk action helpers for an entire wall
   const wallScreensFor = (wallId: string) => screens.filter((s: any) => s.wall_id === wallId);
@@ -268,24 +197,6 @@ export function ScreenManager() {
         <h2 className="text-lg sm:text-xl font-semibold text-foreground">Gestion des Écrans</h2>
         <span className="text-sm text-muted-foreground">({screens.length})</span>
         <div className="ml-auto flex items-center gap-2 flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2 text-blue-500 border-blue-500/30 hover:bg-blue-500/10"
-            onClick={() => setPowerConfirm({ scope: "all", action: "reboot" })}
-            title="Redémarrer tous les écrans configurés"
-          >
-            <RefreshCw className="h-4 w-4" /> Redémarrer tous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2 text-red-500 border-red-500/30 hover:bg-red-500/10"
-            onClick={() => setPowerConfirm({ scope: "all", action: "shutdown" })}
-            title="Éteindre tous les écrans configurés"
-          >
-            <Power className="h-4 w-4" /> Éteindre tous
-          </Button>
           <Button variant="outline" size="icon" onClick={handleRefresh} title="Actualiser les écrans">
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
           </Button>
@@ -540,17 +451,6 @@ export function ScreenManager() {
                           <CalendarClock className="h-3 w-3" /> {assignedProgram.name}
                         </Badge>
                       )}
-                      {(screen as any).os_type && (
-                        <Badge variant="outline" className={`gap-1 text-xs ${OS_META[(screen as any).os_type as OsType]?.color || ""}`}>
-                          <Tv className="h-3 w-3" /> {OS_META[(screen as any).os_type as OsType]?.label}
-                          {(screen as any).ip_address ? ` · ${(screen as any).ip_address}` : ""}
-                        </Badge>
-                      )}
-                      {(screen as any).pending_action && (
-                        <Badge variant="outline" className="text-amber-500 border-amber-500/30 gap-1 text-xs animate-pulse">
-                          ⏳ {(screen as any).pending_action}
-                        </Badge>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -635,38 +535,6 @@ export function ScreenManager() {
                   </SelectContent>
                 </Select>
 
-                {/* OS type selector */}
-                <Select
-                  value={(screen as any).os_type ?? "none"}
-                  onValueChange={(val) =>
-                    updateScreen.mutate({ id: screen.id, os_type: val === "none" ? null : val } as any)
-                  }
-                >
-                  <SelectTrigger className="w-[130px] sm:w-[150px]" title="Type d'OS de l'écran (pour la gestion de l'alimentation)">
-                    <Tv className="h-4 w-4 mr-2" />
-                    <SelectValue placeholder="OS" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">OS non défini</SelectItem>
-                    <SelectItem value="webos">WebOS (LG)</SelectItem>
-                    <SelectItem value="tizen">Tizen (Samsung)</SelectItem>
-                    <SelectItem value="android">Android</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                {/* IP address input (relevant for WebOS/Tizen) */}
-                <Input
-                  placeholder="Adresse IP"
-                  defaultValue={(screen as any).ip_address ?? ""}
-                  onBlur={(e) => {
-                    const v = e.target.value.trim();
-                    if (v !== ((screen as any).ip_address ?? "")) {
-                      updateScreen.mutate({ id: screen.id, ip_address: v || null } as any);
-                    }
-                  }}
-                  className="w-[130px] sm:w-[150px]"
-                  title="Adresse IP locale (WebOS/Tizen)"
-                />
                 </div>
 
                 {/* Actions */}
@@ -736,28 +604,6 @@ export function ScreenManager() {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  {(screen as any).os_type && (
-                    <>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        title={`Redémarrer (${OS_META[(screen as any).os_type as OsType]?.label})`}
-                        className="text-blue-500 border-blue-500/30 hover:bg-blue-500/10"
-                        onClick={() => setPowerConfirm({ scope: "one", screenId: screen.id, screenName: screen.name, action: "reboot" })}
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        title={`Éteindre (${OS_META[(screen as any).os_type as OsType]?.label})`}
-                        className="text-red-500 border-red-500/30 hover:bg-red-500/10"
-                        onClick={() => setPowerConfirm({ scope: "one", screenId: screen.id, screenName: screen.name, action: "shutdown" })}
-                      >
-                        <Power className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
                   <Button
                     variant="outline"
                     size="icon"
@@ -1009,42 +855,6 @@ export function ScreenManager() {
         screenName={quickPlaylistScreen?.name}
       />
 
-
-
-      {/* Power action confirmation */}
-      <AlertDialog open={!!powerConfirm} onOpenChange={(o) => !o && setPowerConfirm(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              {powerConfirm?.action === "reboot" ? <RefreshCw className="h-5 w-5 text-blue-500" /> : <Power className="h-5 w-5 text-red-500" />}
-              {powerConfirm?.action === "reboot" ? "Redémarrer" : "Éteindre"}
-              {powerConfirm?.scope === "all" ? " tous les écrans ?" : ` cet écran ?`}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {powerConfirm?.scope === "all"
-                ? `Cette action enverra la commande "${powerConfirm?.action}" à tous les écrans dont l'OS est configuré.`
-                : `Êtes-vous sûr de vouloir ${powerConfirm?.action === "reboot" ? "redémarrer" : "éteindre"} l'écran "${powerConfirm?.screenName}" ?`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async () => {
-                if (!powerConfirm) return;
-                if (powerConfirm.scope === "all") {
-                  await handlePowerActionAll(powerConfirm.action);
-                } else if (powerConfirm.screenId) {
-                  await handlePowerAction(powerConfirm.screenId, powerConfirm.action);
-                }
-                setPowerConfirm(null);
-              }}
-              className={powerConfirm?.action === "shutdown" ? "bg-red-500 hover:bg-red-600" : ""}
-            >
-              Confirmer
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
