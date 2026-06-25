@@ -1001,6 +1001,16 @@ export function ScreenManager() {
         onClose={() => setDetailScreenId(null)}
       />
 
+      {/* Quick playlist creation dialog */}
+      <QuickPlaylistDialog
+        open={!!quickPlaylistScreen}
+        onOpenChange={(o) => !o && setQuickPlaylistScreen(null)}
+        screenId={quickPlaylistScreen?.id}
+        screenName={quickPlaylistScreen?.name}
+      />
+
+
+
       {/* Power action confirmation */}
       <AlertDialog open={!!powerConfirm} onOpenChange={(o) => !o && setPowerConfirm(null)}>
         <AlertDialogContent>
