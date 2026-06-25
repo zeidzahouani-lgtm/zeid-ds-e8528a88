@@ -1,15 +1,46 @@
-import { useState, useRef, useCallback } from "react";
-import { Monitor, Smartphone, Tv, Copy, CheckCheck, ExternalLink, Pencil, Check, X, Bot, Send, Loader2, CheckCircle, AlertTriangle, HelpCircle, Bug, Save } from "lucide-react";
+import { useState, useRef, useCallback, useMemo } from "react";
+import { Monitor, Smartphone, Tv, Copy, CheckCheck, ExternalLink, Pencil, Check, X, Bot, Send, Loader2, CheckCircle, AlertTriangle, HelpCircle, Bug, Save, Power, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { useScreens } from "@/hooks/useScreens";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import ReactMarkdown from "react-markdown";
+
+type OsType = "webos" | "tizen" | "android";
+const OS_META: Record<OsType, { label: string; color: string }> = {
+  webos: { label: "WebOS (LG)", color: "text-pink-500 border-pink-500/30" },
+  tizen: { label: "Tizen (Samsung)", color: "text-blue-500 border-blue-500/30" },
+  android: { label: "Android", color: "text-green-500 border-green-500/30" },
+};
+
+function detectOsFromUA(ua: string | null | undefined): OsType | null {
+  if (!ua) return null;
+  const s = ua.toLowerCase();
+  if (s.includes("web0s") || s.includes("webos")) return "webos";
+  if (s.includes("tizen")) return "tizen";
+  if (s.includes("android")) return "android";
+  return null;
+}
+
+async function sendDevicePowerHttp(ip: string, osType: "webos" | "tizen", action: "reboot" | "shutdown") {
+  const endpoints = {
+    webos: `http://${ip}:3000/api/power/${action}`,
+    tizen: `http://${ip}:8001/api/v2/power/${action}`,
+  };
+  return fetch(endpoints[osType], {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action }),
+    mode: "no-cors",
+  });
+}
 
 function buildPlayerBase(port?: string): string {
   const { protocol, hostname, port: currentPort } = window.location;
