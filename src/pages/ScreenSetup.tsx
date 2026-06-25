@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { Monitor, Smartphone, Tv, Copy, CheckCheck, ExternalLink, Pencil, Check, X, Bot, Send, Loader2, CheckCircle, AlertTriangle, HelpCircle, Bug, Save, Power, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,9 +11,10 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useScreens } from "@/hooks/useScreens";
 import { useAppSettings } from "@/hooks/useAppSettings";
+import { useQueryClient } from "@tanstack/react-query";
 import ReactMarkdown from "react-markdown";
 
-type OsType = "webos" | "tizen" | "android" | "windows" | "macos" | "linux" | "ios";
+type OsType = "webos" | "tizen" | "android" | "windows" | "macos" | "linux" | "ios" | "chromeos";
 const OS_META: Record<OsType, { label: string; color: string }> = {
   webos: { label: "WebOS (LG)", color: "text-pink-500 border-pink-500/30" },
   tizen: { label: "Tizen (Samsung)", color: "text-blue-500 border-blue-500/30" },
@@ -22,10 +23,19 @@ const OS_META: Record<OsType, { label: string; color: string }> = {
   macos: { label: "macOS", color: "text-zinc-500 border-zinc-500/30" },
   linux: { label: "Linux", color: "text-amber-500 border-amber-500/30" },
   ios: { label: "iOS / iPadOS", color: "text-slate-500 border-slate-500/30" },
+  chromeos: { label: "ChromeOS", color: "text-cyan-500 border-cyan-500/30" },
 };
 
 // OS distants pilotables à distance (reboot/shutdown via HTTP)
 const REMOTE_POWER_OS = new Set<OsType>(["webos", "tizen"]);
+
+const KNOWN_OS_TYPES = new Set<OsType>(["webos", "tizen", "android", "windows", "macos", "linux", "ios", "chromeos"]);
+
+function normalizeStoredOs(value: string | null | undefined): OsType | null {
+  if (!value) return null;
+  const normalized = value.toLowerCase().trim().replace(/[^a-z0-9]/g, "") as OsType;
+  return KNOWN_OS_TYPES.has(normalized) ? normalized : null;
+}
 
 function detectOsFromUA(ua: string | null | undefined): OsType | null {
   if (!ua) return null;
@@ -38,20 +48,57 @@ function detectOsFromUA(ua: string | null | undefined): OsType | null {
     s.includes("netcast") ||
     s.includes("lge") ||
     /\blg[- ]/.test(s) ||
-    s.includes("colt/")
+    s.includes("colt/") ||
+    s.includes("lg netcast") ||
+    s.includes("nettv")
   ) return "webos";
-  if (s.includes("tizen") || (s.includes("samsung") && s.includes("tv"))) return "tizen";
-  if (s.includes("smarttv") || s.includes("smart-tv") || s.includes("googletv") || s.includes("appletv")) return "webos";
+  if (s.includes("tizen") || s.includes("samsungbrowser") || s.includes("samsung")) return "tizen";
+  if (s.includes("smarttv") || s.includes("smart-tv")) return "webos";
   // iOS / iPadOS (avant macOS car iPad récents se font passer pour Mac)
-  if (/iphone|ipad|ipod/.test(s) || (s.includes("macintosh") && (navigator?.maxTouchPoints ?? 0) > 1 && s.includes("mobile"))) return "ios";
+  const maxTouchPoints = typeof navigator !== "undefined" ? navigator.maxTouchPoints ?? 0 : 0;
+  if (/iphone|ipad|ipod/.test(s) || (s.includes("macintosh") && maxTouchPoints > 1 && s.includes("mobile"))) return "ios";
   // Android (téléphones/tablettes/TV box)
-  if (s.includes("android")) return "android";
+  if (s.includes("android") || s.includes("googletv") || s.includes("androidtv") || s.includes("firetv") || s.includes("fire tv") || s.includes("silk/")) return "android";
   // Desktop
   if (s.includes("windows nt") || s.includes("win64") || s.includes("win32") || s.includes("windows")) return "windows";
   if (s.includes("mac os x") || s.includes("macintosh") || s.includes("macos")) return "macos";
-  if (s.includes("cros") || s.includes("chrome os")) return "linux";
-  if (s.includes("ubuntu") || s.includes("fedora") || s.includes("debian") || s.includes("linux") || s.includes("x11")) return "linux";
+  if (s.includes("cros") || s.includes("chrome os")) return "chromeos";
+  if (s.includes("ubuntu") || s.includes("fedora") || s.includes("debian") || s.includes("raspbian") || s.includes("linux") || s.includes("x11")) return "linux";
   return null;
+}
+
+function detectBrowserFromUA(ua: string | null | undefined): string | null {
+  if (!ua) return null;
+  const checks: Array<[RegExp, string]> = [
+    [/EdgA?\/([\d.]+)/, "Edge"],
+    [/OPR\/([\d.]+)/, "Opera"],
+    [/SamsungBrowser\/([\d.]+)/, "Samsung Internet"],
+    [/Silk\/([\d.]+)/, "Silk"],
+    [/Firefox\/([\d.]+)/, "Firefox"],
+    [/CriOS\/([\d.]+)/, "Chrome iOS"],
+    [/Chrome\/([\d.]+)/, "Chrome"],
+    [/Chromium\/([\d.]+)/, "Chromium"],
+    [/Version\/([\d.]+).*Safari/, "Safari"],
+  ];
+  for (const [regex, name] of checks) {
+    const match = ua.match(regex);
+    if (match?.[1]) return `${name} ${match[1].split(".")[0]}`;
+  }
+  return null;
+}
+
+function getDetectedScreenInfo(screen: any) {
+  const detectedOs = detectOsFromUA(screen.player_user_agent);
+  const storedOs = normalizeStoredOs(screen.os_type);
+  const osType = detectedOs || storedOs;
+  const ipAddress = screen.player_lan_ip || screen.player_ip || screen.ip_address || null;
+  const ipKind = screen.player_lan_ip ? "LAN" : screen.player_ip ? "publique" : screen.ip_address ? "enregistrée" : null;
+  return {
+    osType,
+    browser: detectBrowserFromUA(screen.player_user_agent),
+    ipAddress,
+    ipKind,
+  };
 }
 
 
@@ -445,16 +492,38 @@ function CompatibilityTab() {
 
 function PowerManagementCard({ screens }: { screens: any[] }) {
   const [confirm, setConfirm] = useState<{ scope: "one" | "all"; screenId?: string; screenName?: string; action: "reboot" | "shutdown" } | null>(null);
+  const queryClient = useQueryClient();
 
   const enriched = useMemo(() => {
     return (screens || [])
-      .filter((s: any) => !s.wall_id)
       .map((s: any) => {
-        const detectedOs = detectOsFromUA(s.player_user_agent) as OsType | null;
-        const detectedIp = (s.player_lan_ip as string | null) || (s.player_ip as string | null) || null;
-        return { ...s, _osType: detectedOs, _ipAddress: detectedIp };
+        const detected = getDetectedScreenInfo(s);
+        return { ...s, _osType: detected.osType, _ipAddress: detected.ipAddress, _ipKind: detected.ipKind, _browser: detected.browser };
       });
   }, [screens]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`screen-setup-power-${Math.random().toString(36).slice(2)}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "screens" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["screens"] });
+      })
+      .subscribe();
+
+    const interval = window.setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ["screens"] });
+    }, 10_000);
+
+    return () => {
+      window.clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
+  const handleRefresh = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["screens"] });
+    toast.success("Données écrans actualisées");
+  };
 
   const handlePower = async (screenId: string, action: "reboot" | "shutdown") => {
     const s = enriched.find((x) => x.id === screenId);
@@ -497,10 +566,13 @@ function PowerManagementCard({ screens }: { screens: any[] }) {
               <Power className="h-4 w-4 text-primary" /> Gestion de l'alimentation
             </CardTitle>
             <CardDescription>
-              Redémarrez ou éteignez les écrans à distance. OS et IP locale détectés automatiquement depuis le player (WebOS, Tizen, Android).
+              Redémarrez ou éteignez les écrans à distance. OS, navigateur et IP sont détectés automatiquement depuis le player.
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={handleRefresh} title="Actualiser la détection">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
             <Button variant="outline" size="sm" className="gap-1.5 text-blue-500 border-blue-500/30 hover:bg-blue-500/10"
               onClick={() => setConfirm({ scope: "all", action: "reboot" })}>
               <RefreshCw className="h-4 w-4" /> Redémarrer tous
@@ -531,9 +603,15 @@ function PowerManagementCard({ screens }: { screens: any[] }) {
                   </Badge>
                 )}
                 {s._ipAddress ? (
-                  <span className="text-[10px] font-mono text-muted-foreground">IP : {s._ipAddress}</span>
+                  <span className="text-[10px] font-mono text-muted-foreground">IP {s._ipKind} : {s._ipAddress}</span>
                 ) : (
                   <span className="text-[10px] text-muted-foreground">IP non détectée</span>
+                )}
+                {s._browser && (
+                  <span className="text-[10px] text-muted-foreground">Navigateur : {s._browser}</span>
+                )}
+                {!s.player_user_agent && (
+                  <span className="text-[10px] text-muted-foreground">Ouvrez le lien player sur cet écran pour lancer la détection.</span>
                 )}
                 {s.pending_action && (
                   <Badge variant="outline" className="text-amber-500 border-amber-500/30 gap-1 text-[10px] animate-pulse">
