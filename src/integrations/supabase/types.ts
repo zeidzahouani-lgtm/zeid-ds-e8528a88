@@ -979,9 +979,12 @@ export type Database = {
           fallback_notified: boolean
           fallback_since: string | null
           id: string
+          ip_address: string | null
           layout_id: string | null
           name: string
           orientation: string
+          os_type: string | null
+          pending_action: string | null
           player_heartbeat_at: string | null
           player_ip: string | null
           player_lan_ip: string | null
@@ -1007,9 +1010,12 @@ export type Database = {
           fallback_notified?: boolean
           fallback_since?: string | null
           id?: string
+          ip_address?: string | null
           layout_id?: string | null
           name: string
           orientation?: string
+          os_type?: string | null
+          pending_action?: string | null
           player_heartbeat_at?: string | null
           player_ip?: string | null
           player_lan_ip?: string | null
@@ -1035,9 +1041,12 @@ export type Database = {
           fallback_notified?: boolean
           fallback_since?: string | null
           id?: string
+          ip_address?: string | null
           layout_id?: string | null
           name?: string
           orientation?: string
+          os_type?: string | null
+          pending_action?: string | null
           player_heartbeat_at?: string | null
           player_ip?: string | null
           player_lan_ip?: string | null
