@@ -1009,42 +1009,6 @@ export function ScreenManager() {
         screenName={quickPlaylistScreen?.name}
       />
 
-
-
-      {/* Power action confirmation */}
-      <AlertDialog open={!!powerConfirm} onOpenChange={(o) => !o && setPowerConfirm(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              {powerConfirm?.action === "reboot" ? <RefreshCw className="h-5 w-5 text-blue-500" /> : <Power className="h-5 w-5 text-red-500" />}
-              {powerConfirm?.action === "reboot" ? "Redémarrer" : "Éteindre"}
-              {powerConfirm?.scope === "all" ? " tous les écrans ?" : ` cet écran ?`}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {powerConfirm?.scope === "all"
-                ? `Cette action enverra la commande "${powerConfirm?.action}" à tous les écrans dont l'OS est configuré.`
-                : `Êtes-vous sûr de vouloir ${powerConfirm?.action === "reboot" ? "redémarrer" : "éteindre"} l'écran "${powerConfirm?.screenName}" ?`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={async () => {
-                if (!powerConfirm) return;
-                if (powerConfirm.scope === "all") {
-                  await handlePowerActionAll(powerConfirm.action);
-                } else if (powerConfirm.screenId) {
-                  await handlePowerAction(powerConfirm.screenId, powerConfirm.action);
-                }
-                setPowerConfirm(null);
-              }}
-              className={powerConfirm?.action === "shutdown" ? "bg-red-500 hover:bg-red-600" : ""}
-            >
-              Confirmer
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }
