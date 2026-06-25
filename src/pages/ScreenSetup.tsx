@@ -499,6 +499,9 @@ export default function ScreenSetup() {
         </CardContent>
       </Card>
 
+      <PowerManagementCard screens={screens || []} />
+
+
       <Tabs defaultValue="ai" className="w-full">
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="ai" className="gap-1.5"><Bot className="h-4 w-4" /> Assistant IA</TabsTrigger>
