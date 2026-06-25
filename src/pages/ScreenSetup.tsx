@@ -23,9 +23,19 @@ const OS_META: Record<OsType, { label: string; color: string }> = {
 function detectOsFromUA(ua: string | null | undefined): OsType | null {
   if (!ua) return null;
   const s = ua.toLowerCase();
-  if (s.includes("web0s") || s.includes("webos")) return "webos";
-  if (s.includes("tizen")) return "tizen";
+  if (
+    s.includes("web0s") ||
+    s.includes("webos") ||
+    s.includes("lgwebos") ||
+    s.includes("netcast") ||
+    s.includes("lge") ||
+    /\blg[- ]/.test(s) ||
+    s.includes("colt/")
+  ) return "webos";
+  if (s.includes("tizen") || s.includes("samsung")) return "tizen";
   if (s.includes("android")) return "android";
+  // Generic SmartTV → assume WebOS family by default (LG most common)
+  if (s.includes("smarttv") || s.includes("smart-tv")) return "webos";
   return null;
 }
 
