@@ -122,53 +122,6 @@ export function ScreenManager() {
   const [detailScreenId, setDetailScreenId] = useState<string | null>(null);
   const detailScreen = useMemo(() => screens.find((s: any) => s.id === detailScreenId) ?? null, [screens, detailScreenId]);
 
-  // Power management
-  const [powerConfirm, setPowerConfirm] = useState<{ scope: "one" | "all"; screenId?: string; screenName?: string; action: "reboot" | "shutdown" } | null>(null);
-
-  const handlePowerAction = async (screenId: string, action: "reboot" | "shutdown") => {
-    const screen = screens.find((s: any) => s.id === screenId);
-    if (!screen) return toast.error("Écran introuvable");
-    const osType = (screen as any).os_type as OsType | null;
-    const ip = (screen as any).ip_address as string | null;
-    if (!osType) return toast.error(`OS non défini pour "${screen.name}"`);
-    try {
-      switch (osType) {
-        case "webos":
-        case "tizen": {
-          if (!ip) {
-            toast.error(`Adresse IP manquante pour "${screen.name}"`);
-            return;
-          }
-          await sendDevicePowerHttp(ip, osType, action).catch(() => {});
-          toast.success(`Commande ${action === "reboot" ? "Redémarrage" : "Extinction"} envoyée à ${screen.name} (${OS_META[osType].label})`);
-          break;
-        }
-        case "android": {
-          const { error } = await supabase
-            .from("screens")
-            .update({ pending_action: action } as any)
-            .eq("id", screenId);
-          if (error) throw error;
-          toast.success(`Action "${action}" planifiée pour ${screen.name} (Android)`);
-          break;
-        }
-        default:
-          toast.error(`OS non supporté : ${osType}`);
-      }
-    } catch (e: any) {
-      toast.error(e?.message || "Erreur lors de l'envoi de la commande");
-    }
-  };
-
-  const handlePowerActionAll = async (action: "reboot" | "shutdown") => {
-    const targets = screens.filter((s: any) => !s.wall_id && s.os_type);
-    if (!targets.length) return toast.info("Aucun écran avec OS configuré");
-    let ok = 0, fail = 0;
-    await Promise.all(targets.map(async (s: any) => {
-      try { await handlePowerAction(s.id, action); ok++; } catch { fail++; }
-    }));
-    toast.success(`Commande envoyée à ${ok}/${targets.length} écran(s)${fail ? ` (${fail} échec)` : ""}`);
-  };
 
   // Bulk action helpers for an entire wall
   const wallScreensFor = (wallId: string) => screens.filter((s: any) => s.wall_id === wallId);
