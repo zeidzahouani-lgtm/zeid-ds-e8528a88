@@ -926,6 +926,67 @@ export default function Player() {
     };
   }, [screen?.id, previewMode]);
 
+  // Pending power action (reboot/shutdown) from "Config écrans"
+  useEffect(() => {
+    if (!screen?.id || previewMode) return;
+
+    const executeAction = async (action: string) => {
+      // Clear pending_action immediately to avoid loops
+      try {
+        await supabase.from("screens").update({ pending_action: null } as any).eq("id", screen.id);
+      } catch {}
+
+      if (action === "shutdown") {
+        // Display a black "Off" overlay (browsers can't power off the device)
+        try {
+          const off = document.createElement("div");
+          off.style.cssText = "position:fixed;inset:0;background:#000;z-index:2147483647;display:flex;align-items:center;justify-content:center;color:#222;font-family:system-ui,sans-serif;font-size:14px;";
+          off.textContent = "•";
+          document.body.appendChild(off);
+        } catch {}
+        // Try webOS / Tizen native power off where available
+        try { (window as any).webOS?.platformBack?.(); } catch {}
+        try { (window as any).tizen?.power?.turnScreenOff?.(); } catch {}
+      } else if (action === "reboot") {
+        try {
+          if ("caches" in window) {
+            await caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))));
+          }
+        } catch {}
+        try { (window as any).tizen?.application?.getCurrentApplication?.().exit?.(); } catch {}
+        try { (window as any).webOS?.service?.request?.("luna://com.webos.service.tvpower", { method: "power/turnOnScreen" }); } catch {}
+        setTimeout(() => {
+          const url = new URL(window.location.href);
+          url.searchParams.set("_r", Date.now().toString());
+          window.location.replace(url.toString());
+        }, 500);
+      }
+    };
+
+    // Execute immediately if already pending on mount
+    const initial = (screen as any).pending_action;
+    if (initial === "reboot" || initial === "shutdown") {
+      executeAction(initial);
+    }
+
+    const channel = supabase
+      .channel(`screen-pending-${screen.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "screens", filter: `id=eq.${screen.id}` },
+        (payload: any) => {
+          const action = payload?.new?.pending_action;
+          if (action === "reboot" || action === "shutdown") {
+            executeAction(action);
+          }
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [screen?.id, previewMode]);
+
   const requestFullscreen = useCallback(() => {
     if (previewMode) return; // No fullscreen in preview
     const el = containerRef.current;
