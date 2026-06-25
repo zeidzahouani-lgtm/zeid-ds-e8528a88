@@ -197,24 +197,6 @@ export function ScreenManager() {
         <h2 className="text-lg sm:text-xl font-semibold text-foreground">Gestion des Écrans</h2>
         <span className="text-sm text-muted-foreground">({screens.length})</span>
         <div className="ml-auto flex items-center gap-2 flex-wrap">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2 text-blue-500 border-blue-500/30 hover:bg-blue-500/10"
-            onClick={() => setPowerConfirm({ scope: "all", action: "reboot" })}
-            title="Redémarrer tous les écrans configurés"
-          >
-            <RefreshCw className="h-4 w-4" /> Redémarrer tous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2 text-red-500 border-red-500/30 hover:bg-red-500/10"
-            onClick={() => setPowerConfirm({ scope: "all", action: "shutdown" })}
-            title="Éteindre tous les écrans configurés"
-          >
-            <Power className="h-4 w-4" /> Éteindre tous
-          </Button>
           <Button variant="outline" size="icon" onClick={handleRefresh} title="Actualiser les écrans">
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
           </Button>
