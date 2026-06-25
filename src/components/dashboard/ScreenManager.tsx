@@ -41,6 +41,31 @@ const getOrientationPreview = (orientation: string): OrientationPreview =>
 
 import { isScreenReallyOnline } from "@/lib/screen-utils";
 
+type OsType = "webos" | "tizen" | "android";
+
+const OS_META: Record<OsType, { label: string; color: string }> = {
+  webos: { label: "WebOS (LG)", color: "text-pink-500 border-pink-500/30" },
+  tizen: { label: "Tizen (Samsung)", color: "text-blue-500 border-blue-500/30" },
+  android: { label: "Android", color: "text-green-500 border-green-500/30" },
+};
+
+async function sendDevicePowerHttp(ip: string, osType: OsType, action: "reboot" | "shutdown") {
+  // Squelette de requête réseau directe vers l'écran (à adapter selon l'API constructeur réelle)
+  // WebOS : SSAP via WebSocket (port 3000/3001) — ici un POST REST stub
+  // Tizen : API B2B (port 8001/8002) — ici un POST REST stub
+  const endpoints: Record<Exclude<OsType, "android">, string> = {
+    webos: `http://${ip}:3000/api/power/${action}`,
+    tizen: `http://${ip}:8001/api/v2/power/${action}`,
+  };
+  const url = endpoints[osType as "webos" | "tizen"];
+  return fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action }),
+    mode: "no-cors",
+  });
+}
+
 function parseUserAgent(ua: string | null): { device: string; icon: React.ReactNode } {
   if (!ua) return { device: "Inconnu", icon: <Monitor className="h-3 w-3" /> };
   const lower = ua.toLowerCase();
