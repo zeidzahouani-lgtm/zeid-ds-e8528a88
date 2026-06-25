@@ -540,6 +540,17 @@ export function ScreenManager() {
                           <CalendarClock className="h-3 w-3" /> {assignedProgram.name}
                         </Badge>
                       )}
+                      {(screen as any).os_type && (
+                        <Badge variant="outline" className={`gap-1 text-xs ${OS_META[(screen as any).os_type as OsType]?.color || ""}`}>
+                          <Tv className="h-3 w-3" /> {OS_META[(screen as any).os_type as OsType]?.label}
+                          {(screen as any).ip_address ? ` · ${(screen as any).ip_address}` : ""}
+                        </Badge>
+                      )}
+                      {(screen as any).pending_action && (
+                        <Badge variant="outline" className="text-amber-500 border-amber-500/30 gap-1 text-xs animate-pulse">
+                          ⏳ {(screen as any).pending_action}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </div>
