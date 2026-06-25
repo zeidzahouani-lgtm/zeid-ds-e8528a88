@@ -435,7 +435,7 @@ function PowerManagementCard({ screens }: { screens: any[] }) {
       .filter((s: any) => !s.wall_id)
       .map((s: any) => {
         const detectedOs = detectOsFromUA(s.player_user_agent) as OsType | null;
-        const detectedIp = (s.player_lan_ip as string | null) || null;
+        const detectedIp = (s.player_lan_ip as string | null) || (s.player_ip as string | null) || null;
         return { ...s, _osType: detectedOs, _ipAddress: detectedIp };
       });
   }, [screens]);
