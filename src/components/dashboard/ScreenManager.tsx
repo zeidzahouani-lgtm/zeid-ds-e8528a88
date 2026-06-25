@@ -736,6 +736,28 @@ export function ScreenManager() {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  {(screen as any).os_type && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        title={`Redémarrer (${OS_META[(screen as any).os_type as OsType]?.label})`}
+                        className="text-blue-500 border-blue-500/30 hover:bg-blue-500/10"
+                        onClick={() => setPowerConfirm({ scope: "one", screenId: screen.id, screenName: screen.name, action: "reboot" })}
+                      >
+                        <RefreshCw className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        title={`Éteindre (${OS_META[(screen as any).os_type as OsType]?.label})`}
+                        className="text-red-500 border-red-500/30 hover:bg-red-500/10"
+                        onClick={() => setPowerConfirm({ scope: "one", screenId: screen.id, screenName: screen.name, action: "shutdown" })}
+                      >
+                        <Power className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
                   <Button
                     variant="outline"
                     size="icon"
