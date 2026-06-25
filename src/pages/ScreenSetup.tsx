@@ -467,10 +467,11 @@ function PowerManagementCard({ screens }: { screens: any[] }) {
         if (!ip) return toast.error(`IP locale non détectée pour "${s.name}"`);
         await sendDevicePowerHttp(ip, osType, action).catch(() => {});
         toast.success(`Commande ${action === "reboot" ? "Redémarrage" : "Extinction"} envoyée à ${s.name} (${OS_META[osType].label})`);
-      } else if (osType === "android") {
+      } else {
+        // Android, Windows, macOS, Linux, iOS → action planifiée côté player (pending_action)
         const { error } = await supabase.from("screens").update({ pending_action: action } as any).eq("id", screenId);
         if (error) throw error;
-        toast.success(`Action "${action}" planifiée pour ${s.name} (Android)`);
+        toast.success(`Action "${action}" planifiée pour ${s.name} (${OS_META[osType].label})`);
       }
     } catch (e: any) {
       toast.error(e?.message || "Erreur lors de l'envoi");
