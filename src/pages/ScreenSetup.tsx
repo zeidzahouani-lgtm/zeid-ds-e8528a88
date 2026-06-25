@@ -492,16 +492,38 @@ function CompatibilityTab() {
 
 function PowerManagementCard({ screens }: { screens: any[] }) {
   const [confirm, setConfirm] = useState<{ scope: "one" | "all"; screenId?: string; screenName?: string; action: "reboot" | "shutdown" } | null>(null);
+  const queryClient = useQueryClient();
 
   const enriched = useMemo(() => {
     return (screens || [])
-      .filter((s: any) => !s.wall_id)
       .map((s: any) => {
-        const detectedOs = detectOsFromUA(s.player_user_agent) as OsType | null;
-        const detectedIp = (s.player_lan_ip as string | null) || (s.player_ip as string | null) || null;
-        return { ...s, _osType: detectedOs, _ipAddress: detectedIp };
+        const detected = getDetectedScreenInfo(s);
+        return { ...s, _osType: detected.osType, _ipAddress: detected.ipAddress, _ipKind: detected.ipKind, _browser: detected.browser };
       });
   }, [screens]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`screen-setup-power-${Math.random().toString(36).slice(2)}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "screens" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["screens"] });
+      })
+      .subscribe();
+
+    const interval = window.setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ["screens"] });
+    }, 10_000);
+
+    return () => {
+      window.clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
+  const handleRefresh = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["screens"] });
+    toast.success("Données écrans actualisées");
+  };
 
   const handlePower = async (screenId: string, action: "reboot" | "shutdown") => {
     const s = enriched.find((x) => x.id === screenId);
@@ -544,10 +566,13 @@ function PowerManagementCard({ screens }: { screens: any[] }) {
               <Power className="h-4 w-4 text-primary" /> Gestion de l'alimentation
             </CardTitle>
             <CardDescription>
-              Redémarrez ou éteignez les écrans à distance. OS et IP locale détectés automatiquement depuis le player (WebOS, Tizen, Android).
+              Redémarrez ou éteignez les écrans à distance. OS, navigateur et IP sont détectés automatiquement depuis le player.
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={handleRefresh} title="Actualiser la détection">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
             <Button variant="outline" size="sm" className="gap-1.5 text-blue-500 border-blue-500/30 hover:bg-blue-500/10"
               onClick={() => setConfirm({ scope: "all", action: "reboot" })}>
               <RefreshCw className="h-4 w-4" /> Redémarrer tous
@@ -578,9 +603,15 @@ function PowerManagementCard({ screens }: { screens: any[] }) {
                   </Badge>
                 )}
                 {s._ipAddress ? (
-                  <span className="text-[10px] font-mono text-muted-foreground">IP : {s._ipAddress}</span>
+                  <span className="text-[10px] font-mono text-muted-foreground">IP {s._ipKind} : {s._ipAddress}</span>
                 ) : (
                   <span className="text-[10px] text-muted-foreground">IP non détectée</span>
+                )}
+                {s._browser && (
+                  <span className="text-[10px] text-muted-foreground">Navigateur : {s._browser}</span>
+                )}
+                {!s.player_user_agent && (
+                  <span className="text-[10px] text-muted-foreground">Ouvrez le lien player sur cet écran pour lancer la détection.</span>
                 )}
                 {s.pending_action && (
                   <Badge variant="outline" className="text-amber-500 border-amber-500/30 gap-1 text-[10px] animate-pulse">
