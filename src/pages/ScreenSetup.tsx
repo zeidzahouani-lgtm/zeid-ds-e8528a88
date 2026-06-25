@@ -417,6 +417,154 @@ function CompatibilityTab() {
   );
 }
 
+function PowerManagementCard({ screens }: { screens: any[] }) {
+  const [confirm, setConfirm] = useState<{ scope: "one" | "all"; screenId?: string; screenName?: string; action: "reboot" | "shutdown" } | null>(null);
+
+  const enriched = useMemo(() => {
+    return (screens || [])
+      .filter((s: any) => !s.wall_id)
+      .map((s: any) => {
+        const detectedOs = detectOsFromUA(s.player_user_agent) as OsType | null;
+        const detectedIp = (s.player_lan_ip as string | null) || null;
+        return { ...s, _osType: detectedOs, _ipAddress: detectedIp };
+      });
+  }, [screens]);
+
+  const handlePower = async (screenId: string, action: "reboot" | "shutdown") => {
+    const s = enriched.find((x) => x.id === screenId);
+    if (!s) return toast.error("Écran introuvable");
+    const osType: OsType | null = s._osType;
+    const ip: string | null = s._ipAddress;
+    if (!osType) return toast.error(`OS non détecté pour "${s.name}". L'écran doit être en ligne pour la détection automatique.`);
+    try {
+      if (osType === "webos" || osType === "tizen") {
+        if (!ip) return toast.error(`IP locale non détectée pour "${s.name}"`);
+        await sendDevicePowerHttp(ip, osType, action).catch(() => {});
+        toast.success(`Commande ${action === "reboot" ? "Redémarrage" : "Extinction"} envoyée à ${s.name} (${OS_META[osType].label})`);
+      } else if (osType === "android") {
+        const { error } = await supabase.from("screens").update({ pending_action: action } as any).eq("id", screenId);
+        if (error) throw error;
+        toast.success(`Action "${action}" planifiée pour ${s.name} (Android)`);
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de l'envoi");
+    }
+  };
+
+  const handlePowerAll = async (action: "reboot" | "shutdown") => {
+    const targets = enriched.filter((s) => s._osType);
+    if (!targets.length) return toast.info("Aucun écran avec OS détecté");
+    let ok = 0, fail = 0;
+    await Promise.all(targets.map(async (s) => {
+      try { await handlePower(s.id, action); ok++; } catch { fail++; }
+    }));
+    toast.success(`Commande envoyée à ${ok}/${targets.length} écran(s)${fail ? ` (${fail} échec)` : ""}`);
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Power className="h-4 w-4 text-primary" /> Gestion de l'alimentation
+            </CardTitle>
+            <CardDescription>
+              Redémarrez ou éteignez les écrans à distance. OS et IP locale détectés automatiquement depuis le player (WebOS, Tizen, Android).
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="gap-1.5 text-blue-500 border-blue-500/30 hover:bg-blue-500/10"
+              onClick={() => setConfirm({ scope: "all", action: "reboot" })}>
+              <RefreshCw className="h-4 w-4" /> Redémarrer tous
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5 text-red-500 border-red-500/30 hover:bg-red-500/10"
+              onClick={() => setConfirm({ scope: "all", action: "shutdown" })}>
+              <Power className="h-4 w-4" /> Éteindre tous
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {enriched.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucun écran disponible.</p>
+        ) : enriched.map((s) => (
+          <div key={s.id} className="flex flex-wrap items-center gap-3 bg-muted/40 border rounded-lg px-4 py-3">
+            <Monitor className="h-4 w-4 text-primary shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium truncate">{s.name}</div>
+              <div className="flex flex-wrap items-center gap-2 mt-1">
+                {s._osType ? (
+                  <Badge variant="outline" className={`gap-1 text-[10px] ${OS_META[s._osType].color}`}>
+                    <Tv className="h-3 w-3" /> {OS_META[s._osType].label}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="gap-1 text-[10px] text-muted-foreground">
+                    OS non détecté
+                  </Badge>
+                )}
+                {s._ipAddress ? (
+                  <span className="text-[10px] font-mono text-muted-foreground">IP : {s._ipAddress}</span>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground">IP non détectée</span>
+                )}
+                {s.pending_action && (
+                  <Badge variant="outline" className="text-amber-500 border-amber-500/30 gap-1 text-[10px] animate-pulse">
+                    ⏳ {s.pending_action}
+                  </Badge>
+                )}
+              </div>
+            </div>
+            <Button variant="outline" size="icon" disabled={!s._osType}
+              title="Redémarrer"
+              className="text-blue-500 border-blue-500/30 hover:bg-blue-500/10"
+              onClick={() => setConfirm({ scope: "one", screenId: s.id, screenName: s.name, action: "reboot" })}>
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            <Button variant="outline" size="icon" disabled={!s._osType}
+              title="Éteindre"
+              className="text-red-500 border-red-500/30 hover:bg-red-500/10"
+              onClick={() => setConfirm({ scope: "one", screenId: s.id, screenName: s.name, action: "shutdown" })}>
+              <Power className="h-4 w-4" />
+            </Button>
+          </div>
+        ))}
+      </CardContent>
+
+      <AlertDialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              {confirm?.action === "reboot" ? <RefreshCw className="h-5 w-5 text-blue-500" /> : <Power className="h-5 w-5 text-red-500" />}
+              {confirm?.action === "reboot" ? "Redémarrer" : "Éteindre"}
+              {confirm?.scope === "all" ? " tous les écrans ?" : " cet écran ?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirm?.scope === "all"
+                ? `Cette action enverra la commande "${confirm?.action}" à tous les écrans dont l'OS a été détecté.`
+                : `Êtes-vous sûr de vouloir ${confirm?.action === "reboot" ? "redémarrer" : "éteindre"} l'écran "${confirm?.screenName}" ?`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!confirm) return;
+                if (confirm.scope === "all") await handlePowerAll(confirm.action);
+                else if (confirm.screenId) await handlePower(confirm.screenId, confirm.action);
+                setConfirm(null);
+              }}
+              className={confirm?.action === "shutdown" ? "bg-red-500 hover:bg-red-600" : ""}
+            >
+              Confirmer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Card>
+  );
+}
+
 export default function ScreenSetup() {
   const { screens, updateScreen } = useScreens();
   const { settings, updateSetting } = useAppSettings();
