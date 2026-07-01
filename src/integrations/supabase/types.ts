@@ -1228,6 +1228,16 @@ export type Database = {
         Args: { _a: string; _b: string }
         Returns: boolean
       }
+      validate_access_code_for_screen: {
+        Args: { _code: string; _screen_id: string }
+        Returns: {
+          code: string
+          id: string
+          is_active: boolean
+          user_id: string
+          user_name: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "user" | "marketing"
