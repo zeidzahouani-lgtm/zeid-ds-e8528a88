@@ -41,17 +41,17 @@ export default function UploadPage() {
     if (!code.trim()) return;
     setChecking(true);
     try {
-      const { data, error } = await (supabase.from("access_codes") as any)
-        .select("*")
-        .eq("code", code.trim().toUpperCase())
-        .eq("is_active", true)
-        .single();
-      if (error || !data) {
-        toast.error("Code d'accès invalide ou désactivé");
+      const { data, error } = await (supabase.rpc as any)("validate_access_code_for_screen", {
+        _code: code.trim().toUpperCase(),
+        _screen_id: screenId,
+      });
+      const row = Array.isArray(data) ? data[0] : null;
+      if (error || !row) {
+        toast.error("Code invalide, désactivé ou non autorisé sur cet écran");
       } else {
-        setUserName(data.user_name);
+        setUserName(row.user_name);
         setStep("upload");
-        toast.success(`Bienvenue ${data.user_name} !`);
+        toast.success(`Bienvenue ${row.user_name} !`);
       }
     } catch {
       toast.error("Erreur de vérification");
