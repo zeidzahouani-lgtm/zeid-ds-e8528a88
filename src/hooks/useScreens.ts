@@ -66,13 +66,20 @@ export function useScreens() {
       }
 
       const slug = name.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-");
-      const { error } = await supabase.from("screens").insert({
+      const { data, error } = await supabase.from("screens").insert({
         name,
         slug,
         user_id: user.id,
         establishment_id: currentEstablishmentId,
-      } as any);
+      } as any).select("id").single();
       if (error) throw error;
+      logActivity({
+        action: "screen.create",
+        entity_type: "screen",
+        entity_id: (data as any)?.id,
+        establishment_id: currentEstablishmentId,
+        description: `Écran créé : ${name}`,
+      });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["screens"] }),
   });
@@ -81,6 +88,18 @@ export function useScreens() {
     mutationFn: async ({ id, ...updates }: { id: string; name?: string; slug?: string; orientation?: string; current_media_id?: string | null; status?: string; layout_id?: string | null; debug_mode?: number; resolution?: string; show_name?: boolean; os_type?: string | null; ip_address?: string | null; pending_action?: string | null }) => {
       const { error } = await supabase.from("screens").update(updates as any).eq("id", id);
       if (error) throw error;
+      // Ne logger que les modifications significatives (pas les heartbeats/status)
+      const meaningful = { ...updates } as Record<string, any>;
+      delete meaningful.status;
+      if (Object.keys(meaningful).length > 0) {
+        logActivity({
+          action: "screen.update",
+          entity_type: "screen",
+          entity_id: id,
+          description: `Écran modifié : ${Object.keys(meaningful).join(", ")}`,
+          metadata: meaningful,
+        });
+      }
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["screens"] }),
   });
@@ -89,6 +108,12 @@ export function useScreens() {
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("screens").delete().eq("id", id);
       if (error) throw error;
+      logActivity({
+        action: "screen.delete",
+        entity_type: "screen",
+        entity_id: id,
+        description: "Écran supprimé",
+      });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["screens"] }),
   });
