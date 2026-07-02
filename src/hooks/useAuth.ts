@@ -39,9 +39,11 @@ export function useAuth() {
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
+    logActivity({ action: "auth.sign_in", description: `Connexion de ${email}` });
   };
 
   const signOut = async () => {
+    logActivity({ action: "auth.sign_out", description: "Déconnexion" });
     await supabase.auth.signOut();
   };
 
