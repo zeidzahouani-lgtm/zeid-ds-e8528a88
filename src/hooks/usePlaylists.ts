@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
+import { logActivity } from "@/lib/activity-log";
 
 export interface Playlist {
   id: string;
