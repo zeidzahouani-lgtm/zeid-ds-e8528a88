@@ -111,6 +111,7 @@ const App = () => (
                 <Route path="/setup" element={<ScreenSetup />} />
                 <Route path="/ai-assistant" element={<AIAssistant />} />
                 <Route path="/auto-flow" element={<AutoFlow />} />
+                <Route path="/admin/logs" element={<AdminLogs />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
