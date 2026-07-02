@@ -48,6 +48,13 @@ export function useContents() {
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const { error } = await (supabase.from("contents") as any).update({ status }).eq("id", id);
       if (error) throw error;
+      logActivity({
+        action: "content.update",
+        entity_type: "content",
+        entity_id: id,
+        description: `Statut du contenu → ${status}`,
+        metadata: { status },
+      });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["contents"] }),
   });
@@ -56,6 +63,12 @@ export function useContents() {
     mutationFn: async (id: string) => {
       const { error } = await (supabase.from("contents") as any).delete().eq("id", id);
       if (error) throw error;
+      logActivity({
+        action: "content.delete",
+        entity_type: "content",
+        entity_id: id,
+        description: "Contenu supprimé",
+      });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["contents"] }),
   });
