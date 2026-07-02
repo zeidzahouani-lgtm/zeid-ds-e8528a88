@@ -1,4 +1,4 @@
-import { Tv, Image, ListMusic, Clock, LayoutDashboard, LogOut, User, LayoutGrid, Users, Building2, Settings, Palette, Key, Sparkles, Mail, AtSign, ClipboardList, BookOpen, BarChart3, DatabaseBackup, Activity, ShieldCheck } from "lucide-react";
+import { Tv, Image, ListMusic, Clock, LayoutDashboard, LogOut, User, LayoutGrid, Users, Building2, Settings, Palette, Key, Sparkles, Mail, AtSign, ClipboardList, BookOpen, BarChart3, DatabaseBackup, Activity, ShieldCheck, ScrollText } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -53,6 +53,7 @@ const globalAdminItems = [
   { title: "Demandes", url: "/admin/requests", icon: ClipboardList },
   { title: "Backup & Docker", url: "/admin/backup", icon: DatabaseBackup },
   { title: "État Serveur", url: "/admin/server-status", icon: Activity },
+  { title: "Journal d'activité", url: "/admin/logs", icon: ScrollText },
   { title: "Première connexion admin", url: "/admin/first-login", icon: ShieldCheck },
 ];
 

@@ -44,6 +44,7 @@ const Team = lazy(() => import("./pages/Team"));
 const AdminBackup = lazy(() => import("./pages/AdminBackup"));
 const AdminServerStatus = lazy(() => import("./pages/AdminServerStatus"));
 const FirstAdminLogin = lazy(() => import("./pages/FirstAdminLogin"));
+const AdminLogs = lazy(() => import("./pages/AdminLogs"));
 
 const queryClient = new QueryClient();
 
@@ -110,6 +111,7 @@ const App = () => (
                 <Route path="/setup" element={<ScreenSetup />} />
                 <Route path="/ai-assistant" element={<AIAssistant />} />
                 <Route path="/auto-flow" element={<AutoFlow />} />
+                <Route path="/admin/logs" element={<AdminLogs />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
