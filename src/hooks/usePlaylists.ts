@@ -41,6 +41,13 @@ export function usePlaylists() {
         establishment_id: currentEstablishmentId || null,
       }).select().single();
       if (error) throw error;
+      logActivity({
+        action: "playlist.create",
+        entity_type: "playlist",
+        entity_id: (data as any)?.id,
+        establishment_id: currentEstablishmentId,
+        description: `Playlist créée : ${name}`,
+      });
       return data;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["playlists"] }),
@@ -50,6 +57,12 @@ export function usePlaylists() {
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("playlists").delete().eq("id", id);
       if (error) throw error;
+      logActivity({
+        action: "playlist.delete",
+        entity_type: "playlist",
+        entity_id: id,
+        description: "Playlist supprimée",
+      });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["playlists"] }),
   });
