@@ -226,7 +226,22 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
         }
         return;
       }
-      if (screenData?.current_media_id) return;
+      // Case 4: No playlist, no active schedule — display current_media_id if set.
+      // Always ensure the DOM media matches the DB value (guards against stale state
+      // after a UPDATE realtime event was missed or fired before the media fetch).
+      if (screenData?.current_media_id) {
+        setMedia((prev) => {
+          if (prev && prev.id === screenData.current_media_id) return prev;
+          supabase
+            .from("media")
+            .select("*")
+            .eq("id", screenData.current_media_id!)
+            .maybeSingle()
+            .then(({ data }) => { if (data) setMedia(data as MediaData); });
+          return prev;
+        });
+        return;
+      }
       setMedia(null);
     },
     [previewOnly]
