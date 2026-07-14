@@ -778,16 +778,26 @@ export default function UploadPage() {
                     </div>
                     <div className="space-y-2">
                       <Label className="flex items-center gap-1.5 text-sm">
-                        <Maximize2 className="h-3.5 w-3.5" /> Affichage cellule
+                        <Maximize2 className="h-3.5 w-3.5" /> Appliquer à toutes
                       </Label>
-                      <Select value={gridFit} onValueChange={(v) => setGridFit(v as FitMode)}>
+                      <Select
+                        value={gridFit}
+                        onValueChange={(v) => {
+                          const nv = v as FitMode;
+                          setGridFit(nv);
+                          setSlots(prev => prev.map(s => (s.file ? { ...s, fit: nv } : s)));
+                        }}
+                      >
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="cover">Remplir</SelectItem>
-                          <SelectItem value="contain">Contenir</SelectItem>
-                          <SelectItem value="fill">Étirer</SelectItem>
+                          <SelectItem value="cover">Remplir (cover)</SelectItem>
+                          <SelectItem value="contain">Contenir (contain)</SelectItem>
+                          <SelectItem value="fill">Étirer (fill)</SelectItem>
                         </SelectContent>
                       </Select>
+                      <p className="text-[10px] text-muted-foreground leading-tight">
+                        Par défaut : images → Remplir, vidéos → Contenir. Cliquez sur le badge de chaque cellule pour l'ajuster.
+                      </p>
                     </div>
                   </div>
 
