@@ -602,7 +602,11 @@ export default function DiagnosticOverlay(props: DiagnosticProps) {
               </span>
             );
           })}
-        </div>
+      </div>
+
+      {/* Legacy WebView compatibility */}
+      <LegacyCompatSection />
+
       </div>
 
       {/* Error Logs */}
