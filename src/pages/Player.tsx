@@ -833,13 +833,25 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Cont
             const item = current.items.find(it => ((it.metadata as any)?.cell ?? -1) === i);
             if (!item) return <div key={i} style={{ backgroundColor: "#000" }} />;
             const m = (item.metadata as any) || {};
-            const fitCell: "cover" | "contain" | "fill" = m.fit === "contain" || m.fit === "fill" ? m.fit : "cover";
             const isVid = m.type === "video";
+            // Default fit rule: images cover (fill the tile), videos contain (no crop)
+            const fitCell: "cover" | "contain" | "fill" =
+              m.fit === "cover" || m.fit === "contain" || m.fit === "fill"
+                ? m.fit
+                : (isVid ? "contain" : "cover");
             const style: React.CSSProperties = { width: "100%", height: "100%", objectFit: fitCell, objectPosition: "center center", display: "block", backgroundColor: "#000" };
             return (
               <div key={i} style={{ position: "relative", overflow: "hidden", backgroundColor: "#000" }}>
                 {isVid ? (
-                  <video src={item.image_url} style={style} autoPlay muted playsInline loop />
+                  <video
+                    src={item.image_url}
+                    style={style}
+                    autoPlay={m.autoplay !== false}
+                    muted={m.muted !== false}
+                    loop={m.loop !== false}
+                    playsInline
+                    controls={false}
+                  />
                 ) : (
                   <img src={item.image_url} alt={item.title || ""} style={style} />
                 )}

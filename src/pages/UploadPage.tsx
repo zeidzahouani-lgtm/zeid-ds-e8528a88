@@ -88,9 +88,18 @@ export default function UploadPage() {
     return { rows: r, cols: c };
   }, [gridPreset]);
   const gridCount = gridDims.rows * gridDims.cols;
-  type Slot = { file: File | null; preview: string | null };
+  type Slot = {
+    file: File | null;
+    preview: string | null;
+    // per-cell rendering + playback overrides
+    fit?: FitMode;      // image/video adaptation
+    muted?: boolean;    // video only
+    loop?: boolean;     // video only
+    autoplay?: boolean; // video only (default true)
+  };
+  const defaultFitFor = (isVid: boolean): FitMode => (isVid ? "contain" : "cover");
   const [slots, setSlots] = useState<Slot[]>(() => Array.from({ length: 4 }, () => ({ file: null, preview: null })));
-  const [gridFit, setGridFit] = useState<FitMode>("cover");
+  const [gridFit, setGridFit] = useState<FitMode>("cover"); // fallback global (nouveaux fichiers)
   const gridInputRef = useRef<HTMLInputElement>(null);
 
   // Ajuster le nombre de slots quand la grille change
@@ -116,7 +125,14 @@ export default function UploadPage() {
         const isImage = f.type.startsWith("image/");
         const isVideo = f.type.startsWith("video/");
         if (!isImage && !isVideo) continue;
-        next[idx] = { file: f, preview: URL.createObjectURL(f) };
+        next[idx] = {
+          file: f,
+          preview: URL.createObjectURL(f),
+          fit: defaultFitFor(isVideo),
+          muted: true,
+          loop: true,
+          autoplay: true,
+        };
         idx++;
       }
       return next;
@@ -125,6 +141,10 @@ export default function UploadPage() {
 
   const clearSlot = (i: number) => {
     setSlots(prev => prev.map((s, k) => (k === i ? { file: null, preview: null } : s)));
+  };
+
+  const updateSlot = (i: number, patch: Partial<Slot>) => {
+    setSlots(prev => prev.map((s, k) => (k === i ? { ...s, ...patch } : s)));
   };
 
   const swapSlots = (a: number, b: number) => {
@@ -344,10 +364,15 @@ export default function UploadPage() {
           metadata: {
             orientation,
             type: isVid ? "video" : "image",
-            fit: gridFit,
+            fit: s.fit || defaultFitFor(isVid),
             batch_id,
             grid: { rows: gridDims.rows, cols: gridDims.cols },
             cell: s.idx,
+            ...(isVid ? {
+              muted: s.muted !== false,
+              loop: s.loop !== false,
+              autoplay: s.autoplay !== false,
+            } : {}),
           },
         });
         if (contentError) throw contentError;
@@ -640,6 +665,13 @@ export default function UploadPage() {
                         const s = slots[i];
                         const filled = !!s?.file;
                         const isVid = s?.file?.type.startsWith("video/");
+                        const cellFit = s?.fit || defaultFitFor(!!isVid);
+                        const cycleFit = () => {
+                          const order: FitMode[] = ["cover", "contain", "fill"];
+                          const next = order[(order.indexOf(cellFit) + 1) % order.length];
+                          updateSlot(i, { fit: next });
+                        };
+                        const fitLabel = cellFit === "cover" ? "Remplir" : cellFit === "contain" ? "Contenir" : "Étirer";
                         return (
                           <div
                             key={i}
@@ -648,11 +680,22 @@ export default function UploadPage() {
                             {filled ? (
                               <>
                                 {isVid ? (
-                                  <video src={s.preview!} className="w-full h-full object-cover" style={{ objectFit: gridFit as any }} muted playsInline autoPlay loop />
+                                  <video
+                                    src={s.preview!}
+                                    className="w-full h-full"
+                                    style={{ objectFit: cellFit as any }}
+                                    muted={s.muted !== false}
+                                    playsInline
+                                    autoPlay={s.autoplay !== false}
+                                    loop={s.loop !== false}
+                                  />
                                 ) : (
-                                  <img src={s.preview!} alt="" className="w-full h-full" style={{ objectFit: gridFit as any }} />
+                                  <img src={s.preview!} alt="" className="w-full h-full" style={{ objectFit: cellFit as any }} />
                                 )}
-                                <div className="absolute top-1 left-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-black/60 text-white">{i + 1}</div>
+                                <div className="absolute top-1 left-1 flex items-center gap-1">
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-black/60 text-white">{i + 1}</span>
+                                  <span className="text-[9px] px-1 py-0.5 rounded bg-primary/80 text-primary-foreground uppercase">{isVid ? "vidéo" : "image"}</span>
+                                </div>
                                 <button
                                   onClick={() => clearSlot(i)}
                                   className="absolute top-1 right-1 h-5 w-5 rounded bg-black/70 text-white flex items-center justify-center hover:bg-red-600"
@@ -660,6 +703,33 @@ export default function UploadPage() {
                                 >
                                   <X className="h-3 w-3" />
                                 </button>
+                                {/* Per-cell fit toggle */}
+                                <button
+                                  onClick={cycleFit}
+                                  title="Adaptation de la cellule (Remplir / Contenir / Étirer)"
+                                  className="absolute top-7 right-1 h-5 px-1.5 rounded bg-black/70 text-white text-[9px] hover:bg-primary"
+                                >
+                                  {fitLabel}
+                                </button>
+                                {/* Per-cell video toggles */}
+                                {isVid && (
+                                  <div className="absolute top-[52px] right-1 flex flex-col gap-1">
+                                    <button
+                                      onClick={() => updateSlot(i, { muted: !(s.muted !== false) })}
+                                      title="Son de la vidéo"
+                                      className={`h-5 px-1.5 rounded text-[9px] ${s.muted !== false ? "bg-black/70 text-white" : "bg-primary text-primary-foreground"}`}
+                                    >
+                                      {s.muted !== false ? "🔇" : "🔊"}
+                                    </button>
+                                    <button
+                                      onClick={() => updateSlot(i, { loop: !(s.loop !== false) })}
+                                      title="Lecture en boucle"
+                                      className={`h-5 px-1.5 rounded text-[9px] ${s.loop !== false ? "bg-primary text-primary-foreground" : "bg-black/70 text-white"}`}
+                                    >
+                                      ↻
+                                    </button>
+                                  </div>
+                                )}
                                 {i > 0 && (
                                   <button
                                     onClick={() => swapSlots(i, i - 1)}
@@ -708,16 +778,26 @@ export default function UploadPage() {
                     </div>
                     <div className="space-y-2">
                       <Label className="flex items-center gap-1.5 text-sm">
-                        <Maximize2 className="h-3.5 w-3.5" /> Affichage cellule
+                        <Maximize2 className="h-3.5 w-3.5" /> Appliquer à toutes
                       </Label>
-                      <Select value={gridFit} onValueChange={(v) => setGridFit(v as FitMode)}>
+                      <Select
+                        value={gridFit}
+                        onValueChange={(v) => {
+                          const nv = v as FitMode;
+                          setGridFit(nv);
+                          setSlots(prev => prev.map(s => (s.file ? { ...s, fit: nv } : s)));
+                        }}
+                      >
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="cover">Remplir</SelectItem>
-                          <SelectItem value="contain">Contenir</SelectItem>
-                          <SelectItem value="fill">Étirer</SelectItem>
+                          <SelectItem value="cover">Remplir (cover)</SelectItem>
+                          <SelectItem value="contain">Contenir (contain)</SelectItem>
+                          <SelectItem value="fill">Étirer (fill)</SelectItem>
                         </SelectContent>
                       </Select>
+                      <p className="text-[10px] text-muted-foreground leading-tight">
+                        Par défaut : images → Remplir, vidéos → Contenir. Cliquez sur le badge de chaque cellule pour l'ajuster.
+                      </p>
                     </div>
                   </div>
 
