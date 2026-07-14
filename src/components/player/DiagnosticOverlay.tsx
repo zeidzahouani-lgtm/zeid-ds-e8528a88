@@ -1,4 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import {
+  getLegacyCompatOverride,
+  setLegacyCompatOverride,
+  type LegacyCompatOverride,
+  type LegacyWebViewReport,
+} from "@/lib/legacy-webview";
 
 interface DiagnosticProps {
   screenId: string | undefined;
