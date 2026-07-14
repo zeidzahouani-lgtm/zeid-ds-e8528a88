@@ -797,6 +797,51 @@ export type Database = {
           },
         ]
       }
+      player_metrics: {
+        Row: {
+          created_at: string
+          establishment_id: string | null
+          id: string
+          load_ms: number | null
+          screen_id: string | null
+          screen_key: string | null
+          ttfp_ms: number | null
+        }
+        Insert: {
+          created_at?: string
+          establishment_id?: string | null
+          id?: string
+          load_ms?: number | null
+          screen_id?: string | null
+          screen_key?: string | null
+          ttfp_ms?: number | null
+        }
+        Update: {
+          created_at?: string
+          establishment_id?: string | null
+          id?: string
+          load_ms?: number | null
+          screen_id?: string | null
+          screen_key?: string | null
+          ttfp_ms?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_metrics_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_metrics_screen_id_fkey"
+            columns: ["screen_id"]
+            isOneToOne: false
+            referencedRelation: "screens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       playlist_items: {
         Row: {
           created_at: string
@@ -1362,6 +1407,11 @@ export type Database = {
         }
         Returns: string
       }
+      log_player_metric: {
+        Args: { _load_ms: number; _screen_key: string; _ttfp_ms?: number }
+        Returns: undefined
+      }
+      player_health_snapshot: { Args: never; Returns: Json }
       resolve_player_screen: {
         Args: { _screen_key: string }
         Returns: {
