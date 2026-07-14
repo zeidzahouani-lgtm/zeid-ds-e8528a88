@@ -8,14 +8,17 @@ export function useMedia() {
   const { currentEstablishmentId, isGlobalAdmin } = useEstablishmentContext();
 
   const { data: media = [], isLoading } = useQuery({
-    queryKey: ["media", currentEstablishmentId],
+    queryKey: ["media", currentEstablishmentId, isGlobalAdmin],
     queryFn: async () => {
       let query = supabase.from("media").select("*").order("created_at", { ascending: false });
-      if (currentEstablishmentId) {
-        query = query.eq("establishment_id", currentEstablishmentId);
-      } else if (!isGlobalAdmin) {
-        // Non-admin without establishment sees nothing
-        return [];
+      // Global admin sees all media regardless of the selected establishment
+      if (!isGlobalAdmin) {
+        if (currentEstablishmentId) {
+          query = query.eq("establishment_id", currentEstablishmentId);
+        } else {
+          // Non-admin without establishment sees nothing
+          return [];
+        }
       }
       const { data, error } = await query;
       if (error) throw error;
