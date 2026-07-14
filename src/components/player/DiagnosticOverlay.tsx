@@ -486,6 +486,7 @@ function LegacyCompatSection({ getReport }: LegacyCompatSectionProps) {
   const [override, setOverride] = useState<LegacyCompatOverride>(getLegacyCompatOverride());
   const [report, setReport] = useState<LegacyWebViewReport | null>(initial);
   const [copyState, setCopyState] = useState<"idle" | "ok" | "err">("idle");
+  const [sendState, setSendState] = useState<"idle" | "sending" | "ok" | "err">("idle");
   const cssTests = runCssTests();
   const failedCss = cssTests.filter((t) => !t.supported);
 
@@ -499,6 +500,53 @@ function LegacyCompatSection({ getReport }: LegacyCompatSectionProps) {
     const ok = await copyToClipboard(getReport());
     setCopyState(ok ? "ok" : "err");
     setTimeout(() => setCopyState("idle"), 2500);
+  };
+
+  const handleSend = async () => {
+    const reportText = getReport();
+    // Ensure the report is also copied so the user can paste it if the mail client truncates
+    try { await copyToClipboard(reportText); } catch { /* ignore */ }
+
+    // Configurable ingestion endpoint (localStorage override > env var)
+    const endpoint =
+      (typeof window !== "undefined" && window.localStorage?.getItem("sf.supportEndpoint")) ||
+      (import.meta as any).env?.VITE_SUPPORT_ENDPOINT ||
+      "";
+    const supportEmail =
+      (typeof window !== "undefined" && window.localStorage?.getItem("sf.supportEmail")) ||
+      (import.meta as any).env?.VITE_SUPPORT_EMAIL ||
+      "support@screenflow-ds.com";
+    const subject = `[ScreenFlow] Rapport diagnostic — ${new Date().toISOString()}`;
+
+    if (endpoint) {
+      setSendState("sending");
+      try {
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            subject,
+            report: reportText,
+            userAgent: navigator.userAgent,
+            url: window.location.href,
+            timestamp: new Date().toISOString(),
+          }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        setSendState("ok");
+      } catch {
+        setSendState("err");
+        // Fallback to mailto on failure
+        openMailto(supportEmail, subject, reportText);
+      }
+      setTimeout(() => setSendState("idle"), 3000);
+      return;
+    }
+
+    // No endpoint configured → mailto with pre-filled body (truncated to ~1800 chars to fit URL limits)
+    openMailto(supportEmail, subject, reportText);
+    setSendState("ok");
+    setTimeout(() => setSendState("idle"), 2500);
   };
 
   const active = !!report?.isLegacy;
