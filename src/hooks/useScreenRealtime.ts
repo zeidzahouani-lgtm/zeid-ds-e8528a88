@@ -618,7 +618,7 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
         .eq("id", realId)
         .maybeSingle();
 
-      const nextScreen = data as ScreenData | null;
+      const nextScreen = data as unknown as ScreenData | null;
       if (!nextScreen) return;
 
       const previousScreen = screenRef.current;

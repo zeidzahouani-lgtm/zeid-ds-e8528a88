@@ -123,72 +123,31 @@ export function useLicenses() {
 
 // Validate a license key for a specific screen (used by Player)
 export async function validateLicense(screenId: string): Promise<{ valid: boolean; message?: string }> {
-  const { data, error } = await supabase
-    .from("licenses")
-    .select("*")
-    .eq("screen_id", screenId)
-    .eq("is_active", true);
+  const { data, error } = await (supabase as any).rpc("validate_license_for_screen", {
+    _screen_id: screenId,
+  });
 
   if (error) return { valid: false, message: "Erreur de validation" };
 
-  const licenses = (data || []) as unknown as License[];
-  if (licenses.length === 0) return { valid: false, message: "Aucune licence associée à cet écran" };
-
-  const now = new Date();
-  const validLicense = licenses.find(
-    (l) => new Date(l.valid_from) <= now && new Date(l.valid_until) >= now
-  );
-
-  if (!validLicense) return { valid: false, message: "Licence expirée" };
-
-  return { valid: true };
+  const result = Array.isArray(data) ? data[0] : data;
+  return {
+    valid: !!result?.valid,
+    message: result?.message ?? undefined,
+  };
 }
 
 // Activate a license by key for a specific screen (used by Player manual entry)
 export async function activateLicenseByKey(licenseKey: string, screenId: string): Promise<{ valid: boolean; message?: string }> {
-  // Find the license by key
-  const { data, error } = await supabase
-    .from("licenses")
-    .select("*")
-    .eq("license_key", licenseKey.trim().toUpperCase())
-    .eq("is_active", true)
-    .single();
+  const { data, error } = await (supabase as any).rpc("activate_license_by_key", {
+    _license_key: licenseKey,
+    _screen_id: screenId,
+  });
 
-  if (error || !data) return { valid: false, message: "Clé de licence introuvable ou désactivée" };
+  if (error) return { valid: false, message: "Erreur lors de l'activation" };
 
-  const license = data as unknown as License;
-
-  // Check expiry
-  const now = new Date();
-  if (new Date(license.valid_until) < now) return { valid: false, message: "Cette licence est expirée" };
-
-  // Check if already assigned to another screen
-  if (license.screen_id && license.screen_id !== screenId) {
-    return { valid: false, message: "Cette licence est déjà assignée à un autre écran" };
-  }
-
-  // Check establishment match: license's establishment must match screen's establishment
-  if (license.establishment_id) {
-    const { data: screenData } = await supabase
-      .from("screens")
-      .select("establishment_id")
-      .eq("id", screenId)
-      .single();
-
-    if (screenData && screenData.establishment_id !== license.establishment_id) {
-      return { valid: false, message: "Cette licence appartient à un autre établissement" };
-    }
-  }
-
-  // Assign to this screen if not yet assigned
-  if (!license.screen_id) {
-    const { error: updateError } = await supabase
-      .from("licenses")
-      .update({ screen_id: screenId, activated_at: new Date().toISOString() } as any)
-      .eq("id", license.id);
-
-    if (updateError) return { valid: false, message: "Erreur lors de l'activation" };
-  }
-
-  return { valid: true };
+  const result = Array.isArray(data) ? data[0] : data;
+  return {
+    valid: !!result?.valid,
+    message: result?.message ?? undefined,
+  };
 }
