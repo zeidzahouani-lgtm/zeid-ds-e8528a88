@@ -9,7 +9,7 @@ import { Monitor, Key, CheckCircle, Loader2, ArrowLeft, ShieldCheck, AlertTriang
 
 interface AvailableLicense {
   id: string;
-  license_key: string;
+  license_key_masked: string;
   valid_until: string;
   establishment_id: string | null;
   source: string;
@@ -30,7 +30,6 @@ export default function AssignLicense() {
     async function load() {
       setLoading(true);
 
-      // Fetch screen info
       const { data: screenData, error: screenError } = await supabase
         .from("screens")
         .select("id, name, establishment_id")
@@ -45,21 +44,15 @@ export default function AssignLicense() {
 
       setScreen(screenData);
 
-      // Fetch available licenses for this establishment (unassigned + active + not expired)
-      let query = supabase
-        .from("licenses")
-        .select("id, license_key, valid_until, establishment_id, source")
-        .is("screen_id", null)
-        .eq("is_active", true)
-        .gte("valid_until", new Date().toISOString())
-        .order("created_at", { ascending: false });
-
-      if (screenData.establishment_id) {
-        query = query.eq("establishment_id", screenData.establishment_id);
+      // Use RPC — anon has no direct read on licenses
+      const { data: licensesData, error: rpcError } = await (supabase as any).rpc(
+        "list_available_licenses_for_screen",
+        { _screen_id: screenId }
+      );
+      if (rpcError) {
+        toast.error("Impossible de charger les licences");
       }
-
-      const { data: licensesData } = await query;
-      setLicenses((licensesData || []) as unknown as AvailableLicense[]);
+      setLicenses((licensesData || []) as AvailableLicense[]);
       setLoading(false);
     }
 
@@ -70,12 +63,12 @@ export default function AssignLicense() {
     if (!screenId) return;
     setAssigning(license.id);
 
-    const { error } = await supabase
-      .from("licenses")
-      .update({ screen_id: screenId, activated_at: new Date().toISOString() } as any)
-      .eq("id", license.id);
+    const { data, error } = await (supabase as any).rpc("claim_license_for_screen", {
+      _license_id: license.id,
+      _screen_id: screenId,
+    });
 
-    if (error) {
+    if (error || data !== true) {
       toast.error("Erreur lors de l'assignation");
       setAssigning(null);
       return;
