@@ -88,9 +88,18 @@ export default function UploadPage() {
     return { rows: r, cols: c };
   }, [gridPreset]);
   const gridCount = gridDims.rows * gridDims.cols;
-  type Slot = { file: File | null; preview: string | null };
+  type Slot = {
+    file: File | null;
+    preview: string | null;
+    // per-cell rendering + playback overrides
+    fit?: FitMode;      // image/video adaptation
+    muted?: boolean;    // video only
+    loop?: boolean;     // video only
+    autoplay?: boolean; // video only (default true)
+  };
+  const defaultFitFor = (isVid: boolean): FitMode => (isVid ? "contain" : "cover");
   const [slots, setSlots] = useState<Slot[]>(() => Array.from({ length: 4 }, () => ({ file: null, preview: null })));
-  const [gridFit, setGridFit] = useState<FitMode>("cover");
+  const [gridFit, setGridFit] = useState<FitMode>("cover"); // fallback global (nouveaux fichiers)
   const gridInputRef = useRef<HTMLInputElement>(null);
 
   // Ajuster le nombre de slots quand la grille change
