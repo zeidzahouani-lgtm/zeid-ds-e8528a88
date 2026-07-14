@@ -125,7 +125,14 @@ export default function UploadPage() {
         const isImage = f.type.startsWith("image/");
         const isVideo = f.type.startsWith("video/");
         if (!isImage && !isVideo) continue;
-        next[idx] = { file: f, preview: URL.createObjectURL(f) };
+        next[idx] = {
+          file: f,
+          preview: URL.createObjectURL(f),
+          fit: defaultFitFor(isVideo),
+          muted: true,
+          loop: true,
+          autoplay: true,
+        };
         idx++;
       }
       return next;
@@ -134,6 +141,10 @@ export default function UploadPage() {
 
   const clearSlot = (i: number) => {
     setSlots(prev => prev.map((s, k) => (k === i ? { file: null, preview: null } : s)));
+  };
+
+  const updateSlot = (i: number, patch: Partial<Slot>) => {
+    setSlots(prev => prev.map((s, k) => (k === i ? { ...s, ...patch } : s)));
   };
 
   const swapSlots = (a: number, b: number) => {
