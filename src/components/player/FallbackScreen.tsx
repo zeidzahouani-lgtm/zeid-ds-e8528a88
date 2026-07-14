@@ -35,18 +35,18 @@ export default function FallbackScreen({ screenName, screenId, logoUrl, showLogo
     <div className="relative overflow-hidden" style={{ backgroundColor: "#0a0e17", width: "100%", height: "100%" }}>
       {/* Pure CSS animated background - no canvas for device compatibility */}
       <div style={{
-        position: "absolute", inset: 0,
+        position: "absolute", top: 0, right: 0, bottom: 0, left: 0,
         background: "radial-gradient(ellipse at 30% 40%, hsla(222,47%,12%,1) 0%, transparent 60%), radial-gradient(ellipse at 70% 60%, hsla(210,60%,10%,1) 0%, transparent 50%)",
       }} />
       <div style={{
-        position: "absolute", inset: 0,
+        position: "absolute", top: 0, right: 0, bottom: 0, left: 0,
         background: "radial-gradient(circle at 50% 50%, hsla(210,80%,30%,0.06) 0%, transparent 50%)",
         animation: "fallback-drift 20s ease-in-out infinite alternate",
       }} />
 
       {/* Content overlay */}
       <div style={{
-        position: "absolute", inset: 0,
+        position: "absolute", top: 0, right: 0, bottom: 0, left: 0,
         display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center",
         zIndex: 10,

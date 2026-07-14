@@ -343,7 +343,7 @@
 
   .animated-bg-container {
     position: fixed;
-    inset: 0;
+    top: 0; right: 0; bottom: 0; left: 0;
     z-index: 0;
     overflow: hidden;
     pointer-events: none;
@@ -410,7 +410,7 @@
   /* Grid overlay */
   .animated-bg-grid {
     position: absolute;
-    inset: 0;
+    top: 0; right: 0; bottom: 0; left: 0;
     background-image:
       linear-gradient(hsl(210 85% 55% / 0.025) 1px, transparent 1px),
       linear-gradient(90deg, hsl(210 85% 55% / 0.025) 1px, transparent 1px);
@@ -453,7 +453,7 @@
   /* Noise texture */
   .animated-bg-noise {
     position: absolute;
-    inset: 0;
+    top: 0; right: 0; bottom: 0; left: 0;
     opacity: 0.018;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     background-repeat: repeat;
@@ -646,7 +646,7 @@
   .login-btn-hover::before {
     content: '';
     position: absolute;
-    inset: 0;
+    top: 0; right: 0; bottom: 0; left: 0;
     background: linear-gradient(90deg, transparent, hsl(0 0% 100% / 0.15), transparent);
     transform: translateX(-100%);
     transition: none;

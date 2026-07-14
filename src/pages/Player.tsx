@@ -242,7 +242,7 @@ function MediaRenderer({ media, playlistLength }: { media: { id: string; name: s
 
   const mediaStyle: React.CSSProperties = {
     position: "absolute",
-    inset: 0,
+    top: 0, right: 0, bottom: 0, left: 0,
     width: "100%",
     height: "100%",
     display: "block",
@@ -292,7 +292,7 @@ function WallTile({
   const isWall = r > 0 && c > 0 && Number.isFinite(rr) && Number.isFinite(cc) && (r > 1 || c > 1);
   if (!isWall) return <>{children}</>;
   return (
-    <div style={{ position: "absolute", inset: 0, overflow: "hidden", backgroundColor: "#000" }}>
+    <div style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, overflow: "hidden", backgroundColor: "#000" }}>
       <div
         style={{
           position: "absolute",
@@ -569,7 +569,7 @@ function LayoutRenderer({
         {(isLayoutLoading || layoutError) && (
           <div style={{
             position: "absolute",
-            inset: 0,
+            top: 0, right: 0, bottom: 0, left: 0,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -627,7 +627,7 @@ function LayoutRenderer({
     }}>
       {layout.bg_type === "image" && layout.bg_image_url && ((layout.bg_overlay_darken || 0) > 0) && (
         <div style={{
-          position: "absolute", inset: 0, pointerEvents: "none",
+          position: "absolute", top: 0, right: 0, bottom: 0, left: 0, pointerEvents: "none",
           backgroundColor: `rgba(0,0,0,${(layout.bg_overlay_darken || 0) / 100})`,
           zIndex: 0,
         }} />
@@ -696,7 +696,7 @@ function LicenseScreen({
   };
 
   return (
-    <div ref={containerRef} style={{ position: "fixed", inset: 0, backgroundColor: "#000", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={requestFullscreen}>
+    <div ref={containerRef} style={{ position: "fixed", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "#000", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={requestFullscreen}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 24, textAlign: "center", padding: 32, maxWidth: 400, width: "100%" }} onClick={(e) => e.stopPropagation()}>
         <CompanyLogo logoUrl={logoUrl} show={showLogo} />
         <div style={{ height: 80, width: 80, borderRadius: 16, backgroundColor: "rgba(239,68,68,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -788,7 +788,7 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Arra
         <video
           key={current.id}
           src={current.image_url}
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center center", display: "block", backgroundColor: "#000" }}
+          style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center center", display: "block", backgroundColor: "#000" }}
           autoPlay
           muted
           playsInline
@@ -796,7 +796,7 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Arra
           loop={contents.length <= 1}
         />
       ) : (
-        <img src={current.image_url} alt={current.title || ""} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center center", display: "block", backgroundColor: "#000" }} />
+        <img src={current.image_url} alt={current.title || ""} style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center center", display: "block", backgroundColor: "#000" }} />
       )}
     </div>
   );
@@ -940,7 +940,7 @@ export default function Player() {
         // Display a black "Off" overlay (browsers can't power off the device)
         try {
           const off = document.createElement("div");
-          off.style.cssText = "position:fixed;inset:0;background:#000;z-index:2147483647;display:flex;align-items:center;justify-content:center;color:#222;font-family:system-ui,sans-serif;font-size:14px;";
+          off.style.cssText = "position:fixed;top:0;right:0;bottom:0;left:0;background:#000;z-index:2147483647;display:flex;align-items:center;justify-content:center;color:#222;font-family:system-ui,sans-serif;font-size:14px;";
           off.textContent = "•";
           document.body.appendChild(off);
         } catch {}
@@ -1075,7 +1075,7 @@ export default function Player() {
 
   if (loading) {
     return (
-      <div style={{ ...playerBgStyle, position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ ...playerBgStyle, position: "fixed", top: 0, right: 0, bottom: 0, left: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
         {debugMode && <DiagnosticOverlay {...diagBaseProps} />}
         {hudMode && <DiagnosticOverlay {...diagBaseProps} mode="hud" />}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
@@ -1089,7 +1089,7 @@ export default function Player() {
 
   if (!screen) {
     return (
-      <div style={{ position: "fixed", inset: 0, backgroundColor: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <p style={{ color: "#ef4444", fontSize: 18 }}>Écran introuvable</p>
       </div>
     );
@@ -1097,7 +1097,7 @@ export default function Player() {
 
   if (sessionBlocked && !previewMode) {
     return (
-      <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", top: 0, right: 0, bottom: 0, left: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, textAlign: "center", padding: 32 }}>
           <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} />
           <div style={{ height: 80, width: 80, borderRadius: 16, backgroundColor: "rgba(239,68,68,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1128,7 +1128,7 @@ export default function Player() {
 
   if (licenseValid === null) {
     return (
-      <div style={{ ...playerBgStyle, position: "fixed", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ ...playerBgStyle, position: "fixed", top: 0, right: 0, bottom: 0, left: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
           <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} />
           <MonitorPlay style={{ height: 48, width: 48, color: "#3b82f6" }} />
@@ -1157,7 +1157,7 @@ export default function Player() {
 
   if (layoutId && !media && activeContents.length === 0) {
     return (
-      <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", inset: 0, width: "100vw", height: "100vh", overflow: "hidden", cursor: "none" }} onClick={requestFullscreen}>
+      <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", top: 0, right: 0, bottom: 0, left: 0, width: "100vw", height: "100vh", overflow: "hidden", cursor: "none" }} onClick={requestFullscreen}>
         {debugMode && <DiagnosticOverlay {...diagBaseProps} />}
         {hudMode && <DiagnosticOverlay {...diagBaseProps} mode="hud" />}
         <ResolutionFrame resolution={screenResolution}>
@@ -1187,7 +1187,7 @@ export default function Player() {
   const rotationStyle = getOrientationStyle(screen.orientation);
 
   return (
-    <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", inset: 0, width: "100vw", height: "100vh", overflow: "hidden", cursor: "none" }} onClick={requestFullscreen}>
+    <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", top: 0, right: 0, bottom: 0, left: 0, width: "100vw", height: "100vh", overflow: "hidden", cursor: "none" }} onClick={requestFullscreen}>
       {debugMode && <DiagnosticOverlay {...diagBaseProps} />}
       {hudMode && <DiagnosticOverlay {...diagBaseProps} mode="hud" />}
       <ResolutionFrame resolution={screenResolution}>
@@ -1195,7 +1195,7 @@ export default function Player() {
         <div style={{ width: "100%", height: "100%", transition: "opacity 0.5s ease-in-out", opacity: visible ? 1 : 0 }}>
           {/* Fallback screen */}
           <div style={{
-            position: "absolute", inset: 0,
+            position: "absolute", top: 0, right: 0, bottom: 0, left: 0,
             transition: "opacity 1s ease-in-out",
             opacity: hasContent ? 0 : 1,
             pointerEvents: hasContent ? "none" : "auto",
@@ -1212,7 +1212,7 @@ export default function Player() {
 
           {/* Actual content */}
           <div style={{
-            position: "absolute", inset: 0,
+            position: "absolute", top: 0, right: 0, bottom: 0, left: 0,
             transition: "opacity 1s ease-in-out",
             opacity: hasContent ? 1 : 0,
             pointerEvents: hasContent ? "auto" : "none",
