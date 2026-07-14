@@ -1202,11 +1202,7 @@ export default function Player() {
   }
 
   if (!screen) {
-    return (
-      <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <p style={{ color: "#ef4444", fontSize: 18 }}>Écran introuvable</p>
-      </div>
-    );
+    return <ScreenNotFoundReport screenKey={id} />;
   }
 
   if (sessionBlocked && !previewMode) {
