@@ -85,6 +85,7 @@ const App = () => (
               <Route path="/manual" element={<PublicManual />} />
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/player/:id" element={<Player />} />
+              <Route path="/:id" element={<Player />} />
               <Route path="/upload/:id" element={<UploadPage />} />
               <Route path="/assign-license/:screenId" element={<ProtectedRoute><AssignLicense /></ProtectedRoute>} />
               <Route path="/admin/first-login" element={<FirstAdminLogin />} />

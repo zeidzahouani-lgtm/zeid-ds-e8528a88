@@ -286,11 +286,20 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
     if (!screenId) return;
 
     const init = async () => {
-      let screenRes = await supabase.from("screens").select(SCREEN_SELECT).eq("slug", screenId).maybeSingle();
-      if (!screenRes.data) {
-        screenRes = await supabase.from("screens").select(SCREEN_SELECT).eq("id", screenId).maybeSingle();
+      const { data: resolvedScreens } = await (supabase as any)
+        .rpc("resolve_player_screen", { _screen_key: screenId });
+      let screenData = Array.isArray(resolvedScreens) ? resolvedScreens[0] : resolvedScreens;
+
+      // Fallback keeps the player working on local/dev databases where the RPC
+      // may not exist yet, but production no longer depends on fragile direct
+      // anonymous table access for the initial screen lookup.
+      if (!screenData) {
+        let screenRes = await supabase.from("screens").select(SCREEN_SELECT).eq("slug", screenId).maybeSingle();
+        if (!screenRes.data) {
+          screenRes = await supabase.from("screens").select(SCREEN_SELECT).eq("id", screenId).maybeSingle();
+        }
+        screenData = screenRes.data as any;
       }
-      const screenData = screenRes.data as any;
       if (!screenData) { setLoading(false); return; }
       realScreenIdRef.current = screenData.id;
 

@@ -1298,6 +1298,29 @@ export type Database = {
           valid_until: string
         }[]
       }
+      resolve_player_screen: {
+        Args: { _screen_key: string }
+        Returns: {
+          current_media_id: string
+          debug_mode: number
+          establishment_id: string
+          id: string
+          layout_id: string
+          name: string
+          orientation: string
+          pending_action: string
+          player_heartbeat_at: string
+          player_session_id: string
+          playlist_id: string
+          program_id: string
+          resolution: string
+          show_name: boolean
+          status: string
+          wall_col: number
+          wall_id: string
+          wall_row: number
+        }[]
+      }
       shares_establishment: {
         Args: { _a: string; _b: string }
         Returns: boolean
