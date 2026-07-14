@@ -5,11 +5,28 @@
  * e.g. X96Q_PRO1) and injects CSS shims for properties that were added after
  * Chrome 87 but that Tailwind / our inline styles rely on.
  *
- * Executed once, as early as possible (from main.tsx).
+ * Behaviour:
+ *   - Automatic detection by default (UA + CSS.supports feature test).
+ *   - A manual override stored in localStorage lets the operator force the
+ *     mode ON or OFF from the Player diagnostic overlay:
+ *       localStorage["sf.legacyCompat"] = "auto" | "on" | "off"
+ *
+ * Called once, as early as possible (from main.tsx).
  */
 
 const LEGACY_STYLE_ID = "legacy-webview-shim";
 const LEGACY_ATTR = "data-legacy-webview";
+const OVERRIDE_KEY = "sf.legacyCompat";
+
+export type LegacyCompatOverride = "auto" | "on" | "off";
+
+export interface LegacyWebViewReport {
+  isLegacy: boolean;
+  chromiumMajor: number | null;
+  reasons: string[];
+  override: LegacyCompatOverride;
+  autoDetected: boolean;
+}
 
 function detectChromiumMajor(): number | null {
   const ua = typeof navigator !== "undefined" ? navigator.userAgent || "" : "";
@@ -23,7 +40,6 @@ function supportsInsetShorthand(): boolean {
       return CSS.supports("inset", "0px");
     }
   } catch {}
-  // Fallback feature test
   try {
     const el = document.createElement("div");
     el.style.setProperty("inset", "0px");
@@ -44,7 +60,7 @@ function supportsFlexGap(): boolean {
     test.style.position = "absolute";
     test.style.visibility = "hidden";
     document.body.appendChild(test);
-    const supported = test.scrollHeight >= 3; // 2 zero-height children + 1px gap
+    const supported = test.scrollHeight >= 3;
     document.body.removeChild(test);
     return supported;
   } catch {
@@ -52,79 +68,51 @@ function supportsFlexGap(): boolean {
   }
 }
 
-export interface LegacyWebViewReport {
-  isLegacy: boolean;
-  chromiumMajor: number | null;
-  reasons: string[];
+export function getLegacyCompatOverride(): LegacyCompatOverride {
+  try {
+    const v = localStorage.getItem(OVERRIDE_KEY);
+    if (v === "on" || v === "off" || v === "auto") return v;
+  } catch {}
+  return "auto";
 }
 
 /**
- * Detect & apply the compatibility layer.
- * Safe to call multiple times; only runs once per document.
+ * Persist the user's choice and re-apply the compat layer immediately.
+ * Returns the fresh report so the UI can reflect the new state.
  */
-export function applyLegacyWebViewCompat(): LegacyWebViewReport {
-  const report: LegacyWebViewReport = {
-    isLegacy: false,
-    chromiumMajor: null,
-    reasons: [],
-  };
-
-  if (typeof document === "undefined") return report;
-
-  const chromiumMajor = detectChromiumMajor();
-  report.chromiumMajor = chromiumMajor;
-
-  if (chromiumMajor !== null && chromiumMajor < 87) {
-    report.isLegacy = true;
-    report.reasons.push(`chromium<${chromiumMajor}`);
-  }
-  if (!supportsInsetShorthand()) {
-    report.isLegacy = true;
-    if (!report.reasons.includes("no-inset")) report.reasons.push("no-inset");
-  }
-
-  if (!report.isLegacy) return report;
-
-  // Mark the document so app code / dev tools can react.
-  document.documentElement.setAttribute(LEGACY_ATTR, "1");
-
-  // Optional: flex-gap fallback flag (only tested when legacy is already on)
-  let flexGapSupported = true;
+export function setLegacyCompatOverride(mode: LegacyCompatOverride): LegacyWebViewReport {
   try {
-    flexGapSupported = supportsFlexGap();
+    if (mode === "auto") localStorage.removeItem(OVERRIDE_KEY);
+    else localStorage.setItem(OVERRIDE_KEY, mode);
   } catch {}
-  if (!flexGapSupported) {
-    document.documentElement.setAttribute("data-legacy-no-flex-gap", "1");
-    report.reasons.push("no-flex-gap");
-  }
+  return applyLegacyWebViewCompat();
+}
 
-  // Inject the shim stylesheet once.
-  if (document.getElementById(LEGACY_STYLE_ID)) return report;
+function removeLegacyLayer() {
+  document.documentElement.removeAttribute(LEGACY_ATTR);
+  document.documentElement.removeAttribute("data-legacy-no-flex-gap");
+  const existing = document.getElementById(LEGACY_STYLE_ID);
+  if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+}
 
+function injectLegacyStylesheet() {
+  if (document.getElementById(LEGACY_STYLE_ID)) return;
   const css = `
 /* === Legacy WebView (Chromium < 87) compatibility shims ============= */
-/* The 'inset' shorthand was added in Chrome 87. Tailwind's inset-0
-   utilities emit 'inset: 0px' which is silently ignored on Chrome 80,
-   collapsing every absolute/fixed overlay to 0x0. We restore them here. */
 html[${LEGACY_ATTR}] .inset-0     { top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important; }
 html[${LEGACY_ATTR}] .inset-x-0   { left: 0 !important; right: 0 !important; }
 html[${LEGACY_ATTR}] .inset-y-0   { top: 0 !important; bottom: 0 !important; }
 html[${LEGACY_ATTR}] .-inset-0    { top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important; }
 html[${LEGACY_ATTR}] .inset-auto  { top: auto !important; right: auto !important; bottom: auto !important; left: auto !important; }
 
-/* Some Radix / shadcn variants use ::after with inset shortcuts */
 html[${LEGACY_ATTR}] .after\\:inset-0::after   { top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important; }
 html[${LEGACY_ATTR}] .after\\:inset-y-0::after { top: 0 !important; bottom: 0 !important; }
 html[${LEGACY_ATTR}] .after\\:inset-x-0::after { left: 0 !important; right: 0 !important; }
 html[${LEGACY_ATTR}] .before\\:inset-0::before { top: 0 !important; right: 0 !important; bottom: 0 !important; left: 0 !important; }
 
-/* aspect-ratio (Chrome 88+) — provide a padding-hack fallback for the
-   most common Tailwind ratios. Elements need position:relative + a child. */
 html[${LEGACY_ATTR}] .aspect-square { position: relative; height: 0; padding-bottom: 100%; }
 html[${LEGACY_ATTR}] .aspect-video  { position: relative; height: 0; padding-bottom: 56.25%; }
 
-/* Force GPU compositing on the fullscreen player container to avoid
-   sub-pixel gaps and repaint artifacts on old ARM WebViews. */
 html[${LEGACY_ATTR}] body,
 html[${LEGACY_ATTR}] #root {
   transform: translateZ(0);
@@ -133,20 +121,77 @@ html[${LEGACY_ATTR}] #root {
   -webkit-backface-visibility: hidden;
 }
 `;
-
   const style = document.createElement("style");
   style.id = LEGACY_STYLE_ID;
   style.setAttribute("data-generated-by", "legacy-webview-compat");
   style.appendChild(document.createTextNode(css));
   document.head.appendChild(style);
+}
 
-  // Expose for the diagnostic overlay
+/**
+ * Detect + apply the compatibility layer. Safe to call multiple times.
+ * Honours the manual override stored in localStorage.
+ */
+export function applyLegacyWebViewCompat(): LegacyWebViewReport {
+  const report: LegacyWebViewReport = {
+    isLegacy: false,
+    chromiumMajor: null,
+    reasons: [],
+    override: "auto",
+    autoDetected: false,
+  };
+
+  if (typeof document === "undefined") return report;
+
+  const chromiumMajor = detectChromiumMajor();
+  report.chromiumMajor = chromiumMajor;
+  report.override = getLegacyCompatOverride();
+
+  // Automatic detection
+  let autoDetected = false;
+  const autoReasons: string[] = [];
+  if (chromiumMajor !== null && chromiumMajor < 87) {
+    autoDetected = true;
+    autoReasons.push(`chromium=${chromiumMajor}`);
+  }
+  if (!supportsInsetShorthand()) {
+    autoDetected = true;
+    if (!autoReasons.includes("no-inset")) autoReasons.push("no-inset");
+  }
+  report.autoDetected = autoDetected;
+
+  // Resolve final decision from override + auto detection
+  let enabled: boolean;
+  if (report.override === "on") { enabled = true; report.reasons.push("manual=on"); }
+  else if (report.override === "off") { enabled = false; report.reasons.push("manual=off"); }
+  else { enabled = autoDetected; report.reasons.push(...autoReasons); }
+
+  report.isLegacy = enabled;
+
+  if (!enabled) {
+    removeLegacyLayer();
+    (window as any).__LEGACY_WEBVIEW__ = report;
+    return report;
+  }
+
+  // Enable the layer
+  document.documentElement.setAttribute(LEGACY_ATTR, "1");
+
+  let flexGapSupported = true;
+  try { flexGapSupported = supportsFlexGap(); } catch {}
+  if (!flexGapSupported) {
+    document.documentElement.setAttribute("data-legacy-no-flex-gap", "1");
+    if (!report.reasons.includes("no-flex-gap")) report.reasons.push("no-flex-gap");
+  } else {
+    document.documentElement.removeAttribute("data-legacy-no-flex-gap");
+  }
+
+  injectLegacyStylesheet();
   (window as any).__LEGACY_WEBVIEW__ = report;
 
-  // Console breadcrumb (kept minimal to avoid log spam on TV consoles)
   try {
     // eslint-disable-next-line no-console
-    console.info("[legacy-webview] compat mode enabled:", report.reasons.join(", "));
+    console.info("[legacy-webview] compat mode ON:", report.reasons.join(", "));
   } catch {}
 
   return report;
