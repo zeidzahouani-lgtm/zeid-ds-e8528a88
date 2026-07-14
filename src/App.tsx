@@ -88,6 +88,7 @@ const App = () => (
               <Route path="/upload/:id" element={<UploadPage />} />
               <Route path="/assign-license/:screenId" element={<ProtectedRoute><AssignLicense /></ProtectedRoute>} />
               <Route path="/admin/first-login" element={<FirstAdminLogin />} />
+              <Route path="/__compat-test" element={<CompatTest />} />
 
               <Route element={<ProtectedRoute><EstablishmentProvider><DashboardLayout /></EstablishmentProvider></ProtectedRoute>}>
                 <Route path="/" element={<DashboardHome />} />
