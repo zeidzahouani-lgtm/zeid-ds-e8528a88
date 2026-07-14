@@ -1,4 +1,10 @@
 import { useState, useEffect, useRef } from "react";
+import {
+  getLegacyCompatOverride,
+  setLegacyCompatOverride,
+  type LegacyCompatOverride,
+  type LegacyWebViewReport,
+} from "@/lib/legacy-webview";
 
 interface DiagnosticProps {
   screenId: string | undefined;
@@ -329,6 +335,86 @@ function DiagnosticHUD(props: DiagnosticProps) {
   );
 }
 
+function LegacyCompatSection() {
+  const initial = (typeof window !== "undefined" ? (window as any).__LEGACY_WEBVIEW__ : null) as LegacyWebViewReport | null;
+  const [override, setOverride] = useState<LegacyCompatOverride>(getLegacyCompatOverride());
+  const [report, setReport] = useState<LegacyWebViewReport | null>(initial);
+
+  const apply = (mode: LegacyCompatOverride) => {
+    const next = setLegacyCompatOverride(mode);
+    setOverride(mode);
+    setReport(next);
+  };
+
+  const active = !!report?.isLegacy;
+  const auto = !!report?.autoDetected;
+
+  const btnBase: React.CSSProperties = {
+    padding: "6px 14px",
+    borderRadius: 6,
+    fontSize: 11,
+    fontWeight: 700,
+    cursor: "pointer",
+    border: "1px solid rgba(255,255,255,0.15)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    color: "#e5e7eb",
+  };
+  const btnActive: React.CSSProperties = {
+    ...btnBase,
+    backgroundColor: "rgba(96,165,250,0.2)",
+    borderColor: "#60a5fa",
+    color: "#60a5fa",
+  };
+
+  return (
+    <div style={sectionStyle}>
+      <div style={headingStyle}>🛡️ Mode compatibilité WebView</div>
+
+      <div style={rowStyle}>
+        <span>État</span>
+        <span style={active ? badgeOk : badgeWarn}>
+          {active ? "✓ Activé" : "— Désactivé"}
+        </span>
+      </div>
+      <div style={rowStyle}>
+        <span>Détection auto</span>
+        <span style={{ color: auto ? "#f59e0b" : "#9ca3af", fontWeight: 600 }}>
+          {auto ? "Ancien WebView détecté" : "WebView moderne"}
+        </span>
+      </div>
+      {report?.chromiumMajor !== null && report?.chromiumMajor !== undefined && (
+        <div style={rowStyle}>
+          <span>Chromium</span>
+          <span>{report.chromiumMajor}</span>
+        </div>
+      )}
+      {report?.reasons && report.reasons.length > 0 && (
+        <div style={{ ...rowStyle, borderBottom: "none" }}>
+          <span>Raisons</span>
+          <span style={{ color: "#9ca3af", fontSize: 10 }}>{report.reasons.join(", ")}</span>
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+        <button style={override === "auto" ? btnActive : btnBase} onClick={() => apply("auto")}>
+          AUTO {auto ? "(→ ON)" : "(→ OFF)"}
+        </button>
+        <button style={override === "on" ? btnActive : btnBase} onClick={() => apply("on")}>
+          FORCER ACTIVÉ
+        </button>
+        <button style={override === "off" ? btnActive : btnBase} onClick={() => apply("off")}>
+          FORCER DÉSACTIVÉ
+        </button>
+      </div>
+
+      <p style={{ fontSize: 10, color: "#6b7280", marginTop: 8, marginBottom: 0 }}>
+        Actif : shims CSS pour <code>inset</code>, <code>aspect-ratio</code>, flex-gap.
+        Le choix est mémorisé localement sur ce lecteur. Un rafraîchissement peut être nécessaire pour rehydrater tous les composants.
+      </p>
+    </div>
+  );
+}
+
 export default function DiagnosticOverlay(props: DiagnosticProps) {
   var info = getBrowserInfo();
   var features = checkFeatureSupport();
@@ -596,7 +682,11 @@ export default function DiagnosticOverlay(props: DiagnosticProps) {
               </span>
             );
           })}
-        </div>
+      </div>
+
+      {/* Legacy WebView compatibility */}
+      <LegacyCompatSection />
+
       </div>
 
       {/* Error Logs */}
