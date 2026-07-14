@@ -4,6 +4,11 @@ export async function uploadMediaFile(
   file: File,
   onProgress?: (percent: number) => void
 ): Promise<string> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    throw new Error("Session expirée. Veuillez vous reconnecter avant d'uploader.");
+  }
+
   const ext = file.name.split('.').pop();
   const fileName = `${crypto.randomUUID()}.${ext}`;
 
@@ -14,8 +19,9 @@ export async function uploadMediaFile(
     const xhr = new XMLHttpRequest();
     xhr.open('POST', bucketUrl, true);
     xhr.setRequestHeader('apikey', apiKey);
-    xhr.setRequestHeader('Authorization', `Bearer ${apiKey}`);
+    xhr.setRequestHeader('Authorization', `Bearer ${session.access_token}`);
     xhr.setRequestHeader('x-upsert', 'false');
+    if (file.type) xhr.setRequestHeader('Content-Type', file.type);
 
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && onProgress) {
@@ -25,7 +31,7 @@ export async function uploadMediaFile(
 
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) resolve();
-      else reject(new Error(`Upload failed: ${xhr.status}`));
+      else reject(new Error(`Upload failed: ${xhr.status} ${xhr.responseText || ''}`.trim()));
     };
     xhr.onerror = () => reject(new Error('Upload failed'));
 
