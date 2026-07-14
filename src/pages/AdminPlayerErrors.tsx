@@ -193,6 +193,29 @@ export default function AdminPlayerErrors() {
         </div>
       </div>
 
+      {health && (
+        <Card className="p-4 flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Activity className={`h-5 w-5 ${
+              health.status === "healthy" ? "text-green-500" :
+              health.status === "degraded" ? "text-amber-500" : "text-red-500"
+            }`} />
+            <span className="text-sm font-semibold uppercase tracking-wide">
+              {health.status === "healthy" ? "Système sain" :
+               health.status === "degraded" ? "Dégradé" : "Incident majeur"}
+            </span>
+          </div>
+          <div className="text-xs text-muted-foreground">Écrans en ligne&nbsp;: <b className="text-foreground">{health.screens.online}/{health.screens.total}</b></div>
+          <div className="text-xs text-muted-foreground">Erreurs (5 min)&nbsp;: <b className="text-foreground">{health.errors.last_5m}</b></div>
+          <div className="text-xs text-muted-foreground">Taux d'échec/écran (1 h)&nbsp;: <b className="text-foreground">{health.failure_rate_per_screen_1h ?? (health.screens.total ? (health.errors.last_1h / health.screens.total).toFixed(2) : 0)}</b></div>
+          <div className="text-xs text-muted-foreground">Latence moyenne (1 h)&nbsp;: <b className="text-foreground">{Math.round(Number(health.latency_1h.avg_ms) || 0)} ms</b></div>
+          <div className="text-xs text-muted-foreground">p95 latence&nbsp;: <b className="text-foreground">{Math.round(Number(health.latency_1h.p95_ms) || 0)} ms</b> <span className="opacity-60">({health.latency_1h.samples} échant.)</span></div>
+          <Button variant="ghost" size="sm" onClick={() => refetchHealth()} className="ml-auto">
+            <RefreshCw className="h-3.5 w-3.5 mr-1" /> Health
+          </Button>
+        </Card>
+      )}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="p-4">
           <div className="text-xs text-muted-foreground">Total (période)</div>
