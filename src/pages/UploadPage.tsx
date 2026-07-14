@@ -567,7 +567,7 @@ export default function UploadPage() {
                 </div>
               </div>
 
-              {uploading && (
+              {uploading && mode === "single" && (
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>Upload en cours…</span>
@@ -583,9 +583,199 @@ export default function UploadPage() {
                 {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                 {uploading ? `Envoi ${uploadProgress}%` : `Diffuser ${isVideo ? "la vidéo" : "l'image"}`}
               </Button>
+                </TabsContent>
+
+                <TabsContent value="grid" className="space-y-4 mt-4">
+                  <input
+                    ref={gridInputRef}
+                    type="file"
+                    accept="image/*,video/*"
+                    multiple
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      if (files.length) autoPlaceFiles(files);
+                      if (gridInputRef.current) gridInputRef.current.value = "";
+                    }}
+                    className="hidden"
+                  />
+
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1.5 text-sm">
+                      <Grid3x3 className="h-3.5 w-3.5" /> Disposition
+                    </Label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {(["1x2","2x1","2x2","3x3"] as GridPreset[]).map((p) => (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setPreset(p)}
+                          className={`px-2 py-2 rounded-md border text-xs font-medium transition ${
+                            gridPreset === p ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border hover:border-primary/50"
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm">Cellules ({slots.slice(0, gridCount).filter(s => s.file).length}/{gridCount})</Label>
+                      <Button size="sm" variant="outline" onClick={() => gridInputRef.current?.click()} className="gap-1 h-7">
+                        <Plus className="h-3 w-3" /> Ajouter des fichiers
+                      </Button>
+                    </div>
+                    <div
+                      className="grid gap-2 p-2 rounded-lg border border-border bg-muted/30 mx-auto"
+                      style={{
+                        gridTemplateRows: `repeat(${gridDims.rows}, 1fr)`,
+                        gridTemplateColumns: `repeat(${gridDims.cols}, 1fr)`,
+                        aspectRatio: isPortrait ? "9 / 16" : "16 / 9",
+                        maxHeight: 280,
+                        width: "100%",
+                      }}
+                    >
+                      {Array.from({ length: gridCount }).map((_, i) => {
+                        const s = slots[i];
+                        const filled = !!s?.file;
+                        const isVid = s?.file?.type.startsWith("video/");
+                        return (
+                          <div
+                            key={i}
+                            className="relative rounded-md border border-border overflow-hidden bg-background"
+                          >
+                            {filled ? (
+                              <>
+                                {isVid ? (
+                                  <video src={s.preview!} className="w-full h-full object-cover" style={{ objectFit: gridFit as any }} muted playsInline autoPlay loop />
+                                ) : (
+                                  <img src={s.preview!} alt="" className="w-full h-full" style={{ objectFit: gridFit as any }} />
+                                )}
+                                <div className="absolute top-1 left-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-black/60 text-white">{i + 1}</div>
+                                <button
+                                  onClick={() => clearSlot(i)}
+                                  className="absolute top-1 right-1 h-5 w-5 rounded bg-black/70 text-white flex items-center justify-center hover:bg-red-600"
+                                  aria-label="Retirer"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                                {i > 0 && (
+                                  <button
+                                    onClick={() => swapSlots(i, i - 1)}
+                                    className="absolute bottom-1 left-1 h-5 px-1.5 rounded bg-black/60 text-white text-[10px] hover:bg-black/80"
+                                  >←</button>
+                                )}
+                                {i < gridCount - 1 && (
+                                  <button
+                                    onClick={() => swapSlots(i, i + 1)}
+                                    className="absolute bottom-1 right-1 h-5 px-1.5 rounded bg-black/60 text-white text-[10px] hover:bg-black/80"
+                                  >→</button>
+                                )}
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => gridInputRef.current?.click()}
+                                className="w-full h-full flex flex-col items-center justify-center gap-1 text-muted-foreground hover:bg-primary/5 hover:text-primary transition"
+                              >
+                                <Plus className="h-5 w-5" />
+                                <span className="text-[10px]">Cellule {i + 1}</span>
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground text-center">
+                      Placement automatique. Cliquez sur ← → pour réordonner, × pour retirer.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-1.5 text-sm">
+                        <RotateCw className="h-3.5 w-3.5" /> Orientation
+                      </Label>
+                      <Select value={orientation} onValueChange={setOrientation}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="landscape">Paysage</SelectItem>
+                          <SelectItem value="portrait">Portrait</SelectItem>
+                          <SelectItem value="landscape-flipped">Paysage inv.</SelectItem>
+                          <SelectItem value="portrait-flipped">Portrait inv.</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-1.5 text-sm">
+                        <Maximize2 className="h-3.5 w-3.5" /> Affichage cellule
+                      </Label>
+                      <Select value={gridFit} onValueChange={(v) => setGridFit(v as FitMode)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cover">Remplir</SelectItem>
+                          <SelectItem value="contain">Contenir</SelectItem>
+                          <SelectItem value="fill">Étirer</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-1.5 text-sm">
+                      <CalendarDays className="h-3.5 w-3.5" /> Durée de diffusion
+                    </Label>
+                    <Select value={duration} onValueChange={handleDurationChange}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10 minutes</SelectItem>
+                        <SelectItem value="30">30 minutes</SelectItem>
+                        <SelectItem value="60">1 heure</SelectItem>
+                        <SelectItem value="120">2 heures</SelectItem>
+                        <SelectItem value="480">8 heures</SelectItem>
+                        <SelectItem value="1440">24 heures</SelectItem>
+                        <SelectItem value="custom">Personnalisé</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-1.5 text-xs"><Clock className="h-3 w-3" /> Début</Label>
+                      <Input type="datetime-local" value={startTime} onChange={e => handleStartChange(e.target.value)} className="text-xs" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="flex items-center gap-1.5 text-xs"><Clock className="h-3 w-3" /> Fin</Label>
+                      <Input type="datetime-local" value={endTime} onChange={e => { setEndTime(e.target.value); setDuration("custom"); }} className="text-xs" />
+                    </div>
+                  </div>
+
+                  {uploading && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Upload de la grille…</span>
+                        <span>{uploadProgress}%</span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full bg-primary rounded-full transition-all duration-300 ease-out" style={{ width: `${uploadProgress}%` }} />
+                      </div>
+                    </div>
+                  )}
+
+                  <Button
+                    onClick={handleGridUpload}
+                    className="w-full gap-2"
+                    disabled={uploading || slots.slice(0, gridCount).filter(s => s.file).length < 2}
+                  >
+                    {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <LayoutGrid className="h-4 w-4" />}
+                    {uploading ? `Envoi ${uploadProgress}%` : `Diffuser la grille ${gridPreset}`}
+                  </Button>
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </>
         )}
+
 
         {step === "done" && (
           <>
