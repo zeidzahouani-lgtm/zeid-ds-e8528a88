@@ -1261,6 +1261,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      activate_license_by_key: {
+        Args: { _license_key: string; _screen_id: string }
+        Returns: {
+          message: string
+          valid: boolean
+        }[]
+      }
       check_fallback_alerts: { Args: never; Returns: undefined }
       claim_license_for_screen: {
         Args: { _license_id: string; _screen_id: string }
@@ -1303,6 +1310,13 @@ export type Database = {
           is_active: boolean
           user_id: string
           user_name: string
+        }[]
+      }
+      validate_license_for_screen: {
+        Args: { _screen_id: string }
+        Returns: {
+          message: string
+          valid: boolean
         }[]
       }
     }
