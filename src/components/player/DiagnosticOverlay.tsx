@@ -418,6 +418,24 @@ async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
+/**
+ * Open the user's mail client with a pre-filled diagnostic report.
+ * Truncates the body to stay within mailto: URL limits (~2000 chars on most clients).
+ */
+function openMailto(to: string, subject: string, body: string) {
+  const MAX = 1800;
+  const truncated =
+    body.length > MAX
+      ? body.slice(0, MAX) + "\n\n[... rapport tronqué — le rapport complet a été copié dans le presse-papiers, collez-le ici ...]"
+      : body;
+  const url = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(truncated)}`;
+  try {
+    window.location.href = url;
+  } catch {
+    window.open(url, "_blank");
+  }
+}
+
 function buildSupportReport(
   props: DiagnosticProps,
   legacy: LegacyWebViewReport | null,
@@ -486,6 +504,7 @@ function LegacyCompatSection({ getReport }: LegacyCompatSectionProps) {
   const [override, setOverride] = useState<LegacyCompatOverride>(getLegacyCompatOverride());
   const [report, setReport] = useState<LegacyWebViewReport | null>(initial);
   const [copyState, setCopyState] = useState<"idle" | "ok" | "err">("idle");
+  const [sendState, setSendState] = useState<"idle" | "sending" | "ok" | "err">("idle");
   const cssTests = runCssTests();
   const failedCss = cssTests.filter((t) => !t.supported);
 
@@ -499,6 +518,53 @@ function LegacyCompatSection({ getReport }: LegacyCompatSectionProps) {
     const ok = await copyToClipboard(getReport());
     setCopyState(ok ? "ok" : "err");
     setTimeout(() => setCopyState("idle"), 2500);
+  };
+
+  const handleSend = async () => {
+    const reportText = getReport();
+    // Ensure the report is also copied so the user can paste it if the mail client truncates
+    try { await copyToClipboard(reportText); } catch { /* ignore */ }
+
+    // Configurable ingestion endpoint (localStorage override > env var)
+    const endpoint =
+      (typeof window !== "undefined" && window.localStorage?.getItem("sf.supportEndpoint")) ||
+      (import.meta as any).env?.VITE_SUPPORT_ENDPOINT ||
+      "";
+    const supportEmail =
+      (typeof window !== "undefined" && window.localStorage?.getItem("sf.supportEmail")) ||
+      (import.meta as any).env?.VITE_SUPPORT_EMAIL ||
+      "support@screenflow-ds.com";
+    const subject = `[ScreenFlow] Rapport diagnostic — ${new Date().toISOString()}`;
+
+    if (endpoint) {
+      setSendState("sending");
+      try {
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            subject,
+            report: reportText,
+            userAgent: navigator.userAgent,
+            url: window.location.href,
+            timestamp: new Date().toISOString(),
+          }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        setSendState("ok");
+      } catch {
+        setSendState("err");
+        // Fallback to mailto on failure
+        openMailto(supportEmail, subject, reportText);
+      }
+      setTimeout(() => setSendState("idle"), 3000);
+      return;
+    }
+
+    // No endpoint configured → mailto with pre-filled body (truncated to ~1800 chars to fit URL limits)
+    openMailto(supportEmail, subject, reportText);
+    setSendState("ok");
+    setTimeout(() => setSendState("idle"), 2500);
   };
 
   const active = !!report?.isLegacy;
@@ -572,6 +638,34 @@ function LegacyCompatSection({ getReport }: LegacyCompatSectionProps) {
           title="Copier le rapport complet dans le presse-papiers pour l'envoyer au support"
         >
           {copyState === "ok" ? "✓ COPIÉ" : copyState === "err" ? "✗ ÉCHEC" : "📋 COPIER LE RAPPORT"}
+        </button>
+        <button
+          style={{
+            ...btnBase,
+            backgroundColor:
+              sendState === "ok" ? "rgba(34,197,94,0.2)" :
+              sendState === "err" ? "rgba(239,68,68,0.2)" :
+              sendState === "sending" ? "rgba(96,165,250,0.2)" :
+              "rgba(255,255,255,0.05)",
+            borderColor:
+              sendState === "ok" ? "#22c55e" :
+              sendState === "err" ? "#ef4444" :
+              sendState === "sending" ? "#60a5fa" :
+              "rgba(255,255,255,0.15)",
+            color:
+              sendState === "ok" ? "#22c55e" :
+              sendState === "err" ? "#ef4444" :
+              sendState === "sending" ? "#60a5fa" :
+              "#e5e7eb",
+          }}
+          onClick={handleSend}
+          disabled={sendState === "sending"}
+          title="Ouvre un formulaire (email ou endpoint configuré) pré-rempli avec le rapport"
+        >
+          {sendState === "ok" ? "✓ ENVOYÉ" :
+           sendState === "err" ? "✗ ÉCHEC — MAILTO OUVERT" :
+           sendState === "sending" ? "… ENVOI" :
+           "✉️ ENVOYER AU SUPPORT"}
         </button>
       </div>
 
