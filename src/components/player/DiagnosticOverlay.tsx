@@ -418,6 +418,24 @@ async function copyToClipboard(text: string): Promise<boolean> {
   }
 }
 
+/**
+ * Open the user's mail client with a pre-filled diagnostic report.
+ * Truncates the body to stay within mailto: URL limits (~2000 chars on most clients).
+ */
+function openMailto(to: string, subject: string, body: string) {
+  const MAX = 1800;
+  const truncated =
+    body.length > MAX
+      ? body.slice(0, MAX) + "\n\n[... rapport tronqué — le rapport complet a été copié dans le presse-papiers, collez-le ici ...]"
+      : body;
+  const url = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(truncated)}`;
+  try {
+    window.location.href = url;
+  } catch {
+    window.open(url, "_blank");
+  }
+}
+
 function buildSupportReport(
   props: DiagnosticProps,
   legacy: LegacyWebViewReport | null,
