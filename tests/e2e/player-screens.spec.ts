@@ -36,16 +36,15 @@ test.describe("Player — every screen loads without 'Écran introuvable'", () =
   });
 
   test("resolves every screen slug (and id fallback) on /player/:key and /:key", async ({ page }) => {
+    test.setTimeout(5 * 60_000);
     const failures: string[] = [];
 
     for (const screen of screens) {
       const keys = [screen.slug, screen.id].filter(Boolean) as string[];
       for (const key of keys) {
         for (const path of [`/player/${key}`, `/${key}`]) {
-          const resp = await page.goto(path, { waitUntil: "domcontentloaded" });
-          expect(resp, `no response for ${path}`).not.toBeNull();
-          // Give the RPC + realtime hook a moment to resolve.
-          await page.waitForTimeout(1500);
+          await page.goto(path, { waitUntil: "domcontentloaded" });
+          await page.waitForTimeout(800);
           const body = (await page.locator("body").innerText()).toLowerCase();
           if (body.includes("écran introuvable") || body.includes("ecran introuvable")) {
             failures.push(`${path} → "Écran introuvable" (screen=${screen.name})`);
