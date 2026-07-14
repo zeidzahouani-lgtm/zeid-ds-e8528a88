@@ -665,6 +665,13 @@ export default function UploadPage() {
                         const s = slots[i];
                         const filled = !!s?.file;
                         const isVid = s?.file?.type.startsWith("video/");
+                        const cellFit = s?.fit || defaultFitFor(!!isVid);
+                        const cycleFit = () => {
+                          const order: FitMode[] = ["cover", "contain", "fill"];
+                          const next = order[(order.indexOf(cellFit) + 1) % order.length];
+                          updateSlot(i, { fit: next });
+                        };
+                        const fitLabel = cellFit === "cover" ? "Remplir" : cellFit === "contain" ? "Contenir" : "Étirer";
                         return (
                           <div
                             key={i}
@@ -673,11 +680,22 @@ export default function UploadPage() {
                             {filled ? (
                               <>
                                 {isVid ? (
-                                  <video src={s.preview!} className="w-full h-full object-cover" style={{ objectFit: gridFit as any }} muted playsInline autoPlay loop />
+                                  <video
+                                    src={s.preview!}
+                                    className="w-full h-full"
+                                    style={{ objectFit: cellFit as any }}
+                                    muted={s.muted !== false}
+                                    playsInline
+                                    autoPlay={s.autoplay !== false}
+                                    loop={s.loop !== false}
+                                  />
                                 ) : (
-                                  <img src={s.preview!} alt="" className="w-full h-full" style={{ objectFit: gridFit as any }} />
+                                  <img src={s.preview!} alt="" className="w-full h-full" style={{ objectFit: cellFit as any }} />
                                 )}
-                                <div className="absolute top-1 left-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-black/60 text-white">{i + 1}</div>
+                                <div className="absolute top-1 left-1 flex items-center gap-1">
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-black/60 text-white">{i + 1}</span>
+                                  <span className="text-[9px] px-1 py-0.5 rounded bg-primary/80 text-primary-foreground uppercase">{isVid ? "vidéo" : "image"}</span>
+                                </div>
                                 <button
                                   onClick={() => clearSlot(i)}
                                   className="absolute top-1 right-1 h-5 w-5 rounded bg-black/70 text-white flex items-center justify-center hover:bg-red-600"
@@ -685,6 +703,33 @@ export default function UploadPage() {
                                 >
                                   <X className="h-3 w-3" />
                                 </button>
+                                {/* Per-cell fit toggle */}
+                                <button
+                                  onClick={cycleFit}
+                                  title="Adaptation de la cellule (Remplir / Contenir / Étirer)"
+                                  className="absolute top-7 right-1 h-5 px-1.5 rounded bg-black/70 text-white text-[9px] hover:bg-primary"
+                                >
+                                  {fitLabel}
+                                </button>
+                                {/* Per-cell video toggles */}
+                                {isVid && (
+                                  <div className="absolute top-[52px] right-1 flex flex-col gap-1">
+                                    <button
+                                      onClick={() => updateSlot(i, { muted: !(s.muted !== false) })}
+                                      title="Son de la vidéo"
+                                      className={`h-5 px-1.5 rounded text-[9px] ${s.muted !== false ? "bg-black/70 text-white" : "bg-primary text-primary-foreground"}`}
+                                    >
+                                      {s.muted !== false ? "🔇" : "🔊"}
+                                    </button>
+                                    <button
+                                      onClick={() => updateSlot(i, { loop: !(s.loop !== false) })}
+                                      title="Lecture en boucle"
+                                      className={`h-5 px-1.5 rounded text-[9px] ${s.loop !== false ? "bg-primary text-primary-foreground" : "bg-black/70 text-white"}`}
+                                    >
+                                      ↻
+                                    </button>
+                                  </div>
+                                )}
                                 {i > 0 && (
                                   <button
                                     onClick={() => swapSlots(i, i - 1)}
