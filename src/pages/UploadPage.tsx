@@ -280,9 +280,91 @@ export default function UploadPage() {
     }
   };
 
+  const uploadOne = (f: File, path: string, onProg?: (p: number) => void) => {
+    const bucketUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/uploads/${path}`;
+    const apiKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    return new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", bucketUrl, true);
+      xhr.setRequestHeader("apikey", apiKey);
+      xhr.setRequestHeader("Authorization", `Bearer ${apiKey}`);
+      xhr.setRequestHeader("x-upsert", "false");
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && onProg) onProg(Math.round((e.loaded / e.total) * 100));
+      };
+      xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`Upload failed: ${xhr.status}`)));
+      xhr.onerror = () => reject(new Error("Upload failed"));
+      xhr.send(f);
+    });
+  };
+
+  const handleGridUpload = async () => {
+    if (!screenId) return;
+    const filled = slots.slice(0, gridCount).map((s, i) => ({ ...s, idx: i })).filter(s => !!s.file);
+    if (filled.length < 2) {
+      toast.error("Sélectionnez au moins 2 fichiers pour la grille");
+      return;
+    }
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    if (end <= start) {
+      toast.error("La date de fin doit être après la date de début");
+      return;
+    }
+    setUploading(true);
+    setUploadProgress(0);
+    try {
+      const batch_id = (crypto as any).randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      let done = 0;
+      for (const s of filled) {
+        const f = s.file as File;
+        const isVid = f.type.startsWith("video/");
+        const ext = f.name.split(".").pop() || (isVid ? "mp4" : "jpg");
+        const path = `screen-${screenId}/${Date.now()}_${s.idx}_${userName.replace(/\s+/g, "_")}.${ext}`;
+        await uploadOne(f, path, (p) => {
+          const overall = Math.round(((done + p / 100) / filled.length) * 100);
+          setUploadProgress(overall);
+        });
+        done++;
+        setUploadProgress(Math.round((done / filled.length) * 100));
+
+        const { data: urlData } = supabase.storage.from("uploads").getPublicUrl(path);
+        const publicUrl = urlData?.publicUrl;
+        if (!publicUrl) throw new Error("URL introuvable");
+
+        const { error: contentError } = await (supabase.from("contents") as any).insert({
+          image_url: publicUrl,
+          title: `Grille ${gridPreset} de ${userName} (${s.idx + 1})`,
+          status: "active",
+          source: "qr_upload",
+          screen_id: screenId,
+          start_time: start.toISOString(),
+          end_time: end.toISOString(),
+          sender_email: null,
+          metadata: {
+            orientation,
+            type: isVid ? "video" : "image",
+            fit: gridFit,
+            batch_id,
+            grid: { rows: gridDims.rows, cols: gridDims.cols },
+            cell: s.idx,
+          },
+        });
+        if (contentError) throw contentError;
+      }
+      setStep("done");
+      toast.success(`Grille ${gridPreset} envoyée (${filled.length} médias) !`);
+    } catch (err: any) {
+      toast.error("Erreur: " + (err.message || "Upload échoué"));
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
+      <Card className={`w-full ${mode === "grid" && step === "upload" ? "max-w-2xl" : "max-w-md"}`}>
+
         {step === "code" && (
           <>
             <CardHeader className="text-center">
