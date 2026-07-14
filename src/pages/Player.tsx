@@ -779,25 +779,53 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Arra
 
   if (!current) return null;
 
-  const contentOrientation = (current.metadata as any)?.orientation || screenOrientation;
+  const meta = (current.metadata as any) || {};
+  const contentOrientation = meta.orientation || screenOrientation;
   const rotationStyle = getOrientationStyle(contentOrientation);
+
+  const fit: "cover" | "contain" | "fill" = meta.fit === "contain" || meta.fit === "fill" ? meta.fit : "cover";
+  const sizeKey: "full" | "half" | "quarter" = meta.size === "half" || meta.size === "quarter" ? meta.size : "full";
+  const pct = sizeKey === "full" ? 100 : sizeKey === "half" ? 50 : 25;
+  const pos: string = meta.position || "center";
+
+  const innerStyle: React.CSSProperties = { position: "absolute", width: `${pct}%`, height: `${pct}%`, overflow: "hidden", backgroundColor: "#000" };
+  const [v, h] = (() => {
+    const map: Record<string, [string, string]> = {
+      "top-left": ["top", "left"], "top": ["top", "center"], "top-right": ["top", "right"],
+      "left": ["center", "left"], "center": ["center", "center"], "right": ["center", "right"],
+      "bottom-left": ["bottom", "left"], "bottom": ["bottom", "center"], "bottom-right": ["bottom", "right"],
+    };
+    return map[pos] || ["center", "center"];
+  })();
+  let tx = "";
+  if (v === "top") innerStyle.top = 0;
+  else if (v === "bottom") innerStyle.bottom = 0;
+  else { innerStyle.top = "50%"; tx += " translateY(-50%)"; }
+  if (h === "left") innerStyle.left = 0;
+  else if (h === "right") innerStyle.right = 0;
+  else { innerStyle.left = "50%"; tx += " translateX(-50%)"; }
+  if (tx) innerStyle.transform = tx.trim();
+
+  const mediaStyle: React.CSSProperties = { width: "100%", height: "100%", objectFit: fit, objectPosition: "center center", display: "block", backgroundColor: "#000" };
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", backgroundColor: "#000", ...rotationStyle }}>
-      {contentType === "video" ? (
-        <video
-          key={current.id}
-          src={current.image_url}
-          style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center center", display: "block", backgroundColor: "#000" }}
-          autoPlay
-          muted
-          playsInline
-          onEnded={contents.length > 1 ? advance : undefined}
-          loop={contents.length <= 1}
-        />
-      ) : (
-        <img src={current.image_url} alt={current.title || ""} style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "center center", display: "block", backgroundColor: "#000" }} />
-      )}
+      <div style={innerStyle}>
+        {contentType === "video" ? (
+          <video
+            key={current.id}
+            src={current.image_url}
+            style={mediaStyle}
+            autoPlay
+            muted
+            playsInline
+            onEnded={contents.length > 1 ? advance : undefined}
+            loop={contents.length <= 1}
+          />
+        ) : (
+          <img src={current.image_url} alt={current.title || ""} style={mediaStyle} />
+        )}
+      </div>
     </div>
   );
 }
