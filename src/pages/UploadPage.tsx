@@ -111,7 +111,7 @@ export default function UploadPage() {
         xhr.open("POST", bucketUrl, true);
         xhr.setRequestHeader("apikey", apiKey);
         xhr.setRequestHeader("Authorization", `Bearer ${apiKey}`);
-        xhr.setRequestHeader("x-upsert", "true");
+        xhr.setRequestHeader("x-upsert", "false");
 
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable) {
