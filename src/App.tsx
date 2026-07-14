@@ -45,6 +45,7 @@ const AdminBackup = lazy(() => import("./pages/AdminBackup"));
 const AdminServerStatus = lazy(() => import("./pages/AdminServerStatus"));
 const FirstAdminLogin = lazy(() => import("./pages/FirstAdminLogin"));
 const AdminLogs = lazy(() => import("./pages/AdminLogs"));
+const CompatTest = lazy(() => import("./pages/CompatTest"));
 
 const queryClient = new QueryClient();
 
