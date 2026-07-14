@@ -188,6 +188,62 @@ function checkFeatureSupport() {
   return features;
 }
 
+/**
+ * CSS primitives the Player relies on. These are the ones that regress on
+ * legacy WebViews and that the compat layer (`src/lib/legacy-webview.ts`)
+ * shims when active. Each test uses `CSS.supports` when available, plus a
+ * runtime measurement fallback for older engines that don't implement it.
+ */
+interface CssTestResult { name: string; property: string; supported: boolean; note?: string; }
+
+function runCssTests(): CssTestResult[] {
+  const results: CssTestResult[] = [];
+  const supports = (prop: string, value: string): boolean => {
+    try { return typeof CSS !== "undefined" && !!CSS.supports && CSS.supports(prop, value); } catch { return false; }
+  };
+
+  results.push({ name: "inset (shorthand)", property: "inset: 0", supported: supports("inset", "0px"), note: "Chrome 87+ — shimmé pour .inset-0" });
+  results.push({ name: "aspect-ratio", property: "aspect-ratio: 16/9", supported: supports("aspect-ratio", "16/9"), note: "Chrome 88+ — shimmé pour .aspect-video / .aspect-square" });
+  results.push({ name: "gap (flexbox)", property: "flex + gap", supported: (function() {
+    try {
+      const t = document.createElement("div");
+      t.style.display = "flex"; t.style.flexDirection = "column"; t.style.gap = "1px";
+      t.appendChild(document.createElement("div")); t.appendChild(document.createElement("div"));
+      t.style.position = "absolute"; t.style.visibility = "hidden";
+      document.body.appendChild(t);
+      const ok = t.scrollHeight >= 3;
+      document.body.removeChild(t);
+      return ok;
+    } catch { return true; }
+  })(), note: "Chrome 84+ (flex) — fallback via marges" });
+  results.push({ name: "backdrop-filter", property: "backdrop-filter: blur(4px)", supported: supports("backdrop-filter", "blur(4px)") || supports("-webkit-backdrop-filter", "blur(4px)"), note: "Non critique — dégradation gracieuse" });
+  results.push({ name: "object-fit", property: "object-fit: cover", supported: supports("object-fit", "cover"), note: "Utilisé pour vidéos et images plein écran" });
+  results.push({ name: "position: sticky", property: "position: sticky", supported: supports("position", "sticky") || supports("position", "-webkit-sticky") });
+  results.push({ name: "CSS variables", property: "--x: 0", supported: supports("--x", "0") });
+  results.push({ name: "clip-path", property: "clip-path: inset(0)", supported: supports("clip-path", "inset(0)") || supports("-webkit-clip-path", "inset(0)"), note: "Non critique" });
+
+  return results;
+}
+
+/**
+ * Tailwind utilities remapped by `legacy-webview.ts` when the compat mode is
+ * active. Keep this list in sync with the shim stylesheet — it's the ground
+ * truth surfaced in the overlay and copied into the support report.
+ */
+const SHIMED_UTILITIES: Array<{ cls: string; remap: string }> = [
+  { cls: ".inset-0",       remap: "top/right/bottom/left: 0" },
+  { cls: ".inset-x-0",     remap: "left/right: 0" },
+  { cls: ".inset-y-0",     remap: "top/bottom: 0" },
+  { cls: ".-inset-0",      remap: "top/right/bottom/left: 0" },
+  { cls: ".inset-auto",    remap: "top/right/bottom/left: auto" },
+  { cls: ".after:inset-0",   remap: "::after top/right/bottom/left: 0" },
+  { cls: ".after:inset-y-0", remap: "::after top/bottom: 0" },
+  { cls: ".after:inset-x-0", remap: "::after left/right: 0" },
+  { cls: ".before:inset-0",  remap: "::before top/right/bottom/left: 0" },
+  { cls: ".aspect-square", remap: "padding-bottom: 100% (16:9 hack)" },
+  { cls: ".aspect-video",  remap: "padding-bottom: 56.25%" },
+];
+
 var panelStyle: React.CSSProperties = {
   position: "fixed",
   top: 0, right: 0, bottom: 0, left: 0,
