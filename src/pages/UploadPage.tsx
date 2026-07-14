@@ -1,8 +1,8 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Upload, Lock, CheckCircle, Loader2, Image as ImageIcon, Clock, CalendarDays, RotateCw, Video } from "lucide-react";
+import { Upload, Lock, CheckCircle, Loader2, Image as ImageIcon, Clock, CalendarDays, RotateCw, Video, Maximize2, Move } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -13,6 +13,44 @@ function toLocalDatetime(date: Date): string {
   const offset = date.getTimezoneOffset();
   const local = new Date(date.getTime() - offset * 60000);
   return local.toISOString().slice(0, 16);
+}
+
+type FitMode = "cover" | "contain" | "fill";
+type SizeMode = "full" | "half" | "quarter";
+type Position =
+  | "top-left" | "top" | "top-right"
+  | "left" | "center" | "right"
+  | "bottom-left" | "bottom" | "bottom-right";
+
+const POSITIONS: Position[] = [
+  "top-left", "top", "top-right",
+  "left", "center", "right",
+  "bottom-left", "bottom", "bottom-right",
+];
+
+function sizePercent(size: SizeMode) {
+  if (size === "full") return 100;
+  if (size === "half") return 50;
+  return 25;
+}
+
+function positionStyle(pos: Position): React.CSSProperties {
+  const [v, h] = (() => {
+    const map: Record<string, [string, string]> = {
+      "top-left": ["top", "left"], "top": ["top", "center"], "top-right": ["top", "right"],
+      "left": ["center", "left"], "center": ["center", "center"], "right": ["center", "right"],
+      "bottom-left": ["bottom", "left"], "bottom": ["bottom", "center"], "bottom-right": ["bottom", "right"],
+    };
+    return map[pos];
+  })();
+  const style: React.CSSProperties = { position: "absolute" };
+  if (v === "top") style.top = 0;
+  else if (v === "bottom") style.bottom = 0;
+  else { style.top = "50%"; style.transform = (style.transform || "") + " translateY(-50%)"; }
+  if (h === "left") style.left = 0;
+  else if (h === "right") style.right = 0;
+  else { style.left = "50%"; style.transform = (style.transform || "") + " translateX(-50%)"; }
+  return style;
 }
 
 export default function UploadPage() {
@@ -27,14 +65,18 @@ export default function UploadPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Schedule & orientation state
   const now = new Date();
   const defaultStart = toLocalDatetime(now);
   const defaultEnd = toLocalDatetime(new Date(now.getTime() + 60 * 60 * 1000));
   const [startTime, setStartTime] = useState(defaultStart);
   const [endTime, setEndTime] = useState(defaultEnd);
-  const [duration, setDuration] = useState("60"); // minutes shortcut
+  const [duration, setDuration] = useState("60");
   const [orientation, setOrientation] = useState("landscape");
+
+  // Nouveaux paramètres de rendu
+  const [fit, setFit] = useState<FitMode>("cover");
+  const [size, setSize] = useState<SizeMode>("full");
+  const [position, setPosition] = useState<Position>("center");
 
   const handleCodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,6 +116,7 @@ export default function UploadPage() {
   };
 
   const isVideo = file?.type.startsWith("video/") ?? false;
+  const isPortrait = orientation === "portrait" || orientation === "portrait-flipped";
 
   const handleDurationChange = (val: string) => {
     setDuration(val);
@@ -95,6 +138,25 @@ export default function UploadPage() {
     }
   };
 
+  const previewInnerStyle = useMemo<React.CSSProperties>(() => {
+    const pct = sizePercent(size);
+    return {
+      width: `${pct}%`,
+      height: `${pct}%`,
+      ...positionStyle(position),
+      overflow: "hidden",
+      backgroundColor: "#000",
+    };
+  }, [size, position]);
+
+  const mediaStyle: React.CSSProperties = {
+    width: "100%",
+    height: "100%",
+    objectFit: fit as any,
+    objectPosition: "center center",
+    display: "block",
+  };
+
   const handleUpload = async () => {
     if (!file || !screenId) return;
     setUploading(true);
@@ -112,13 +174,9 @@ export default function UploadPage() {
         xhr.setRequestHeader("apikey", apiKey);
         xhr.setRequestHeader("Authorization", `Bearer ${apiKey}`);
         xhr.setRequestHeader("x-upsert", "false");
-
         xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            setUploadProgress(Math.round((e.loaded / e.total) * 100));
-          }
+          if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 100));
         };
-
         xhr.onload = () => {
           if (xhr.status >= 200 && xhr.status < 300) resolve();
           else reject(new Error(`Upload failed: ${xhr.status}`));
@@ -133,7 +191,6 @@ export default function UploadPage() {
 
       const start = new Date(startTime);
       const end = new Date(endTime);
-
       if (end <= start) {
         toast.error("La date de fin doit être après la date de début");
         setUploading(false);
@@ -149,9 +206,8 @@ export default function UploadPage() {
         start_time: start.toISOString(),
         end_time: end.toISOString(),
         sender_email: null,
-        metadata: { orientation, type: isVideo ? "video" : "image" },
+        metadata: { orientation, type: isVideo ? "video" : "image", fit, size, position },
       });
-
       if (contentError) throw contentError;
 
       const diffMs = end.getTime() - start.getTime();
@@ -159,7 +215,7 @@ export default function UploadPage() {
       const label = diffMins >= 60 ? `${Math.round(diffMins / 60)}h${diffMins % 60 > 0 ? diffMins % 60 + "min" : ""}` : `${diffMins} minutes`;
 
       setStep("done");
-      toast.success(`${isVideo ? "Vidéo" : "Image"} envoyée ! Elle sera diffusée pendant ${label}.`);
+      toast.success(`${isVideo ? "Vidéo" : "Image"} envoyée ! Diffusion pendant ${label}.`);
     } catch (err: any) {
       toast.error("Erreur: " + (err.message || "Upload échoué"));
     } finally {
@@ -211,7 +267,6 @@ export default function UploadPage() {
               <CardDescription>Bonjour {userName} ! Envoyez une image ou une vidéo.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Image picker */}
               <input ref={fileRef} type="file" accept="image/*,video/*" onChange={handleFileChange} className="hidden" />
               {preview ? (
                 <div className="relative group">
@@ -256,7 +311,87 @@ export default function UploadPage() {
                 </Select>
               </div>
 
-              {/* Duration shortcut */}
+              {/* Fit + Size */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5 text-sm">
+                    <Maximize2 className="h-3.5 w-3.5" /> Affichage
+                  </Label>
+                  <Select value={fit} onValueChange={(v) => setFit(v as FitMode)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cover">Remplir (rogne)</SelectItem>
+                      <SelectItem value="contain">Contenir (bandes)</SelectItem>
+                      <SelectItem value="fill">Étirer</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5 text-sm">
+                    <Maximize2 className="h-3.5 w-3.5" /> Taille
+                  </Label>
+                  <Select value={size} onValueChange={(v) => setSize(v as SizeMode)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="full">Plein écran (100%)</SelectItem>
+                      <SelectItem value="half">Moitié (50%)</SelectItem>
+                      <SelectItem value="quarter">Quart (25%)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Position grid */}
+              {size !== "full" && (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1.5 text-sm">
+                    <Move className="h-3.5 w-3.5" /> Position
+                  </Label>
+                  <div className="grid grid-cols-3 gap-1.5 p-2 rounded-lg border border-border bg-muted/30">
+                    {POSITIONS.map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => setPosition(p)}
+                        className={`aspect-square rounded-md border transition-all ${
+                          position === p
+                            ? "bg-primary border-primary shadow-sm scale-95"
+                            : "bg-background border-border hover:border-primary/50"
+                        }`}
+                        aria-label={p}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Live preview */}
+              {preview && (
+                <div className="space-y-2">
+                  <Label className="text-sm">Aperçu du rendu</Label>
+                  <div
+                    className="relative mx-auto rounded-lg overflow-hidden border-2 border-border bg-black shadow-inner"
+                    style={{
+                      width: "100%",
+                      aspectRatio: isPortrait ? "9 / 16" : "16 / 9",
+                      maxHeight: 220,
+                    }}
+                  >
+                    <div style={previewInnerStyle}>
+                      {isVideo ? (
+                        <video src={preview} style={mediaStyle} muted playsInline autoPlay loop />
+                      ) : (
+                        <img src={preview} alt="" style={mediaStyle} />
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground text-center">
+                    Reproduit fidèlement l'écran cible ({isPortrait ? "portrait" : "paysage"})
+                  </p>
+                </div>
+              )}
+
+              {/* Duration */}
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5 text-sm">
                   <CalendarDays className="h-3.5 w-3.5" /> Durée de diffusion
@@ -275,24 +410,14 @@ export default function UploadPage() {
                 </Select>
               </div>
 
-              {/* Start / End times */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label className="flex items-center gap-1.5 text-xs">
-                    <Clock className="h-3 w-3" /> Début
-                  </Label>
+                  <Label className="flex items-center gap-1.5 text-xs"><Clock className="h-3 w-3" /> Début</Label>
                   <Input type="datetime-local" value={startTime} onChange={e => handleStartChange(e.target.value)} className="text-xs" />
                 </div>
                 <div className="space-y-2">
-                  <Label className="flex items-center gap-1.5 text-xs">
-                    <Clock className="h-3 w-3" /> Fin
-                  </Label>
-                  <Input
-                    type="datetime-local"
-                    value={endTime}
-                    onChange={e => { setEndTime(e.target.value); setDuration("custom"); }}
-                    className="text-xs"
-                  />
+                  <Label className="flex items-center gap-1.5 text-xs"><Clock className="h-3 w-3" /> Fin</Label>
+                  <Input type="datetime-local" value={endTime} onChange={e => { setEndTime(e.target.value); setDuration("custom"); }} className="text-xs" />
                 </div>
               </div>
 
@@ -303,10 +428,7 @@ export default function UploadPage() {
                     <span>{uploadProgress}%</span>
                   </div>
                   <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
-                      style={{ width: `${uploadProgress}%` }}
-                    />
+                    <div className="h-full bg-primary rounded-full transition-all duration-300 ease-out" style={{ width: `${uploadProgress}%` }} />
                   </div>
                 </div>
               )}
