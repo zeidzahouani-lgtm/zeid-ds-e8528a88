@@ -76,6 +76,36 @@ interface PlayerBranding {
   showSignatureOnPlayer: boolean;
 }
 
+/**
+ * Rendered when the player URL does not resolve to any screen.
+ * Logs the incident to `player_errors` once (server dedupes within 5 min)
+ * so admins are notified of broken links / removed screens.
+ */
+function ScreenNotFoundReport({ screenKey }: { screenKey: string | undefined }) {
+  const reportedRef = useRef(false);
+  useEffect(() => {
+    if (reportedRef.current) return;
+    reportedRef.current = true;
+    const key = (screenKey ?? "").trim();
+    if (!key) return;
+    (supabase as any)
+      .rpc("log_player_error", {
+        _screen_key: key,
+        _error_type: "screen_not_found",
+        _message: "Aucun écran ne correspond à cette URL",
+        _url: typeof window !== "undefined" ? window.location.href : null,
+        _user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+      })
+      .then(() => {})
+      .catch(() => {});
+  }, [screenKey]);
+  return (
+    <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <p style={{ color: "#ef4444", fontSize: 18 }}>Écran introuvable</p>
+    </div>
+  );
+}
+
 interface RegionErrorBoundaryProps {
   children: ReactNode;
   regionId: string;
