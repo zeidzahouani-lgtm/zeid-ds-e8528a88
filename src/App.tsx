@@ -116,6 +116,7 @@ const App = () => (
                 <Route path="/ai-assistant" element={<AIAssistant />} />
                 <Route path="/auto-flow" element={<AutoFlow />} />
                 <Route path="/admin/logs" element={<AdminLogs />} />
+                <Route path="/admin/player-errors" element={<AdminPlayerErrors />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
