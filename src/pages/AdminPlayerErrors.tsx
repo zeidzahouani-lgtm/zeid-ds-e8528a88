@@ -8,8 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, ShieldAlert, RefreshCw, CheckCircle2, Download } from "lucide-react";
+import { AlertTriangle, ShieldAlert, RefreshCw, CheckCircle2, Download, Activity } from "lucide-react";
 import { toast } from "sonner";
+
+type HealthSnapshot = {
+  status: "healthy" | "degraded" | "unhealthy";
+  errors: { last_5m: number; last_1h: number; last_24h: number; by_type_1h: Record<string, number> };
+  latency_1h: { samples: number; avg_ms: number; p95_ms: number };
+  screens: { total: number; online: number; offline: number };
+  failure_rate_per_screen_1h?: number;
+};
 
 type PlayerError = {
   id: string;
@@ -54,6 +62,16 @@ export default function AdminPlayerErrors() {
       if (error) throw error;
       return data ?? [];
     },
+  });
+
+  const { data: health, refetch: refetchHealth } = useQuery({
+    queryKey: ["player-health"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("player_health_snapshot");
+      if (error) throw error;
+      return data as HealthSnapshot;
+    },
+    refetchInterval: 30000,
   });
 
   const { data: errors = [], isLoading: loadingErrors, refetch, isRefetching } = useQuery({
@@ -174,6 +192,29 @@ export default function AdminPlayerErrors() {
           </Button>
         </div>
       </div>
+
+      {health && (
+        <Card className="p-4 flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Activity className={`h-5 w-5 ${
+              health.status === "healthy" ? "text-green-500" :
+              health.status === "degraded" ? "text-amber-500" : "text-red-500"
+            }`} />
+            <span className="text-sm font-semibold uppercase tracking-wide">
+              {health.status === "healthy" ? "Système sain" :
+               health.status === "degraded" ? "Dégradé" : "Incident majeur"}
+            </span>
+          </div>
+          <div className="text-xs text-muted-foreground">Écrans en ligne&nbsp;: <b className="text-foreground">{health.screens.online}/{health.screens.total}</b></div>
+          <div className="text-xs text-muted-foreground">Erreurs (5 min)&nbsp;: <b className="text-foreground">{health.errors.last_5m}</b></div>
+          <div className="text-xs text-muted-foreground">Taux d'échec/écran (1 h)&nbsp;: <b className="text-foreground">{health.failure_rate_per_screen_1h ?? (health.screens.total ? (health.errors.last_1h / health.screens.total).toFixed(2) : 0)}</b></div>
+          <div className="text-xs text-muted-foreground">Latence moyenne (1 h)&nbsp;: <b className="text-foreground">{Math.round(Number(health.latency_1h.avg_ms) || 0)} ms</b></div>
+          <div className="text-xs text-muted-foreground">p95 latence&nbsp;: <b className="text-foreground">{Math.round(Number(health.latency_1h.p95_ms) || 0)} ms</b> <span className="opacity-60">({health.latency_1h.samples} échant.)</span></div>
+          <Button variant="ghost" size="sm" onClick={() => refetchHealth()} className="ml-auto">
+            <RefreshCw className="h-3.5 w-3.5 mr-1" /> Health
+          </Button>
+        </Card>
+      )}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="p-4">
