@@ -391,15 +391,114 @@ function DiagnosticHUD(props: DiagnosticProps) {
   );
 }
 
-function LegacyCompatSection() {
+/**
+ * Best-effort clipboard copy that also works on legacy WebViews without the
+ * async Clipboard API (Chrome < 66, most Android TV boxes).
+ */
+async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {}
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.top = "-9999px";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand && document.execCommand("copy");
+    document.body.removeChild(ta);
+    return !!ok;
+  } catch {
+    return false;
+  }
+}
+
+function buildSupportReport(
+  props: DiagnosticProps,
+  legacy: LegacyWebViewReport | null,
+  cssTests: CssTestResult[],
+  features: Array<{ name: string; supported: boolean }>,
+  logs: LogEntry[],
+): string {
+  const info = getBrowserInfo();
+  const lines: string[] = [];
+  lines.push("# ScreenFlow — rapport de diagnostic Player");
+  lines.push(`Généré: ${new Date().toISOString()}`);
+  lines.push("");
+  lines.push("## Écran");
+  lines.push(`- Nom: ${props.screenName ?? "—"}`);
+  lines.push(`- ID: ${props.screenId ?? "—"}`);
+  lines.push(`- Statut: ${props.screenStatus ?? "—"}`);
+  lines.push(`- Orientation: ${props.orientation ?? "—"}`);
+  lines.push(`- Session bloquée: ${props.sessionBlocked ? "oui" : "non"}`);
+  lines.push(`- Licence valide: ${props.licenseValid === null ? "en vérification" : props.licenseValid ? "oui" : "non"}`);
+  lines.push("");
+  lines.push("## Contenu");
+  lines.push(`- Layout: ${props.layoutId ?? "aucun"}`);
+  lines.push(`- Média ID/type: ${props.mediaId ?? "—"} / ${props.mediaType ?? "—"}`);
+  lines.push(`- Playlist: ${props.hasPlaylist ? `${props.playlistLength} élément(s)` : "aucune"}`);
+  lines.push(`- Programme: ${props.hasProgram ? "oui" : "non"}`);
+  lines.push(`- Contenus actifs (upload QR): ${props.activeContentsCount ?? 0}`);
+  lines.push("");
+  lines.push("## Appareil");
+  lines.push(`- Plateforme: ${info.platform}`);
+  lines.push(`- Navigateur: ${info.browser} ${info.version}`);
+  lines.push(`- Résolution / viewport: ${window.screen.width}×${window.screen.height} / ${window.innerWidth}×${window.innerHeight} @ DPR ${window.devicePixelRatio}`);
+  lines.push(`- User-Agent: ${info.userAgent}`);
+  lines.push("");
+  lines.push("## Mode compatibilité WebView");
+  lines.push(`- État: ${legacy?.isLegacy ? "ACTIF" : "inactif"}`);
+  lines.push(`- Override: ${legacy?.override ?? "auto"}`);
+  lines.push(`- Détection auto: ${legacy?.autoDetected ? "oui" : "non"}`);
+  lines.push(`- Chromium: ${legacy?.chromiumMajor ?? "inconnu"}`);
+  if (legacy?.reasons?.length) lines.push(`- Raisons: ${legacy.reasons.join(", ")}`);
+  if (legacy?.isLegacy) {
+    lines.push("- Utilitaires Tailwind shimés:");
+    for (const s of SHIMED_UTILITIES) lines.push(`  * ${s.cls} → ${s.remap}`);
+  }
+  lines.push("");
+  lines.push("## Tests CSS");
+  for (const t of cssTests) {
+    lines.push(`- [${t.supported ? "OK " : "FAIL"}] ${t.name} (${t.property})${t.note ? " — " + t.note : ""}`);
+  }
+  lines.push("");
+  lines.push("## Fonctionnalités navigateur");
+  for (const f of features) lines.push(`- [${f.supported ? "OK " : "FAIL"}] ${f.name}`);
+  lines.push("");
+  lines.push(`## Journal (${logs.length} entrée(s))`);
+  if (!logs.length) lines.push("- (aucune)");
+  else for (const l of logs.slice(-30)) lines.push(`- ${l.time} [${l.level.toUpperCase()}] ${l.msg}`);
+
+  return lines.join("\n");
+}
+
+interface LegacyCompatSectionProps {
+  getReport: () => string;
+}
+
+function LegacyCompatSection({ getReport }: LegacyCompatSectionProps) {
   const initial = (typeof window !== "undefined" ? (window as any).__LEGACY_WEBVIEW__ : null) as LegacyWebViewReport | null;
   const [override, setOverride] = useState<LegacyCompatOverride>(getLegacyCompatOverride());
   const [report, setReport] = useState<LegacyWebViewReport | null>(initial);
+  const [copyState, setCopyState] = useState<"idle" | "ok" | "err">("idle");
+  const cssTests = runCssTests();
+  const failedCss = cssTests.filter((t) => !t.supported);
 
   const apply = (mode: LegacyCompatOverride) => {
     const next = setLegacyCompatOverride(mode);
     setOverride(mode);
     setReport(next);
+  };
+
+  const handleCopy = async () => {
+    const ok = await copyToClipboard(getReport());
+    setCopyState(ok ? "ok" : "err");
+    setTimeout(() => setCopyState("idle"), 2500);
   };
 
   const active = !!report?.isLegacy;
@@ -451,7 +550,7 @@ function LegacyCompatSection() {
         </div>
       )}
 
-      <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+      <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
         <button style={override === "auto" ? btnActive : btnBase} onClick={() => apply("auto")}>
           AUTO {auto ? "(→ ON)" : "(→ OFF)"}
         </button>
@@ -461,10 +560,72 @@ function LegacyCompatSection() {
         <button style={override === "off" ? btnActive : btnBase} onClick={() => apply("off")}>
           FORCER DÉSACTIVÉ
         </button>
+        <button
+          style={{
+            ...btnBase,
+            marginLeft: "auto",
+            backgroundColor: copyState === "ok" ? "rgba(34,197,94,0.2)" : copyState === "err" ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.05)",
+            borderColor: copyState === "ok" ? "#22c55e" : copyState === "err" ? "#ef4444" : "rgba(255,255,255,0.15)",
+            color: copyState === "ok" ? "#22c55e" : copyState === "err" ? "#ef4444" : "#e5e7eb",
+          }}
+          onClick={handleCopy}
+          title="Copier le rapport complet dans le presse-papiers pour l'envoyer au support"
+        >
+          {copyState === "ok" ? "✓ COPIÉ" : copyState === "err" ? "✗ ÉCHEC" : "📋 COPIER LE RAPPORT"}
+        </button>
       </div>
 
-      <p style={{ fontSize: 10, color: "#6b7280", marginTop: 8, marginBottom: 0 }}>
-        Actif : shims CSS pour <code>inset</code>, <code>aspect-ratio</code>, flex-gap.
+      {/* CSS tests — highlight failures explicitly */}
+      <div style={{ marginTop: 12 }}>
+        <div style={{ ...headingStyle, fontSize: 12, color: failedCss.length ? "#ef4444" : "#22c55e", marginBottom: 6 }}>
+          Tests CSS ({failedCss.length ? `${failedCss.length} échec(s)` : "tous OK"})
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {cssTests.map((t) => (
+            <span
+              key={t.name}
+              title={`${t.property}${t.note ? " — " + t.note : ""}`}
+              style={{
+                padding: "3px 8px",
+                borderRadius: 4,
+                fontSize: 10,
+                fontWeight: 600,
+                backgroundColor: t.supported ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.18)",
+                color: t.supported ? "#22c55e" : "#ef4444",
+                border: "1px solid " + (t.supported ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.4)"),
+              }}
+            >
+              {t.supported ? "✓" : "✗"} {t.name}
+            </span>
+          ))}
+        </div>
+        {failedCss.length > 0 && (
+          <p style={{ fontSize: 10, color: "#f59e0b", marginTop: 6, marginBottom: 0 }}>
+            {active
+              ? "Ces propriétés sont remplacées par le shim de compatibilité ci-dessous."
+              : "Activez le mode compatibilité pour appliquer les shims correspondants."}
+          </p>
+        )}
+      </div>
+
+      {/* Shimed Tailwind utilities */}
+      {active && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ ...headingStyle, fontSize: 12, color: "#a78bfa", marginBottom: 6 }}>
+            Utilitaires Tailwind shimés ({SHIMED_UTILITIES.length})
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
+            {SHIMED_UTILITIES.map((s) => (
+              <div key={s.cls} style={{ fontSize: 10, color: "#9ca3af", padding: "2px 0" }}>
+                <code style={{ color: "#e5e7eb" }}>{s.cls}</code>
+                <span style={{ color: "#6b7280" }}> → {s.remap}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <p style={{ fontSize: 10, color: "#6b7280", marginTop: 10, marginBottom: 0 }}>
         Le choix est mémorisé localement sur ce lecteur. Un rafraîchissement peut être nécessaire pour rehydrater tous les composants.
       </p>
     </div>
