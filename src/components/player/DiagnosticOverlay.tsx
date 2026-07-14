@@ -639,6 +639,34 @@ function LegacyCompatSection({ getReport }: LegacyCompatSectionProps) {
         >
           {copyState === "ok" ? "✓ COPIÉ" : copyState === "err" ? "✗ ÉCHEC" : "📋 COPIER LE RAPPORT"}
         </button>
+        <button
+          style={{
+            ...btnBase,
+            backgroundColor:
+              sendState === "ok" ? "rgba(34,197,94,0.2)" :
+              sendState === "err" ? "rgba(239,68,68,0.2)" :
+              sendState === "sending" ? "rgba(96,165,250,0.2)" :
+              "rgba(255,255,255,0.05)",
+            borderColor:
+              sendState === "ok" ? "#22c55e" :
+              sendState === "err" ? "#ef4444" :
+              sendState === "sending" ? "#60a5fa" :
+              "rgba(255,255,255,0.15)",
+            color:
+              sendState === "ok" ? "#22c55e" :
+              sendState === "err" ? "#ef4444" :
+              sendState === "sending" ? "#60a5fa" :
+              "#e5e7eb",
+          }}
+          onClick={handleSend}
+          disabled={sendState === "sending"}
+          title="Ouvre un formulaire (email ou endpoint configuré) pré-rempli avec le rapport"
+        >
+          {sendState === "ok" ? "✓ ENVOYÉ" :
+           sendState === "err" ? "✗ ÉCHEC — MAILTO OUVERT" :
+           sendState === "sending" ? "… ENVOI" :
+           "✉️ ENVOYER AU SUPPORT"}
+        </button>
       </div>
 
       {/* CSS tests — highlight failures explicitly */}
