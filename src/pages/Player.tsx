@@ -1217,6 +1217,31 @@ export default function Player() {
     programId: (screen as any)?.program_id ?? null,
   };
 
+  // Detect "media missing": the screen references a current_media_id but the
+  // media could not be resolved (deleted, RLS-blocked, or moved). Report once
+  // per screen+missing-id pair; server dedupes within 5 min anyway.
+  const missingMediaId = (screen as any)?.current_media_id && !media && !layoutId
+    ? (screen as any).current_media_id as string
+    : null;
+  const reportedMissingRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!missingMediaId || !screen?.id) return;
+    const key = `${screen.id}:${missingMediaId}`;
+    if (reportedMissingRef.current === key) return;
+    reportedMissingRef.current = key;
+    (supabase as any)
+      .rpc("log_player_error", {
+        _screen_key: (screen as any).slug || screen.id,
+        _error_type: "media_missing",
+        _message: `Média ${missingMediaId} introuvable pour l'écran`,
+        _url: typeof window !== "undefined" ? window.location.href : null,
+        _user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+      })
+      .then(() => {})
+      .catch(() => {});
+  }, [missingMediaId, screen?.id]);
+
+
   if (loading) {
     return (
       <div style={{ ...playerBgStyle, position: "fixed", top: 0, right: 0, bottom: 0, left: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
