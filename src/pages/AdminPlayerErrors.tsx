@@ -64,6 +64,16 @@ export default function AdminPlayerErrors() {
     },
   });
 
+  const { data: health, refetch: refetchHealth } = useQuery({
+    queryKey: ["player-health"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("player_health_snapshot");
+      if (error) throw error;
+      return data as HealthSnapshot;
+    },
+    refetchInterval: 30000,
+  });
+
   const { data: errors = [], isLoading: loadingErrors, refetch, isRefetching } = useQuery({
     queryKey: ["player-errors", period, errorType, establishmentId, showResolved],
     queryFn: async () => {
