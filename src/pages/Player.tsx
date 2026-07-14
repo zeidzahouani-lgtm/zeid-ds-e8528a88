@@ -1241,6 +1241,28 @@ export default function Player() {
       .catch(() => {});
   }, [missingMediaId, screen?.id]);
 
+  // Report player load latency once, when the screen is resolved and ready.
+  const latencyReportedRef = useRef(false);
+  useEffect(() => {
+    if (latencyReportedRef.current) return;
+    if (loading || !screen?.id) return;
+    latencyReportedRef.current = true;
+    const loadMs = Math.round(
+      typeof performance !== "undefined" && performance.now ? performance.now() : 0,
+    );
+    if (loadMs <= 0 || loadMs > 600000) return;
+    (supabase as any)
+      .rpc("log_player_metric", {
+        _screen_key: (screen as any).slug || screen.id,
+        _load_ms: loadMs,
+        _ttfp_ms: null,
+      })
+      .then(() => {})
+      .catch(() => {});
+  }, [loading, screen?.id]);
+
+
+
 
   if (loading) {
     return (
