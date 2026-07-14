@@ -54,6 +54,7 @@ const globalAdminItems = [
   { title: "Backup & Docker", url: "/admin/backup", icon: DatabaseBackup },
   { title: "État Serveur", url: "/admin/server-status", icon: Activity },
   { title: "Journal d'activité", url: "/admin/logs", icon: ScrollText },
+  { title: "Incidents Player", url: "/admin/player-errors", icon: AlertTriangle },
   { title: "Première connexion admin", url: "/admin/first-login", icon: ShieldCheck },
 ];
 
