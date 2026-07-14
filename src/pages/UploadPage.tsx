@@ -364,10 +364,15 @@ export default function UploadPage() {
           metadata: {
             orientation,
             type: isVid ? "video" : "image",
-            fit: gridFit,
+            fit: s.fit || defaultFitFor(isVid),
             batch_id,
             grid: { rows: gridDims.rows, cols: gridDims.cols },
             cell: s.idx,
+            ...(isVid ? {
+              muted: s.muted !== false,
+              loop: s.loop !== false,
+              autoplay: s.autoplay !== false,
+            } : {}),
           },
         });
         if (contentError) throw contentError;
