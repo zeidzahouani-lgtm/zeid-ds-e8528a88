@@ -8,8 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, ShieldAlert, RefreshCw, CheckCircle2, Download } from "lucide-react";
+import { AlertTriangle, ShieldAlert, RefreshCw, CheckCircle2, Download, Activity } from "lucide-react";
 import { toast } from "sonner";
+
+type HealthSnapshot = {
+  status: "healthy" | "degraded" | "unhealthy";
+  errors: { last_5m: number; last_1h: number; last_24h: number; by_type_1h: Record<string, number> };
+  latency_1h: { samples: number; avg_ms: number; p95_ms: number };
+  screens: { total: number; online: number; offline: number };
+  failure_rate_per_screen_1h?: number;
+};
 
 type PlayerError = {
   id: string;
