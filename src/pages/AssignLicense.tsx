@@ -164,7 +164,7 @@ export default function AssignLicense() {
                     <ShieldCheck className="h-5 w-5 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-mono text-sm font-semibold tracking-wider">{license.license_key}</p>
+                    <p className="font-mono text-sm font-semibold tracking-wider">{license.license_key_masked}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <Badge variant="outline" className="text-[10px]">
                         {license.source === "auto" ? "Auto" : "Manuel"}
