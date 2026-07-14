@@ -69,6 +69,14 @@ function supportsFlexGap(): boolean {
 }
 
 export function getLegacyCompatOverride(): LegacyCompatOverride {
+  // URL param wins over persisted preference. Useful for hermetic e2e tests
+  // (e.g. Playwright) that don't want to pollute localStorage.
+  try {
+    if (typeof location !== "undefined" && location.search) {
+      const p = new URLSearchParams(location.search).get("legacyCompat");
+      if (p === "on" || p === "off" || p === "auto") return p;
+    }
+  } catch {}
   try {
     const v = localStorage.getItem(OVERRIDE_KEY);
     if (v === "on" || v === "off" || v === "auto") return v;
