@@ -902,7 +902,15 @@ export default function DiagnosticOverlay(props: DiagnosticProps) {
       </div>
 
       {/* Legacy WebView compatibility */}
-      <LegacyCompatSection />
+      <LegacyCompatSection
+        getReport={() => buildSupportReport(
+          props,
+          (typeof window !== "undefined" ? (window as any).__LEGACY_WEBVIEW__ : null) as LegacyWebViewReport | null,
+          runCssTests(),
+          features,
+          logsRef.current,
+        )}
+      />
 
       </div>
 
