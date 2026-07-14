@@ -1262,6 +1262,10 @@ export type Database = {
     }
     Functions: {
       check_fallback_alerts: { Args: never; Returns: undefined }
+      claim_license_for_screen: {
+        Args: { _license_id: string; _screen_id: string }
+        Returns: boolean
+      }
       establishment_role: {
         Args: { _establishment_id: string; _user_id: string }
         Returns: string
@@ -1276,6 +1280,16 @@ export type Database = {
       is_member_of: {
         Args: { _establishment_id: string; _user_id: string }
         Returns: boolean
+      }
+      list_available_licenses_for_screen: {
+        Args: { _screen_id: string }
+        Returns: {
+          establishment_id: string
+          id: string
+          license_key_masked: string
+          source: string
+          valid_until: string
+        }[]
       }
       shares_establishment: {
         Args: { _a: string; _b: string }
