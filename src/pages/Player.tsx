@@ -760,26 +760,100 @@ function LicenseScreen({
   );
 }
 
-function ActiveContentCarousel({ contents, screenOrientation }: { contents: Array<{ id: string; image_url: string; title: string | null; metadata: Record<string, any> | null }>; screenOrientation: string }) {
+type ContentItem = { id: string; image_url: string; title: string | null; metadata: Record<string, any> | null };
+type Slide =
+  | { kind: "single"; content: ContentItem }
+  | { kind: "grid"; batch_id: string; rows: number; cols: number; items: ContentItem[]; orientation?: string };
+
+function buildSlides(contents: ContentItem[]): Slide[] {
+  const seen = new Set<string>();
+  const out: Slide[] = [];
+  for (const c of contents) {
+    const meta = (c.metadata as any) || {};
+    if (meta.batch_id && meta.grid) {
+      if (seen.has(meta.batch_id)) continue;
+      seen.add(meta.batch_id);
+      const items = contents
+        .filter(x => (x.metadata as any)?.batch_id === meta.batch_id)
+        .sort((a, b) => (((a.metadata as any)?.cell ?? 0) - ((b.metadata as any)?.cell ?? 0)));
+      out.push({
+        kind: "grid",
+        batch_id: meta.batch_id,
+        rows: Math.max(1, Number(meta.grid?.rows) || 1),
+        cols: Math.max(1, Number(meta.grid?.cols) || 1),
+        items,
+        orientation: meta.orientation,
+      });
+    } else {
+      out.push({ kind: "single", content: c });
+    }
+  }
+  return out;
+}
+
+function ActiveContentCarousel({ contents, screenOrientation }: { contents: ContentItem[]; screenOrientation: string }) {
+  const slides = React.useMemo(() => buildSlides(contents), [contents]);
   const [index, setIndex] = useState(0);
-  const current = contents[Math.min(index, contents.length - 1)];
-  const contentType = (current?.metadata as any)?.type || "image";
+  const current = slides[Math.min(index, Math.max(0, slides.length - 1))];
+
+  const hasVideoInSlide = (() => {
+    if (!current) return false;
+    if (current.kind === "single") return (current.content.metadata as any)?.type === "video";
+    return current.items.some(it => (it.metadata as any)?.type === "video");
+  })();
 
   const advance = useCallback(() => {
-    if (contents.length <= 1) return;
-    setIndex(prev => (prev + 1) % contents.length);
-  }, [contents.length]);
+    if (slides.length <= 1) return;
+    setIndex(prev => (prev + 1) % slides.length);
+  }, [slides.length]);
 
   useEffect(() => {
-    if (contents.length <= 1 && contentType !== "video") return;
-    if (contentType === "video") return;
+    if (slides.length <= 1) return;
+    if (hasVideoInSlide && current?.kind === "single") return; // single video advances via onEnded
     const timer = setInterval(advance, 10000);
     return () => clearInterval(timer);
-  }, [contents.length, contentType, advance]);
+  }, [slides.length, hasVideoInSlide, current, advance]);
 
   if (!current) return null;
 
-  const meta = (current.metadata as any) || {};
+  if (current.kind === "grid") {
+    const contentOrientation = current.orientation || screenOrientation;
+    const rotationStyle = getOrientationStyle(contentOrientation);
+    return (
+      <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", backgroundColor: "#000", ...rotationStyle }}>
+        <div
+          style={{
+            position: "absolute", inset: 0, display: "grid",
+            gridTemplateRows: `repeat(${current.rows}, 1fr)`,
+            gridTemplateColumns: `repeat(${current.cols}, 1fr)`,
+            gap: 2, backgroundColor: "#000",
+          }}
+        >
+          {Array.from({ length: current.rows * current.cols }).map((_, i) => {
+            const item = current.items.find(it => ((it.metadata as any)?.cell ?? -1) === i);
+            if (!item) return <div key={i} style={{ backgroundColor: "#000" }} />;
+            const m = (item.metadata as any) || {};
+            const fitCell: "cover" | "contain" | "fill" = m.fit === "contain" || m.fit === "fill" ? m.fit : "cover";
+            const isVid = m.type === "video";
+            const style: React.CSSProperties = { width: "100%", height: "100%", objectFit: fitCell, objectPosition: "center center", display: "block", backgroundColor: "#000" };
+            return (
+              <div key={i} style={{ position: "relative", overflow: "hidden", backgroundColor: "#000" }}>
+                {isVid ? (
+                  <video src={item.image_url} style={style} autoPlay muted playsInline loop />
+                ) : (
+                  <img src={item.image_url} alt={item.title || ""} style={style} />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  const single = current.content;
+  const meta = (single.metadata as any) || {};
+  const contentType = meta.type || "image";
   const contentOrientation = meta.orientation || screenOrientation;
   const rotationStyle = getOrientationStyle(contentOrientation);
 
@@ -813,17 +887,17 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Arra
       <div style={innerStyle}>
         {contentType === "video" ? (
           <video
-            key={current.id}
-            src={current.image_url}
+            key={single.id}
+            src={single.image_url}
             style={mediaStyle}
             autoPlay
             muted
             playsInline
-            onEnded={contents.length > 1 ? advance : undefined}
-            loop={contents.length <= 1}
+            onEnded={slides.length > 1 ? advance : undefined}
+            loop={slides.length <= 1}
           />
         ) : (
-          <img src={current.image_url} alt={current.title || ""} style={mediaStyle} />
+          <img src={single.image_url} alt={single.title || ""} style={mediaStyle} />
         )}
       </div>
     </div>
