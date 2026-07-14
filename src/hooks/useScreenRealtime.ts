@@ -41,6 +41,28 @@ interface ScheduleRow {
   playlist_items?: PlaylistItem[];
 }
 
+const MEDIA_SELECT = "id, name, type, url, duration";
+const SCREEN_SELECT = [
+  "id",
+  "name",
+  "orientation",
+  "status",
+  "current_media_id",
+  "layout_id",
+  "playlist_id",
+  "program_id",
+  "show_name",
+  "debug_mode",
+  "resolution",
+  "wall_id",
+  "wall_row",
+  "wall_col",
+  "player_session_id",
+  "player_heartbeat_at",
+  "pending_action",
+  "establishment_id",
+].join(", ");
+
 /** Returns the currently active schedule (media or playlist) for the current day/time. */
 function getActiveSchedule(schedules: ScheduleRow[]): ScheduleRow | null {
   const now = new Date();
@@ -99,14 +121,14 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
     if (screenData.playlist_id) {
       const { data } = await supabase
         .from("playlist_items")
-        .select("*, media:media_id(id, name, type, url, duration)")
+        .select(`id, media_id, playlist_id, position, duration, media:media_id(${MEDIA_SELECT})`)
         .eq("playlist_id", screenData.playlist_id)
         .order("position", { ascending: true });
       return (data ?? []) as PlaylistItem[];
     }
     const { data } = await supabase
       .from("playlist_items")
-      .select("*, media:media_id(id, name, type, url, duration)")
+      .select(`id, media_id, screen_id, position, duration, media:media_id(${MEDIA_SELECT})`)
       .eq("screen_id", screenData.id)
       .order("position", { ascending: true });
     return (data ?? []) as PlaylistItem[];
@@ -117,14 +139,14 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
     if (screenData.program_id) {
       const { data } = await supabase
         .from("schedules")
-        .select("*, media:media_id(id, name, type, url, duration)")
+        .select(`id, media_id, playlist_id, start_time, end_time, days_of_week, active, media:media_id(${MEDIA_SELECT})`)
         .eq("program_id", screenData.program_id)
         .eq("active", true);
       rows = data ?? [];
     } else {
       const { data } = await supabase
         .from("schedules")
-        .select("*, media:media_id(id, name, type, url, duration)")
+        .select(`id, media_id, playlist_id, start_time, end_time, days_of_week, active, media:media_id(${MEDIA_SELECT})`)
         .eq("screen_id", screenData.id)
         .eq("active", true);
       rows = data ?? [];
@@ -137,7 +159,7 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
     if (playlistIds.length > 0) {
       const { data: items } = await supabase
         .from("playlist_items")
-        .select("*, media:media_id(id, name, type, url, duration)")
+        .select(`id, media_id, playlist_id, position, duration, media:media_id(${MEDIA_SELECT})`)
         .in("playlist_id", playlistIds)
         .order("position", { ascending: true });
       const itemsByPlaylist: Record<string, PlaylistItem[]> = {};
@@ -234,7 +256,7 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
           if (prev && prev.id === screenData.current_media_id) return prev;
           supabase
             .from("media")
-            .select("*")
+            .select(MEDIA_SELECT)
             .eq("id", screenData.current_media_id!)
             .maybeSingle()
             .then(({ data }) => { if (data) setMedia(data as MediaData); });
@@ -264,9 +286,9 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
     if (!screenId) return;
 
     const init = async () => {
-      let screenRes = await supabase.from("screens").select("*").eq("slug", screenId).maybeSingle();
+      let screenRes = await supabase.from("screens").select(SCREEN_SELECT).eq("slug", screenId).maybeSingle();
       if (!screenRes.data) {
-        screenRes = await supabase.from("screens").select("*").eq("id", screenId).maybeSingle();
+        screenRes = await supabase.from("screens").select(SCREEN_SELECT).eq("id", screenId).maybeSingle();
       }
       const screenData = screenRes.data as any;
       if (!screenData) { setLoading(false); return; }
@@ -288,7 +310,7 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
         if (screenData.current_media_id && pl.length === 0) {
           const { data: mediaData } = await supabase
             .from("media")
-            .select("*")
+            .select(MEDIA_SELECT)
             .eq("id", screenData.current_media_id)
             .single();
           if (mediaData) setMedia(mediaData as MediaData);
@@ -475,7 +497,7 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
         if (activeScreenData.current_media_id && pl.length === 0) {
           const { data: mediaData } = await supabase
             .from("media")
-            .select("*")
+            .select(MEDIA_SELECT)
             .eq("id", activeScreenData.current_media_id)
             .single();
           if (mediaData) setMedia(mediaData as MediaData);
@@ -592,7 +614,7 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
 
       const { data } = await supabase
         .from("screens")
-        .select("*")
+        .select(SCREEN_SELECT)
         .eq("id", realId)
         .maybeSingle();
 
@@ -615,7 +637,7 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
       if (nextScreen.current_media_id) {
         const { data: mediaData } = await supabase
           .from("media")
-          .select("*")
+          .select(MEDIA_SELECT)
           .eq("id", nextScreen.current_media_id)
           .maybeSingle();
 
@@ -687,7 +709,7 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
 
         // In preview mode: just follow current_media_id from DB
         if (previewOnly && newData.current_media_id) {
-          const { data: mediaData } = await supabase.from("media").select("*").eq("id", newData.current_media_id).single();
+          const { data: mediaData } = await supabase.from("media").select(MEDIA_SELECT).eq("id", newData.current_media_id).single();
           if (mediaData) setMedia(mediaData as MediaData);
           // Find the index in playlist for progress indicator
           const pl = playlistRef.current;
@@ -698,7 +720,7 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
 
         // Normal mode: handle config changes
         if (newData.current_media_id) {
-          const { data: mediaData } = await supabase.from("media").select("*").eq("id", newData.current_media_id).single();
+          const { data: mediaData } = await supabase.from("media").select(MEDIA_SELECT).eq("id", newData.current_media_id).single();
           if (mediaData) setMedia(mediaData as MediaData);
         }
         const [pl, sch] = await Promise.all([fetchPlaylist(newData), fetchSchedules(newData)]);
@@ -761,7 +783,7 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
     updatePlaylist(newPl);
     schedulesRef.current = sch;
     if (s?.current_media_id && newPl.length === 0) {
-      const { data: mediaData } = await supabase.from("media").select("*").eq("id", s.current_media_id).single();
+      const { data: mediaData } = await supabase.from("media").select(MEDIA_SELECT).eq("id", s.current_media_id).single();
       if (mediaData) setMedia(mediaData as MediaData);
     }
     setCurrentIndex(0);
