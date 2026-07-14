@@ -403,9 +403,16 @@ export default function UploadPage() {
                 <Upload className="h-8 w-8 text-primary" />
               </div>
               <CardTitle className="text-xl">Envoyer du contenu</CardTitle>
-              <CardDescription>Bonjour {userName} ! Envoyez une image ou une vidéo.</CardDescription>
+              <CardDescription>Bonjour {userName} ! Un seul média ou plusieurs en grille.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              <Tabs value={mode} onValueChange={(v) => setMode(v as "single" | "grid")} className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="single" className="gap-1.5"><ImageIcon className="h-3.5 w-3.5" /> Un seul média</TabsTrigger>
+                  <TabsTrigger value="grid" className="gap-1.5"><LayoutGrid className="h-3.5 w-3.5" /> Grille multi</TabsTrigger>
+                </TabsList>
+                <TabsContent value="single" className="space-y-4 mt-4">
+
               <input ref={fileRef} type="file" accept="image/*,video/*" onChange={handleFileChange} className="hidden" />
               {preview ? (
                 <div className="relative group">
