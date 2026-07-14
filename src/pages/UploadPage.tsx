@@ -74,10 +74,66 @@ export default function UploadPage() {
   const [duration, setDuration] = useState("60");
   const [orientation, setOrientation] = useState("landscape");
 
-  // Nouveaux paramètres de rendu
+  // Nouveaux paramètres de rendu (mode simple)
   const [fit, setFit] = useState<FitMode>("cover");
   const [size, setSize] = useState<SizeMode>("full");
   const [position, setPosition] = useState<Position>("center");
+
+  // Mode multi-fichiers en grille
+  const [mode, setMode] = useState<"single" | "grid">("single");
+  type GridPreset = "1x2" | "2x1" | "2x2" | "3x3";
+  const [gridPreset, setGridPreset] = useState<GridPreset>("2x2");
+  const gridDims = useMemo<{ rows: number; cols: number }>(() => {
+    const [r, c] = gridPreset.split("x").map(Number);
+    return { rows: r, cols: c };
+  }, [gridPreset]);
+  const gridCount = gridDims.rows * gridDims.cols;
+  type Slot = { file: File | null; preview: string | null };
+  const [slots, setSlots] = useState<Slot[]>(() => Array.from({ length: 4 }, () => ({ file: null, preview: null })));
+  const [gridFit, setGridFit] = useState<FitMode>("cover");
+  const gridInputRef = useRef<HTMLInputElement>(null);
+
+  // Ajuster le nombre de slots quand la grille change
+  const setPreset = (preset: GridPreset) => {
+    const [r, c] = preset.split("x").map(Number);
+    const n = r * c;
+    setGridPreset(preset);
+    setSlots(prev => {
+      const next = Array.from({ length: n }, (_, i) => prev[i] || { file: null, preview: null });
+      return next;
+    });
+  };
+
+  const autoPlaceFiles = (files: File[]) => {
+    setSlots(prev => {
+      const next = prev.slice(0, gridCount);
+      while (next.length < gridCount) next.push({ file: null, preview: null });
+      let idx = 0;
+      for (const f of files) {
+        // trouver le prochain slot vide
+        while (idx < next.length && next[idx].file) idx++;
+        if (idx >= next.length) break;
+        const isImage = f.type.startsWith("image/");
+        const isVideo = f.type.startsWith("video/");
+        if (!isImage && !isVideo) continue;
+        next[idx] = { file: f, preview: URL.createObjectURL(f) };
+        idx++;
+      }
+      return next;
+    });
+  };
+
+  const clearSlot = (i: number) => {
+    setSlots(prev => prev.map((s, k) => (k === i ? { file: null, preview: null } : s)));
+  };
+
+  const swapSlots = (a: number, b: number) => {
+    setSlots(prev => {
+      const next = prev.slice();
+      [next[a], next[b]] = [next[b], next[a]];
+      return next;
+    });
+  };
 
   const handleCodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
