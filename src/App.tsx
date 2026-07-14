@@ -45,6 +45,7 @@ const AdminBackup = lazy(() => import("./pages/AdminBackup"));
 const AdminServerStatus = lazy(() => import("./pages/AdminServerStatus"));
 const FirstAdminLogin = lazy(() => import("./pages/FirstAdminLogin"));
 const AdminLogs = lazy(() => import("./pages/AdminLogs"));
+const CompatTest = lazy(() => import("./pages/CompatTest"));
 
 const queryClient = new QueryClient();
 
@@ -87,6 +88,7 @@ const App = () => (
               <Route path="/upload/:id" element={<UploadPage />} />
               <Route path="/assign-license/:screenId" element={<ProtectedRoute><AssignLicense /></ProtectedRoute>} />
               <Route path="/admin/first-login" element={<FirstAdminLogin />} />
+              <Route path="/__compat-test" element={<CompatTest />} />
 
               <Route element={<ProtectedRoute><EstablishmentProvider><DashboardLayout /></EstablishmentProvider></ProtectedRoute>}>
                 <Route path="/" element={<DashboardHome />} />
