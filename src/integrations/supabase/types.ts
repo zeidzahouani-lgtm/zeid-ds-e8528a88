@@ -743,6 +743,60 @@ export type Database = {
         }
         Relationships: []
       }
+      player_errors: {
+        Row: {
+          created_at: string
+          error_type: string
+          establishment_id: string | null
+          id: string
+          message: string | null
+          resolved: boolean
+          screen_id: string | null
+          screen_key: string
+          url: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          error_type: string
+          establishment_id?: string | null
+          id?: string
+          message?: string | null
+          resolved?: boolean
+          screen_id?: string | null
+          screen_key: string
+          url?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          error_type?: string
+          establishment_id?: string | null
+          id?: string
+          message?: string | null
+          resolved?: boolean
+          screen_id?: string | null
+          screen_key?: string
+          url?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_errors_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_errors_screen_id_fkey"
+            columns: ["screen_id"]
+            isOneToOne: false
+            referencedRelation: "screens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       playlist_items: {
         Row: {
           created_at: string
@@ -1297,6 +1351,16 @@ export type Database = {
           source: string
           valid_until: string
         }[]
+      }
+      log_player_error: {
+        Args: {
+          _error_type: string
+          _message?: string
+          _screen_key: string
+          _url?: string
+          _user_agent?: string
+        }
+        Returns: string
       }
       resolve_player_screen: {
         Args: { _screen_key: string }

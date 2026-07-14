@@ -76,6 +76,36 @@ interface PlayerBranding {
   showSignatureOnPlayer: boolean;
 }
 
+/**
+ * Rendered when the player URL does not resolve to any screen.
+ * Logs the incident to `player_errors` once (server dedupes within 5 min)
+ * so admins are notified of broken links / removed screens.
+ */
+function ScreenNotFoundReport({ screenKey }: { screenKey: string | undefined }) {
+  const reportedRef = useRef(false);
+  useEffect(() => {
+    if (reportedRef.current) return;
+    reportedRef.current = true;
+    const key = (screenKey ?? "").trim();
+    if (!key) return;
+    (supabase as any)
+      .rpc("log_player_error", {
+        _screen_key: key,
+        _error_type: "screen_not_found",
+        _message: "Aucun écran ne correspond à cette URL",
+        _url: typeof window !== "undefined" ? window.location.href : null,
+        _user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+      })
+      .then(() => {})
+      .catch(() => {});
+  }, [screenKey]);
+  return (
+    <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <p style={{ color: "#ef4444", fontSize: 18 }}>Écran introuvable</p>
+    </div>
+  );
+}
+
 interface RegionErrorBoundaryProps {
   children: ReactNode;
   regionId: string;
@@ -1187,6 +1217,31 @@ export default function Player() {
     programId: (screen as any)?.program_id ?? null,
   };
 
+  // Detect "media missing": the screen references a current_media_id but the
+  // media could not be resolved (deleted, RLS-blocked, or moved). Report once
+  // per screen+missing-id pair; server dedupes within 5 min anyway.
+  const missingMediaId = (screen as any)?.current_media_id && !media && !layoutId
+    ? (screen as any).current_media_id as string
+    : null;
+  const reportedMissingRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!missingMediaId || !screen?.id) return;
+    const key = `${screen.id}:${missingMediaId}`;
+    if (reportedMissingRef.current === key) return;
+    reportedMissingRef.current = key;
+    (supabase as any)
+      .rpc("log_player_error", {
+        _screen_key: (screen as any).slug || screen.id,
+        _error_type: "media_missing",
+        _message: `Média ${missingMediaId} introuvable pour l'écran`,
+        _url: typeof window !== "undefined" ? window.location.href : null,
+        _user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+      })
+      .then(() => {})
+      .catch(() => {});
+  }, [missingMediaId, screen?.id]);
+
+
   if (loading) {
     return (
       <div style={{ ...playerBgStyle, position: "fixed", top: 0, right: 0, bottom: 0, left: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1202,11 +1257,7 @@ export default function Player() {
   }
 
   if (!screen) {
-    return (
-      <div style={{ position: "fixed", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <p style={{ color: "#ef4444", fontSize: 18 }}>Écran introuvable</p>
-      </div>
-    );
+    return <ScreenNotFoundReport screenKey={id} />;
   }
 
   if (sessionBlocked && !previewMode) {
