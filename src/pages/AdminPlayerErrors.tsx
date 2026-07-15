@@ -362,6 +362,9 @@ export default function AdminPlayerErrors() {
         );
       })()}
 
+      <ReadinessHistoryChart />
+
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="p-4">
           <div className="text-xs text-muted-foreground">Total (période)</div>
