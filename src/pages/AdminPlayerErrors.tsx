@@ -275,6 +275,28 @@ export default function AdminPlayerErrors() {
                   </div>
                 )}
                 <div className="ml-auto flex items-center gap-2">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    disabled={readinessFetching}
+                    onClick={async () => {
+                      const res = await refetchReadiness();
+                      const r = res.data;
+                      if (!r) {
+                        toast.error("Aucune réponse du endpoint");
+                        return;
+                      }
+                      if (r.status === "ready") {
+                        toast.success(`Ready · HTTP ${r.httpStatus ?? 200} · ${r.checks?.length ?? 0} checks OK`);
+                      } else {
+                        const failed = (r.checks ?? []).filter((c) => !c.ok);
+                        toast.error(`Not ready · HTTP ${r.httpStatus ?? "?"} · ${failed.length} échec(s)`);
+                      }
+                    }}
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 mr-1 ${readinessFetching ? "animate-spin" : ""}`} />
+                    Tester maintenant
+                  </Button>
                   <Button variant="ghost" size="sm" onClick={() => refetchReadiness()} disabled={readinessFetching}>
                     <RefreshCw className={`h-3.5 w-3.5 mr-1 ${readinessFetching ? "animate-spin" : ""}`} /> Ready
                   </Button>
