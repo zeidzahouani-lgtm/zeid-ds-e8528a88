@@ -73,11 +73,13 @@ Deno.serve(async (req) => {
       const { error } = await anon.rpc("resolve_player_screen", { _screen_key: "__readiness_probe__" });
       if (error) throw error;
     }),
-    // 3. Metrics collection RPC (anon) — dry run with a marker key.
+    // 3. Metrics collection RPC (anon) — reachability probe only.
+    //    _load_ms=-1 is rejected upstream, so the RPC executes end-to-end
+    //    without inserting a row (avoids polluting player_metrics).
     timed("rpc_log_player_metric", async () => {
       const { error } = await anon.rpc("log_player_metric", {
         _screen_key: "__readiness_probe__",
-        _load_ms: 1,
+        _load_ms: -1,
         _ttfp_ms: null,
       });
       if (error) throw error;
