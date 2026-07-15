@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { Link, Navigate } from "react-router-dom";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import { EstablishmentDashboard } from "@/components/establishments/EstablishmentDashboard";
+import { DiagnosticPanel } from "@/components/DiagnosticPanel";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip,
