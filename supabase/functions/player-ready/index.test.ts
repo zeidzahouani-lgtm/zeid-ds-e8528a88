@@ -1,0 +1,159 @@
+// Tests for the /functions/v1/player-ready readiness probe.
+//
+// These tests exercise the handler in-process by importing the module and
+// stubbing `Deno.serve` + `@supabase/supabase-js`. This avoids requiring a
+// live Supabase project and keeps the checks deterministic.
+
+import {
+  assert,
+  assertEquals,
+  assertStringIncludes,
+} from "https://deno.land/std@0.224.0/assert/mod.ts";
+
+// ---- Test scaffolding ----------------------------------------------------
+
+type Handler = (req: Request) => Promise<Response> | Response;
+
+// Load index.ts with `createClient` swapped for a stub factory, without
+// hitting network or requiring a real Supabase project. We patch the esm.sh
+// import to a data: URL shim that reads `globalThis.__testFactory`.
+async function loadHandler(
+  clientFactory: (url: string, key: string) => any,
+  opts: { clearUrl?: boolean } = {},
+): Promise<Handler> {
+  Deno.env.set("SUPABASE_URL", "http://stub.local");
+  Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", "stub-service");
+  Deno.env.set("SUPABASE_ANON_KEY", "stub-anon");
+  if (opts.clearUrl) Deno.env.delete("SUPABASE_URL");
+
+  // deno-lint-ignore no-explicit-any
+  (globalThis as any).__testFactory = clientFactory;
+
+  const shim =
+    `export const createClient = (u, k) => globalThis.__testFactory(u, k);`;
+  const shimUrl = `data:application/javascript,${encodeURIComponent(shim)}`;
+
+  const src = await Deno.readTextFile(new URL("./index.ts", import.meta.url));
+  // Append a unique marker so each import produces a distinct data URL and
+  // bypasses Deno's module cache — otherwise Deno.serve is only called once.
+  const bust = `\n// bust:${crypto.randomUUID()}\n`;
+  const patched = (src + bust).replace(
+    /from ["']https:\/\/esm\.sh\/@supabase\/supabase-js@[^"']+["']/,
+    `from "${shimUrl}"`,
+  );
+
+  let captured: Handler | null = null;
+  const originalServe = Deno.serve;
+  // deno-lint-ignore no-explicit-any
+  (Deno as any).serve = (handler: Handler) => {
+    captured = handler;
+    return { finished: Promise.resolve(), shutdown: () => {} } as any;
+  };
+
+  try {
+    const modUrl = `data:application/typescript,${encodeURIComponent(patched)}`;
+    await import(modUrl);
+  } finally {
+    // deno-lint-ignore no-explicit-any
+    (Deno as any).serve = originalServe;
+  }
+
+  if (!captured) throw new Error("handler was not captured");
+  return captured;
+}
+
+function makeClient(overrides: {
+  from?: () => any;
+  rpc?: (name: string, args?: unknown) => Promise<{ error: unknown }>;
+}) {
+  return {
+    from: overrides.from ?? (() => ({
+      select: () => ({ limit: () => Promise.resolve({ error: null }) }),
+    })),
+    rpc: overrides.rpc ?? (() => Promise.resolve({ error: null })),
+  };
+}
+
+// ---- Tests ---------------------------------------------------------------
+
+Deno.test("player-ready: OPTIONS preflight returns CORS headers", async () => {
+  const handler = await loadHandler(() => makeClient({}));
+  const res = await handler(new Request("http://x/", { method: "OPTIONS" }));
+  await res.text();
+  assertEquals(res.status, 200);
+  assertEquals(res.headers.get("Access-Control-Allow-Origin"), "*");
+});
+
+Deno.test("player-ready: returns 200 ready when all checks succeed", async () => {
+  const handler = await loadHandler(() =>
+    makeClient({
+      from: () => ({
+        select: () => ({ limit: () => Promise.resolve({ error: null }) }),
+      }),
+      rpc: () => Promise.resolve({ error: null }),
+    })
+  );
+  const res = await handler(new Request("http://x/"));
+  const body = await res.json();
+  assertEquals(res.status, 200);
+  assertEquals(body.status, "ready");
+  assertEquals(body.checks.length, 4);
+  assert(body.checks.every((c: any) => c.ok === true));
+  const names = body.checks.map((c: any) => c.name).sort();
+  assertEquals(names, [
+    "database",
+    "rpc_log_player_metric",
+    "rpc_player_health_snapshot",
+    "rpc_resolve_player_screen",
+  ]);
+});
+
+Deno.test("player-ready: returns 503 not_ready with per-check error detail on RPC failure", async () => {
+  const handler = await loadHandler(() =>
+    makeClient({
+      rpc: (name: string) => {
+        if (name === "resolve_player_screen") {
+          return Promise.resolve({ error: { message: "boom: rpc down" } });
+        }
+        return Promise.resolve({ error: null });
+      },
+    })
+  );
+  const res = await handler(new Request("http://x/"));
+  const body = await res.json();
+  assertEquals(res.status, 503);
+  assertEquals(body.status, "not_ready");
+  const failed = body.checks.filter((c: any) => !c.ok);
+  assertEquals(failed.length, 1);
+  assertEquals(failed[0].name, "rpc_resolve_player_screen");
+  assertStringIncludes(failed[0].error, "boom");
+});
+
+Deno.test("player-ready: returns 503 when database check fails", async () => {
+  const handler = await loadHandler(() =>
+    makeClient({
+      from: () => ({
+        select: () => ({
+          limit: () =>
+            Promise.resolve({ error: { message: "pg unreachable" } }),
+        }),
+      }),
+    })
+  );
+  const res = await handler(new Request("http://x/"));
+  const body = await res.json();
+  assertEquals(res.status, 503);
+  assertEquals(body.status, "not_ready");
+  const db = body.checks.find((c: any) => c.name === "database");
+  assertEquals(db.ok, false);
+  assertStringIncludes(db.error, "pg unreachable");
+});
+
+Deno.test("player-ready: returns 503 when env vars are missing", async () => {
+  const handler = await loadHandler(() => makeClient({}), { clearUrl: true });
+  const res = await handler(new Request("http://x/"));
+  const body = await res.json();
+  assertEquals(res.status, 503);
+  assertEquals(body.status, "not_ready");
+  assertStringIncludes(body.error, "Missing Supabase environment");
+});
