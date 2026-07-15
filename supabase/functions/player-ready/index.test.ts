@@ -31,7 +31,7 @@ async function loadHandler(
 
   const shim =
     `export const createClient = (u, k) => globalThis.__testFactory(u, k);`;
-  const shimUrl = `data:application/javascript;base64,${btoa(shim)}`;
+  const shimUrl = `data:application/javascript,${encodeURIComponent(shim)}`;
 
   const src = await Deno.readTextFile(new URL("./index.ts", import.meta.url));
   const patched = src.replace(
