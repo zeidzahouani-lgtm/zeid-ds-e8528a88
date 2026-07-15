@@ -248,6 +248,97 @@ export default function AdminPlayerErrors() {
         </Card>
       )}
 
+      {readiness && (() => {
+        const isReady = readiness.status === "ready";
+        const failed = (readiness.checks ?? []).filter((c) => !c.ok);
+        return (
+          <Card className="p-4">
+            <Collapsible defaultOpen={!isReady}>
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <HeartPulse className={`h-5 w-5 ${isReady ? "text-green-500" : "text-red-500"}`} />
+                  <span className="text-sm font-semibold uppercase tracking-wide">
+                    {isReady ? "Ready" : "Not ready"}
+                  </span>
+                  <Badge variant={isReady ? "outline" : "destructive"} className="text-[10px]">
+                    {isReady ? "Tous les checks OK" : `${failed.length} check(s) en échec`}
+                  </Badge>
+                </div>
+                {readiness.checks && (
+                  <div className="text-xs text-muted-foreground">
+                    Checks&nbsp;: <b className="text-foreground">{readiness.checks.length - failed.length}/{readiness.checks.length}</b>
+                  </div>
+                )}
+                {readiness.timestamp && (
+                  <div className="text-xs text-muted-foreground">
+                    Dernier probe&nbsp;: <b className="text-foreground">{new Date(readiness.timestamp).toLocaleTimeString("fr-FR")}</b>
+                  </div>
+                )}
+                <div className="ml-auto flex items-center gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => refetchReadiness()} disabled={readinessFetching}>
+                    <RefreshCw className={`h-3.5 w-3.5 mr-1 ${readinessFetching ? "animate-spin" : ""}`} /> Ready
+                  </Button>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="group">
+                      <span className="text-xs">Détails</span>
+                      <ChevronDown className="h-3.5 w-3.5 ml-1 group-data-[state=open]:hidden" />
+                      <ChevronUp className="h-3.5 w-3.5 ml-1 hidden group-data-[state=open]:inline" />
+                    </Button>
+                  </CollapsibleTrigger>
+                </div>
+              </div>
+              <CollapsibleContent className="mt-3">
+                {readiness.error && !readiness.checks && (
+                  <div className="text-xs text-destructive font-mono p-2 rounded bg-destructive/10">
+                    {readiness.error}
+                  </div>
+                )}
+                {readiness.checks && (
+                  <div className="rounded-xl border border-border/50 overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Check</TableHead>
+                          <TableHead className="w-[100px]">Statut</TableHead>
+                          <TableHead className="w-[120px]">Latence</TableHead>
+                          <TableHead>Erreur</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {readiness.checks.map((c) => (
+                          <TableRow key={c.name} className={c.ok ? "" : "bg-destructive/5"}>
+                            <TableCell className="text-xs font-medium">
+                              {CHECK_LABELS[c.name] ?? c.name}
+                              <div className="text-[10px] text-muted-foreground font-mono">{c.name}</div>
+                            </TableCell>
+                            <TableCell>
+                              {c.ok ? (
+                                <Badge variant="outline" className="text-[10px] border-green-500/40 text-green-600">OK</Badge>
+                              ) : (
+                                <Badge variant="destructive" className="text-[10px]">Échec</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{c.latency_ms} ms</TableCell>
+                            <TableCell className="text-xs text-destructive font-mono max-w-md truncate" title={c.error ?? ""}>
+                              {c.error ?? "—"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+                {readiness.httpStatus && (
+                  <div className="mt-2 text-[10px] text-muted-foreground">
+                    HTTP {readiness.httpStatus} · endpoint <code className="font-mono">/functions/v1/player-ready</code>
+                  </div>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+          </Card>
+        );
+      })()}
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card className="p-4">
           <div className="text-xs text-muted-foreground">Total (période)</div>
