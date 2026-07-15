@@ -91,6 +91,21 @@ export default function AdminPlayerErrors() {
     refetchInterval: 30000,
   });
 
+  const { data: readiness, refetch: refetchReadiness, isFetching: readinessFetching } = useQuery({
+    queryKey: ["player-readiness"],
+    queryFn: async (): Promise<Readiness> => {
+      try {
+        const base = (import.meta as any).env?.VITE_SUPABASE_URL;
+        const res = await fetch(`${base}/functions/v1/player-ready`, { cache: "no-store" });
+        const body = await res.json().catch(() => ({}));
+        return { ...body, httpStatus: res.status };
+      } catch (err) {
+        return { status: "not_ready", error: (err as Error).message };
+      }
+    },
+    refetchInterval: 30000,
+  });
+
   const { data: errors = [], isLoading: loadingErrors, refetch, isRefetching } = useQuery({
     queryKey: ["player-errors", period, errorType, establishmentId, showResolved],
     queryFn: async () => {
