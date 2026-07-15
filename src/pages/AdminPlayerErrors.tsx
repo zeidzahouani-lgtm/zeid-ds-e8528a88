@@ -20,6 +20,22 @@ type HealthSnapshot = {
   failure_rate_per_screen_1h?: number;
 };
 
+type ReadinessCheck = { name: string; ok: boolean; latency_ms: number; error?: string };
+type Readiness = {
+  status: "ready" | "not_ready";
+  timestamp?: string;
+  checks?: ReadinessCheck[];
+  error?: string;
+  httpStatus?: number;
+};
+
+const CHECK_LABELS: Record<string, string> = {
+  database: "Base de données",
+  rpc_resolve_player_screen: "Résolution écran (anon)",
+  rpc_log_player_metric: "Collecte des métriques",
+  rpc_player_health_snapshot: "Agrégation santé",
+};
+
 type PlayerError = {
   id: string;
   screen_key: string | null;
