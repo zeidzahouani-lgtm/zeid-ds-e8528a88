@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AlertTriangle, ShieldAlert, RefreshCw, CheckCircle2, Download, Activity, HeartPulse, ChevronDown, ChevronUp } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
+import { ReadinessHistoryChart } from "@/components/admin/ReadinessHistoryChart";
 
 type HealthSnapshot = {
   status: "healthy" | "degraded" | "unhealthy";
