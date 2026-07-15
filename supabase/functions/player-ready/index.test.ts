@@ -34,7 +34,10 @@ async function loadHandler(
   const shimUrl = `data:application/javascript,${encodeURIComponent(shim)}`;
 
   const src = await Deno.readTextFile(new URL("./index.ts", import.meta.url));
-  const patched = src.replace(
+  // Append a unique marker so each import produces a distinct data URL and
+  // bypasses Deno's module cache — otherwise Deno.serve is only called once.
+  const bust = `\n// bust:${crypto.randomUUID()}\n`;
+  const patched = (src + bust).replace(
     /from ["']https:\/\/esm\.sh\/@supabase\/supabase-js@[^"']+["']/,
     `from "${shimUrl}"`,
   );
