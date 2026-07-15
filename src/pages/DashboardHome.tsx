@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { Link, Navigate } from "react-router-dom";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import { EstablishmentDashboard } from "@/components/establishments/EstablishmentDashboard";
+import { DiagnosticPanel } from "@/components/DiagnosticPanel";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip,
@@ -36,6 +37,7 @@ export default function DashboardHome() {
             {memberships.find(m => m.establishment_id === currentEstablishmentId)?.establishment?.name || "Mon établissement"}
           </p>
         </div>
+        <DiagnosticPanel />
         <EstablishmentDashboard establishmentId={currentEstablishmentId} />
       </div>
     );
@@ -92,6 +94,8 @@ function AdminDashboardContent() {
           </Badge>
         </div>
       </div>
+
+      <DiagnosticPanel />
 
       {/* KPI Cards - Row 1 */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3 stagger-children">
