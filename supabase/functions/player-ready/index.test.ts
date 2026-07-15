@@ -48,7 +48,7 @@ async function loadHandler(
   };
 
   try {
-    const modUrl = `data:application/typescript;base64,${btoa(patched)}`;
+    const modUrl = `data:application/typescript,${encodeURIComponent(patched)}`;
     await import(modUrl);
   } finally {
     // deno-lint-ignore no-explicit-any
