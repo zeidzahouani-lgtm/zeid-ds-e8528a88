@@ -147,10 +147,7 @@ Deno.test("player-ready: returns 503 when database check fails", async () => {
 });
 
 Deno.test("player-ready: returns 503 when env vars are missing", async () => {
-  Deno.env.delete("SUPABASE_URL");
-  const handler = await loadHandler(() => makeClient({}));
-  // Re-clear after loadHandler set it: force a missing var for this call.
-  Deno.env.delete("SUPABASE_URL");
+  const handler = await loadHandler(() => makeClient({}), { clearUrl: true });
   const res = await handler(new Request("http://x/"));
   const body = await res.json();
   assertEquals(res.status, 503);
