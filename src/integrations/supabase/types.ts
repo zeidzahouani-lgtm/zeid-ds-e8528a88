@@ -842,6 +842,36 @@ export type Database = {
           },
         ]
       }
+      player_readiness_history: {
+        Row: {
+          checks: Json
+          checks_ok: number
+          checks_total: number
+          created_at: string
+          http_status: number | null
+          id: string
+          status: string
+        }
+        Insert: {
+          checks?: Json
+          checks_ok?: number
+          checks_total?: number
+          created_at?: string
+          http_status?: number | null
+          id?: string
+          status: string
+        }
+        Update: {
+          checks?: Json
+          checks_ok?: number
+          checks_total?: number
+          created_at?: string
+          http_status?: number | null
+          id?: string
+          status?: string
+        }
+        Relationships: []
+      }
       playlist_items: {
         Row: {
           created_at: string
@@ -1412,6 +1442,7 @@ export type Database = {
         Returns: undefined
       }
       player_health_snapshot: { Args: never; Returns: Json }
+      purge_old_readiness_history: { Args: never; Returns: undefined }
       resolve_player_screen: {
         Args: { _screen_key: string }
         Returns: {
