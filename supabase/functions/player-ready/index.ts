@@ -93,14 +93,30 @@ Deno.serve(async (req) => {
   ]);
 
   const allOk = checks.every((c) => c.ok);
+  const okCount = checks.filter((c) => c.ok).length;
+  const httpStatus = allOk ? 200 : 503;
   const body = {
     status: allOk ? "ready" : "not_ready",
     timestamp: new Date().toISOString(),
     checks,
   };
 
+  // Persist snapshot for the 24h history chart (best-effort, never blocks the response).
+  try {
+    await admin.from("player_readiness_history").insert({
+      status: body.status,
+      http_status: httpStatus,
+      checks_ok: okCount,
+      checks_total: checks.length,
+      checks,
+    });
+  } catch (_) {
+    // ignore — readiness must not fail because of logging issues
+  }
+
   return new Response(JSON.stringify(body, null, 2), {
-    status: allOk ? 200 : 503,
+    status: httpStatus,
     headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
 });
+
