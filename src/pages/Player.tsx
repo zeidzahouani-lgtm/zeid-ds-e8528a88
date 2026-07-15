@@ -984,14 +984,32 @@ export default function Player() {
   // License validation (also in preview mode so preview reflects real state)
   const [licenseValid, setLicenseValid] = useState<boolean | null>(null);
   const [licenseMessage, setLicenseMessage] = useState("");
+  const invalidStreakRef = useRef(0);
 
   useEffect(() => {
     if (!screen?.id) return;
 
     const checkLicense = () => {
       validateLicense(screen.id).then((result) => {
-        setLicenseValid(result.valid);
-        if (!result.valid) setLicenseMessage(result.message || "Licence invalide");
+        // Ignore transient network/RPC errors: keep the previous state so a
+        // brief connectivity glitch never wrongly displays "Licence invalide".
+        if (result.transient) {
+          invalidStreakRef.current = 0;
+          return;
+        }
+        if (result.valid) {
+          invalidStreakRef.current = 0;
+          setLicenseValid(true);
+          setLicenseMessage("");
+          return;
+        }
+        // Require 2 consecutive confirmed invalid responses before locking,
+        // unless we've never validated before (first load — trust the server).
+        invalidStreakRef.current += 1;
+        if (licenseValid === null || invalidStreakRef.current >= 2) {
+          setLicenseValid(false);
+          setLicenseMessage(result.message || "Licence invalide");
+        }
       });
     };
 
