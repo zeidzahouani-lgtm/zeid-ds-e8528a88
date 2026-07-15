@@ -14,15 +14,31 @@ import {
 
 type Handler = (req: Request) => Promise<Response> | Response;
 
+// Load index.ts with `createClient` swapped for a stub factory, without
+// hitting network or requiring a real Supabase project. We patch the esm.sh
+// import to a data: URL shim that reads `globalThis.__testFactory`.
 async function loadHandler(
   clientFactory: (url: string, key: string) => any,
+  opts: { clearUrl?: boolean } = {},
 ): Promise<Handler> {
-  // Stub env vars required by the module.
   Deno.env.set("SUPABASE_URL", "http://stub.local");
   Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", "stub-service");
   Deno.env.set("SUPABASE_ANON_KEY", "stub-anon");
+  if (opts.clearUrl) Deno.env.delete("SUPABASE_URL");
 
-  // Capture the handler passed to Deno.serve without actually binding a port.
+  // deno-lint-ignore no-explicit-any
+  (globalThis as any).__testFactory = clientFactory;
+
+  const shim =
+    `export const createClient = (u, k) => globalThis.__testFactory(u, k);`;
+  const shimUrl = `data:application/javascript;base64,${btoa(shim)}`;
+
+  const src = await Deno.readTextFile(new URL("./index.ts", import.meta.url));
+  const patched = src.replace(
+    /from ["']https:\/\/esm\.sh\/@supabase\/supabase-js@[^"']+["']/,
+    `from "${shimUrl}"`,
+  );
+
   let captured: Handler | null = null;
   const originalServe = Deno.serve;
   // deno-lint-ignore no-explicit-any
@@ -31,33 +47,13 @@ async function loadHandler(
     return { finished: Promise.resolve(), shutdown: () => {} } as any;
   };
 
-  // Intercept the esm.sh import so createClient is our stub.
-  const shim = `export const createClient = (url, key) => (globalThis.__testFactory)(url, key);`;
-  const shimUrl = `data:application/javascript;base64,${btoa(shim)}`;
-  // deno-lint-ignore no-explicit-any
-  (globalThis as any).__testFactory = clientFactory;
-
-  // Fresh module import each call so the stubbed factory is picked up.
-  const bust = crypto.randomUUID();
-  await import(
-    `./index.ts?bust=${bust}` /* @vite-ignore */
-      .replace("./index.ts", new URL("./index.ts", import.meta.url).href)
-  ).catch(() => {/* fallback below */});
-
-  // The dynamic-import trick above may not re-evaluate under Deno's cache.
-  // Use a wrapper module that redirects the esm.sh URL via import map at runtime.
-  if (!captured) {
-    const src = await Deno.readTextFile(new URL("./index.ts", import.meta.url));
-    const patched = src.replace(
-      /from ["']https:\/\/esm\.sh\/@supabase\/supabase-js@[^"']+["']/,
-      `from "${shimUrl}"`,
-    );
+  try {
     const modUrl = `data:application/typescript;base64,${btoa(patched)}`;
     await import(modUrl);
+  } finally {
+    // deno-lint-ignore no-explicit-any
+    (Deno as any).serve = originalServe;
   }
-
-  // deno-lint-ignore no-explicit-any
-  (Deno as any).serve = originalServe;
 
   if (!captured) throw new Error("handler was not captured");
   return captured;
