@@ -122,18 +122,27 @@ export function useLicenses() {
 }
 
 // Validate a license key for a specific screen (used by Player)
-export async function validateLicense(screenId: string): Promise<{ valid: boolean; message?: string }> {
-  const { data, error } = await (supabase as any).rpc("validate_license_for_screen", {
-    _screen_id: screenId,
-  });
-
-  if (error) return { valid: false, message: "Erreur de validation" };
-
-  const result = Array.isArray(data) ? data[0] : data;
-  return {
-    valid: !!result?.valid,
-    message: result?.message ?? undefined,
-  };
+// `transient: true` signals a network/RPC error (not an actual invalid license):
+// callers should preserve their previous state instead of flipping to "invalid".
+export async function validateLicense(
+  screenId: string,
+): Promise<{ valid: boolean; message?: string; transient?: boolean }> {
+  try {
+    const { data, error } = await (supabase as any).rpc("validate_license_for_screen", {
+      _screen_id: screenId,
+    });
+    if (error) return { valid: false, message: "Erreur de validation", transient: true };
+    const result = Array.isArray(data) ? data[0] : data;
+    if (result === undefined || result === null) {
+      return { valid: false, message: "Réponse vide", transient: true };
+    }
+    return {
+      valid: !!result?.valid,
+      message: result?.message ?? undefined,
+    };
+  } catch (_e) {
+    return { valid: false, message: "Erreur réseau", transient: true };
+  }
 }
 
 // Activate a license by key for a specific screen (used by Player manual entry)
