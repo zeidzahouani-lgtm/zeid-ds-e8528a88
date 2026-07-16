@@ -1367,16 +1367,28 @@ export default function Player() {
   }
 
   if (licenseValid === null) {
+    const inRecovery = licenseRecovery.active;
     return (
       <div style={{ ...playerBgStyle, position: "fixed", top: 0, right: 0, bottom: 0, left: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, textAlign: "center", padding: 24 }}>
           <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} />
-          <MonitorPlay style={{ height: 48, width: 48, color: "#3b82f6" }} />
-          <p style={{ color: "#9ca3af" }}>Vérification de la licence...</p>
+          <MonitorPlay style={{ height: 48, width: 48, color: inRecovery ? "#f59e0b" : "#3b82f6" }} />
+          <p style={{ color: "#9ca3af" }}>
+            {inRecovery ? "Mode récupération — vérification licence..." : "Vérification de la licence..."}
+          </p>
+          {inRecovery && (
+            <RecoveryDetails
+              label="Validation de la licence"
+              attempt={licenseRecovery.attempt}
+              nextRetryMs={licenseRecovery.nextRetryMs}
+              lastError={null}
+            />
+          )}
         </div>
       </div>
     );
   }
+
 
   if (licenseValid === false) {
     return (
