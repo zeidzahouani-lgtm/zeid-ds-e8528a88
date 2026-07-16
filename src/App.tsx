@@ -46,7 +46,9 @@ const AdminServerStatus = lazy(() => import("./pages/AdminServerStatus"));
 const FirstAdminLogin = lazy(() => import("./pages/FirstAdminLogin"));
 const AdminLogs = lazy(() => import("./pages/AdminLogs"));
 const AdminPlayerErrors = lazy(() => import("./pages/AdminPlayerErrors"));
+const AdminHealthCheck = lazy(() => import("./pages/AdminHealthCheck"));
 const CompatTest = lazy(() => import("./pages/CompatTest"));
+
 
 const queryClient = new QueryClient();
 
