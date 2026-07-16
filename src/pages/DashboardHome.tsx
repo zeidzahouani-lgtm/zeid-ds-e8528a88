@@ -54,6 +54,24 @@ export default function DashboardHome() {
 function AdminDashboardContent() {
   const { data: stats, isLoading } = useDashboardStats();
   const { isGlobalAdmin, currentEstablishmentId } = useEstablishmentContext();
+  const [resyncingId, setResyncingId] = useState<string | null>(null);
+
+  const handleResync = async (screenId: string, screenName: string) => {
+    setResyncingId(screenId);
+    try {
+      const { error } = await supabase
+        .from("screens")
+        .update({ pending_action: "resync" } as any)
+        .eq("id", screenId);
+      if (error) throw error;
+      toast.success(`Re-synchronisation envoyée à « ${screenName} »`);
+    } catch (e: any) {
+      toast.error(`Échec: ${e?.message ?? "erreur inconnue"}`);
+    } finally {
+      setTimeout(() => setResyncingId(null), 1500);
+    }
+  };
+
 
   if (isLoading || !stats) {
     return (
