@@ -1,21 +1,26 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Tv, Image, ListMusic, Clock, Wifi, WifiOff, ShieldAlert, ShieldOff,
   LayoutGrid, Key, Bell, Activity, TrendingUp, AlertTriangle, FileText,
   Monitor, BarChart3, PieChart as PieChartIcon, Zap, CheckCircle2, XCircle,
+  RefreshCw,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Link, Navigate } from "react-router-dom";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import { EstablishmentDashboard } from "@/components/establishments/EstablishmentDashboard";
 import { DiagnosticPanel } from "@/components/DiagnosticPanel";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from "recharts";
+
 
 const MEDIA_TYPE_LABELS: Record<string, string> = {
   image: "Images", video: "Vidéos", iframe: "iFrames", other: "Autres",
@@ -49,6 +54,24 @@ export default function DashboardHome() {
 function AdminDashboardContent() {
   const { data: stats, isLoading } = useDashboardStats();
   const { isGlobalAdmin, currentEstablishmentId } = useEstablishmentContext();
+  const [resyncingId, setResyncingId] = useState<string | null>(null);
+
+  const handleResync = async (screenId: string, screenName: string) => {
+    setResyncingId(screenId);
+    try {
+      const { error } = await supabase
+        .from("screens")
+        .update({ pending_action: "resync" } as any)
+        .eq("id", screenId);
+      if (error) throw error;
+      toast.success(`Re-synchronisation envoyée à « ${screenName} »`);
+    } catch (e: any) {
+      toast.error(`Échec: ${e?.message ?? "erreur inconnue"}`);
+    } finally {
+      setTimeout(() => setResyncingId(null), 1500);
+    }
+  };
+
 
   if (isLoading || !stats) {
     return (
@@ -333,7 +356,18 @@ function AdminDashboardContent() {
                       ) : (
                         <span className="h-2 w-2 rounded-full bg-status-offline" />
                       )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-1.5 gap-1 text-[10px]"
+                        onClick={() => handleResync(screen.id, screen.name)}
+                        disabled={resyncingId === screen.id}
+                        title="Re-synchroniser cet écran (relance la lecture et met à jour l'orientation)"
+                      >
+                        <RefreshCw className={`h-3 w-3 ${resyncingId === screen.id ? "animate-spin" : ""}`} />
+                      </Button>
                     </div>
+
                   </div>
                   );
                 })}
