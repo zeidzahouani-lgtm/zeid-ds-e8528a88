@@ -672,7 +672,8 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
     };
 
     window.addEventListener("beforeunload", setOffline);
-    return () => { setOffline(); window.removeEventListener("beforeunload", setOffline); };
+    return () => { cancelled = true; setOffline(); window.removeEventListener("beforeunload", setOffline); };
+
   }, [screenId, previewOnly, resolveMedia]);
 
   useEffect(() => {
