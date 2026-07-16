@@ -1397,6 +1397,14 @@ export type Database = {
           valid: boolean
         }[]
       }
+      admin_rls_status: {
+        Args: never
+        Returns: {
+          policy_count: number
+          rls_enabled: boolean
+          table_name: string
+        }[]
+      }
       check_fallback_alerts: { Args: never; Returns: undefined }
       claim_license_for_screen: {
         Args: { _license_id: string; _screen_id: string }
