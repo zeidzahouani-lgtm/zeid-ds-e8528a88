@@ -46,28 +46,20 @@ Deno.serve(async (req) => {
     const t0 = Date.now();
 
     // ---- 1. RLS enabled on every public table ------------------------------
-    const { data: rlsRows, error: rlsErr } = await svc.rpc("player_health_snapshot").then(() => ({ data: null, error: null })).catch(() => ({ data: null, error: null }));
-    // Use raw SQL via a lightweight query on pg_class through a service call:
-    const { data: pgTables, error: pgErr } = await svc
-      .from("pg_tables" as any)
-      .select("tablename, rowsecurity, schemaname")
-      .eq("schemaname", "public");
-
-    if (pgErr) {
-      findings.push({ category: "rls", target: "*", severity: "warn", message: "Impossible de lister les tables publiques (lecture pg_tables refusée).", detail: pgErr.message });
-    } else if (pgTables) {
-      for (const t of pgTables as any[]) {
-        if (t.rowsecurity === false) {
-          findings.push({
-            category: "rls",
-            target: `public.${t.tablename}`,
-            severity: "error",
-            message: `RLS désactivée sur la table ${t.tablename}.`,
-          });
+    const { data: rlsList, error: rlsErr } = await svc.rpc("admin_rls_status");
+    if (rlsErr) {
+      findings.push({ category: "rls", target: "*", severity: "warn", message: "Impossible de lire l'état RLS des tables publiques.", detail: rlsErr.message });
+    } else if (rlsList) {
+      for (const t of rlsList as any[]) {
+        if (t.rls_enabled === false) {
+          findings.push({ category: "rls", target: `public.${t.table_name}`, severity: "error", message: `RLS désactivée sur ${t.table_name}.` });
+        } else if ((t.policy_count ?? 0) === 0) {
+          findings.push({ category: "rls", target: `public.${t.table_name}`, severity: "warn", message: `RLS activée mais aucune politique sur ${t.table_name} — la table est inaccessible.` });
         }
       }
-      findings.push({ category: "rls", target: "summary", severity: "ok", message: `${(pgTables as any[]).length} tables publiques inspectées.` });
+      findings.push({ category: "rls", target: "summary", severity: "ok", message: `${(rlsList as any[]).length} tables publiques inspectées.` });
     }
+
 
     // ---- 2. Storage buckets availability -----------------------------------
     const expectedBuckets = ["media", "uploads"];
