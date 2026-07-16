@@ -1306,14 +1306,25 @@ export default function Player() {
 
 
   if (loading) {
+    const inRecovery = recovery?.active;
     return (
       <div style={{ ...playerBgStyle, position: "fixed", top: 0, right: 0, bottom: 0, left: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
         {debugMode && <DiagnosticOverlay {...diagBaseProps} />}
         {hudMode && <DiagnosticOverlay {...diagBaseProps} mode="hud" />}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, textAlign: "center", padding: 24 }}>
           <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} />
-          <MonitorPlay style={{ height: 48, width: 48, color: "#3b82f6" }} />
-          <p style={{ color: "#9ca3af" }}>Connexion à l'écran...</p>
+          <MonitorPlay style={{ height: 48, width: 48, color: inRecovery ? "#f59e0b" : "#3b82f6" }} />
+          <p style={{ color: "#9ca3af" }}>
+            {inRecovery ? "Mode récupération — nouvel essai en cours..." : "Connexion à l'écran..."}
+          </p>
+          {inRecovery && (
+            <RecoveryDetails
+              label="Résolution de l'écran"
+              attempt={recovery.attempt}
+              nextRetryMs={recovery.nextRetryMs}
+              lastError={recovery.lastError}
+            />
+          )}
         </div>
       </div>
     );
@@ -1322,6 +1333,7 @@ export default function Player() {
   if (!screen) {
     return <ScreenNotFoundReport screenKey={id} />;
   }
+
 
   if (sessionBlocked && !previewMode) {
     return (
