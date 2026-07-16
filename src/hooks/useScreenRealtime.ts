@@ -286,22 +286,37 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
     if (!screenId) return;
 
     const init = async () => {
-      const { data: resolvedScreens } = await (supabase as any)
-        .rpc("resolve_player_screen", { _screen_key: screenId });
-      let screenData = Array.isArray(resolvedScreens) ? resolvedScreens[0] : resolvedScreens;
-
-      // Fallback keeps the player working on local/dev databases where the RPC
-      // may not exist yet, but production no longer depends on fragile direct
-      // anonymous table access for the initial screen lookup.
-      if (!screenData) {
-        let screenRes = await supabase.from("screens").select(SCREEN_SELECT).eq("slug", screenId).maybeSingle();
-        if (!screenRes.data) {
-          screenRes = await supabase.from("screens").select(SCREEN_SELECT).eq("id", screenId).maybeSingle();
+      // Resilient resolution: retry on transient network / RPC errors before
+      // declaring the screen "not found". Random Wi-Fi drops on TV hardware
+      // otherwise flip a healthy player to "Écran introuvable" permanently.
+      const resolveWithRetry = async (): Promise<any | null> => {
+        const delays = [0, 800, 2000, 4000, 8000];
+        for (let attempt = 0; attempt < delays.length; attempt++) {
+          if (delays[attempt] > 0) await new Promise((r) => setTimeout(r, delays[attempt]));
+          try {
+            const rpc = await (supabase as any).rpc("resolve_player_screen", { _screen_key: screenId });
+            if (rpc.error) throw rpc.error;
+            const row = Array.isArray(rpc.data) ? rpc.data[0] : rpc.data;
+            if (row) return row;
+          } catch (_) { /* fall through to fallback */ }
+          try {
+            let screenRes = await supabase.from("screens").select(SCREEN_SELECT).eq("slug", screenId).maybeSingle();
+            if (!screenRes.data && !screenRes.error) {
+              screenRes = await supabase.from("screens").select(SCREEN_SELECT).eq("id", screenId).maybeSingle();
+            }
+            if (screenRes.data) return screenRes.data;
+            // Real "not found" (no error, no row) — no need to keep retrying past
+            // the second attempt; the record genuinely doesn't exist.
+            if (!screenRes.error && attempt >= 1) return null;
+          } catch (_) { /* transient — retry */ }
         }
-        screenData = screenRes.data as any;
-      }
+        return null;
+      };
+
+      const screenData = await resolveWithRetry();
       if (!screenData) { setLoading(false); return; }
       realScreenIdRef.current = screenData.id;
+
 
       // ---- PREVIEW MODE: read-only, no session claim ----
       if (previewOnly) {
