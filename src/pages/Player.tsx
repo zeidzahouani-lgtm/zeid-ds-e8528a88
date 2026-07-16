@@ -1003,13 +1003,19 @@ export default function Player() {
           setLicenseMessage("");
           return;
         }
-        // Require 2 consecutive confirmed invalid responses before locking,
-        // unless we've never validated before (first load — trust the server).
+        // Require 2 consecutive confirmed invalid responses before locking.
+        // This applies to the very first check as well: a single flaky RPC
+        // response (empty payload, brief RLS hiccup) must never lock a screen
+        // that was working seconds ago.
         invalidStreakRef.current += 1;
-        if (licenseValid === null || invalidStreakRef.current >= 2) {
+        if (invalidStreakRef.current >= 2) {
           setLicenseValid(false);
           setLicenseMessage(result.message || "Licence invalide");
+        } else if (licenseValid === null) {
+          // Keep the loader visible for the second attempt (soon after).
+          setTimeout(checkLicense, 1500);
         }
+
       });
     };
 
