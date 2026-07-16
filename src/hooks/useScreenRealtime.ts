@@ -105,6 +105,14 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
   const [sessionBlocked, setSessionBlocked] = useState(false);
   const [playlistVersion, setPlaylistVersion] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [recovery, setRecovery] = useState<{
+    active: boolean;
+    reason: "resolve" | null;
+    attempt: number;
+    nextRetryMs: number;
+    lastError: string | null;
+  }>({ active: false, reason: null, attempt: 0, nextRetryMs: 0, lastError: null });
+
 
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
   const schedulesRef = useRef<ScheduleRow[]>([]);
