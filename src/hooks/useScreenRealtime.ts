@@ -105,6 +105,14 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
   const [sessionBlocked, setSessionBlocked] = useState(false);
   const [playlistVersion, setPlaylistVersion] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [recovery, setRecovery] = useState<{
+    active: boolean;
+    reason: "resolve" | null;
+    attempt: number;
+    nextRetryMs: number;
+    lastError: string | null;
+  }>({ active: false, reason: null, attempt: 0, nextRetryMs: 0, lastError: null });
+
 
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
   const schedulesRef = useRef<ScheduleRow[]>([]);
@@ -285,37 +293,75 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
   useEffect(() => {
     if (!screenId) return;
 
+    let cancelled = false;
+
     const init = async () => {
-      // Resilient resolution: retry on transient network / RPC errors before
-      // declaring the screen "not found". Random Wi-Fi drops on TV hardware
-      // otherwise flip a healthy player to "Écran introuvable" permanently.
+      // Continuous recovery loop: never gives up while network / RPC errors
+      // occur. Only returns null when the row is *confirmed* absent (no error,
+      // no data) across multiple attempts — a real "not found".
       const resolveWithRetry = async (): Promise<any | null> => {
-        const delays = [0, 800, 2000, 4000, 8000];
-        for (let attempt = 0; attempt < delays.length; attempt++) {
-          if (delays[attempt] > 0) await new Promise((r) => setTimeout(r, delays[attempt]));
+        let attempt = 0;
+        let confirmedMissing = 0;
+        // Progressive backoff, capped at 60s.
+        const nextDelay = (n: number) => Math.min(60000, 500 * Math.pow(1.8, n));
+        while (!cancelled) {
+          attempt += 1;
+          let hadError = false;
+          let lastErr: string | null = null;
           try {
             const rpc = await (supabase as any).rpc("resolve_player_screen", { _screen_key: screenId });
-            if (rpc.error) throw rpc.error;
-            const row = Array.isArray(rpc.data) ? rpc.data[0] : rpc.data;
-            if (row) return row;
-          } catch (_) { /* fall through to fallback */ }
+            if (rpc.error) { hadError = true; lastErr = rpc.error.message ?? String(rpc.error); }
+            else {
+              const row = Array.isArray(rpc.data) ? rpc.data[0] : rpc.data;
+              if (row) {
+                setRecovery({ active: false, reason: null, attempt: 0, nextRetryMs: 0, lastError: null });
+                return row;
+              }
+            }
+          } catch (e: any) {
+            hadError = true;
+            lastErr = e?.message ?? "network";
+          }
+          // Fallback direct lookup
           try {
             let screenRes = await supabase.from("screens").select(SCREEN_SELECT).eq("slug", screenId).maybeSingle();
             if (!screenRes.data && !screenRes.error) {
               screenRes = await supabase.from("screens").select(SCREEN_SELECT).eq("id", screenId).maybeSingle();
             }
-            if (screenRes.data) return screenRes.data;
-            // Real "not found" (no error, no row) — no need to keep retrying past
-            // the second attempt; the record genuinely doesn't exist.
-            if (!screenRes.error && attempt >= 1) return null;
-          } catch (_) { /* transient — retry */ }
+            if (screenRes.data) {
+              setRecovery({ active: false, reason: null, attempt: 0, nextRetryMs: 0, lastError: null });
+              return screenRes.data;
+            }
+            if (screenRes.error) { hadError = true; lastErr = screenRes.error.message; }
+            else { confirmedMissing += 1; }
+          } catch (e: any) {
+            hadError = true;
+            lastErr = lastErr ?? (e?.message ?? "network");
+          }
+
+          // Definitely not in the database — give up after 2 clean confirmations.
+          if (!hadError && confirmedMissing >= 2) return null;
+
+          const delay = nextDelay(attempt);
+          if (!cancelled) {
+            setRecovery({
+              active: true,
+              reason: "resolve",
+              attempt,
+              nextRetryMs: delay,
+              lastError: lastErr,
+            });
+          }
+          await new Promise((r) => setTimeout(r, delay));
         }
         return null;
       };
 
       const screenData = await resolveWithRetry();
+      if (cancelled) return;
       if (!screenData) { setLoading(false); return; }
       realScreenIdRef.current = screenData.id;
+
 
 
       // ---- PREVIEW MODE: read-only, no session claim ----
@@ -626,7 +672,8 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
     };
 
     window.addEventListener("beforeunload", setOffline);
-    return () => { setOffline(); window.removeEventListener("beforeunload", setOffline); };
+    return () => { cancelled = true; setOffline(); window.removeEventListener("beforeunload", setOffline); };
+
   }, [screenId, previewOnly, resolveMedia]);
 
   useEffect(() => {
@@ -818,5 +865,7 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
     screen, media, loading, sessionBlocked, forceTakeover,
     playlistLength: playlistRef.current.length, currentIndex, currentDuration,
     layoutId: screen?.layout_id ?? null,
+    recovery,
   };
+
 }

@@ -507,6 +507,43 @@ function ScreenNameOverlay({ name, show }: { name: string; show: boolean }) {
   );
 }
 
+/**
+ * Progress indicator for the auto-recovery loop (screen resolution + license
+ * check). Shows the current attempt, a live countdown until the next retry,
+ * and the last error observed. Never blocks — the loop keeps running.
+ */
+function RecoveryDetails({
+  label, attempt, nextRetryMs, lastError,
+}: { label: string; attempt: number; nextRetryMs: number; lastError: string | null }) {
+  const [remaining, setRemaining] = useState(Math.ceil(nextRetryMs / 1000));
+  useEffect(() => {
+    setRemaining(Math.ceil(nextRetryMs / 1000));
+    const id = setInterval(() => setRemaining((s) => (s > 0 ? s - 1 : 0)), 1000);
+    return () => clearInterval(id);
+  }, [nextRetryMs, attempt]);
+  return (
+    <div style={{
+      marginTop: 8, padding: "10px 16px", borderRadius: 10,
+      backgroundColor: "rgba(245,158,11,0.08)",
+      border: "1px solid rgba(245,158,11,0.3)",
+      color: "#fbbf24", fontSize: 12, maxWidth: 420,
+    }}>
+      <div style={{ fontWeight: 600, marginBottom: 4 }}>{label}</div>
+      <div style={{ color: "#d1d5db" }}>
+        Tentative n°{attempt} · nouvel essai dans {remaining}s
+      </div>
+      {lastError && (
+        <div style={{ color: "#9ca3af", marginTop: 6, fontSize: 11, wordBreak: "break-all" }}>
+          {lastError}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+
+
 function PlayerSignature({ show }: { show: boolean }) {
   if (!show) return null;
   return (
@@ -951,7 +988,7 @@ export default function Player() {
   const urlDebug1 = typeof window !== "undefined" && window.location.search.indexOf("debug=1") >= 0;
   const urlDebug2 = typeof window !== "undefined" && window.location.search.indexOf("debug=2") >= 0;
   const previewMode = typeof window !== "undefined" && window.location.search.indexOf("preview=1") >= 0;
-  const { screen, media, loading, sessionBlocked, forceTakeover, playlistLength, currentIndex, currentDuration, layoutId } = useScreenRealtime(id, { previewOnly: previewMode });
+  const { screen, media, loading, sessionBlocked, forceTakeover, playlistLength, currentIndex, currentDuration, layoutId, recovery } = useScreenRealtime(id, { previewOnly: previewMode });
   const remoteDebugMode = (screen as any)?.debug_mode ?? 0;
   const debugMode = urlDebug1 || remoteDebugMode === 1;
   const hudMode = urlDebug2 || remoteDebugMode === 2;
@@ -984,44 +1021,58 @@ export default function Player() {
   // License validation (also in preview mode so preview reflects real state)
   const [licenseValid, setLicenseValid] = useState<boolean | null>(null);
   const [licenseMessage, setLicenseMessage] = useState("");
+  const [licenseRecovery, setLicenseRecovery] = useState<{ active: boolean; attempt: number; nextRetryMs: number }>({
+    active: false, attempt: 0, nextRetryMs: 0,
+  });
   const invalidStreakRef = useRef(0);
+  const transientStreakRef = useRef(0);
 
   useEffect(() => {
     if (!screen?.id) return;
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    const nextDelay = (n: number) => Math.min(60000, 1500 * Math.pow(1.6, n));
 
-    const checkLicense = () => {
-      validateLicense(screen.id).then((result) => {
-        // Ignore transient network/RPC errors: keep the previous state so a
-        // brief connectivity glitch never wrongly displays "Licence invalide".
-        if (result.transient) {
-          invalidStreakRef.current = 0;
-          return;
-        }
-        if (result.valid) {
-          invalidStreakRef.current = 0;
-          setLicenseValid(true);
-          setLicenseMessage("");
-          return;
-        }
-        // Require 2 consecutive confirmed invalid responses before locking.
-        // This applies to the very first check as well: a single flaky RPC
-        // response (empty payload, brief RLS hiccup) must never lock a screen
-        // that was working seconds ago.
-        invalidStreakRef.current += 1;
-        if (invalidStreakRef.current >= 2) {
-          setLicenseValid(false);
-          setLicenseMessage(result.message || "Licence invalide");
-        } else if (licenseValid === null) {
-          // Keep the loader visible for the second attempt (soon after).
-          setTimeout(checkLicense, 1500);
-        }
+    const checkLicense = async () => {
+      if (cancelled) return;
+      const result = await validateLicense(screen.id);
+      if (cancelled) return;
 
-      });
+      if (result.transient) {
+        // Network / RPC glitch: enter recovery, retry with backoff. Never flip
+        // a healthy player to "Licence invalide" because of connectivity.
+        transientStreakRef.current += 1;
+        const delay = nextDelay(transientStreakRef.current);
+        setLicenseRecovery({ active: true, attempt: transientStreakRef.current, nextRetryMs: delay });
+        retryTimer = setTimeout(checkLicense, delay);
+        return;
+      }
+
+      // Confirmed response — exit recovery.
+      transientStreakRef.current = 0;
+      setLicenseRecovery({ active: false, attempt: 0, nextRetryMs: 0 });
+
+      if (result.valid) {
+        invalidStreakRef.current = 0;
+        setLicenseValid(true);
+        setLicenseMessage("");
+        return;
+      }
+
+      // Require 2 consecutive confirmed invalid responses before locking so a
+      // single flaky payload cannot lock a working screen.
+      invalidStreakRef.current += 1;
+      if (invalidStreakRef.current >= 2) {
+        setLicenseValid(false);
+        setLicenseMessage(result.message || "Licence invalide");
+      } else if (licenseValid === null) {
+        retryTimer = setTimeout(checkLicense, 1500);
+      }
     };
 
     checkLicense();
 
-    // Always poll every 10s, even when valid — catches deactivations
+    // Always poll every 10s, even when valid — catches deactivations.
     const interval = setInterval(checkLicense, 10000);
 
     const channel = supabase
@@ -1034,10 +1085,13 @@ export default function Player() {
       .subscribe();
 
     return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
       clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [screen?.id]);
+
 
   // Listen for remote refresh signal — forces full page reload (bypasses HTTP cache on Smart TVs)
   useEffect(() => {
@@ -1289,14 +1343,25 @@ export default function Player() {
 
 
   if (loading) {
+    const inRecovery = recovery?.active;
     return (
       <div style={{ ...playerBgStyle, position: "fixed", top: 0, right: 0, bottom: 0, left: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
         {debugMode && <DiagnosticOverlay {...diagBaseProps} />}
         {hudMode && <DiagnosticOverlay {...diagBaseProps} mode="hud" />}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, textAlign: "center", padding: 24 }}>
           <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} />
-          <MonitorPlay style={{ height: 48, width: 48, color: "#3b82f6" }} />
-          <p style={{ color: "#9ca3af" }}>Connexion à l'écran...</p>
+          <MonitorPlay style={{ height: 48, width: 48, color: inRecovery ? "#f59e0b" : "#3b82f6" }} />
+          <p style={{ color: "#9ca3af" }}>
+            {inRecovery ? "Mode récupération — nouvel essai en cours..." : "Connexion à l'écran..."}
+          </p>
+          {inRecovery && (
+            <RecoveryDetails
+              label="Résolution de l'écran"
+              attempt={recovery.attempt}
+              nextRetryMs={recovery.nextRetryMs}
+              lastError={recovery.lastError}
+            />
+          )}
         </div>
       </div>
     );
@@ -1305,6 +1370,7 @@ export default function Player() {
   if (!screen) {
     return <ScreenNotFoundReport screenKey={id} />;
   }
+
 
   if (sessionBlocked && !previewMode) {
     return (
@@ -1338,16 +1404,28 @@ export default function Player() {
   }
 
   if (licenseValid === null) {
+    const inRecovery = licenseRecovery.active;
     return (
       <div style={{ ...playerBgStyle, position: "fixed", top: 0, right: 0, bottom: 0, left: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, textAlign: "center", padding: 24 }}>
           <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} />
-          <MonitorPlay style={{ height: 48, width: 48, color: "#3b82f6" }} />
-          <p style={{ color: "#9ca3af" }}>Vérification de la licence...</p>
+          <MonitorPlay style={{ height: 48, width: 48, color: inRecovery ? "#f59e0b" : "#3b82f6" }} />
+          <p style={{ color: "#9ca3af" }}>
+            {inRecovery ? "Mode récupération — vérification licence..." : "Vérification de la licence..."}
+          </p>
+          {inRecovery && (
+            <RecoveryDetails
+              label="Validation de la licence"
+              attempt={licenseRecovery.attempt}
+              nextRetryMs={licenseRecovery.nextRetryMs}
+              lastError={null}
+            />
+          )}
         </div>
       </div>
     );
   }
+
 
   if (licenseValid === false) {
     return (
