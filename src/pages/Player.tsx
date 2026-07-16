@@ -984,44 +984,58 @@ export default function Player() {
   // License validation (also in preview mode so preview reflects real state)
   const [licenseValid, setLicenseValid] = useState<boolean | null>(null);
   const [licenseMessage, setLicenseMessage] = useState("");
+  const [licenseRecovery, setLicenseRecovery] = useState<{ active: boolean; attempt: number; nextRetryMs: number }>({
+    active: false, attempt: 0, nextRetryMs: 0,
+  });
   const invalidStreakRef = useRef(0);
+  const transientStreakRef = useRef(0);
 
   useEffect(() => {
     if (!screen?.id) return;
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    const nextDelay = (n: number) => Math.min(60000, 1500 * Math.pow(1.6, n));
 
-    const checkLicense = () => {
-      validateLicense(screen.id).then((result) => {
-        // Ignore transient network/RPC errors: keep the previous state so a
-        // brief connectivity glitch never wrongly displays "Licence invalide".
-        if (result.transient) {
-          invalidStreakRef.current = 0;
-          return;
-        }
-        if (result.valid) {
-          invalidStreakRef.current = 0;
-          setLicenseValid(true);
-          setLicenseMessage("");
-          return;
-        }
-        // Require 2 consecutive confirmed invalid responses before locking.
-        // This applies to the very first check as well: a single flaky RPC
-        // response (empty payload, brief RLS hiccup) must never lock a screen
-        // that was working seconds ago.
-        invalidStreakRef.current += 1;
-        if (invalidStreakRef.current >= 2) {
-          setLicenseValid(false);
-          setLicenseMessage(result.message || "Licence invalide");
-        } else if (licenseValid === null) {
-          // Keep the loader visible for the second attempt (soon after).
-          setTimeout(checkLicense, 1500);
-        }
+    const checkLicense = async () => {
+      if (cancelled) return;
+      const result = await validateLicense(screen.id);
+      if (cancelled) return;
 
-      });
+      if (result.transient) {
+        // Network / RPC glitch: enter recovery, retry with backoff. Never flip
+        // a healthy player to "Licence invalide" because of connectivity.
+        transientStreakRef.current += 1;
+        const delay = nextDelay(transientStreakRef.current);
+        setLicenseRecovery({ active: true, attempt: transientStreakRef.current, nextRetryMs: delay });
+        retryTimer = setTimeout(checkLicense, delay);
+        return;
+      }
+
+      // Confirmed response — exit recovery.
+      transientStreakRef.current = 0;
+      setLicenseRecovery({ active: false, attempt: 0, nextRetryMs: 0 });
+
+      if (result.valid) {
+        invalidStreakRef.current = 0;
+        setLicenseValid(true);
+        setLicenseMessage("");
+        return;
+      }
+
+      // Require 2 consecutive confirmed invalid responses before locking so a
+      // single flaky payload cannot lock a working screen.
+      invalidStreakRef.current += 1;
+      if (invalidStreakRef.current >= 2) {
+        setLicenseValid(false);
+        setLicenseMessage(result.message || "Licence invalide");
+      } else if (licenseValid === null) {
+        retryTimer = setTimeout(checkLicense, 1500);
+      }
     };
 
     checkLicense();
 
-    // Always poll every 10s, even when valid — catches deactivations
+    // Always poll every 10s, even when valid — catches deactivations.
     const interval = setInterval(checkLicense, 10000);
 
     const channel = supabase
@@ -1034,10 +1048,13 @@ export default function Player() {
       .subscribe();
 
     return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
       clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [screen?.id]);
+
 
   // Listen for remote refresh signal — forces full page reload (bypasses HTTP cache on Smart TVs)
   useEffect(() => {
