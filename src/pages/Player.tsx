@@ -507,6 +507,40 @@ function ScreenNameOverlay({ name, show }: { name: string; show: boolean }) {
   );
 }
 
+/**
+ * Progress indicator for the auto-recovery loop (screen resolution + license
+ * check). Shows the current attempt, a live countdown until the next retry,
+ * and the last error observed. Never blocks — the loop keeps running.
+ */
+function RecoveryDetails({
+  label, attempt, nextRetryMs, lastError,
+}: { label: string; attempt: number; nextRetryMs: number; lastError: string | null }) {
+  const [remaining, setRemaining] = useState(Math.ceil(nextRetryMs / 1000));
+  useEffect(() => {
+    setRemaining(Math.ceil(nextRetryMs / 1000));
+    const id = setInterval(() => setRemaining((s) => (s > 0 ? s - 1 : 0)), 1000);
+    return () => clearInterval(id);
+  }, [nextRetryMs, attempt]);
+  return (
+    <div style={{
+      marginTop: 8, padding: "10px 16px", borderRadius: 10,
+      backgroundColor: "rgba(245,158,11,0.08)",
+      border: "1px solid rgba(245,158,11,0.3)",
+      color: "#fbbf24", fontSize: 12, maxWidth: 420,
+    }}>
+      <div style={{ fontWeight: 600, marginBottom: 4 }}>{label}</div>
+      <div style={{ color: "#d1d5db" }}>
+        Tentative n°{attempt} · nouvel essai dans {remaining}s
+      </div>
+      {lastError && (
+        <div style={{ color: "#9ca3af", marginTop: 6, fontSize: 11, wordBreak: "break-all" }}>
+          {lastError}
+        </div>
+      )}
+    </div>
+  );
+
+
 function PlayerSignature({ show }: { show: boolean }) {
   if (!show) return null;
   return (
