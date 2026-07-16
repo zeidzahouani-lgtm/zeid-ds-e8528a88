@@ -865,5 +865,7 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
     screen, media, loading, sessionBlocked, forceTakeover,
     playlistLength: playlistRef.current.length, currentIndex, currentDuration,
     layoutId: screen?.layout_id ?? null,
+    recovery,
   };
+
 }
