@@ -119,6 +119,8 @@ const App = () => (
                 <Route path="/auto-flow" element={<AutoFlow />} />
                 <Route path="/admin/logs" element={<AdminLogs />} />
                 <Route path="/admin/player-errors" element={<AdminPlayerErrors />} />
+                <Route path="/admin/health-check" element={<AdminHealthCheck />} />
+
               </Route>
 
               <Route path="*" element={<NotFound />} />
