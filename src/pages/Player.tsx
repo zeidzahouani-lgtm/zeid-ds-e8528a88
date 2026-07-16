@@ -1182,14 +1182,28 @@ export default function Player() {
           url.searchParams.set("_r", Date.now().toString());
           window.location.replace(url.toString());
         }, 500);
+      } else if (action === "resync") {
+        // Soft resync: bust cache and reload — refetches media, orientation,
+        // layout, playlists and re-subscribes to realtime channels.
+        try {
+          if ("caches" in window) {
+            await caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))));
+          }
+        } catch {}
+        setTimeout(() => {
+          const url = new URL(window.location.href);
+          url.searchParams.set("_r", Date.now().toString());
+          window.location.replace(url.toString());
+        }, 200);
       }
     };
 
     // Execute immediately if already pending on mount
     const initial = (screen as any).pending_action;
-    if (initial === "reboot" || initial === "shutdown") {
+    if (initial === "reboot" || initial === "shutdown" || initial === "resync") {
       executeAction(initial);
     }
+
 
     const channel = supabase
       .channel(`screen-pending-${screen.id}`)
