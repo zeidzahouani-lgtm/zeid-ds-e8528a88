@@ -1212,7 +1212,7 @@ export default function Player() {
         { event: "UPDATE", schema: "public", table: "screens", filter: `id=eq.${screen.id}` },
         (payload: any) => {
           const action = payload?.new?.pending_action;
-          if (action === "reboot" || action === "shutdown") {
+          if (action === "reboot" || action === "shutdown" || action === "resync") {
             executeAction(action);
           }
         }
