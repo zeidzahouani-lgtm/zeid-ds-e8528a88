@@ -46,7 +46,9 @@ const AdminServerStatus = lazy(() => import("./pages/AdminServerStatus"));
 const FirstAdminLogin = lazy(() => import("./pages/FirstAdminLogin"));
 const AdminLogs = lazy(() => import("./pages/AdminLogs"));
 const AdminPlayerErrors = lazy(() => import("./pages/AdminPlayerErrors"));
+const AdminHealthCheck = lazy(() => import("./pages/AdminHealthCheck"));
 const CompatTest = lazy(() => import("./pages/CompatTest"));
+
 
 const queryClient = new QueryClient();
 
@@ -117,6 +119,8 @@ const App = () => (
                 <Route path="/auto-flow" element={<AutoFlow />} />
                 <Route path="/admin/logs" element={<AdminLogs />} />
                 <Route path="/admin/player-errors" element={<AdminPlayerErrors />} />
+                <Route path="/admin/health-check" element={<AdminHealthCheck />} />
+
               </Route>
 
               <Route path="*" element={<NotFound />} />
