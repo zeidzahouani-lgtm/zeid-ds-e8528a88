@@ -1,21 +1,26 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Tv, Image, ListMusic, Clock, Wifi, WifiOff, ShieldAlert, ShieldOff,
   LayoutGrid, Key, Bell, Activity, TrendingUp, AlertTriangle, FileText,
   Monitor, BarChart3, PieChart as PieChartIcon, Zap, CheckCircle2, XCircle,
+  RefreshCw,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Link, Navigate } from "react-router-dom";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import { EstablishmentDashboard } from "@/components/establishments/EstablishmentDashboard";
 import { DiagnosticPanel } from "@/components/DiagnosticPanel";
 import { useDashboardStats } from "@/hooks/useDashboardStats";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip as ReTooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from "recharts";
+
 
 const MEDIA_TYPE_LABELS: Record<string, string> = {
   image: "Images", video: "Vidéos", iframe: "iFrames", other: "Autres",
