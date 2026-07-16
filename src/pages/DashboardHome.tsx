@@ -356,7 +356,18 @@ function AdminDashboardContent() {
                       ) : (
                         <span className="h-2 w-2 rounded-full bg-status-offline" />
                       )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-1.5 gap-1 text-[10px]"
+                        onClick={() => handleResync(screen.id, screen.name)}
+                        disabled={resyncingId === screen.id}
+                        title="Re-synchroniser cet écran (relance la lecture et met à jour l'orientation)"
+                      >
+                        <RefreshCw className={`h-3 w-3 ${resyncingId === screen.id ? "animate-spin" : ""}`} />
+                      </Button>
                     </div>
+
                   </div>
                   );
                 })}
