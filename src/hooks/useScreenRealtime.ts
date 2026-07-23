@@ -693,8 +693,12 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
       if (!nextScreen) return;
 
       const previousScreen = screenRef.current;
+      // Ignore current_media_id changes when a playlist or program drives rotation
+      // locally — otherwise our own rotation writes reset the index to 0 and the
+      // player stays stuck on the first item.
+      const rotationOwned = !!(nextScreen.playlist_id || nextScreen.program_id);
       const relevantChange = !previousScreen ||
-        nextScreen.current_media_id !== previousScreen.current_media_id ||
+        (!rotationOwned && nextScreen.current_media_id !== previousScreen.current_media_id) ||
         nextScreen.layout_id !== previousScreen.layout_id ||
         nextScreen.playlist_id !== previousScreen.playlist_id ||
         nextScreen.program_id !== previousScreen.program_id ||
@@ -765,8 +769,12 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
         const newData = payload.new as ScreenData;
         const prev = screenRef.current;
 
+        // Skip current_media_id changes when rotation is playlist/program driven —
+        // those writes come from our own local timer and would otherwise reset
+        // the index to 0 on every tick.
+        const rotationOwned = !!(newData.playlist_id || newData.program_id);
         const relevantChange = !prev ||
-          newData.current_media_id !== prev.current_media_id ||
+          (!rotationOwned && newData.current_media_id !== prev.current_media_id) ||
           newData.layout_id !== prev.layout_id ||
           newData.playlist_id !== prev.playlist_id ||
           newData.program_id !== prev.program_id ||
