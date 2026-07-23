@@ -693,8 +693,12 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
       if (!nextScreen) return;
 
       const previousScreen = screenRef.current;
+      // Ignore current_media_id changes when a playlist or program drives rotation
+      // locally — otherwise our own rotation writes reset the index to 0 and the
+      // player stays stuck on the first item.
+      const rotationOwned = !!(nextScreen.playlist_id || nextScreen.program_id);
       const relevantChange = !previousScreen ||
-        nextScreen.current_media_id !== previousScreen.current_media_id ||
+        (!rotationOwned && nextScreen.current_media_id !== previousScreen.current_media_id) ||
         nextScreen.layout_id !== previousScreen.layout_id ||
         nextScreen.playlist_id !== previousScreen.playlist_id ||
         nextScreen.program_id !== previousScreen.program_id ||
