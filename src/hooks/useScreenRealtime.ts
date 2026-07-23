@@ -693,10 +693,12 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
       if (!nextScreen) return;
 
       const previousScreen = screenRef.current;
-      // Ignore current_media_id changes when a playlist or program drives rotation
-      // locally — otherwise our own rotation writes reset the index to 0 and the
-      // player stays stuck on the first item.
-      const rotationOwned = !!(nextScreen.playlist_id || nextScreen.program_id);
+      // A rotation can come from an assigned playlist/program OR from legacy
+      // playlist_items attached directly to the screen. In every case our own
+      // current_media_id write must not be treated as a configuration change,
+      // otherwise the index is reset to 0 after every slide.
+      const rotationOwned = playlistRef.current.length > 0 ||
+        !!(nextScreen.playlist_id || nextScreen.program_id);
       const relevantChange = !previousScreen ||
         (!rotationOwned && nextScreen.current_media_id !== previousScreen.current_media_id) ||
         nextScreen.layout_id !== previousScreen.layout_id ||
@@ -769,10 +771,12 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
         const newData = payload.new as ScreenData;
         const prev = screenRef.current;
 
-        // Skip current_media_id changes when rotation is playlist/program driven —
-        // those writes come from our own local timer and would otherwise reset
-        // the index to 0 on every tick.
-        const rotationOwned = !!(newData.playlist_id || newData.program_id);
+        // Also cover legacy screen-scoped playlist_items (playlist_id is null).
+        // mariott-1 and other screens created through quick/AI assignment use
+        // this shape, so checking only playlist_id/program_id resets them to the
+        // first item on every local rotation write.
+        const rotationOwned = playlistRef.current.length > 0 ||
+          !!(newData.playlist_id || newData.program_id);
         const relevantChange = !prev ||
           (!rotationOwned && newData.current_media_id !== prev.current_media_id) ||
           newData.layout_id !== prev.layout_id ||
