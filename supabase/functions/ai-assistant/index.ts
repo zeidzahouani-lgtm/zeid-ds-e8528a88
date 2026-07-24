@@ -329,6 +329,27 @@ Réponds en français. Propose 2-4 suggestions concrètes et variées.` },
 
       if (!targetScreenId) throw { status: 400, message: "screenId requis pour créer une playlist" };
 
+      const { data: targetScreen, error: screenErr } = await supabase
+        .from("screens")
+        .select("id, establishment_id")
+        .eq("id", targetScreenId)
+        .single();
+      if (screenErr || !targetScreen) throw { status: 404, message: "Écran introuvable ou inaccessible" };
+
+      const playlistInsert: Record<string, any> = {
+        name: playlistTitle,
+        user_id: user.id,
+        establishment_id: targetScreen.establishment_id || establishmentId || null,
+      };
+      const { data: newPlaylist, error: playlistErr } = await supabase
+        .from("playlists")
+        .insert(playlistInsert)
+        .select("id")
+        .single();
+      if (playlistErr || !newPlaylist) {
+        throw { status: 500, message: playlistErr?.message || "Impossible de créer la playlist" };
+      }
+
       const playlistItems = playlistSpec?.items || [];
       let position = 0;
 
@@ -364,12 +385,23 @@ Réponds en français. Propose 2-4 suggestions concrètes et variées.` },
         }
 
         if (mediaId) {
-          await supabase.from("playlist_items").insert({ screen_id: targetScreenId, media_id: mediaId, position });
+          const { error: itemErr } = await supabase.from("playlist_items").insert({
+            playlist_id: newPlaylist.id,
+            media_id: mediaId,
+            position,
+          });
+          if (itemErr) throw { status: 500, message: itemErr.message };
           position++;
         }
       }
 
-      return jsonResponse({ success: true, items_created: position, message: `Playlist "${playlistTitle}" créée avec ${position} éléments` });
+      const { error: assignErr } = await supabase
+        .from("screens")
+        .update({ playlist_id: newPlaylist.id })
+        .eq("id", targetScreenId);
+      if (assignErr) throw { status: 500, message: assignErr.message };
+
+      return jsonResponse({ success: true, playlist_id: newPlaylist.id, items_created: position, message: `Playlist "${playlistTitle}" créée avec ${position} éléments` });
     }
 
     return jsonResponse({ error: "Action inconnue" }, 400);
