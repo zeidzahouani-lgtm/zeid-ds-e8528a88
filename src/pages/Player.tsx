@@ -1033,6 +1033,20 @@ export default function Player() {
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
     const nextDelay = (n: number) => Math.min(60000, 1500 * Math.pow(1.6, n));
 
+    // Grace cache: remember the last confirmed-valid check so a booting screen
+    // with no connectivity keeps playing instead of showing "Licence invalide".
+    const cacheKey = `license-ok:${screen.id}`;
+    const GRACE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+    const rememberValid = () => {
+      try { localStorage.setItem(cacheKey, String(Date.now())); } catch { /* ignore */ }
+    };
+    const hasGrace = () => {
+      try {
+        const ts = Number(localStorage.getItem(cacheKey) || 0);
+        return ts > 0 && Date.now() - ts < GRACE_MS;
+      } catch { return false; }
+    };
+
     const checkLicense = async () => {
       if (cancelled) return;
       const result = await validateLicense(screen.id);
@@ -1044,6 +1058,8 @@ export default function Player() {
         transientStreakRef.current += 1;
         const delay = nextDelay(transientStreakRef.current);
         setLicenseRecovery({ active: true, attempt: transientStreakRef.current, nextRetryMs: delay });
+        // Previously validated on this device → keep playing during the outage.
+        if (hasGrace()) setLicenseValid(true);
         retryTimer = setTimeout(checkLicense, delay);
         return;
       }
@@ -1054,17 +1070,19 @@ export default function Player() {
 
       if (result.valid) {
         invalidStreakRef.current = 0;
+        rememberValid();
         setLicenseValid(true);
         setLicenseMessage("");
         return;
       }
-
       // Require 2 consecutive confirmed invalid responses before locking so a
       // single flaky payload cannot lock a working screen.
       invalidStreakRef.current += 1;
       if (invalidStreakRef.current >= 2) {
+        try { localStorage.removeItem(cacheKey); } catch { /* ignore */ }
         setLicenseValid(false);
         setLicenseMessage(result.message || "Licence invalide");
+
       } else if (licenseValid === null) {
         retryTimer = setTimeout(checkLicense, 1500);
       }
