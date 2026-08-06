@@ -1075,21 +1075,14 @@ export default function Player() {
         setLicenseMessage("");
         return;
       }
-
-
-      if (result.valid) {
-        invalidStreakRef.current = 0;
-        setLicenseValid(true);
-        setLicenseMessage("");
-        return;
-      }
-
       // Require 2 consecutive confirmed invalid responses before locking so a
       // single flaky payload cannot lock a working screen.
       invalidStreakRef.current += 1;
       if (invalidStreakRef.current >= 2) {
+        try { localStorage.removeItem(cacheKey); } catch { /* ignore */ }
         setLicenseValid(false);
         setLicenseMessage(result.message || "Licence invalide");
+
       } else if (licenseValid === null) {
         retryTimer = setTimeout(checkLicense, 1500);
       }
