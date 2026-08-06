@@ -124,26 +124,47 @@ export function useLicenses() {
 // Validate a license key for a specific screen (used by Player)
 // `transient: true` signals a network/RPC error (not an actual invalid license):
 // callers should preserve their previous state instead of flipping to "invalid".
+// The RPC is retried a few times internally so a single network hiccup on TV
+// hardware never surfaces as a licensing problem.
 export async function validateLicense(
   screenId: string,
 ): Promise<{ valid: boolean; message?: string; transient?: boolean }> {
-  try {
-    const { data, error } = await (supabase as any).rpc("validate_license_for_screen", {
-      _screen_id: screenId,
-    });
-    if (error) return { valid: false, message: "Erreur de validation", transient: true };
-    const result = Array.isArray(data) ? data[0] : data;
-    if (result === undefined || result === null) {
-      return { valid: false, message: "Réponse vide", transient: true };
+  const attempts = 3;
+  let lastTransient: { valid: boolean; message?: string; transient: true } = {
+    valid: false,
+    message: "Erreur de validation",
+    transient: true,
+  };
+
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const { data, error } = await (supabase as any).rpc("validate_license_for_screen", {
+        _screen_id: screenId,
+      });
+      if (error) {
+        lastTransient = { valid: false, message: "Erreur de validation", transient: true };
+      } else {
+        const result = Array.isArray(data) ? data[0] : data;
+        if (result === undefined || result === null) {
+          lastTransient = { valid: false, message: "Réponse vide", transient: true };
+        } else {
+          return {
+            valid: !!result?.valid,
+            message: result?.message ?? undefined,
+          };
+        }
+      }
+    } catch (_e) {
+      lastTransient = { valid: false, message: "Erreur réseau", transient: true };
     }
-    return {
-      valid: !!result?.valid,
-      message: result?.message ?? undefined,
-    };
-  } catch (_e) {
-    return { valid: false, message: "Erreur réseau", transient: true };
+    if (i < attempts - 1) {
+      await new Promise((r) => setTimeout(r, 800 * (i + 1)));
+    }
   }
+
+  return lastTransient;
 }
+
 
 // Activate a license by key for a specific screen (used by Player manual entry)
 export async function activateLicenseByKey(licenseKey: string, screenId: string): Promise<{ valid: boolean; message?: string }> {
