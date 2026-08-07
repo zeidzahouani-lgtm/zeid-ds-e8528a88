@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { audioVideoRef } from "@/lib/player-audio";
 
 export interface SlideshowItem {
   url: string;
@@ -146,7 +147,7 @@ export default function SlideshowWidget({ config }: Props) {
                   src={it.url}
                   className="w-full h-full"
                   style={{ objectFit: fit }}
-                  muted
+                  ref={audioVideoRef}
                   autoPlay
                   loop
                   playsInline
@@ -183,7 +184,7 @@ export default function SlideshowWidget({ config }: Props) {
             src={current.url}
             className="w-full h-full"
             style={{ objectFit: fit }}
-            muted
+            ref={audioVideoRef}
             autoPlay
             loop
             playsInline
