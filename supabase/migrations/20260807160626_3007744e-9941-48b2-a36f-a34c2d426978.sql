@@ -1,0 +1,1 @@
+DELETE FROM public.contents WHERE title = 'test-rls' AND source = 'qr_upload';
