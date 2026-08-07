@@ -8,6 +8,7 @@ import { validateLicense, activateLicenseByKey } from "@/hooks/useLicenses";
 import { QRCodeSVG } from "qrcode.react";
 import FallbackScreen from "@/components/player/FallbackScreen";
 import DiagnosticOverlay from "@/components/player/DiagnosticOverlay";
+import { audioVideoRef } from "@/lib/player-audio";
 
 // Hook to fetch active contents for a screen filtered by current time
 function useActiveContents(screenId: string | undefined) {
@@ -293,10 +294,10 @@ function MediaRenderer({ media, playlistLength }: { media: { id: string; name: s
       <div style={containerStyle}>
         <video
           key={media.id}
+          ref={audioVideoRef}
           src={media.url}
           style={mediaStyle}
           autoPlay
-          muted
           loop={!playlistLength || playlistLength <= 1}
           playsInline
         />
@@ -911,10 +912,11 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Cont
               <div key={i} style={{ position: "relative", overflow: "hidden", backgroundColor: "#000" }}>
                 {isVid ? (
                   <video
+                    ref={m.muted === true ? undefined : audioVideoRef}
                     src={item.image_url}
                     style={style}
                     autoPlay={m.autoplay !== false}
-                    muted={m.muted !== false}
+                    muted={m.muted === true}
                     loop={m.loop !== false}
                     playsInline
                     controls={false}
@@ -967,10 +969,10 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Cont
         {contentType === "video" ? (
           <video
             key={single.id}
+            ref={audioVideoRef}
             src={single.image_url}
             style={mediaStyle}
             autoPlay
-            muted
             playsInline
             onEnded={slides.length > 1 ? advance : undefined}
             loop={slides.length <= 1}
