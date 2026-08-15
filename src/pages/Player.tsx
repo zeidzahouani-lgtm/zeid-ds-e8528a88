@@ -1348,18 +1348,24 @@ export default function Player() {
     if (!missingMediaId || !screen?.id) return;
     const key = `${screen.id}:${missingMediaId}`;
     if (reportedMissingRef.current === key) return;
-    reportedMissingRef.current = key;
-    (supabase as any)
-      .rpc("log_player_error", {
-        _screen_key: (screen as any).slug || screen.id,
-        _error_type: "media_missing",
-        _message: `Média ${missingMediaId} introuvable pour l'écran`,
-        _url: typeof window !== "undefined" ? window.location.href : null,
-        _user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
-      })
-      .then(() => {})
-      .catch(() => {});
+    // Attendre 20s : le média peut encore être en cours de chargement
+    // (resync, reconnexion), inutile d'alerter dans ce cas.
+    const timer = setTimeout(() => {
+      reportedMissingRef.current = key;
+      (supabase as any)
+        .rpc("log_player_error", {
+          _screen_key: (screen as any).slug || screen.id,
+          _error_type: "media_missing",
+          _message: `Média ${missingMediaId} introuvable pour l'écran`,
+          _url: typeof window !== "undefined" ? window.location.href : null,
+          _user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+        })
+        .then(() => {})
+        .catch(() => {});
+    }, 20_000);
+    return () => clearTimeout(timer);
   }, [missingMediaId, screen?.id]);
+
 
   // Report player load latency once, when the screen is resolved and ready.
   const latencyReportedRef = useRef(false);
