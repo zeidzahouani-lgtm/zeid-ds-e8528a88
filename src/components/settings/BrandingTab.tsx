@@ -37,7 +37,9 @@ export default function BrandingTab({ getSetting, saveMultiple, settings }: Bran
   const [textColor, setTextColor] = useState(getSetting("brand_text_color") || "#ffffff");
   const [fontFamily, setFontFamily] = useState(getSetting("brand_font") || "Inter");
   const [logoUrl, setLogoUrl] = useState(getSetting("brand_logo_url") || "");
+  const [logoSize, setLogoSize] = useState(getSetting("brand_logo_size") || "medium");
   const [faviconUrl, setFaviconUrl] = useState(getSetting("brand_favicon_url") || "");
+
   const [welcomeMsg, setWelcomeMsg] = useState(getSetting("brand_welcome_message") || "");
   const [footerText, setFooterText] = useState(getSetting("brand_footer_text") || "");
   const [playerWatermark, setPlayerWatermark] = useState(getSetting("brand_player_watermark") || "");
