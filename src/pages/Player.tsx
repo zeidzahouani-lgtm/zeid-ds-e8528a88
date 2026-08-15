@@ -853,7 +853,7 @@ function LayoutRenderer({
               {region.widget_type ? (
                 <WidgetRenderer widgetType={region.widget_type} widgetConfig={region.widget_config ?? undefined} />
               ) : region.media ? (
-                <MediaRenderer media={region.media} />
+                <MediaRenderer media={region.media} rotateDeg={orientationDeg(screenOrientation)} />
               ) : null}
             </RegionErrorBoundary>
           </div>
