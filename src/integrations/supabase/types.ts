@@ -18,28 +18,48 @@ export type Database = {
         Row: {
           code: string
           created_at: string
+          created_by: string | null
+          establishment_id: string | null
+          expires_at: string | null
           id: string
           is_active: boolean
+          screen_ids: string[]
           user_id: string | null
           user_name: string
         }
         Insert: {
           code: string
           created_at?: string
+          created_by?: string | null
+          establishment_id?: string | null
+          expires_at?: string | null
           id?: string
           is_active?: boolean
+          screen_ids?: string[]
           user_id?: string | null
           user_name: string
         }
         Update: {
           code?: string
           created_at?: string
+          created_by?: string | null
+          establishment_id?: string | null
+          expires_at?: string | null
           id?: string
           is_active?: boolean
+          screen_ids?: string[]
           user_id?: string | null
           user_name?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "access_codes_establishment_id_fkey"
+            columns: ["establishment_id"]
+            isOneToOne: false
+            referencedRelation: "establishments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       activity_logs: {
         Row: {
@@ -1423,6 +1443,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_establishment_admin: {
+        Args: { _establishment_id: string; _user_id: string }
         Returns: boolean
       }
       is_member_of: {
