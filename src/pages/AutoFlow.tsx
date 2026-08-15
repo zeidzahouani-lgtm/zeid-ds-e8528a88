@@ -93,13 +93,28 @@ export default function AutoFlow() {
     setAccessCodes(data || []);
   };
 
+  const generateCode = () => {
+    const base = (newUserName.trim() || "CLI").replace(/[^a-zA-Z]/g, "").toUpperCase().slice(0, 3).padEnd(3, "X");
+    const rand = Math.random().toString(36).slice(2, 7).toUpperCase();
+    setNewCode(`${base}-${rand}`);
+  };
+
   const handleAddCode = async () => {
     if (!newCode.trim() || !newUserName.trim()) return;
+    if (!canManageCodes || !currentEstablishmentId) {
+      toast.error("Seuls les administrateurs de l'établissement peuvent créer un code");
+      return;
+    }
     setAddingCode(true);
     try {
+      const days = parseInt(newValidityDays, 10);
       const insertData: any = {
         code: newCode.trim().toUpperCase(),
         user_name: newUserName.trim(),
+        establishment_id: currentEstablishmentId,
+        screen_ids: newScreenIds,
+        expires_at: days > 0 ? new Date(Date.now() + days * 86400000).toISOString() : null,
+        created_by: user?.id ?? null,
       };
       if (newUserId && newUserId !== "none") insertData.user_id = newUserId;
       const { error } = await (supabase.from("access_codes") as any).insert(insertData);
@@ -108,6 +123,8 @@ export default function AutoFlow() {
       setNewCode("");
       setNewUserName("");
       setNewUserId("");
+      setNewScreenIds([]);
+      setNewValidityDays("30");
       loadAccessCodes();
     } catch (e: any) {
       toast.error(e.message || "Erreur");
@@ -115,6 +132,7 @@ export default function AutoFlow() {
       setAddingCode(false);
     }
   };
+
 
   const toggleCode = async (id: string, isActive: boolean) => {
     await (supabase.from("access_codes") as any).update({ is_active: !isActive }).eq("id", id);
