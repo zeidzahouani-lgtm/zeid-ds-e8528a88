@@ -231,6 +231,117 @@ const MEDIA_LAYER_FIX: React.CSSProperties = {
   WebkitBackfaceVisibility: "hidden",
 } as React.CSSProperties;
 
+/** Degrees applied by getOrientationStyle for a given orientation value. */
+function orientationDeg(orientation?: string | null): number {
+  switch (orientation) {
+    case "portrait": return 90;
+    case "landscape-flipped": return 180;
+    case "portrait-flipped": return 270;
+    default: return 0;
+  }
+}
+
+/**
+ * SelfRotatedMedia — on old Android TV WebViews the <video> surface is drawn in a
+ * hardware overlay that IGNORES rotations applied to ancestor elements: the video
+ * stays landscape while everything else rotates.
+ *
+ * Workaround: cancel the ancestor rotation (counter-rotate back to physical screen
+ * space) and re-apply the very same rotation DIRECTLY on the media element. The
+ * final visual result is identical on modern browsers, but the video surface now
+ * carries the transform itself, which the hardware overlay does honour.
+ */
+function SelfRotatedMedia({
+  deg,
+  children,
+}: {
+  deg: number;
+  children: (mediaTransform: React.CSSProperties) => React.ReactNode;
+}) {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  const norm = ((deg % 360) + 360) % 360;
+
+  useEffect(() => {
+    const el = hostRef.current;
+    if (!el) return;
+    const update = () => setBox({ w: el.offsetWidth, h: el.offsetHeight });
+    update();
+    let ro: any = null;
+    try {
+      ro = new (window as any).ResizeObserver(update);
+      ro.observe(el);
+    } catch {}
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+      try { ro && ro.disconnect(); } catch {}
+    };
+  }, [norm]);
+
+  // No rotation to compensate → plain passthrough.
+  if (norm === 0) {
+    return (
+      <div ref={hostRef} style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0 }}>
+        {children(MEDIA_LAYER_FIX)}
+      </div>
+    );
+  }
+
+  const swapped = norm === 90 || norm === 270;
+  const { w, h } = box;
+  const physW = swapped ? h : w;
+  const physH = swapped ? w : h;
+
+  const mediaTransform: React.CSSProperties = {
+    transform: `rotate(${norm}deg) translateZ(0)`,
+    WebkitTransform: `rotate(${norm}deg) translateZ(0)`,
+    transformOrigin: "center center",
+    WebkitTransformOrigin: "center center",
+    backfaceVisibility: "hidden",
+    WebkitBackfaceVisibility: "hidden",
+  } as React.CSSProperties;
+
+  return (
+    <div ref={hostRef} style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, overflow: "hidden" }}>
+      {w > 0 && h > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            width: physW,
+            height: physH,
+            marginTop: -physH / 2,
+            marginLeft: -physW / 2,
+            transform: `rotate(${-norm}deg)`,
+            WebkitTransform: `rotate(${-norm}deg)`,
+            transformOrigin: "center center",
+            WebkitTransformOrigin: "center center",
+          } as React.CSSProperties}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              width: w,
+              height: h,
+              marginTop: -h / 2,
+              marginLeft: -w / 2,
+            }}
+          >
+            {children(mediaTransform)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 
 /**
  * Forces a virtual rendering resolution and scales it to fit the physical screen.
@@ -283,7 +394,7 @@ function ResolutionFrame({ resolution, children }: { resolution?: string | null;
   );
 }
 
-function MediaRenderer({ media, playlistLength }: { media: { id: string; name: string; type: string; url: string }; playlistLength?: number }) {
+function MediaRenderer({ media, playlistLength, rotateDeg = 0 }: { media: { id: string; name: string; type: string; url: string }; playlistLength?: number; rotateDeg?: number }) {
   const containerStyle: React.CSSProperties = {
     position: "relative",
     width: "100%",
@@ -295,7 +406,7 @@ function MediaRenderer({ media, playlistLength }: { media: { id: string; name: s
     padding: 0,
   };
 
-  const mediaStyle: React.CSSProperties = {
+  const baseMediaStyle: React.CSSProperties = {
     position: "absolute",
     top: 0, right: 0, bottom: 0, left: 0,
     width: "100%",
@@ -304,31 +415,32 @@ function MediaRenderer({ media, playlistLength }: { media: { id: string; name: s
     objectFit: "cover",
     objectPosition: "center center",
     backgroundColor: "#000",
-    ...MEDIA_LAYER_FIX,
   };
 
-  if (media.type === "image") {
+  if (media.type === "image" || media.type === "video") {
     return (
       <div style={containerStyle}>
-        <img src={media.url} alt={media.name} style={mediaStyle} />
+        <SelfRotatedMedia deg={rotateDeg}>
+          {(fix) =>
+            media.type === "image" ? (
+              <img src={media.url} alt={media.name} style={{ ...baseMediaStyle, ...fix }} />
+            ) : (
+              <video
+                key={media.id}
+                ref={audioVideoRef}
+                src={media.url}
+                style={{ ...baseMediaStyle, ...fix }}
+                autoPlay
+                loop={!playlistLength || playlistLength <= 1}
+                playsInline
+              />
+            )
+          }
+        </SelfRotatedMedia>
       </div>
     );
   }
-  if (media.type === "video") {
-    return (
-      <div style={containerStyle}>
-        <video
-          key={media.id}
-          ref={audioVideoRef}
-          src={media.url}
-          style={mediaStyle}
-          autoPlay
-          loop={!playlistLength || playlistLength <= 1}
-          playsInline
-        />
-      </div>
-    );
-  }
+  const mediaStyle: React.CSSProperties = { ...baseMediaStyle, ...MEDIA_LAYER_FIX };
   return (
     <div style={containerStyle}>
       <iframe src={media.url} style={{ ...mediaStyle, border: "none" }} allowFullScreen title={media.name} />
@@ -741,7 +853,7 @@ function LayoutRenderer({
               {region.widget_type ? (
                 <WidgetRenderer widgetType={region.widget_type} widgetConfig={region.widget_config ?? undefined} />
               ) : region.media ? (
-                <MediaRenderer media={region.media} />
+                <MediaRenderer media={region.media} rotateDeg={orientationDeg(screenOrientation)} />
               ) : null}
             </RegionErrorBoundary>
           </div>
@@ -913,8 +1025,10 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Cont
     const contentOrientation = current.orientation || screenOrientation;
     // The parent player container already applies the screen rotation — only rotate
     // again when this content explicitly asks for a different orientation.
+    const extraRotation = contentOrientation === screenOrientation ? 0 : orientationDeg(contentOrientation);
     const rotationStyle =
       contentOrientation === screenOrientation ? {} : getOrientationStyle(contentOrientation);
+    const effectiveDeg = orientationDeg(screenOrientation) + extraRotation;
     return (
       <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", backgroundColor: "#000", ...rotationStyle }}>
         <div
@@ -935,23 +1049,27 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Cont
               m.fit === "cover" || m.fit === "contain" || m.fit === "fill"
                 ? m.fit
                 : (isVid ? "contain" : "cover");
-            const style: React.CSSProperties = { width: "100%", height: "100%", objectFit: fitCell, objectPosition: "center center", display: "block", backgroundColor: "#000", ...MEDIA_LAYER_FIX };
+            const baseStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: fitCell, objectPosition: "center center", display: "block", backgroundColor: "#000" };
             return (
               <div key={i} style={{ position: "relative", overflow: "hidden", backgroundColor: "#000" }}>
-                {isVid ? (
-                  <video
-                    ref={m.muted === true ? undefined : audioVideoRef}
-                    src={item.image_url}
-                    style={style}
-                    autoPlay={m.autoplay !== false}
-                    muted={m.muted === true}
-                    loop={m.loop !== false}
-                    playsInline
-                    controls={false}
-                  />
-                ) : (
-                  <img src={item.image_url} alt={item.title || ""} style={style} />
-                )}
+                <SelfRotatedMedia deg={effectiveDeg}>
+                  {(fix) =>
+                    isVid ? (
+                      <video
+                        ref={m.muted === true ? undefined : audioVideoRef}
+                        src={item.image_url}
+                        style={{ ...baseStyle, ...fix }}
+                        autoPlay={m.autoplay !== false}
+                        muted={m.muted === true}
+                        loop={m.loop !== false}
+                        playsInline
+                        controls={false}
+                      />
+                    ) : (
+                      <img src={item.image_url} alt={item.title || ""} style={{ ...baseStyle, ...fix }} />
+                    )
+                  }
+                </SelfRotatedMedia>
               </div>
             );
           })}
@@ -960,12 +1078,17 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Cont
     );
   }
 
+
   const single = current.content;
   const meta = (single.metadata as any) || {};
   const contentType = meta.type || "image";
   const contentOrientation = meta.orientation || screenOrientation;
   const rotationStyle =
     contentOrientation === screenOrientation ? {} : getOrientationStyle(contentOrientation);
+  const singleEffectiveDeg =
+    orientationDeg(screenOrientation) +
+    (contentOrientation === screenOrientation ? 0 : orientationDeg(contentOrientation));
+
 
   const fit: "cover" | "contain" | "fill" = meta.fit === "contain" || meta.fit === "fill" ? meta.fit : "cover";
   const sizeKey: "full" | "half" | "quarter" = meta.size === "half" || meta.size === "quarter" ? meta.size : "full";
@@ -990,29 +1113,34 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Cont
   else { innerStyle.left = "50%"; tx += " translateX(-50%)"; }
   if (tx) innerStyle.transform = tx.trim();
 
-  const mediaStyle: React.CSSProperties = { width: "100%", height: "100%", objectFit: fit, objectPosition: "center center", display: "block", backgroundColor: "#000", ...MEDIA_LAYER_FIX };
+  const mediaStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: fit, objectPosition: "center center", display: "block", backgroundColor: "#000" };
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", backgroundColor: "#000", ...rotationStyle }}>
       <div style={innerStyle}>
-        {contentType === "video" ? (
-          <video
-            key={single.id}
-            ref={audioVideoRef}
-            src={single.image_url}
-            style={mediaStyle}
-            autoPlay
-            playsInline
-            onEnded={slides.length > 1 ? advance : undefined}
-            loop={slides.length <= 1}
-          />
-        ) : (
-          <img src={single.image_url} alt={single.title || ""} style={mediaStyle} />
-        )}
+        <SelfRotatedMedia deg={singleEffectiveDeg}>
+          {(fix) =>
+            contentType === "video" ? (
+              <video
+                key={single.id}
+                ref={audioVideoRef}
+                src={single.image_url}
+                style={{ ...mediaStyle, ...fix }}
+                autoPlay
+                playsInline
+                onEnded={slides.length > 1 ? advance : undefined}
+                loop={slides.length <= 1}
+              />
+            ) : (
+              <img src={single.image_url} alt={single.title || ""} style={{ ...mediaStyle, ...fix }} />
+            )
+          }
+        </SelfRotatedMedia>
       </div>
     </div>
   );
 }
+
 
 export default function Player() {
   const { id } = useParams<{ id: string }>();
@@ -1592,7 +1720,7 @@ export default function Player() {
               {activeContents.length > 0 && !media ? (
                 <ActiveContentCarousel contents={activeContents} screenOrientation={screen.orientation} />
               ) : media ? (
-                <MediaRenderer media={media} playlistLength={playlistLength} />
+                <MediaRenderer media={media} playlistLength={playlistLength} rotateDeg={orientationDeg(screen.orientation)} />
               ) : null}
             </WallTile>
           </div>
