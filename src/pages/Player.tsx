@@ -75,7 +75,9 @@ interface PlayerBranding {
   bgColor: string;
   watermark: string;
   showSignatureOnPlayer: boolean;
+  logoSize: "small" | "medium" | "large";
 }
+
 
 /**
  * Rendered when the player URL does not resolve to any screen.
