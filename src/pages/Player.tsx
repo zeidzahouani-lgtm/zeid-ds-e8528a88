@@ -515,7 +515,7 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
 
       let logoUrl = "";
       let logoVersion: string | null = null;
-      let logoSize: "small" | "medium" | "large" = "medium";
+      let logoSize: "small" | "medium" | "large" | "xlarge" = "medium";
       let showLogo = true;
       let bgColor = "#000000";
       let watermark = "";
@@ -556,8 +556,9 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
         if (settingsMap.brand_show_logo_player?.value === "false") showLogo = false;
         if (settingsMap.brand_player_bg_color?.value) bgColor = settingsMap.brand_player_bg_color.value;
         if (settingsMap.brand_player_watermark?.value) watermark = settingsMap.brand_player_watermark.value;
-        if (settingsMap.brand_logo_size?.value === "small" || settingsMap.brand_logo_size?.value === "large") {
-          logoSize = settingsMap.brand_logo_size.value;
+        const allowedSizes: ("small" | "medium" | "large" | "xlarge")[] = ["small", "medium", "large", "xlarge"];
+        if (allowedSizes.includes(settingsMap.brand_logo_size?.value as any)) {
+          logoSize = settingsMap.brand_logo_size!.value as "small" | "medium" | "large" | "xlarge";
         }
 
       }
@@ -623,9 +624,9 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
   return branding;
 }
 
-function CompanyLogo({ logoUrl, size = "medium", show = true }: { logoUrl: string; size?: "small" | "medium" | "large"; show?: boolean }) {
+function CompanyLogo({ logoUrl, size = "medium", show = true }: { logoUrl: string; size?: "small" | "medium" | "large" | "xlarge"; show?: boolean }) {
   if (!logoUrl || !show) return null;
-  const height = size === "small" ? 48 : size === "large" ? 96 : 64;
+  const height = size === "small" ? 48 : size === "medium" ? 64 : size === "large" ? 96 : 144;
   return <img src={logoUrl} alt="Logo" style={{ height, width: "auto", objectFit: "contain", marginBottom: 16 }} />;
 }
 
