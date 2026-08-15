@@ -24,6 +24,7 @@ export type Database = {
           id: string
           is_active: boolean
           screen_ids: string[]
+          starts_at: string | null
           user_id: string | null
           user_name: string
         }
@@ -36,6 +37,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           screen_ids?: string[]
+          starts_at?: string | null
           user_id?: string | null
           user_name: string
         }
@@ -48,6 +50,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           screen_ids?: string[]
+          starts_at?: string | null
           user_id?: string | null
           user_name?: string
         }
@@ -1514,6 +1517,7 @@ export type Database = {
           expires_at: string
           id: string
           is_active: boolean
+          starts_at: string
           user_id: string
           user_name: string
         }[]
