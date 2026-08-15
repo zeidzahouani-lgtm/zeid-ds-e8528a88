@@ -1113,29 +1113,34 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Cont
   else { innerStyle.left = "50%"; tx += " translateX(-50%)"; }
   if (tx) innerStyle.transform = tx.trim();
 
-  const mediaStyle: React.CSSProperties = { width: "100%", height: "100%", objectFit: fit, objectPosition: "center center", display: "block", backgroundColor: "#000", ...MEDIA_LAYER_FIX };
+  const mediaStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: fit, objectPosition: "center center", display: "block", backgroundColor: "#000" };
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", backgroundColor: "#000", ...rotationStyle }}>
       <div style={innerStyle}>
-        {contentType === "video" ? (
-          <video
-            key={single.id}
-            ref={audioVideoRef}
-            src={single.image_url}
-            style={mediaStyle}
-            autoPlay
-            playsInline
-            onEnded={slides.length > 1 ? advance : undefined}
-            loop={slides.length <= 1}
-          />
-        ) : (
-          <img src={single.image_url} alt={single.title || ""} style={mediaStyle} />
-        )}
+        <SelfRotatedMedia deg={singleEffectiveDeg}>
+          {(fix) =>
+            contentType === "video" ? (
+              <video
+                key={single.id}
+                ref={audioVideoRef}
+                src={single.image_url}
+                style={{ ...mediaStyle, ...fix }}
+                autoPlay
+                playsInline
+                onEnded={slides.length > 1 ? advance : undefined}
+                loop={slides.length <= 1}
+              />
+            ) : (
+              <img src={single.image_url} alt={single.title || ""} style={{ ...mediaStyle, ...fix }} />
+            )
+          }
+        </SelfRotatedMedia>
       </div>
     </div>
   );
 }
+
 
 export default function Player() {
   const { id } = useParams<{ id: string }>();
