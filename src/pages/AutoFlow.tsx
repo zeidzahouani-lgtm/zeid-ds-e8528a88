@@ -47,6 +47,7 @@ export default function AutoFlow() {
   const [newUserId, setNewUserId] = useState("");
   const [newScreenIds, setNewScreenIds] = useState<string[]>([]);
   const [newValidityDays, setNewValidityDays] = useState<string>("30");
+  const [newExpiresAt, setNewExpiresAt] = useState<string>("");
   const [addingCode, setAddingCode] = useState(false);
   const [profiles, setProfiles] = useState<any[]>([]);
 
