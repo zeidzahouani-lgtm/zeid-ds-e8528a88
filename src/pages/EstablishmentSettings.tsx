@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,22 @@ export default function EstablishmentSettings() {
   const { settings, isLoading, getSetting, upsertSetting } = useEstablishmentSettings();
 
   const currentEst = memberships.find(m => m.establishment_id === currentEstablishmentId);
+
+  // Fallback: global admins (or users without membership rows) still need the name
+  const { data: fetchedEst } = useQuery({
+    queryKey: ["establishment_name", currentEstablishmentId],
+    enabled: !!currentEstablishmentId && !currentEst,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("establishments")
+        .select("id, name")
+        .eq("id", currentEstablishmentId!)
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  const establishmentName = currentEst?.establishment?.name || fetchedEst?.name || "Établissement";
 
   // Email & AI local state
   const [smtpHost, setSmtpHost] = useState("");
@@ -91,7 +108,7 @@ export default function EstablishmentSettings() {
           <Settings className="h-6 w-6 text-primary" /> Configuration
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Paramètres de <Badge variant="outline" className="ml-1">{currentEst?.establishment.name}</Badge>
+          Paramètres de <Badge variant="outline" className="ml-1">{establishmentName}</Badge>
         </p>
       </div>
 
