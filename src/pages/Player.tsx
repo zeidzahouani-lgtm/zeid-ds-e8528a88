@@ -570,7 +570,7 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
 
       if (globalSettings) {
         globalSettings.forEach((s: any) => {
-          if (s.key === "logo_url" && s.value && !logoUrl) {
+          if (s.key === "logo_url" && s.value && !logoUrl && !establishmentId) {
             logoUrl = s.value;
             if (s.updated_at) logoVersion = s.updated_at;
           }
@@ -788,6 +788,7 @@ function LayoutRenderer({
           screenId={screenId}
           logoUrl={logoUrl}
           showLogo={showLogo}
+          logoSize={logoSize}
         />
         {(isLayoutLoading || layoutError) && (
           <div style={{
@@ -823,6 +824,7 @@ function LayoutRenderer({
             screenId={screenId}
             logoUrl={logoUrl}
             showLogo={showLogo}
+            logoSize={logoSize}
           />
         </FallbackErrorBoundary>
         <div style={{
@@ -1726,6 +1728,7 @@ export default function Player() {
                 screenId={screen.id}
                 logoUrl={branding.logoUrl}
                 showLogo={branding.showLogo}
+                logoSize={branding.logoSize}
               />
             </FallbackErrorBoundary>
           </div>
