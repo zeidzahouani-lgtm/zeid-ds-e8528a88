@@ -727,7 +727,7 @@ function LayoutRenderer({
   screenId: string;
   logoUrl: string;
   showLogo: boolean;
-  logoSize?: "small" | "medium" | "large";
+  logoSize?: "small" | "medium" | "large" | "xlarge";
 }) {
 
   const [layout, setLayout] = useState<LayoutData | null>(null);
