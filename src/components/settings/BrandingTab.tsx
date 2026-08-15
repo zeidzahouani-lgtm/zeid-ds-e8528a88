@@ -74,7 +74,9 @@ export default function BrandingTab({ getSetting, saveMultiple, settings }: Bran
       { key: "brand_text_color", value: textColor },
       { key: "brand_font", value: fontFamily },
       { key: "brand_logo_url", value: logoUrl },
+      { key: "brand_logo_size", value: logoSize },
       { key: "brand_favicon_url", value: faviconUrl },
+
       { key: "brand_welcome_message", value: welcomeMsg },
       { key: "brand_footer_text", value: footerText },
       { key: "brand_player_watermark", value: playerWatermark },
