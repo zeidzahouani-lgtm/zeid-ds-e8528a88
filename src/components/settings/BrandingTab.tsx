@@ -107,7 +107,13 @@ export default function BrandingTab({ getSetting, saveMultiple, settings }: Bran
               <div className="mt-1 flex items-center gap-3">
                 {logoUrl ? (
                   <div className="relative">
-                    <img src={logoUrl} alt="Logo" className="h-16 w-16 object-contain rounded border border-border bg-secondary/30 p-1" />
+                    <img
+                      src={logoUrl}
+                      alt="Logo"
+                      className={`object-contain rounded border border-border bg-secondary/30 p-1 ${
+                        logoSize === "small" ? "h-12 w-12" : logoSize === "large" ? "h-24 w-24" : "h-16 w-16"
+                      }`}
+                    />
                     <Button size="icon" variant="ghost" className="absolute -top-2 -right-2 h-5 w-5" onClick={() => setLogoUrl("")}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
@@ -124,7 +130,21 @@ export default function BrandingTab({ getSetting, saveMultiple, settings }: Bran
                   <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && handleFileUpload(e.target.files[0], "logo")} />
                 </label>
               </div>
+              <div className="mt-3">
+                <Label className="text-xs">Taille du logo</Label>
+                <Select value={logoSize} onValueChange={setLogoSize}>
+                  <SelectTrigger className="mt-1 w-full md:w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="small">Petit</SelectItem>
+                    <SelectItem value="medium">Moyen</SelectItem>
+                    <SelectItem value="large">Grand</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+
             <div>
               <Label>Favicon</Label>
               <div className="mt-1 flex items-center gap-3">
