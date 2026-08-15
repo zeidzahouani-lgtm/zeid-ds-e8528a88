@@ -187,6 +187,7 @@ class RegionErrorBoundary extends Component<RegionErrorBoundaryProps, RegionErro
 function getOrientationStyle(orientation: string): React.CSSProperties {
   const swappedBase: React.CSSProperties = {
     transformOrigin: "center center",
+    WebkitTransformOrigin: "center center",
     width: "100vh",
     height: "100vw",
     position: "absolute",
@@ -195,18 +196,41 @@ function getOrientationStyle(orientation: string): React.CSSProperties {
     marginTop: "calc(-50vw)",
     marginLeft: "calc(-50vh)",
     overflow: "hidden",
-  };
+    // Force a composited layer: on Android TV WebViews the <video> is drawn in a
+    // hardware overlay that ignores ancestor rotations unless the layer is promoted.
+    backfaceVisibility: "hidden",
+    WebkitBackfaceVisibility: "hidden",
+  } as React.CSSProperties;
+  const rot = (deg: number, base: React.CSSProperties): React.CSSProperties =>
+    ({ ...base, transform: `rotate(${deg}deg)`, WebkitTransform: `rotate(${deg}deg)` } as React.CSSProperties);
   switch (orientation) {
     case "portrait":
-      return { ...swappedBase, transform: "rotate(90deg)" };
+      return rot(90, swappedBase);
     case "landscape-flipped":
-      return { transform: "rotate(180deg)", width: "100%", height: "100%", overflow: "hidden" };
+      return rot(180, {
+        width: "100%",
+        height: "100%",
+        overflow: "hidden",
+        transformOrigin: "center center",
+        WebkitTransformOrigin: "center center",
+        backfaceVisibility: "hidden",
+        WebkitBackfaceVisibility: "hidden",
+      } as React.CSSProperties);
     case "portrait-flipped":
-      return { ...swappedBase, transform: "rotate(270deg)" };
+      return rot(270, swappedBase);
     default:
       return { width: "100%", height: "100%", overflow: "hidden" };
   }
 }
+
+/** Styles to apply on <video>/<img> so ancestor rotations are honoured on TV boxes. */
+const MEDIA_LAYER_FIX: React.CSSProperties = {
+  transform: "translateZ(0)",
+  WebkitTransform: "translateZ(0)",
+  backfaceVisibility: "hidden",
+  WebkitBackfaceVisibility: "hidden",
+} as React.CSSProperties;
+
 
 /**
  * Forces a virtual rendering resolution and scales it to fit the physical screen.
