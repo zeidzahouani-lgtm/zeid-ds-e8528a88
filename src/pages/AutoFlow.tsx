@@ -696,47 +696,108 @@ export default function AutoFlow() {
             </div>
           </Card>
 
-          <div className="flex gap-2 mb-4 items-end flex-wrap">
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground uppercase tracking-wider">Code</label>
-              <Input
-                value={newCode}
-                onChange={(e) => setNewCode(e.target.value.toUpperCase())}
-                placeholder="EX: DEMO2026"
-                className="w-40 font-mono"
-                maxLength={20}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground uppercase tracking-wider">Nom utilisateur</label>
-              <Input
-                value={newUserName}
-                onChange={(e) => setNewUserName(e.target.value)}
-                placeholder="Jean Dupont"
-                className="w-48"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground uppercase tracking-wider">Utilisateur lié</label>
-              <Select value={newUserId} onValueChange={setNewUserId}>
-                <SelectTrigger className="w-52">
-                  <SelectValue placeholder="Aucun (optionnel)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Aucun</SelectItem>
-                  {profiles.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.display_name || p.email || p.id.slice(0, 8)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button onClick={handleAddCode} disabled={addingCode || !newCode.trim() || !newUserName.trim()} className="gap-1.5">
-              {addingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Ajouter
-            </Button>
-          </div>
+          {!canManageCodes ? (
+            <Card className="p-4 mb-4 border-dashed">
+              <p className="text-sm text-muted-foreground">
+                Seuls les administrateurs de l'établissement peuvent générer des codes d'accès client.
+              </p>
+            </Card>
+          ) : (
+            <Card className="p-4 mb-4 space-y-4">
+              <div className="flex gap-2 items-end flex-wrap">
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground uppercase tracking-wider">Code</label>
+                  <div className="flex gap-1">
+                    <Input
+                      value={newCode}
+                      onChange={(e) => setNewCode(e.target.value.toUpperCase())}
+                      placeholder="EX: DEMO2026"
+                      className="w-40 font-mono"
+                      maxLength={20}
+                    />
+                    <Button type="button" variant="outline" size="icon" onClick={generateCode} title="Générer un code">
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground uppercase tracking-wider">Client / Nom</label>
+                  <Input
+                    value={newUserName}
+                    onChange={(e) => setNewUserName(e.target.value)}
+                    placeholder="Jean Dupont"
+                    className="w-48"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground uppercase tracking-wider">Utilisateur lié</label>
+                  <Select value={newUserId} onValueChange={setNewUserId}>
+                    <SelectTrigger className="w-52">
+                      <SelectValue placeholder="Aucun (optionnel)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Aucun</SelectItem>
+                      {profiles.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.display_name || p.email || p.id.slice(0, 8)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground uppercase tracking-wider">Validité</label>
+                  <Select value={newValidityDays} onValueChange={setNewValidityDays}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">24 heures</SelectItem>
+                      <SelectItem value="7">7 jours</SelectItem>
+                      <SelectItem value="30">30 jours</SelectItem>
+                      <SelectItem value="90">90 jours</SelectItem>
+                      <SelectItem value="365">1 an</SelectItem>
+                      <SelectItem value="0">Illimitée</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button onClick={handleAddCode} disabled={addingCode || !newCode.trim() || !newUserName.trim() || !currentEstablishmentId} className="gap-1.5">
+                  {addingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  Générer
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Écrans autorisés {newScreenIds.length > 0 ? `(${newScreenIds.length})` : "(tous par défaut)"}
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {(screens || []).map((s: any) => {
+                    const selected = newScreenIds.includes(s.id);
+                    return (
+                      <Button
+                        key={s.id}
+                        type="button"
+                        size="sm"
+                        variant={selected ? "default" : "outline"}
+                        className="gap-1.5"
+                        onClick={() =>
+                          setNewScreenIds((prev) => (selected ? prev.filter((id) => id !== s.id) : [...prev, s.id]))
+                        }
+                      >
+                        <Monitor className="h-3.5 w-3.5" />
+                        {s.name}
+                      </Button>
+                    );
+                  })}
+                  {(screens || []).length === 0 && (
+                    <p className="text-xs text-muted-foreground">Aucun écran disponible</p>
+                  )}
+                </div>
+              </div>
+            </Card>
+          )}
+
 
           {accessCodes.length === 0 ? (
             <Card className="p-8 text-center">
