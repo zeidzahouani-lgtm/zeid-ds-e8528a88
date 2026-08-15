@@ -231,6 +231,117 @@ const MEDIA_LAYER_FIX: React.CSSProperties = {
   WebkitBackfaceVisibility: "hidden",
 } as React.CSSProperties;
 
+/** Degrees applied by getOrientationStyle for a given orientation value. */
+function orientationDeg(orientation?: string | null): number {
+  switch (orientation) {
+    case "portrait": return 90;
+    case "landscape-flipped": return 180;
+    case "portrait-flipped": return 270;
+    default: return 0;
+  }
+}
+
+/**
+ * SelfRotatedMedia — on old Android TV WebViews the <video> surface is drawn in a
+ * hardware overlay that IGNORES rotations applied to ancestor elements: the video
+ * stays landscape while everything else rotates.
+ *
+ * Workaround: cancel the ancestor rotation (counter-rotate back to physical screen
+ * space) and re-apply the very same rotation DIRECTLY on the media element. The
+ * final visual result is identical on modern browsers, but the video surface now
+ * carries the transform itself, which the hardware overlay does honour.
+ */
+function SelfRotatedMedia({
+  deg,
+  children,
+}: {
+  deg: number;
+  children: (mediaTransform: React.CSSProperties) => React.ReactNode;
+}) {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  const norm = ((deg % 360) + 360) % 360;
+
+  useEffect(() => {
+    const el = hostRef.current;
+    if (!el) return;
+    const update = () => setBox({ w: el.offsetWidth, h: el.offsetHeight });
+    update();
+    let ro: any = null;
+    try {
+      ro = new (window as any).ResizeObserver(update);
+      ro.observe(el);
+    } catch {}
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+      try { ro && ro.disconnect(); } catch {}
+    };
+  }, [norm]);
+
+  // No rotation to compensate → plain passthrough.
+  if (norm === 0) {
+    return (
+      <div ref={hostRef} style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0 }}>
+        {children(MEDIA_LAYER_FIX)}
+      </div>
+    );
+  }
+
+  const swapped = norm === 90 || norm === 270;
+  const { w, h } = box;
+  const physW = swapped ? h : w;
+  const physH = swapped ? w : h;
+
+  const mediaTransform: React.CSSProperties = {
+    transform: `rotate(${norm}deg) translateZ(0)`,
+    WebkitTransform: `rotate(${norm}deg) translateZ(0)`,
+    transformOrigin: "center center",
+    WebkitTransformOrigin: "center center",
+    backfaceVisibility: "hidden",
+    WebkitBackfaceVisibility: "hidden",
+  } as React.CSSProperties;
+
+  return (
+    <div ref={hostRef} style={{ position: "absolute", top: 0, right: 0, bottom: 0, left: 0, overflow: "hidden" }}>
+      {w > 0 && h > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            width: physW,
+            height: physH,
+            marginTop: -physH / 2,
+            marginLeft: -physW / 2,
+            transform: `rotate(${-norm}deg)`,
+            WebkitTransform: `rotate(${-norm}deg)`,
+            transformOrigin: "center center",
+            WebkitTransformOrigin: "center center",
+          } as React.CSSProperties}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              width: w,
+              height: h,
+              marginTop: -h / 2,
+              marginLeft: -w / 2,
+            }}
+          >
+            {children(mediaTransform)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 
 /**
  * Forces a virtual rendering resolution and scales it to fit the physical screen.
