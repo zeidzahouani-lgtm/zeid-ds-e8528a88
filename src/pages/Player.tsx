@@ -534,7 +534,8 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
           .from("establishment_settings")
           .select("key, value, updated_at")
           .eq("establishment_id", screenData.establishment_id)
-          .in("key", ["brand_show_logo_player", "brand_player_bg_color", "brand_player_watermark", "brand_logo_url"]);
+          .in("key", ["brand_show_logo_player", "brand_player_bg_color", "brand_player_watermark", "brand_logo_url", "brand_logo_size"]);
+
 
         const settingsMap: Record<string, { value: string; updated_at?: string }> = {};
         if (estSettings) {
