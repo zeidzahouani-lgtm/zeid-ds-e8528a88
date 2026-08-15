@@ -92,7 +92,7 @@ export function AppSidebar() {
   const displayLogo = estLogoUrl || (!isGlobalAdmin && currentEst?.establishment ? (currentEst.establishment as any).logo_url : null) || settings.logo_url;
   const displayName = estName || settings.app_name;
 
-  const sizeClasses = logoSize === "small" ? "h-7 w-7" : logoSize === "large" ? "h-12 w-12" : "h-9 w-9";
+  const sizeClasses = logoSize === "small" ? "h-7 w-7" : logoSize === "large" ? "h-12 w-12" : logoSize === "xlarge" ? "h-20 w-20" : "h-9 w-9";
 
 
   const renderNavItem = (item: typeof mainItems[0], isAdmin = false) => {
