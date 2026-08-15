@@ -34,7 +34,11 @@ export default function AutoFlow() {
   const { contents, isLoading, updateStatus, deleteContent, subscribeRealtime } = useContents();
   const { screens } = useScreens();
   const { emails, isLoading: inboxLoading, subscribeRealtime: subscribeInbox } = useInboxEmails();
+  const { user } = useAuth();
+  const { currentEstablishmentId, isEstablishmentAdmin } = useEstablishmentContext();
+  const canManageCodes = isEstablishmentAdmin;
   const queryClient = useQueryClient();
+
   const [accessCodes, setAccessCodes] = useState<any[]>([]);
   const [newCode, setNewCode] = useState("");
   const [newUserName, setNewUserName] = useState("");
