@@ -6,13 +6,15 @@ interface FallbackScreenProps {
   screenId: string;
   logoUrl: string;
   showLogo: boolean;
+  logoSize?: "small" | "medium" | "large";
 }
 
 /**
  * Lightweight fallback screen using pure CSS animations instead of canvas.
  * Compatible with LG WebOS, Android TV, and low-power devices.
  */
-export default function FallbackScreen({ screenName, screenId, logoUrl, showLogo }: FallbackScreenProps) {
+export default function FallbackScreen({ screenName, screenId, logoUrl, showLogo, logoSize = "medium" }: FallbackScreenProps) {
+  const logoHeight = logoSize === "small" ? 40 : logoSize === "large" ? 120 : 56;
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
@@ -56,7 +58,7 @@ export default function FallbackScreen({ screenName, screenId, logoUrl, showLogo
           <img
             src={logoUrl}
             alt="Logo"
-            style={{ height: 56, width: "auto", objectFit: "contain", marginBottom: 40, opacity: 0.7 }}
+            style={{ height: logoHeight, width: "auto", objectFit: "contain", marginBottom: 40, opacity: 0.7 }}
           />
         )}
 
