@@ -1085,6 +1085,10 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Cont
   const contentOrientation = meta.orientation || screenOrientation;
   const rotationStyle =
     contentOrientation === screenOrientation ? {} : getOrientationStyle(contentOrientation);
+  const singleEffectiveDeg =
+    orientationDeg(screenOrientation) +
+    (contentOrientation === screenOrientation ? 0 : orientationDeg(contentOrientation));
+
 
   const fit: "cover" | "contain" | "fill" = meta.fit === "contain" || meta.fit === "fill" ? meta.fit : "cover";
   const sizeKey: "full" | "half" | "quarter" = meta.size === "half" || meta.size === "quarter" ? meta.size : "full";
