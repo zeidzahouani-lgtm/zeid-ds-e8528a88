@@ -6,7 +6,7 @@ interface FallbackScreenProps {
   screenId: string;
   logoUrl: string;
   showLogo: boolean;
-  logoSize?: "small" | "medium" | "large";
+  logoSize?: "small" | "medium" | "large" | "xlarge";
 }
 
 /**
@@ -14,7 +14,7 @@ interface FallbackScreenProps {
  * Compatible with LG WebOS, Android TV, and low-power devices.
  */
 export default function FallbackScreen({ screenName, screenId, logoUrl, showLogo, logoSize = "medium" }: FallbackScreenProps) {
-  const logoHeight = logoSize === "small" ? 40 : logoSize === "large" ? 120 : 56;
+  const logoHeight = logoSize === "small" ? 60 : logoSize === "medium" ? 120 : logoSize === "large" ? 200 : 320;
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {

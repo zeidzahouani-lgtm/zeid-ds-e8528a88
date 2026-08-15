@@ -117,7 +117,7 @@ export default function BrandingTab({ getSetting, saveMultiple, settings }: Bran
                       src={logoUrl}
                       alt="Logo"
                       className={`object-contain rounded border border-border bg-secondary/30 p-1 ${
-                        logoSize === "small" ? "h-12 w-12" : logoSize === "large" ? "h-24 w-24" : "h-16 w-16"
+                        logoSize === "small" ? "h-12 w-12" : logoSize === "large" ? "h-24 w-24" : logoSize === "xlarge" ? "h-32 w-32" : "h-16 w-16"
                       }`}
                     />
                     <Button size="icon" variant="ghost" className="absolute -top-2 -right-2 h-5 w-5" onClick={() => setLogoUrl("")}>
@@ -142,11 +142,12 @@ export default function BrandingTab({ getSetting, saveMultiple, settings }: Bran
                   <SelectTrigger className="mt-1 w-full md:w-48">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="small">Petit</SelectItem>
-                    <SelectItem value="medium">Moyen</SelectItem>
-                    <SelectItem value="large">Grand</SelectItem>
-                  </SelectContent>
+                <SelectContent>
+                  <SelectItem value="small">Petit</SelectItem>
+                  <SelectItem value="medium">Moyen</SelectItem>
+                  <SelectItem value="large">Grand</SelectItem>
+                  <SelectItem value="xlarge">Très grand</SelectItem>
+                </SelectContent>
                 </Select>
               </div>
             </div>
@@ -299,7 +300,7 @@ export default function BrandingTab({ getSetting, saveMultiple, settings }: Bran
                   src={logoUrl}
                   alt="Preview"
                   className={`object-contain ${
-                    logoSize === "small" ? "h-6" : logoSize === "large" ? "h-12" : "h-8"
+                    logoSize === "small" ? "h-6" : logoSize === "large" ? "h-12" : logoSize === "xlarge" ? "h-20" : "h-8"
                   }`}
                 />
               )}
