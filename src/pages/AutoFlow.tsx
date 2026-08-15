@@ -113,13 +113,30 @@ export default function AutoFlow() {
     }
     setAddingCode(true);
     try {
-      const days = parseInt(newValidityDays, 10);
+      let expiresAt: string | null = null;
+      if (newValidityDays === "custom") {
+        if (!newExpiresAt) {
+          toast.error("Choisissez la date et l'heure d'expiration");
+          setAddingCode(false);
+          return;
+        }
+        const d = new Date(newExpiresAt);
+        if (isNaN(d.getTime()) || d.getTime() <= Date.now()) {
+          toast.error("La date d'expiration doit être dans le futur");
+          setAddingCode(false);
+          return;
+        }
+        expiresAt = d.toISOString();
+      } else {
+        const days = parseInt(newValidityDays, 10);
+        expiresAt = days > 0 ? new Date(Date.now() + days * 86400000).toISOString() : null;
+      }
       const insertData: any = {
         code: newCode.trim().toUpperCase(),
         user_name: newUserName.trim(),
         establishment_id: currentEstablishmentId,
         screen_ids: newScreenIds,
-        expires_at: days > 0 ? new Date(Date.now() + days * 86400000).toISOString() : null,
+        expires_at: expiresAt,
         created_by: user?.id ?? null,
       };
       if (newUserId && newUserId !== "none") insertData.user_id = newUserId;
