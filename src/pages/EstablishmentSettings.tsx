@@ -17,6 +17,22 @@ export default function EstablishmentSettings() {
 
   const currentEst = memberships.find(m => m.establishment_id === currentEstablishmentId);
 
+  // Fallback: global admins (or users without membership rows) still need the name
+  const { data: fetchedEst } = useQuery({
+    queryKey: ["establishment_name", currentEstablishmentId],
+    enabled: !!currentEstablishmentId && !currentEst,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("establishments")
+        .select("id, name")
+        .eq("id", currentEstablishmentId!)
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  const establishmentName = currentEst?.establishment?.name || fetchedEst?.name || "Établissement";
+
   // Email & AI local state
   const [smtpHost, setSmtpHost] = useState("");
   const [smtpPort, setSmtpPort] = useState("");
