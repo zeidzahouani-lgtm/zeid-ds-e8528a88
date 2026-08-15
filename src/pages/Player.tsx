@@ -1665,7 +1665,9 @@ export default function Player() {
         onActivated={() => setLicenseValid(true)}
         logoUrl={branding.logoUrl}
         showLogo={branding.showLogo}
+        logoSize={branding.logoSize}
       />
+
     );
   }
 
