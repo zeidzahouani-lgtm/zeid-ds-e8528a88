@@ -921,7 +921,8 @@ function LicenseScreen({
   return (
     <div ref={containerRef} style={{ position: "fixed", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "#000", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={requestFullscreen}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 24, textAlign: "center", padding: 32, maxWidth: 400, width: "100%" }} onClick={(e) => e.stopPropagation()}>
-        <CompanyLogo logoUrl={logoUrl} show={showLogo} />
+        <CompanyLogo logoUrl={logoUrl} show={showLogo} size={logoSize} />
+
         <div style={{ height: 80, width: 80, borderRadius: 16, backgroundColor: "rgba(239,68,68,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <ShieldOff style={{ height: 40, width: 40, color: "#ef4444" }} />
         </div>
