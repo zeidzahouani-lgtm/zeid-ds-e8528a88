@@ -775,10 +775,23 @@ export default function AutoFlow() {
                       <SelectItem value="30">30 jours</SelectItem>
                       <SelectItem value="90">90 jours</SelectItem>
                       <SelectItem value="365">1 an</SelectItem>
+                      <SelectItem value="custom">Date & heure précises</SelectItem>
                       <SelectItem value="0">Illimitée</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                {newValidityDays === "custom" && (
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground uppercase tracking-wider">Expire le</label>
+                    <Input
+                      type="datetime-local"
+                      className="w-56"
+                      value={newExpiresAt}
+                      min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+                      onChange={(e) => setNewExpiresAt(e.target.value)}
+                    />
+                  </div>
+                )}
                 <Button onClick={handleAddCode} disabled={addingCode || !newCode.trim() || !newUserName.trim() || !currentEstablishmentId} className="gap-1.5">
                   {addingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                   Générer
