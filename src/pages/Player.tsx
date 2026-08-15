@@ -1704,7 +1704,7 @@ export default function Player() {
               {activeContents.length > 0 && !media ? (
                 <ActiveContentCarousel contents={activeContents} screenOrientation={screen.orientation} />
               ) : media ? (
-                <MediaRenderer media={media} playlistLength={playlistLength} />
+                <MediaRenderer media={media} playlistLength={playlistLength} rotateDeg={orientationDeg(screen.orientation)} />
               ) : null}
             </WallTile>
           </div>
