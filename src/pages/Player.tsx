@@ -718,6 +718,7 @@ function LayoutRenderer({
   screenId,
   logoUrl,
   showLogo,
+  logoSize,
 }: {
   layoutId: string;
   screenOrientation: string;
@@ -725,7 +726,9 @@ function LayoutRenderer({
   screenId: string;
   logoUrl: string;
   showLogo: boolean;
+  logoSize?: "small" | "medium" | "large";
 }) {
+
   const [layout, setLayout] = useState<LayoutData | null>(null);
   const [regions, setRegions] = useState<LayoutRegionData[]>([]);
   const [isLayoutLoading, setIsLayoutLoading] = useState(true);
