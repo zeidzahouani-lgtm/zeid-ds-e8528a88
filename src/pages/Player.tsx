@@ -187,6 +187,7 @@ class RegionErrorBoundary extends Component<RegionErrorBoundaryProps, RegionErro
 function getOrientationStyle(orientation: string): React.CSSProperties {
   const swappedBase: React.CSSProperties = {
     transformOrigin: "center center",
+    WebkitTransformOrigin: "center center",
     width: "100vh",
     height: "100vw",
     position: "absolute",
@@ -195,18 +196,41 @@ function getOrientationStyle(orientation: string): React.CSSProperties {
     marginTop: "calc(-50vw)",
     marginLeft: "calc(-50vh)",
     overflow: "hidden",
-  };
+    // Force a composited layer: on Android TV WebViews the <video> is drawn in a
+    // hardware overlay that ignores ancestor rotations unless the layer is promoted.
+    backfaceVisibility: "hidden",
+    WebkitBackfaceVisibility: "hidden",
+  } as React.CSSProperties;
+  const rot = (deg: number, base: React.CSSProperties): React.CSSProperties =>
+    ({ ...base, transform: `rotate(${deg}deg)`, WebkitTransform: `rotate(${deg}deg)` } as React.CSSProperties);
   switch (orientation) {
     case "portrait":
-      return { ...swappedBase, transform: "rotate(90deg)" };
+      return rot(90, swappedBase);
     case "landscape-flipped":
-      return { transform: "rotate(180deg)", width: "100%", height: "100%", overflow: "hidden" };
+      return rot(180, {
+        width: "100%",
+        height: "100%",
+        overflow: "hidden",
+        transformOrigin: "center center",
+        WebkitTransformOrigin: "center center",
+        backfaceVisibility: "hidden",
+        WebkitBackfaceVisibility: "hidden",
+      } as React.CSSProperties);
     case "portrait-flipped":
-      return { ...swappedBase, transform: "rotate(270deg)" };
+      return rot(270, swappedBase);
     default:
       return { width: "100%", height: "100%", overflow: "hidden" };
   }
 }
+
+/** Styles to apply on <video>/<img> so ancestor rotations are honoured on TV boxes. */
+const MEDIA_LAYER_FIX: React.CSSProperties = {
+  transform: "translateZ(0)",
+  WebkitTransform: "translateZ(0)",
+  backfaceVisibility: "hidden",
+  WebkitBackfaceVisibility: "hidden",
+} as React.CSSProperties;
+
 
 /**
  * Forces a virtual rendering resolution and scales it to fit the physical screen.
@@ -280,6 +304,7 @@ function MediaRenderer({ media, playlistLength }: { media: { id: string; name: s
     objectFit: "cover",
     objectPosition: "center center",
     backgroundColor: "#000",
+    ...MEDIA_LAYER_FIX,
   };
 
   if (media.type === "image") {
@@ -886,7 +911,10 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Cont
 
   if (current.kind === "grid") {
     const contentOrientation = current.orientation || screenOrientation;
-    const rotationStyle = getOrientationStyle(contentOrientation);
+    // The parent player container already applies the screen rotation — only rotate
+    // again when this content explicitly asks for a different orientation.
+    const rotationStyle =
+      contentOrientation === screenOrientation ? {} : getOrientationStyle(contentOrientation);
     return (
       <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", backgroundColor: "#000", ...rotationStyle }}>
         <div
@@ -907,7 +935,7 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Cont
               m.fit === "cover" || m.fit === "contain" || m.fit === "fill"
                 ? m.fit
                 : (isVid ? "contain" : "cover");
-            const style: React.CSSProperties = { width: "100%", height: "100%", objectFit: fitCell, objectPosition: "center center", display: "block", backgroundColor: "#000" };
+            const style: React.CSSProperties = { width: "100%", height: "100%", objectFit: fitCell, objectPosition: "center center", display: "block", backgroundColor: "#000", ...MEDIA_LAYER_FIX };
             return (
               <div key={i} style={{ position: "relative", overflow: "hidden", backgroundColor: "#000" }}>
                 {isVid ? (
@@ -936,7 +964,8 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Cont
   const meta = (single.metadata as any) || {};
   const contentType = meta.type || "image";
   const contentOrientation = meta.orientation || screenOrientation;
-  const rotationStyle = getOrientationStyle(contentOrientation);
+  const rotationStyle =
+    contentOrientation === screenOrientation ? {} : getOrientationStyle(contentOrientation);
 
   const fit: "cover" | "contain" | "fill" = meta.fit === "contain" || meta.fit === "fill" ? meta.fit : "cover";
   const sizeKey: "full" | "half" | "quarter" = meta.size === "half" || meta.size === "quarter" ? meta.size : "full";
@@ -961,7 +990,7 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Cont
   else { innerStyle.left = "50%"; tx += " translateX(-50%)"; }
   if (tx) innerStyle.transform = tx.trim();
 
-  const mediaStyle: React.CSSProperties = { width: "100%", height: "100%", objectFit: fit, objectPosition: "center center", display: "block", backgroundColor: "#000" };
+  const mediaStyle: React.CSSProperties = { width: "100%", height: "100%", objectFit: fit, objectPosition: "center center", display: "block", backgroundColor: "#000", ...MEDIA_LAYER_FIX };
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", backgroundColor: "#000", ...rotationStyle }}>
