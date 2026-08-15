@@ -623,10 +623,12 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
   return branding;
 }
 
-function CompanyLogo({ logoUrl, show = true }: { logoUrl: string; show?: boolean }) {
+function CompanyLogo({ logoUrl, size = "medium", show = true }: { logoUrl: string; size?: "small" | "medium" | "large"; show?: boolean }) {
   if (!logoUrl || !show) return null;
-  return <img src={logoUrl} alt="Logo" style={{ height: 64, width: "auto", objectFit: "contain", marginBottom: 16 }} />;
+  const height = size === "small" ? 48 : size === "large" ? 96 : 64;
+  return <img src={logoUrl} alt="Logo" style={{ height, width: "auto", objectFit: "contain", marginBottom: 16 }} />;
 }
+
 
 function Watermark({ text }: { text: string }) {
   if (!text) return null;
