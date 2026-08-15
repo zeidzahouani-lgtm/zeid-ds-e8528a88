@@ -890,6 +890,7 @@ function LicenseScreen({
   onActivated,
   logoUrl,
   showLogo,
+  logoSize,
 }: {
   containerRef: React.RefObject<HTMLDivElement>;
   requestFullscreen: () => void;
@@ -899,7 +900,9 @@ function LicenseScreen({
   onActivated: () => void;
   logoUrl: string;
   showLogo: boolean;
+  logoSize?: "small" | "medium" | "large";
 }) {
+
   const [key, setKey] = useState("");
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
