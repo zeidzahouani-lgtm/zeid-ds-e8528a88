@@ -556,6 +556,10 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
         if (settingsMap.brand_show_logo_player?.value === "false") showLogo = false;
         if (settingsMap.brand_player_bg_color?.value) bgColor = settingsMap.brand_player_bg_color.value;
         if (settingsMap.brand_player_watermark?.value) watermark = settingsMap.brand_player_watermark.value;
+        if (settingsMap.brand_logo_size?.value === "small" || settingsMap.brand_logo_size?.value === "large") {
+          logoSize = settingsMap.brand_logo_size.value;
+        }
+
       }
 
       // Check global setting for signature on player
