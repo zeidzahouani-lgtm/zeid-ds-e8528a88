@@ -903,7 +903,8 @@ function LicenseScreen({
   onActivated: () => void;
   logoUrl: string;
   showLogo: boolean;
-  logoSize?: "small" | "medium" | "large";
+  logoSize?: "small" | "medium" | "large" | "xlarge";
+
 }) {
 
   const [key, setKey] = useState("");
