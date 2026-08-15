@@ -47,6 +47,7 @@ export default function AutoFlow() {
   const [newUserId, setNewUserId] = useState("");
   const [newScreenIds, setNewScreenIds] = useState<string[]>([]);
   const [newValidityDays, setNewValidityDays] = useState<string>("30");
+  const [newExpiresAt, setNewExpiresAt] = useState<string>("");
   const [addingCode, setAddingCode] = useState(false);
   const [profiles, setProfiles] = useState<any[]>([]);
 
@@ -113,13 +114,30 @@ export default function AutoFlow() {
     }
     setAddingCode(true);
     try {
-      const days = parseInt(newValidityDays, 10);
+      let expiresAt: string | null = null;
+      if (newValidityDays === "custom") {
+        if (!newExpiresAt) {
+          toast.error("Choisissez la date et l'heure d'expiration");
+          setAddingCode(false);
+          return;
+        }
+        const d = new Date(newExpiresAt);
+        if (isNaN(d.getTime()) || d.getTime() <= Date.now()) {
+          toast.error("La date d'expiration doit être dans le futur");
+          setAddingCode(false);
+          return;
+        }
+        expiresAt = d.toISOString();
+      } else {
+        const days = parseInt(newValidityDays, 10);
+        expiresAt = days > 0 ? new Date(Date.now() + days * 86400000).toISOString() : null;
+      }
       const insertData: any = {
         code: newCode.trim().toUpperCase(),
         user_name: newUserName.trim(),
         establishment_id: currentEstablishmentId,
         screen_ids: newScreenIds,
-        expires_at: days > 0 ? new Date(Date.now() + days * 86400000).toISOString() : null,
+        expires_at: expiresAt,
         created_by: user?.id ?? null,
       };
       if (newUserId && newUserId !== "none") insertData.user_id = newUserId;
@@ -131,6 +149,7 @@ export default function AutoFlow() {
       setNewUserId("");
       setNewScreenIds([]);
       setNewValidityDays("30");
+      setNewExpiresAt("");
       loadAccessCodes();
     } catch (e: any) {
       toast.error(e.message || "Erreur");
@@ -757,10 +776,23 @@ export default function AutoFlow() {
                       <SelectItem value="30">30 jours</SelectItem>
                       <SelectItem value="90">90 jours</SelectItem>
                       <SelectItem value="365">1 an</SelectItem>
+                      <SelectItem value="custom">Date & heure précises</SelectItem>
                       <SelectItem value="0">Illimitée</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                {newValidityDays === "custom" && (
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground uppercase tracking-wider">Expire le</label>
+                    <Input
+                      type="datetime-local"
+                      className="w-56"
+                      value={newExpiresAt}
+                      min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+                      onChange={(e) => setNewExpiresAt(e.target.value)}
+                    />
+                  </div>
+                )}
                 <Button onClick={handleAddCode} disabled={addingCode || !newCode.trim() || !newUserName.trim() || !currentEstablishmentId} className="gap-1.5">
                   {addingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                   Générer

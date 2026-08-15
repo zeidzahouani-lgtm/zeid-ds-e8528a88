@@ -60,6 +60,8 @@ export default function UploadPage() {
   const [code, setCode] = useState("");
   const [userName, setUserName] = useState("");
   const [checking, setChecking] = useState(false);
+  const [accessCodeId, setAccessCodeId] = useState<string | null>(null);
+  const [codeExpiresAt, setCodeExpiresAt] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -155,6 +157,12 @@ export default function UploadPage() {
     });
   };
 
+  const clampEnd = (end: Date) => {
+    if (!codeExpiresAt) return end;
+    const exp = new Date(codeExpiresAt);
+    return exp < end ? exp : end;
+  };
+
   const handleCodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!code.trim()) return;
@@ -169,6 +177,8 @@ export default function UploadPage() {
         toast.error("Code invalide, désactivé ou non autorisé sur cet écran");
       } else {
         setUserName(row.user_name);
+        setAccessCodeId(row.id ?? null);
+        setCodeExpiresAt(row.expires_at ?? null);
         setStep("upload");
         toast.success(`Bienvenue ${row.user_name} !`);
       }
@@ -281,9 +291,9 @@ export default function UploadPage() {
         source: "qr_upload",
         screen_id: screenId,
         start_time: start.toISOString(),
-        end_time: end.toISOString(),
+        end_time: clampEnd(end).toISOString(),
         sender_email: null,
-        metadata: { orientation, type: isVideo ? "video" : "image", fit, size, position },
+        metadata: { orientation, type: isVideo ? "video" : "image", fit, size, position, access_code_id: accessCodeId },
       });
       if (contentError) throw contentError;
 
@@ -359,9 +369,10 @@ export default function UploadPage() {
           source: "qr_upload",
           screen_id: screenId,
           start_time: start.toISOString(),
-          end_time: end.toISOString(),
+          end_time: clampEnd(end).toISOString(),
           sender_email: null,
           metadata: {
+            access_code_id: accessCodeId,
             orientation,
             type: isVid ? "video" : "image",
             fit: s.fit || defaultFitFor(isVid),
