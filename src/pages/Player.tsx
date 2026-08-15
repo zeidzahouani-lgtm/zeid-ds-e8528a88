@@ -75,7 +75,9 @@ interface PlayerBranding {
   bgColor: string;
   watermark: string;
   showSignatureOnPlayer: boolean;
+  logoSize: "small" | "medium" | "large";
 }
+
 
 /**
  * Rendered when the player URL does not resolve to any screen.
@@ -495,7 +497,9 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
     bgColor: "#000000",
     watermark: "",
     showSignatureOnPlayer: false,
+    logoSize: "medium",
   });
+
 
   useEffect(() => {
     if (!screenId) return;
@@ -511,10 +515,12 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
 
       let logoUrl = "";
       let logoVersion: string | null = null;
+      let logoSize: "small" | "medium" | "large" = "medium";
       let showLogo = true;
       let bgColor = "#000000";
       let watermark = "";
       let showSignatureOnPlayer = false;
+
 
       if (screenData?.establishment_id) {
         establishmentId = screenData.establishment_id;
@@ -528,7 +534,8 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
           .from("establishment_settings")
           .select("key, value, updated_at")
           .eq("establishment_id", screenData.establishment_id)
-          .in("key", ["brand_show_logo_player", "brand_player_bg_color", "brand_player_watermark", "brand_logo_url"]);
+          .in("key", ["brand_show_logo_player", "brand_player_bg_color", "brand_player_watermark", "brand_logo_url", "brand_logo_size"]);
+
 
         const settingsMap: Record<string, { value: string; updated_at?: string }> = {};
         if (estSettings) {
@@ -549,6 +556,10 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
         if (settingsMap.brand_show_logo_player?.value === "false") showLogo = false;
         if (settingsMap.brand_player_bg_color?.value) bgColor = settingsMap.brand_player_bg_color.value;
         if (settingsMap.brand_player_watermark?.value) watermark = settingsMap.brand_player_watermark.value;
+        if (settingsMap.brand_logo_size?.value === "small" || settingsMap.brand_logo_size?.value === "large") {
+          logoSize = settingsMap.brand_logo_size.value;
+        }
+
       }
 
       // Check global setting for signature on player
@@ -574,7 +585,9 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
         bgColor,
         watermark,
         showSignatureOnPlayer,
+        logoSize,
       });
+
     };
 
     fetchBranding();
@@ -610,10 +623,12 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
   return branding;
 }
 
-function CompanyLogo({ logoUrl, show = true }: { logoUrl: string; show?: boolean }) {
+function CompanyLogo({ logoUrl, size = "medium", show = true }: { logoUrl: string; size?: "small" | "medium" | "large"; show?: boolean }) {
   if (!logoUrl || !show) return null;
-  return <img src={logoUrl} alt="Logo" style={{ height: 64, width: "auto", objectFit: "contain", marginBottom: 16 }} />;
+  const height = size === "small" ? 48 : size === "large" ? 96 : 64;
+  return <img src={logoUrl} alt="Logo" style={{ height, width: "auto", objectFit: "contain", marginBottom: 16 }} />;
 }
+
 
 function Watermark({ text }: { text: string }) {
   if (!text) return null;
@@ -703,6 +718,7 @@ function LayoutRenderer({
   screenId,
   logoUrl,
   showLogo,
+  logoSize,
 }: {
   layoutId: string;
   screenOrientation: string;
@@ -710,7 +726,9 @@ function LayoutRenderer({
   screenId: string;
   logoUrl: string;
   showLogo: boolean;
+  logoSize?: "small" | "medium" | "large";
 }) {
+
   const [layout, setLayout] = useState<LayoutData | null>(null);
   const [regions, setRegions] = useState<LayoutRegionData[]>([]);
   const [isLayoutLoading, setIsLayoutLoading] = useState(true);
@@ -872,6 +890,7 @@ function LicenseScreen({
   onActivated,
   logoUrl,
   showLogo,
+  logoSize,
 }: {
   containerRef: React.RefObject<HTMLDivElement>;
   requestFullscreen: () => void;
@@ -881,7 +900,9 @@ function LicenseScreen({
   onActivated: () => void;
   logoUrl: string;
   showLogo: boolean;
+  logoSize?: "small" | "medium" | "large";
 }) {
+
   const [key, setKey] = useState("");
   const [error, setError] = useState("");
   const [checking, setChecking] = useState(false);
@@ -903,7 +924,8 @@ function LicenseScreen({
   return (
     <div ref={containerRef} style={{ position: "fixed", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: "#000", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={requestFullscreen}>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 24, textAlign: "center", padding: 32, maxWidth: 400, width: "100%" }} onClick={(e) => e.stopPropagation()}>
-        <CompanyLogo logoUrl={logoUrl} show={showLogo} />
+        <CompanyLogo logoUrl={logoUrl} show={showLogo} size={logoSize} />
+
         <div style={{ height: 80, width: 80, borderRadius: 16, backgroundColor: "rgba(239,68,68,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <ShieldOff style={{ height: 40, width: 40, color: "#ef4444" }} />
         </div>
@@ -1554,7 +1576,7 @@ export default function Player() {
         {debugMode && <DiagnosticOverlay {...diagBaseProps} />}
         {hudMode && <DiagnosticOverlay {...diagBaseProps} mode="hud" />}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, textAlign: "center", padding: 24 }}>
-          <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} />
+          <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} size={branding.logoSize} />
           <MonitorPlay style={{ height: 48, width: 48, color: inRecovery ? "#f59e0b" : "#3b82f6" }} />
           <p style={{ color: "#9ca3af" }}>
             {inRecovery ? "Mode récupération — nouvel essai en cours..." : "Connexion à l'écran..."}
@@ -1581,7 +1603,7 @@ export default function Player() {
     return (
       <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", top: 0, right: 0, bottom: 0, left: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, textAlign: "center", padding: 32 }}>
-          <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} />
+          <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} size={branding.logoSize} />
           <div style={{ height: 80, width: 80, borderRadius: 16, backgroundColor: "rgba(239,68,68,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <MonitorX style={{ height: 40, width: 40, color: "#ef4444" }} />
           </div>
@@ -1613,7 +1635,7 @@ export default function Player() {
     return (
       <div style={{ ...playerBgStyle, position: "fixed", top: 0, right: 0, bottom: 0, left: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, textAlign: "center", padding: 24 }}>
-          <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} />
+          <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} size={branding.logoSize} />
           <MonitorPlay style={{ height: 48, width: 48, color: inRecovery ? "#f59e0b" : "#3b82f6" }} />
           <p style={{ color: "#9ca3af" }}>
             {inRecovery ? "Mode récupération — vérification licence..." : "Vérification de la licence..."}
@@ -1643,7 +1665,9 @@ export default function Player() {
         onActivated={() => setLicenseValid(true)}
         logoUrl={branding.logoUrl}
         showLogo={branding.showLogo}
+        logoSize={branding.logoSize}
       />
+
     );
   }
 
@@ -1668,7 +1692,9 @@ export default function Player() {
               screenId={screen.id}
               logoUrl={branding.logoUrl}
               showLogo={branding.showLogo}
+              logoSize={branding.logoSize}
             />
+
           </WallTile>
         </ResolutionFrame>
         <Watermark text={branding.watermark} />

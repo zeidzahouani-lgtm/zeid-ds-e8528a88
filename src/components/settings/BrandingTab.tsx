@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,7 +37,15 @@ export default function BrandingTab({ getSetting, saveMultiple, settings }: Bran
   const [textColor, setTextColor] = useState(getSetting("brand_text_color") || "#ffffff");
   const [fontFamily, setFontFamily] = useState(getSetting("brand_font") || "Inter");
   const [logoUrl, setLogoUrl] = useState(getSetting("brand_logo_url") || "");
+  const [logoSize, setLogoSize] = useState(getSetting("brand_logo_size") || "medium");
   const [faviconUrl, setFaviconUrl] = useState(getSetting("brand_favicon_url") || "");
+
+  // Sync state when settings are loaded / changed externally
+  useEffect(() => {
+    setLogoSize(getSetting("brand_logo_size") || "medium");
+  }, [settings, getSetting]);
+
+
   const [welcomeMsg, setWelcomeMsg] = useState(getSetting("brand_welcome_message") || "");
   const [footerText, setFooterText] = useState(getSetting("brand_footer_text") || "");
   const [playerWatermark, setPlayerWatermark] = useState(getSetting("brand_player_watermark") || "");
@@ -72,7 +80,9 @@ export default function BrandingTab({ getSetting, saveMultiple, settings }: Bran
       { key: "brand_text_color", value: textColor },
       { key: "brand_font", value: fontFamily },
       { key: "brand_logo_url", value: logoUrl },
+      { key: "brand_logo_size", value: logoSize },
       { key: "brand_favicon_url", value: faviconUrl },
+
       { key: "brand_welcome_message", value: welcomeMsg },
       { key: "brand_footer_text", value: footerText },
       { key: "brand_player_watermark", value: playerWatermark },
@@ -103,7 +113,13 @@ export default function BrandingTab({ getSetting, saveMultiple, settings }: Bran
               <div className="mt-1 flex items-center gap-3">
                 {logoUrl ? (
                   <div className="relative">
-                    <img src={logoUrl} alt="Logo" className="h-16 w-16 object-contain rounded border border-border bg-secondary/30 p-1" />
+                    <img
+                      src={logoUrl}
+                      alt="Logo"
+                      className={`object-contain rounded border border-border bg-secondary/30 p-1 ${
+                        logoSize === "small" ? "h-12 w-12" : logoSize === "large" ? "h-24 w-24" : "h-16 w-16"
+                      }`}
+                    />
                     <Button size="icon" variant="ghost" className="absolute -top-2 -right-2 h-5 w-5" onClick={() => setLogoUrl("")}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
@@ -120,7 +136,21 @@ export default function BrandingTab({ getSetting, saveMultiple, settings }: Bran
                   <input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && handleFileUpload(e.target.files[0], "logo")} />
                 </label>
               </div>
+              <div className="mt-3">
+                <Label className="text-xs">Taille du logo</Label>
+                <Select value={logoSize} onValueChange={setLogoSize}>
+                  <SelectTrigger className="mt-1 w-full md:w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="small">Petit</SelectItem>
+                    <SelectItem value="medium">Moyen</SelectItem>
+                    <SelectItem value="large">Grand</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+
             <div>
               <Label>Favicon</Label>
               <div className="mt-1 flex items-center gap-3">
@@ -263,10 +293,19 @@ export default function BrandingTab({ getSetting, saveMultiple, settings }: Bran
             className="rounded-lg border border-border p-6 transition-all"
             style={{ backgroundColor: bgColor, color: textColor, fontFamily }}
           >
-            <div className="flex items-center gap-3 mb-4">
-              {logoUrl && <img src={logoUrl} alt="Preview" className="h-8 object-contain" />}
+          <div className="flex items-center gap-3 mb-4">
+              {logoUrl && (
+                <img
+                  src={logoUrl}
+                  alt="Preview"
+                  className={`object-contain ${
+                    logoSize === "small" ? "h-6" : logoSize === "large" ? "h-12" : "h-8"
+                  }`}
+                />
+              )}
               <span className="font-bold text-lg" style={{ color: brandColor }}>{brandName || "Mon Établissement"}</span>
             </div>
+
             <p className="text-sm opacity-80 mb-3">{welcomeMsg || "Message d'accueil personnalisé"}</p>
             <div className="flex gap-2">
               <div className="rounded px-3 py-1.5 text-xs font-medium text-white" style={{ backgroundColor: brandColor }}>Bouton principal</div>
