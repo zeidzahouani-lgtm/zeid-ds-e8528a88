@@ -515,10 +515,12 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
 
       let logoUrl = "";
       let logoVersion: string | null = null;
+      let logoSize: "small" | "medium" | "large" = "medium";
       let showLogo = true;
       let bgColor = "#000000";
       let watermark = "";
       let showSignatureOnPlayer = false;
+
 
       if (screenData?.establishment_id) {
         establishmentId = screenData.establishment_id;
