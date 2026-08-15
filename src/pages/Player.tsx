@@ -1025,8 +1025,10 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Cont
     const contentOrientation = current.orientation || screenOrientation;
     // The parent player container already applies the screen rotation — only rotate
     // again when this content explicitly asks for a different orientation.
+    const extraRotation = contentOrientation === screenOrientation ? 0 : orientationDeg(contentOrientation);
     const rotationStyle =
       contentOrientation === screenOrientation ? {} : getOrientationStyle(contentOrientation);
+    const effectiveDeg = orientationDeg(screenOrientation) + extraRotation;
     return (
       <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", backgroundColor: "#000", ...rotationStyle }}>
         <div
@@ -1047,23 +1049,27 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Cont
               m.fit === "cover" || m.fit === "contain" || m.fit === "fill"
                 ? m.fit
                 : (isVid ? "contain" : "cover");
-            const style: React.CSSProperties = { width: "100%", height: "100%", objectFit: fitCell, objectPosition: "center center", display: "block", backgroundColor: "#000", ...MEDIA_LAYER_FIX };
+            const baseStyle: React.CSSProperties = { position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: fitCell, objectPosition: "center center", display: "block", backgroundColor: "#000" };
             return (
               <div key={i} style={{ position: "relative", overflow: "hidden", backgroundColor: "#000" }}>
-                {isVid ? (
-                  <video
-                    ref={m.muted === true ? undefined : audioVideoRef}
-                    src={item.image_url}
-                    style={style}
-                    autoPlay={m.autoplay !== false}
-                    muted={m.muted === true}
-                    loop={m.loop !== false}
-                    playsInline
-                    controls={false}
-                  />
-                ) : (
-                  <img src={item.image_url} alt={item.title || ""} style={style} />
-                )}
+                <SelfRotatedMedia deg={effectiveDeg}>
+                  {(fix) =>
+                    isVid ? (
+                      <video
+                        ref={m.muted === true ? undefined : audioVideoRef}
+                        src={item.image_url}
+                        style={{ ...baseStyle, ...fix }}
+                        autoPlay={m.autoplay !== false}
+                        muted={m.muted === true}
+                        loop={m.loop !== false}
+                        playsInline
+                        controls={false}
+                      />
+                    ) : (
+                      <img src={item.image_url} alt={item.title || ""} style={{ ...baseStyle, ...fix }} />
+                    )
+                  }
+                </SelfRotatedMedia>
               </div>
             );
           })}
@@ -1071,6 +1077,7 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Cont
       </div>
     );
   }
+
 
   const single = current.content;
   const meta = (single.metadata as any) || {};
