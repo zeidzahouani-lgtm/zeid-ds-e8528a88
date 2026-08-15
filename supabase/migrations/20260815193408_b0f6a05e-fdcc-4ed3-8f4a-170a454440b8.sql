@@ -1,0 +1,3 @@
+UPDATE public.establishments SET logo_url = 'https://dovvbtzpawheafcqmdbt.supabase.co/storage/v1/object/public/media/branding/establishments/1776438469468_logo.jpeg', updated_at = now() WHERE id = 'fa966a43-ede2-4918-b81e-b88f8e9e9fae' AND logo_url IS NULL;
+
+UPDATE public.establishment_settings SET value = 'https://dovvbtzpawheafcqmdbt.supabase.co/storage/v1/object/public/media/branding/establishments/1776438469468_logo.jpeg' WHERE establishment_id = 'fa966a43-ede2-4918-b81e-b88f8e9e9fae' AND key = 'brand_logo_url' AND (value IS NULL OR value = '');
