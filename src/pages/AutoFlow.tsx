@@ -168,6 +168,7 @@ export default function AutoFlow() {
       setNewScreenIds([]);
       setNewValidityDays("30");
       setNewExpiresAt("");
+      setNewStartsAt("");
       loadAccessCodes();
     } catch (e: any) {
       toast.error(e.message || "Erreur");
@@ -783,6 +784,16 @@ export default function AutoFlow() {
                   </Select>
                 </div>
                 <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground uppercase tracking-wider">Début</label>
+                  <Input
+                    type="datetime-local"
+                    className="w-56"
+                    value={newStartsAt}
+                    onChange={(e) => setNewStartsAt(e.target.value)}
+                  />
+                  <p className="text-[10px] text-muted-foreground">Vide = actif immédiatement</p>
+                </div>
+                <div className="space-y-1">
                   <label className="text-xs text-muted-foreground uppercase tracking-wider">Validité</label>
                   <Select value={newValidityDays} onValueChange={setNewValidityDays}>
                     <SelectTrigger className="w-40">
@@ -860,6 +871,7 @@ export default function AutoFlow() {
               {accessCodes.map((ac) => {
                 const linkedProfile = profiles.find((p) => p.id === ac.user_id);
                 const expired = ac.expires_at && new Date(ac.expires_at) < new Date();
+                const notStarted = ac.starts_at && new Date(ac.starts_at) > new Date();
                 const codeScreens: string[] = ac.screen_ids || [];
                 return (
                   <Card key={ac.id} className="p-3 flex items-center gap-3 flex-wrap">
@@ -868,6 +880,9 @@ export default function AutoFlow() {
                     <Badge variant="secondary" className="text-xs gap-1">
                       <Monitor className="h-3 w-3" />
                       {codeScreens.length === 0 ? "Tous les écrans" : codeScreens.map((id) => getScreenName(id)).join(", ")}
+                    </Badge>
+                    <Badge variant="outline" className={`text-xs ${notStarted ? "bg-amber-500/10 text-amber-600 border-amber-500/20" : ""}`}>
+                      {ac.starts_at ? (notStarted ? "Débute le " : "Actif depuis ") + formatDate(ac.starts_at) : "Actif immédiatement"}
                     </Badge>
                     <Badge variant="outline" className={`text-xs ${expired ? "bg-red-500/10 text-red-600 border-red-500/20" : ""}`}>
                       {ac.expires_at ? (expired ? "Expiré le " : "Expire le ") + formatDate(ac.expires_at) : "Validité illimitée"}
