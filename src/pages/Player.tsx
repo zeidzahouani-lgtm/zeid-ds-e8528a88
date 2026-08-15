@@ -1275,23 +1275,31 @@ export default function Player() {
     setHasContent(nowHasContent);
   }, [media, activeContents, layoutId]);
 
-  // Track fallback state in DB for alerting
+  // Track fallback state in DB for alerting.
+  // Grace period: le contenu peut mettre quelques secondes à se résoudre
+  // (resync, reconnexion réseau, reload). On n'écrit "fallback" qu'après 20s
+  // de vide continu, pour éviter les faux positifs dans l'interface serveur.
   useEffect(() => {
     if (!screen?.id || previewMode) return;
     const inFallback = !hasContent && licenseValid === true && !loading;
-    
-    if (inFallback) {
-      supabase.from("screens").update({
-        fallback_since: new Date().toISOString(),
-        fallback_notified: false,
-      } as any).eq("id", screen.id).then();
-    } else {
+
+    if (!inFallback) {
       supabase.from("screens").update({
         fallback_since: null,
         fallback_notified: false,
       } as any).eq("id", screen.id).then();
+      return;
     }
+
+    const timer = setTimeout(() => {
+      supabase.from("screens").update({
+        fallback_since: new Date().toISOString(),
+        fallback_notified: false,
+      } as any).eq("id", screen.id).then();
+    }, 20_000);
+    return () => clearTimeout(timer);
   }, [hasContent, screen?.id, licenseValid, loading, previewMode]);
+
 
   useEffect(() => {
     if (!currentDuration || currentDuration <= 0 || layoutId) {
