@@ -809,10 +809,19 @@ export default function AutoFlow() {
             <div className="grid gap-2">
               {accessCodes.map((ac) => {
                 const linkedProfile = profiles.find((p) => p.id === ac.user_id);
+                const expired = ac.expires_at && new Date(ac.expires_at) < new Date();
+                const codeScreens: string[] = ac.screen_ids || [];
                 return (
-                  <Card key={ac.id} className="p-3 flex items-center gap-3">
+                  <Card key={ac.id} className="p-3 flex items-center gap-3 flex-wrap">
                     <code className="text-sm font-mono bg-muted px-2 py-1 rounded tracking-wider">{ac.code}</code>
-                    <span className="text-sm flex-1">{ac.user_name}</span>
+                    <span className="text-sm flex-1 min-w-32">{ac.user_name}</span>
+                    <Badge variant="secondary" className="text-xs gap-1">
+                      <Monitor className="h-3 w-3" />
+                      {codeScreens.length === 0 ? "Tous les écrans" : codeScreens.map((id) => getScreenName(id)).join(", ")}
+                    </Badge>
+                    <Badge variant="outline" className={`text-xs ${expired ? "bg-red-500/10 text-red-600 border-red-500/20" : ""}`}>
+                      {ac.expires_at ? (expired ? "Expiré le " : "Expire le ") + formatDate(ac.expires_at) : "Validité illimitée"}
+                    </Badge>
                     {linkedProfile && (
                       <Badge variant="secondary" className="text-xs">
                         {linkedProfile.display_name || linkedProfile.email}
@@ -821,13 +830,18 @@ export default function AutoFlow() {
                     <Badge variant="outline" className={ac.is_active ? "bg-green-500/10 text-green-600 border-green-500/20" : "bg-muted text-muted-foreground"}>
                       {ac.is_active ? "Actif" : "Désactivé"}
                     </Badge>
-                    <Button variant="ghost" size="sm" onClick={() => toggleCode(ac.id, ac.is_active)}>
-                      {ac.is_active ? "Désactiver" : "Activer"}
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteCode(ac.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {canManageCodes && (
+                      <>
+                        <Button variant="ghost" size="sm" onClick={() => toggleCode(ac.id, ac.is_active)}>
+                          {ac.is_active ? "Désactiver" : "Activer"}
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteCode(ac.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
                   </Card>
+
                 );
               })}
             </div>
