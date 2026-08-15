@@ -40,6 +40,12 @@ export default function BrandingTab({ getSetting, saveMultiple, settings }: Bran
   const [logoSize, setLogoSize] = useState(getSetting("brand_logo_size") || "medium");
   const [faviconUrl, setFaviconUrl] = useState(getSetting("brand_favicon_url") || "");
 
+  // Sync state when settings are loaded / changed externally
+  useEffect(() => {
+    setLogoSize(getSetting("brand_logo_size") || "medium");
+  }, [settings, getSetting]);
+
+
   const [welcomeMsg, setWelcomeMsg] = useState(getSetting("brand_welcome_message") || "");
   const [footerText, setFooterText] = useState(getSetting("brand_footer_text") || "");
   const [playerWatermark, setPlayerWatermark] = useState(getSetting("brand_player_watermark") || "");
