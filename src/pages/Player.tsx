@@ -585,7 +585,9 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
         bgColor,
         watermark,
         showSignatureOnPlayer,
+        logoSize,
       });
+
     };
 
     fetchBranding();
