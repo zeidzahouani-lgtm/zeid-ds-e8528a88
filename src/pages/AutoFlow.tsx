@@ -734,184 +734,221 @@ export default function AutoFlow() {
             </div>
           </Card>
 
-          {!canManageCodes ? (
-            <Card className="p-4 mb-4 border-dashed">
-              <p className="text-sm text-muted-foreground">
-                Seuls les administrateurs de l'établissement peuvent générer des codes d'accès client.
-              </p>
-            </Card>
-          ) : (
-            <Card className="p-4 mb-4 space-y-4">
-              <div className="flex gap-2 items-end flex-wrap">
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground uppercase tracking-wider">Code</label>
-                  <div className="flex gap-1">
-                    <Input
-                      value={newCode}
-                      onChange={(e) => setNewCode(e.target.value.toUpperCase())}
-                      placeholder="EX: DEMO2026"
-                      className="w-40 font-mono"
-                      maxLength={20}
-                    />
-                    <Button type="button" variant="outline" size="icon" onClick={generateCode} title="Générer un code">
-                      <RefreshCw className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground uppercase tracking-wider">Client / Nom</label>
-                  <Input
-                    value={newUserName}
-                    onChange={(e) => setNewUserName(e.target.value)}
-                    placeholder="Jean Dupont"
-                    className="w-48"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground uppercase tracking-wider">Utilisateur lié</label>
-                  <Select value={newUserId} onValueChange={setNewUserId}>
-                    <SelectTrigger className="w-52">
-                      <SelectValue placeholder="Aucun (optionnel)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Aucun</SelectItem>
-                      {profiles.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.display_name || p.email || p.id.slice(0, 8)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground uppercase tracking-wider">Début</label>
-                  <Input
-                    type="datetime-local"
-                    className="w-56"
-                    value={newStartsAt}
-                    onChange={(e) => setNewStartsAt(e.target.value)}
-                  />
-                  <p className="text-[10px] text-muted-foreground">Vide = actif immédiatement</p>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground uppercase tracking-wider">Validité</label>
-                  <Select value={newValidityDays} onValueChange={setNewValidityDays}>
-                    <SelectTrigger className="w-40">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">24 heures</SelectItem>
-                      <SelectItem value="7">7 jours</SelectItem>
-                      <SelectItem value="30">30 jours</SelectItem>
-                      <SelectItem value="90">90 jours</SelectItem>
-                      <SelectItem value="365">1 an</SelectItem>
-                      <SelectItem value="custom">Date & heure précises</SelectItem>
-                      <SelectItem value="0">Illimitée</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {newValidityDays === "custom" && (
-                  <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground uppercase tracking-wider">Expire le</label>
-                    <Input
-                      type="datetime-local"
-                      className="w-56"
-                      value={newExpiresAt}
-                      min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
-                      onChange={(e) => setNewExpiresAt(e.target.value)}
-                    />
-                  </div>
-                )}
-                <Button onClick={handleAddCode} disabled={addingCode || !newCode.trim() || !newUserName.trim() || !currentEstablishmentId} className="gap-1.5">
-                  {addingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                  Générer
-                </Button>
-              </div>
+          {(() => {
+            const autoCodes = accessCodes.filter((ac) => !ac.created_by);
+            const clientCodes = accessCodes.filter((ac) => !!ac.created_by);
 
-              <div className="space-y-2">
-                <label className="text-xs text-muted-foreground uppercase tracking-wider">
-                  Écrans autorisés {newScreenIds.length > 0 ? `(${newScreenIds.length})` : "(tous par défaut)"}
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {(screens || []).map((s: any) => {
-                    const selected = newScreenIds.includes(s.id);
-                    return (
-                      <Button
-                        key={s.id}
-                        type="button"
-                        size="sm"
-                        variant={selected ? "default" : "outline"}
-                        className="gap-1.5"
-                        onClick={() =>
-                          setNewScreenIds((prev) => (selected ? prev.filter((id) => id !== s.id) : [...prev, s.id]))
-                        }
-                      >
-                        <Monitor className="h-3.5 w-3.5" />
-                        {s.name}
-                      </Button>
-                    );
-                  })}
-                  {(screens || []).length === 0 && (
-                    <p className="text-xs text-muted-foreground">Aucun écran disponible</p>
+            const renderCode = (ac: any) => {
+              const linkedProfile = profiles.find((p) => p.id === ac.user_id);
+              const expired = ac.expires_at && new Date(ac.expires_at) < new Date();
+              const notStarted = ac.starts_at && new Date(ac.starts_at) > new Date();
+              const codeScreens: string[] = ac.screen_ids || [];
+              return (
+                <Card key={ac.id} className="p-3 flex items-center gap-3 flex-wrap">
+                  <code className="text-sm font-mono bg-muted px-2 py-1 rounded tracking-wider">{ac.code}</code>
+                  <span className="text-sm flex-1 min-w-32">{ac.user_name}</span>
+                  <Badge variant="secondary" className="text-xs gap-1">
+                    <Monitor className="h-3 w-3" />
+                    {codeScreens.length === 0 ? "Tous les écrans" : codeScreens.map((id) => getScreenName(id)).join(", ")}
+                  </Badge>
+                  <Badge variant="outline" className={`text-xs ${notStarted ? "bg-amber-500/10 text-amber-600 border-amber-500/20" : ""}`}>
+                    {ac.starts_at ? (notStarted ? "Débute le " : "Actif depuis ") + formatDate(ac.starts_at) : "Actif immédiatement"}
+                  </Badge>
+                  <Badge variant="outline" className={`text-xs ${expired ? "bg-red-500/10 text-red-600 border-red-500/20" : ""}`}>
+                    {ac.expires_at ? (expired ? "Expiré le " : "Expire le ") + formatDate(ac.expires_at) : "Validité illimitée"}
+                  </Badge>
+                  {linkedProfile && (
+                    <Badge variant="secondary" className="text-xs">
+                      {linkedProfile.display_name || linkedProfile.email}
+                    </Badge>
                   )}
-                </div>
-              </div>
-            </Card>
-          )}
+                  <Badge variant="outline" className={ac.is_active ? "bg-green-500/10 text-green-600 border-green-500/20" : "bg-muted text-muted-foreground"}>
+                    {ac.is_active ? "Actif" : "Désactivé"}
+                  </Badge>
+                  {canManageCodes && (
+                    <>
+                      <Button variant="ghost" size="sm" onClick={() => toggleCode(ac.id, ac.is_active)}>
+                        {ac.is_active ? "Désactiver" : "Activer"}
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteCode(ac.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                </Card>
+              );
+            };
 
+            return (
+              <Tabs defaultValue="clients">
+                <TabsList className="mb-4">
+                  <TabsTrigger value="clients" className="gap-2">
+                    <KeyRound className="h-4 w-4" />
+                    Codes clients ({clientCodes.length})
+                  </TabsTrigger>
+                  <TabsTrigger value="auto" className="gap-2">
+                    <RefreshCw className="h-4 w-4" />
+                    Codes utilisateurs ({autoCodes.length})
+                  </TabsTrigger>
+                </TabsList>
 
-          {accessCodes.length === 0 ? (
-            <Card className="p-8 text-center">
-              <KeyRound className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-muted-foreground">Aucun code d'accès</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">Créez un code pour permettre l'upload via QR Code</p>
-            </Card>
-          ) : (
-            <div className="grid gap-2">
-              {accessCodes.map((ac) => {
-                const linkedProfile = profiles.find((p) => p.id === ac.user_id);
-                const expired = ac.expires_at && new Date(ac.expires_at) < new Date();
-                const notStarted = ac.starts_at && new Date(ac.starts_at) > new Date();
-                const codeScreens: string[] = ac.screen_ids || [];
-                return (
-                  <Card key={ac.id} className="p-3 flex items-center gap-3 flex-wrap">
-                    <code className="text-sm font-mono bg-muted px-2 py-1 rounded tracking-wider">{ac.code}</code>
-                    <span className="text-sm flex-1 min-w-32">{ac.user_name}</span>
-                    <Badge variant="secondary" className="text-xs gap-1">
-                      <Monitor className="h-3 w-3" />
-                      {codeScreens.length === 0 ? "Tous les écrans" : codeScreens.map((id) => getScreenName(id)).join(", ")}
-                    </Badge>
-                    <Badge variant="outline" className={`text-xs ${notStarted ? "bg-amber-500/10 text-amber-600 border-amber-500/20" : ""}`}>
-                      {ac.starts_at ? (notStarted ? "Débute le " : "Actif depuis ") + formatDate(ac.starts_at) : "Actif immédiatement"}
-                    </Badge>
-                    <Badge variant="outline" className={`text-xs ${expired ? "bg-red-500/10 text-red-600 border-red-500/20" : ""}`}>
-                      {ac.expires_at ? (expired ? "Expiré le " : "Expire le ") + formatDate(ac.expires_at) : "Validité illimitée"}
-                    </Badge>
-                    {linkedProfile && (
-                      <Badge variant="secondary" className="text-xs">
-                        {linkedProfile.display_name || linkedProfile.email}
-                      </Badge>
-                    )}
-                    <Badge variant="outline" className={ac.is_active ? "bg-green-500/10 text-green-600 border-green-500/20" : "bg-muted text-muted-foreground"}>
-                      {ac.is_active ? "Actif" : "Désactivé"}
-                    </Badge>
-                    {canManageCodes && (
-                      <>
-                        <Button variant="ghost" size="sm" onClick={() => toggleCode(ac.id, ac.is_active)}>
-                          {ac.is_active ? "Désactiver" : "Activer"}
+                <TabsContent value="clients">
+                  {!canManageCodes ? (
+                    <Card className="p-4 mb-4 border-dashed">
+                      <p className="text-sm text-muted-foreground">
+                        Seuls les administrateurs de l'établissement peuvent générer des codes d'accès client.
+                      </p>
+                    </Card>
+                  ) : (
+                    <Card className="p-4 mb-4 space-y-4">
+                      <div className="flex gap-2 items-end flex-wrap">
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground uppercase tracking-wider">Code</label>
+                          <div className="flex gap-1">
+                            <Input
+                              value={newCode}
+                              onChange={(e) => setNewCode(e.target.value.toUpperCase())}
+                              placeholder="EX: DEMO2026"
+                              className="w-40 font-mono"
+                              maxLength={20}
+                            />
+                            <Button type="button" variant="outline" size="icon" onClick={generateCode} title="Générer un code">
+                              <RefreshCw className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground uppercase tracking-wider">Client / Nom</label>
+                          <Input
+                            value={newUserName}
+                            onChange={(e) => setNewUserName(e.target.value)}
+                            placeholder="Jean Dupont"
+                            className="w-48"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground uppercase tracking-wider">Utilisateur lié</label>
+                          <Select value={newUserId} onValueChange={setNewUserId}>
+                            <SelectTrigger className="w-52">
+                              <SelectValue placeholder="Aucun (optionnel)" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="none">Aucun</SelectItem>
+                              {profiles.map((p) => (
+                                <SelectItem key={p.id} value={p.id}>
+                                  {p.display_name || p.email || p.id.slice(0, 8)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground uppercase tracking-wider">Début</label>
+                          <Input
+                            type="datetime-local"
+                            className="w-56"
+                            value={newStartsAt}
+                            onChange={(e) => setNewStartsAt(e.target.value)}
+                          />
+                          <p className="text-[10px] text-muted-foreground">Vide = actif immédiatement</p>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground uppercase tracking-wider">Validité</label>
+                          <Select value={newValidityDays} onValueChange={setNewValidityDays}>
+                            <SelectTrigger className="w-40">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1">24 heures</SelectItem>
+                              <SelectItem value="7">7 jours</SelectItem>
+                              <SelectItem value="30">30 jours</SelectItem>
+                              <SelectItem value="90">90 jours</SelectItem>
+                              <SelectItem value="365">1 an</SelectItem>
+                              <SelectItem value="custom">Date & heure précises</SelectItem>
+                              <SelectItem value="0">Illimitée</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {newValidityDays === "custom" && (
+                          <div className="space-y-1">
+                            <label className="text-xs text-muted-foreground uppercase tracking-wider">Expire le</label>
+                            <Input
+                              type="datetime-local"
+                              className="w-56"
+                              value={newExpiresAt}
+                              min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+                              onChange={(e) => setNewExpiresAt(e.target.value)}
+                            />
+                          </div>
+                        )}
+                        <Button onClick={handleAddCode} disabled={addingCode || !newCode.trim() || !newUserName.trim() || !currentEstablishmentId} className="gap-1.5">
+                          {addingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                          Générer
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteCode(ac.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs text-muted-foreground uppercase tracking-wider">
+                          Écrans autorisés {newScreenIds.length > 0 ? `(${newScreenIds.length})` : "(tous par défaut)"}
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {(screens || []).map((s: any) => {
+                            const selected = newScreenIds.includes(s.id);
+                            return (
+                              <Button
+                                key={s.id}
+                                type="button"
+                                size="sm"
+                                variant={selected ? "default" : "outline"}
+                                className="gap-1.5"
+                                onClick={() =>
+                                  setNewScreenIds((prev) => (selected ? prev.filter((id) => id !== s.id) : [...prev, s.id]))
+                                }
+                              >
+                                <Monitor className="h-3.5 w-3.5" />
+                                {s.name}
+                              </Button>
+                            );
+                          })}
+                          {(screens || []).length === 0 && (
+                            <p className="text-xs text-muted-foreground">Aucun écran disponible</p>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+
+                  {clientCodes.length === 0 ? (
+                    <Card className="p-8 text-center">
+                      <KeyRound className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                      <p className="text-muted-foreground">Aucun code client</p>
+                      <p className="text-xs text-muted-foreground/60 mt-1">Générez un code avec une période de validité pour vos clients</p>
+                    </Card>
+                  ) : (
+                    <div className="grid gap-2">{clientCodes.map(renderCode)}</div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="auto">
+                  <Card className="p-4 mb-4 border-dashed">
+                    <p className="text-xs text-muted-foreground">
+                      Codes créés automatiquement à l'inscription des utilisateurs du serveur (validité illimitée, tous les écrans autorisés).
+                    </p>
                   </Card>
-
-                );
-              })}
-            </div>
-          )}
+                  {autoCodes.length === 0 ? (
+                    <Card className="p-8 text-center">
+                      <KeyRound className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                      <p className="text-muted-foreground">Aucun code automatique</p>
+                    </Card>
+                  ) : (
+                    <div className="grid gap-2">{autoCodes.map(renderCode)}</div>
+                  )}
+                </TabsContent>
+              </Tabs>
+            );
+          })()}
         </TabsContent>
+
 
         {/* ===== TAB: GUIDE EMAIL ===== */}
         <TabsContent value="guide">
