@@ -87,9 +87,13 @@ export function AppSidebar() {
 
   const estLogoUrl = !isGlobalAdmin && currentEstablishmentId ? getSetting("brand_logo_url") : null;
   const estName = !isGlobalAdmin && currentEstablishmentId ? getSetting("brand_name") : null;
+  const logoSize = !isGlobalAdmin && currentEstablishmentId ? getSetting("brand_logo_size") : null;
   const currentEst = memberships.find(m => m.establishment_id === currentEstablishmentId);
   const displayLogo = estLogoUrl || (!isGlobalAdmin && currentEst?.establishment ? (currentEst.establishment as any).logo_url : null) || settings.logo_url;
   const displayName = estName || settings.app_name;
+
+  const sizeClasses = logoSize === "small" ? "h-7 w-7" : logoSize === "large" ? "h-12 w-12" : "h-9 w-9";
+
 
   const renderNavItem = (item: typeof mainItems[0], isAdmin = false) => {
     const isActive = location.pathname === item.url;
