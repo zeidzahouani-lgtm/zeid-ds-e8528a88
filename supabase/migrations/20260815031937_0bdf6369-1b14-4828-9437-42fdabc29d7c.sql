@@ -1,0 +1,2 @@
+ALTER TABLE public.screens DROP CONSTRAINT IF EXISTS screens_pending_action_check;
+ALTER TABLE public.screens ADD CONSTRAINT screens_pending_action_check CHECK (pending_action IS NULL OR pending_action = ANY (ARRAY['reboot','shutdown','resync']));
