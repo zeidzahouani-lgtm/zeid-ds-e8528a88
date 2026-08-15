@@ -114,6 +114,16 @@ export default function AutoFlow() {
     }
     setAddingCode(true);
     try {
+      let startsAt: string | null = null;
+      if (newStartsAt) {
+        const sd = new Date(newStartsAt);
+        if (isNaN(sd.getTime())) {
+          toast.error("Date de début invalide");
+          setAddingCode(false);
+          return;
+        }
+        startsAt = sd.toISOString();
+      }
       let expiresAt: string | null = null;
       if (newValidityDays === "custom") {
         if (!newExpiresAt) {
@@ -130,13 +140,20 @@ export default function AutoFlow() {
         expiresAt = d.toISOString();
       } else {
         const days = parseInt(newValidityDays, 10);
-        expiresAt = days > 0 ? new Date(Date.now() + days * 86400000).toISOString() : null;
+        const base = startsAt ? new Date(startsAt).getTime() : Date.now();
+        expiresAt = days > 0 ? new Date(base + days * 86400000).toISOString() : null;
+      }
+      if (startsAt && expiresAt && new Date(expiresAt) <= new Date(startsAt)) {
+        toast.error("La date d'expiration doit être après la date de début");
+        setAddingCode(false);
+        return;
       }
       const insertData: any = {
         code: newCode.trim().toUpperCase(),
         user_name: newUserName.trim(),
         establishment_id: currentEstablishmentId,
         screen_ids: newScreenIds,
+        starts_at: startsAt,
         expires_at: expiresAt,
         created_by: user?.id ?? null,
       };
