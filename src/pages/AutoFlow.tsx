@@ -48,6 +48,7 @@ export default function AutoFlow() {
   const [newScreenIds, setNewScreenIds] = useState<string[]>([]);
   const [newValidityDays, setNewValidityDays] = useState<string>("30");
   const [newExpiresAt, setNewExpiresAt] = useState<string>("");
+  const [newStartsAt, setNewStartsAt] = useState<string>("");
   const [addingCode, setAddingCode] = useState(false);
   const [profiles, setProfiles] = useState<any[]>([]);
 
@@ -114,6 +115,16 @@ export default function AutoFlow() {
     }
     setAddingCode(true);
     try {
+      let startsAt: string | null = null;
+      if (newStartsAt) {
+        const sd = new Date(newStartsAt);
+        if (isNaN(sd.getTime())) {
+          toast.error("Date de début invalide");
+          setAddingCode(false);
+          return;
+        }
+        startsAt = sd.toISOString();
+      }
       let expiresAt: string | null = null;
       if (newValidityDays === "custom") {
         if (!newExpiresAt) {
@@ -130,13 +141,20 @@ export default function AutoFlow() {
         expiresAt = d.toISOString();
       } else {
         const days = parseInt(newValidityDays, 10);
-        expiresAt = days > 0 ? new Date(Date.now() + days * 86400000).toISOString() : null;
+        const base = startsAt ? new Date(startsAt).getTime() : Date.now();
+        expiresAt = days > 0 ? new Date(base + days * 86400000).toISOString() : null;
+      }
+      if (startsAt && expiresAt && new Date(expiresAt) <= new Date(startsAt)) {
+        toast.error("La date d'expiration doit être après la date de début");
+        setAddingCode(false);
+        return;
       }
       const insertData: any = {
         code: newCode.trim().toUpperCase(),
         user_name: newUserName.trim(),
         establishment_id: currentEstablishmentId,
         screen_ids: newScreenIds,
+        starts_at: startsAt,
         expires_at: expiresAt,
         created_by: user?.id ?? null,
       };
@@ -150,6 +168,7 @@ export default function AutoFlow() {
       setNewScreenIds([]);
       setNewValidityDays("30");
       setNewExpiresAt("");
+      setNewStartsAt("");
       loadAccessCodes();
     } catch (e: any) {
       toast.error(e.message || "Erreur");
@@ -765,6 +784,16 @@ export default function AutoFlow() {
                   </Select>
                 </div>
                 <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground uppercase tracking-wider">Début</label>
+                  <Input
+                    type="datetime-local"
+                    className="w-56"
+                    value={newStartsAt}
+                    onChange={(e) => setNewStartsAt(e.target.value)}
+                  />
+                  <p className="text-[10px] text-muted-foreground">Vide = actif immédiatement</p>
+                </div>
+                <div className="space-y-1">
                   <label className="text-xs text-muted-foreground uppercase tracking-wider">Validité</label>
                   <Select value={newValidityDays} onValueChange={setNewValidityDays}>
                     <SelectTrigger className="w-40">
@@ -842,6 +871,7 @@ export default function AutoFlow() {
               {accessCodes.map((ac) => {
                 const linkedProfile = profiles.find((p) => p.id === ac.user_id);
                 const expired = ac.expires_at && new Date(ac.expires_at) < new Date();
+                const notStarted = ac.starts_at && new Date(ac.starts_at) > new Date();
                 const codeScreens: string[] = ac.screen_ids || [];
                 return (
                   <Card key={ac.id} className="p-3 flex items-center gap-3 flex-wrap">
@@ -850,6 +880,9 @@ export default function AutoFlow() {
                     <Badge variant="secondary" className="text-xs gap-1">
                       <Monitor className="h-3 w-3" />
                       {codeScreens.length === 0 ? "Tous les écrans" : codeScreens.map((id) => getScreenName(id)).join(", ")}
+                    </Badge>
+                    <Badge variant="outline" className={`text-xs ${notStarted ? "bg-amber-500/10 text-amber-600 border-amber-500/20" : ""}`}>
+                      {ac.starts_at ? (notStarted ? "Débute le " : "Actif depuis ") + formatDate(ac.starts_at) : "Actif immédiatement"}
                     </Badge>
                     <Badge variant="outline" className={`text-xs ${expired ? "bg-red-500/10 text-red-600 border-red-500/20" : ""}`}>
                       {ac.expires_at ? (expired ? "Expiré le " : "Expire le ") + formatDate(ac.expires_at) : "Validité illimitée"}
