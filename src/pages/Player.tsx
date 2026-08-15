@@ -1603,7 +1603,7 @@ export default function Player() {
     return (
       <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", top: 0, right: 0, bottom: 0, left: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, textAlign: "center", padding: 32 }}>
-          <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} />
+          <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} size={branding.logoSize} />
           <div style={{ height: 80, width: 80, borderRadius: 16, backgroundColor: "rgba(239,68,68,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <MonitorX style={{ height: 40, width: 40, color: "#ef4444" }} />
           </div>
