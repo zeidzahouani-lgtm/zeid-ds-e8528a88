@@ -1576,7 +1576,7 @@ export default function Player() {
         {debugMode && <DiagnosticOverlay {...diagBaseProps} />}
         {hudMode && <DiagnosticOverlay {...diagBaseProps} mode="hud" />}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, textAlign: "center", padding: 24 }}>
-          <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} />
+          <CompanyLogo logoUrl={branding.logoUrl} show={branding.showLogo} size={branding.logoSize} />
           <MonitorPlay style={{ height: 48, width: 48, color: inRecovery ? "#f59e0b" : "#3b82f6" }} />
           <p style={{ color: "#9ca3af" }}>
             {inRecovery ? "Mode récupération — nouvel essai en cours..." : "Connexion à l'écran..."}
