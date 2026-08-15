@@ -17,6 +17,8 @@ import { EditContentDialog } from "@/components/autoflow/EditContentDialog";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 
 const statusConfig: Record<string, { label: string; color: string; icon: typeof Clock }> = {
   pending: { label: "En attente", color: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20", icon: Clock },
@@ -34,13 +36,20 @@ export default function AutoFlow() {
   const { contents, isLoading, updateStatus, deleteContent, subscribeRealtime } = useContents();
   const { screens } = useScreens();
   const { emails, isLoading: inboxLoading, subscribeRealtime: subscribeInbox } = useInboxEmails();
+  const { user } = useAuth();
+  const { currentEstablishmentId, isEstablishmentAdmin } = useEstablishmentContext();
+  const canManageCodes = isEstablishmentAdmin;
   const queryClient = useQueryClient();
+
   const [accessCodes, setAccessCodes] = useState<any[]>([]);
   const [newCode, setNewCode] = useState("");
   const [newUserName, setNewUserName] = useState("");
   const [newUserId, setNewUserId] = useState("");
+  const [newScreenIds, setNewScreenIds] = useState<string[]>([]);
+  const [newValidityDays, setNewValidityDays] = useState<string>("30");
   const [addingCode, setAddingCode] = useState(false);
   const [profiles, setProfiles] = useState<any[]>([]);
+
   const [preview, setPreview] = useState<Content | null>(null);
   const [editContent, setEditContent] = useState<Content | null>(null);
   const [filter, setFilter] = useState<string>("all");
@@ -90,13 +99,28 @@ export default function AutoFlow() {
     setAccessCodes(data || []);
   };
 
+  const generateCode = () => {
+    const base = (newUserName.trim() || "CLI").replace(/[^a-zA-Z]/g, "").toUpperCase().slice(0, 3).padEnd(3, "X");
+    const rand = Math.random().toString(36).slice(2, 7).toUpperCase();
+    setNewCode(`${base}-${rand}`);
+  };
+
   const handleAddCode = async () => {
     if (!newCode.trim() || !newUserName.trim()) return;
+    if (!canManageCodes || !currentEstablishmentId) {
+      toast.error("Seuls les administrateurs de l'établissement peuvent créer un code");
+      return;
+    }
     setAddingCode(true);
     try {
+      const days = parseInt(newValidityDays, 10);
       const insertData: any = {
         code: newCode.trim().toUpperCase(),
         user_name: newUserName.trim(),
+        establishment_id: currentEstablishmentId,
+        screen_ids: newScreenIds,
+        expires_at: days > 0 ? new Date(Date.now() + days * 86400000).toISOString() : null,
+        created_by: user?.id ?? null,
       };
       if (newUserId && newUserId !== "none") insertData.user_id = newUserId;
       const { error } = await (supabase.from("access_codes") as any).insert(insertData);
@@ -105,6 +129,8 @@ export default function AutoFlow() {
       setNewCode("");
       setNewUserName("");
       setNewUserId("");
+      setNewScreenIds([]);
+      setNewValidityDays("30");
       loadAccessCodes();
     } catch (e: any) {
       toast.error(e.message || "Erreur");
@@ -112,6 +138,7 @@ export default function AutoFlow() {
       setAddingCode(false);
     }
   };
+
 
   const toggleCode = async (id: string, isActive: boolean) => {
     await (supabase.from("access_codes") as any).update({ is_active: !isActive }).eq("id", id);
@@ -669,47 +696,108 @@ export default function AutoFlow() {
             </div>
           </Card>
 
-          <div className="flex gap-2 mb-4 items-end flex-wrap">
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground uppercase tracking-wider">Code</label>
-              <Input
-                value={newCode}
-                onChange={(e) => setNewCode(e.target.value.toUpperCase())}
-                placeholder="EX: DEMO2026"
-                className="w-40 font-mono"
-                maxLength={20}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground uppercase tracking-wider">Nom utilisateur</label>
-              <Input
-                value={newUserName}
-                onChange={(e) => setNewUserName(e.target.value)}
-                placeholder="Jean Dupont"
-                className="w-48"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground uppercase tracking-wider">Utilisateur lié</label>
-              <Select value={newUserId} onValueChange={setNewUserId}>
-                <SelectTrigger className="w-52">
-                  <SelectValue placeholder="Aucun (optionnel)" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Aucun</SelectItem>
-                  {profiles.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.display_name || p.email || p.id.slice(0, 8)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button onClick={handleAddCode} disabled={addingCode || !newCode.trim() || !newUserName.trim()} className="gap-1.5">
-              {addingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Ajouter
-            </Button>
-          </div>
+          {!canManageCodes ? (
+            <Card className="p-4 mb-4 border-dashed">
+              <p className="text-sm text-muted-foreground">
+                Seuls les administrateurs de l'établissement peuvent générer des codes d'accès client.
+              </p>
+            </Card>
+          ) : (
+            <Card className="p-4 mb-4 space-y-4">
+              <div className="flex gap-2 items-end flex-wrap">
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground uppercase tracking-wider">Code</label>
+                  <div className="flex gap-1">
+                    <Input
+                      value={newCode}
+                      onChange={(e) => setNewCode(e.target.value.toUpperCase())}
+                      placeholder="EX: DEMO2026"
+                      className="w-40 font-mono"
+                      maxLength={20}
+                    />
+                    <Button type="button" variant="outline" size="icon" onClick={generateCode} title="Générer un code">
+                      <RefreshCw className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground uppercase tracking-wider">Client / Nom</label>
+                  <Input
+                    value={newUserName}
+                    onChange={(e) => setNewUserName(e.target.value)}
+                    placeholder="Jean Dupont"
+                    className="w-48"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground uppercase tracking-wider">Utilisateur lié</label>
+                  <Select value={newUserId} onValueChange={setNewUserId}>
+                    <SelectTrigger className="w-52">
+                      <SelectValue placeholder="Aucun (optionnel)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Aucun</SelectItem>
+                      {profiles.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.display_name || p.email || p.id.slice(0, 8)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground uppercase tracking-wider">Validité</label>
+                  <Select value={newValidityDays} onValueChange={setNewValidityDays}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">24 heures</SelectItem>
+                      <SelectItem value="7">7 jours</SelectItem>
+                      <SelectItem value="30">30 jours</SelectItem>
+                      <SelectItem value="90">90 jours</SelectItem>
+                      <SelectItem value="365">1 an</SelectItem>
+                      <SelectItem value="0">Illimitée</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button onClick={handleAddCode} disabled={addingCode || !newCode.trim() || !newUserName.trim() || !currentEstablishmentId} className="gap-1.5">
+                  {addingCode ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  Générer
+                </Button>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs text-muted-foreground uppercase tracking-wider">
+                  Écrans autorisés {newScreenIds.length > 0 ? `(${newScreenIds.length})` : "(tous par défaut)"}
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {(screens || []).map((s: any) => {
+                    const selected = newScreenIds.includes(s.id);
+                    return (
+                      <Button
+                        key={s.id}
+                        type="button"
+                        size="sm"
+                        variant={selected ? "default" : "outline"}
+                        className="gap-1.5"
+                        onClick={() =>
+                          setNewScreenIds((prev) => (selected ? prev.filter((id) => id !== s.id) : [...prev, s.id]))
+                        }
+                      >
+                        <Monitor className="h-3.5 w-3.5" />
+                        {s.name}
+                      </Button>
+                    );
+                  })}
+                  {(screens || []).length === 0 && (
+                    <p className="text-xs text-muted-foreground">Aucun écran disponible</p>
+                  )}
+                </div>
+              </div>
+            </Card>
+          )}
+
 
           {accessCodes.length === 0 ? (
             <Card className="p-8 text-center">
@@ -721,10 +809,19 @@ export default function AutoFlow() {
             <div className="grid gap-2">
               {accessCodes.map((ac) => {
                 const linkedProfile = profiles.find((p) => p.id === ac.user_id);
+                const expired = ac.expires_at && new Date(ac.expires_at) < new Date();
+                const codeScreens: string[] = ac.screen_ids || [];
                 return (
-                  <Card key={ac.id} className="p-3 flex items-center gap-3">
+                  <Card key={ac.id} className="p-3 flex items-center gap-3 flex-wrap">
                     <code className="text-sm font-mono bg-muted px-2 py-1 rounded tracking-wider">{ac.code}</code>
-                    <span className="text-sm flex-1">{ac.user_name}</span>
+                    <span className="text-sm flex-1 min-w-32">{ac.user_name}</span>
+                    <Badge variant="secondary" className="text-xs gap-1">
+                      <Monitor className="h-3 w-3" />
+                      {codeScreens.length === 0 ? "Tous les écrans" : codeScreens.map((id) => getScreenName(id)).join(", ")}
+                    </Badge>
+                    <Badge variant="outline" className={`text-xs ${expired ? "bg-red-500/10 text-red-600 border-red-500/20" : ""}`}>
+                      {ac.expires_at ? (expired ? "Expiré le " : "Expire le ") + formatDate(ac.expires_at) : "Validité illimitée"}
+                    </Badge>
                     {linkedProfile && (
                       <Badge variant="secondary" className="text-xs">
                         {linkedProfile.display_name || linkedProfile.email}
@@ -733,13 +830,18 @@ export default function AutoFlow() {
                     <Badge variant="outline" className={ac.is_active ? "bg-green-500/10 text-green-600 border-green-500/20" : "bg-muted text-muted-foreground"}>
                       {ac.is_active ? "Actif" : "Désactivé"}
                     </Badge>
-                    <Button variant="ghost" size="sm" onClick={() => toggleCode(ac.id, ac.is_active)}>
-                      {ac.is_active ? "Désactiver" : "Activer"}
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteCode(ac.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {canManageCodes && (
+                      <>
+                        <Button variant="ghost" size="sm" onClick={() => toggleCode(ac.id, ac.is_active)}>
+                          {ac.is_active ? "Désactiver" : "Activer"}
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deleteCode(ac.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
                   </Card>
+
                 );
               })}
             </div>
