@@ -108,7 +108,7 @@ export default function EstablishmentSettings() {
           <Settings className="h-6 w-6 text-primary" /> Configuration
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Paramètres de <Badge variant="outline" className="ml-1">{currentEst?.establishment.name}</Badge>
+          Paramètres de <Badge variant="outline" className="ml-1">{establishmentName}</Badge>
         </p>
       </div>
 
