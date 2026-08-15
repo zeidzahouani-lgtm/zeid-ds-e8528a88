@@ -149,6 +149,7 @@ export default function AutoFlow() {
       setNewUserId("");
       setNewScreenIds([]);
       setNewValidityDays("30");
+      setNewExpiresAt("");
       loadAccessCodes();
     } catch (e: any) {
       toast.error(e.message || "Erreur");
