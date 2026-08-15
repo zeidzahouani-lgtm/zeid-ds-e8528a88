@@ -304,6 +304,7 @@ function MediaRenderer({ media, playlistLength }: { media: { id: string; name: s
     objectFit: "cover",
     objectPosition: "center center",
     backgroundColor: "#000",
+    ...MEDIA_LAYER_FIX,
   };
 
   if (media.type === "image") {
@@ -910,7 +911,10 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Cont
 
   if (current.kind === "grid") {
     const contentOrientation = current.orientation || screenOrientation;
-    const rotationStyle = getOrientationStyle(contentOrientation);
+    // The parent player container already applies the screen rotation — only rotate
+    // again when this content explicitly asks for a different orientation.
+    const rotationStyle =
+      contentOrientation === screenOrientation ? {} : getOrientationStyle(contentOrientation);
     return (
       <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", backgroundColor: "#000", ...rotationStyle }}>
         <div
@@ -931,7 +935,7 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Cont
               m.fit === "cover" || m.fit === "contain" || m.fit === "fill"
                 ? m.fit
                 : (isVid ? "contain" : "cover");
-            const style: React.CSSProperties = { width: "100%", height: "100%", objectFit: fitCell, objectPosition: "center center", display: "block", backgroundColor: "#000" };
+            const style: React.CSSProperties = { width: "100%", height: "100%", objectFit: fitCell, objectPosition: "center center", display: "block", backgroundColor: "#000", ...MEDIA_LAYER_FIX };
             return (
               <div key={i} style={{ position: "relative", overflow: "hidden", backgroundColor: "#000" }}>
                 {isVid ? (
@@ -960,7 +964,8 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Cont
   const meta = (single.metadata as any) || {};
   const contentType = meta.type || "image";
   const contentOrientation = meta.orientation || screenOrientation;
-  const rotationStyle = getOrientationStyle(contentOrientation);
+  const rotationStyle =
+    contentOrientation === screenOrientation ? {} : getOrientationStyle(contentOrientation);
 
   const fit: "cover" | "contain" | "fill" = meta.fit === "contain" || meta.fit === "fill" ? meta.fit : "cover";
   const sizeKey: "full" | "half" | "quarter" = meta.size === "half" || meta.size === "quarter" ? meta.size : "full";
@@ -985,7 +990,7 @@ function ActiveContentCarousel({ contents, screenOrientation }: { contents: Cont
   else { innerStyle.left = "50%"; tx += " translateX(-50%)"; }
   if (tx) innerStyle.transform = tx.trim();
 
-  const mediaStyle: React.CSSProperties = { width: "100%", height: "100%", objectFit: fit, objectPosition: "center center", display: "block", backgroundColor: "#000" };
+  const mediaStyle: React.CSSProperties = { width: "100%", height: "100%", objectFit: fit, objectPosition: "center center", display: "block", backgroundColor: "#000", ...MEDIA_LAYER_FIX };
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", backgroundColor: "#000", ...rotationStyle }}>
