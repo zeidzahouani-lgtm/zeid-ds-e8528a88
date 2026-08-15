@@ -1692,7 +1692,9 @@ export default function Player() {
               screenId={screen.id}
               logoUrl={branding.logoUrl}
               showLogo={branding.showLogo}
+              logoSize={branding.logoSize}
             />
+
           </WallTile>
         </ResolutionFrame>
         <Watermark text={branding.watermark} />
