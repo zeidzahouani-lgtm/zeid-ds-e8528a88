@@ -1511,6 +1511,7 @@ export type Database = {
         Args: { _code: string; _screen_id: string }
         Returns: {
           code: string
+          expires_at: string
           id: string
           is_active: boolean
           user_id: string
