@@ -287,10 +287,19 @@ export default function BrandingTab({ getSetting, saveMultiple, settings }: Bran
             className="rounded-lg border border-border p-6 transition-all"
             style={{ backgroundColor: bgColor, color: textColor, fontFamily }}
           >
-            <div className="flex items-center gap-3 mb-4">
-              {logoUrl && <img src={logoUrl} alt="Preview" className="h-8 object-contain" />}
+          <div className="flex items-center gap-3 mb-4">
+              {logoUrl && (
+                <img
+                  src={logoUrl}
+                  alt="Preview"
+                  className={`object-contain ${
+                    logoSize === "small" ? "h-6" : logoSize === "large" ? "h-12" : "h-8"
+                  }`}
+                />
+              )}
               <span className="font-bold text-lg" style={{ color: brandColor }}>{brandName || "Mon Établissement"}</span>
             </div>
+
             <p className="text-sm opacity-80 mb-3">{welcomeMsg || "Message d'accueil personnalisé"}</p>
             <div className="flex gap-2">
               <div className="rounded px-3 py-1.5 text-xs font-medium text-white" style={{ backgroundColor: brandColor }}>Bouton principal</div>
