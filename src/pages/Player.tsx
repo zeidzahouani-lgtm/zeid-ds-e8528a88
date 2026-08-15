@@ -394,7 +394,7 @@ function ResolutionFrame({ resolution, children }: { resolution?: string | null;
   );
 }
 
-function MediaRenderer({ media, playlistLength }: { media: { id: string; name: string; type: string; url: string }; playlistLength?: number }) {
+function MediaRenderer({ media, playlistLength, rotateDeg = 0 }: { media: { id: string; name: string; type: string; url: string }; playlistLength?: number; rotateDeg?: number }) {
   const containerStyle: React.CSSProperties = {
     position: "relative",
     width: "100%",
@@ -406,7 +406,7 @@ function MediaRenderer({ media, playlistLength }: { media: { id: string; name: s
     padding: 0,
   };
 
-  const mediaStyle: React.CSSProperties = {
+  const baseMediaStyle: React.CSSProperties = {
     position: "absolute",
     top: 0, right: 0, bottom: 0, left: 0,
     width: "100%",
@@ -415,31 +415,32 @@ function MediaRenderer({ media, playlistLength }: { media: { id: string; name: s
     objectFit: "cover",
     objectPosition: "center center",
     backgroundColor: "#000",
-    ...MEDIA_LAYER_FIX,
   };
 
-  if (media.type === "image") {
+  if (media.type === "image" || media.type === "video") {
     return (
       <div style={containerStyle}>
-        <img src={media.url} alt={media.name} style={mediaStyle} />
+        <SelfRotatedMedia deg={rotateDeg}>
+          {(fix) =>
+            media.type === "image" ? (
+              <img src={media.url} alt={media.name} style={{ ...baseMediaStyle, ...fix }} />
+            ) : (
+              <video
+                key={media.id}
+                ref={audioVideoRef}
+                src={media.url}
+                style={{ ...baseMediaStyle, ...fix }}
+                autoPlay
+                loop={!playlistLength || playlistLength <= 1}
+                playsInline
+              />
+            )
+          }
+        </SelfRotatedMedia>
       </div>
     );
   }
-  if (media.type === "video") {
-    return (
-      <div style={containerStyle}>
-        <video
-          key={media.id}
-          ref={audioVideoRef}
-          src={media.url}
-          style={mediaStyle}
-          autoPlay
-          loop={!playlistLength || playlistLength <= 1}
-          playsInline
-        />
-      </div>
-    );
-  }
+  const mediaStyle: React.CSSProperties = { ...baseMediaStyle, ...MEDIA_LAYER_FIX };
   return (
     <div style={containerStyle}>
       <iframe src={media.url} style={{ ...mediaStyle, border: "none" }} allowFullScreen title={media.name} />
