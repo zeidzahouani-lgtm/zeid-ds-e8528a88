@@ -495,7 +495,9 @@ function usePlayerBranding(screenId?: string): PlayerBranding {
     bgColor: "#000000",
     watermark: "",
     showSignatureOnPlayer: false,
+    logoSize: "medium",
   });
+
 
   useEffect(() => {
     if (!screenId) return;
