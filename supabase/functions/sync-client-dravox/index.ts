@@ -56,13 +56,15 @@ Deno.serve(async (req) => {
     // Auth check
     const isServiceRole = authHeader === `Bearer ${serviceRoleKey}`;
     if (!isServiceRole) {
-      const callerClient = createClient(supabaseUrl, anonKey, {
-        global: { headers: { Authorization: authHeader } },
-      });
-      const { data: userData, error: userError } = await callerClient.auth.getUser();
-      if (userError || !userData?.user) throw new Error("Not authenticated");
+      const token = authHeader.replace(/^Bearer\s+/i, "");
+      const anonClient = createClient(supabaseUrl, anonKey);
+      const { data: claimsData, error: claimsError } = await anonClient.auth.getClaims(token);
+      const userId = claimsData?.claims?.sub as string | undefined;
+      if (claimsError || !userId) {
+        console.error("Auth claims error:", claimsError?.message);
+        throw new Error("Session expirée, veuillez vous reconnecter");
+      }
 
-      const userId = userData.user.id;
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
       const { data: roleData } = await adminClient.from("user_roles").select("role").eq("user_id", userId).eq("role", "admin");
       if (!roleData || roleData.length === 0) throw new Error("Not admin");
