@@ -19,6 +19,7 @@ interface ScreenData {
   playlist_id: string | null;
   program_id: string | null;
   show_name?: boolean;
+  allow_multi_session?: boolean;
 }
 
 interface PlaylistItem {
@@ -61,6 +62,7 @@ const SCREEN_SELECT = [
   "player_heartbeat_at",
   "pending_action",
   "establishment_id",
+  "allow_multi_session",
 ].join(", ");
 
 /** Returns the currently active schedule (media or playlist) for the current day/time. */
@@ -118,6 +120,7 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
   const schedulesRef = useRef<ScheduleRow[]>([]);
   const realScreenIdRef = useRef<string | undefined>(undefined);
   const heartbeatRef = useRef<ReturnType<typeof setInterval>>();
+  const multiSessionRef = useRef(false);
   const screenRef = useRef<ScreenData | null>(null);
   const playlistRef = useRef<PlaylistItem[]>([]);
   const currentIndexRef = useRef(0);
@@ -499,6 +502,14 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
       } as any);
 
       const claimSession = async (id: string) => {
+        if (multiSessionRef.current) {
+          const forced = await supabase
+            .from("screens")
+            .update(makeUpdatePayload())
+            .eq("id", id)
+            .select("id");
+          return !!(forced.data && forced.data.length > 0);
+        }
         let claimRes = await supabase
           .from("screens")
           .update(makeUpdatePayload())
@@ -542,10 +553,9 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
             if (playerIp) heartbeatPayload.player_ip = playerIp;
             if (playerLanIp) heartbeatPayload.player_lan_ip = playerLanIp;
 
-            const hbRes = await (supabase.from("screens").update(heartbeatPayload) as any)
-              .eq("id", realId)
-              .eq("player_session_id", SESSION_ID)
-              .select("id");
+            let hbQuery = (supabase.from("screens").update(heartbeatPayload) as any).eq("id", realId);
+            if (!multiSessionRef.current) hbQuery = hbQuery.eq("player_session_id", SESSION_ID);
+            const hbRes = await hbQuery.select("id");
 
             if (!hbRes?.data || hbRes.data.length === 0) {
               await claimSession(realId);
@@ -578,7 +588,16 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
         setLoading(false);
       };
 
+      const multiSession = !!(screenData as any).allow_multi_session;
+      multiSessionRef.current = multiSession;
+
       await claimSession(screenData.id);
+
+      if (multiSession) {
+        // Verrouillage de session désactivé : plusieurs écrans peuvent lire le même lien
+        await activateSession(screenData as ScreenData);
+        return;
+      }
 
       const { data: verifyData } = await supabase
         .from("screens")

@@ -85,7 +85,7 @@ export function useScreens() {
   });
 
   const updateScreen = useMutation({
-    mutationFn: async ({ id, ...updates }: { id: string; name?: string; slug?: string; orientation?: string; current_media_id?: string | null; status?: string; layout_id?: string | null; debug_mode?: number; resolution?: string; show_name?: boolean; os_type?: string | null; ip_address?: string | null; pending_action?: string | null }) => {
+    mutationFn: async ({ id, ...updates }: { id: string; name?: string; slug?: string; orientation?: string; current_media_id?: string | null; status?: string; layout_id?: string | null; debug_mode?: number; resolution?: string; show_name?: boolean; os_type?: string | null; ip_address?: string | null; pending_action?: string | null; allow_multi_session?: boolean }) => {
       const { error } = await supabase.from("screens").update(updates as any).eq("id", id);
       if (error) throw error;
       // Ne logger que les modifications significatives (pas les heartbeats/status)
