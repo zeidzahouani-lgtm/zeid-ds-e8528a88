@@ -9,9 +9,11 @@ export interface SeoHeadProps {
   description: string;
   path: string;
   jsonLd?: Record<string, unknown>;
+  /** Keep the page out of search results (private/per-device routes). */
+  noindex?: boolean;
 }
 
-export function SeoHead({ title, description, path, jsonLd }: SeoHeadProps) {
+export function SeoHead({ title, description, path, jsonLd, noindex }: SeoHeadProps) {
   const url = `${SITE_URL}${path}`;
 
   // Signal to global settings that this route owns the document title.
@@ -27,6 +29,7 @@ export function SeoHead({ title, description, path, jsonLd }: SeoHeadProps) {
       <title>{title}</title>
       <meta name="description" content={description} />
       <link rel="canonical" href={url} />
+      {noindex && <meta name="robots" content="noindex, follow" />}
       <meta property="og:title" content={title} />
       <meta property="og:description" content={description} />
       <meta property="og:url" content={url} />
@@ -39,6 +42,7 @@ export function SeoHead({ title, description, path, jsonLd }: SeoHeadProps) {
     </Helmet>
   );
 }
+
 
 /** Wraps a route element with its page-specific head tags. */
 export function WithSeo({ seo, children }: { seo: SeoHeadProps; children: ReactNode }) {
