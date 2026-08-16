@@ -12,6 +12,8 @@ import { useAppSettings } from "@/hooks/useAppSettings";
 import { EstablishmentProvider } from "@/contexts/EstablishmentContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import NotFound from "./pages/NotFound";
+import { WithSeo } from "@/components/SeoHead";
+
 
 const Player = lazy(() => import("./pages/Player"));
 const Login = lazy(() => import("./pages/Login"));
