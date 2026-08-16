@@ -72,8 +72,8 @@ export function useAppSettings() {
       document.documentElement.style.setProperty("--neon-violet-glow", settings.accent_color);
     }
     // Don't clobber per-route titles managed by react-helmet-async.
-    const helmetTitle = document.querySelector("title[data-rh='true']");
-    if (settings.page_title && !helmetTitle) {
+    const routeOwnsTitle = (window as unknown as { __routeHasSeoTitle?: boolean }).__routeHasSeoTitle;
+    if (settings.page_title && !routeOwnsTitle) {
       document.title = settings.page_title;
     }
 

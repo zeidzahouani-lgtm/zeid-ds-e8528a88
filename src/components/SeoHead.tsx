@@ -1,4 +1,5 @@
 import { Helmet } from "react-helmet-async";
+import { useEffect } from "react";
 import type { ReactNode } from "react";
 
 const SITE_URL = "https://screenflow-ds.com";
@@ -12,6 +13,15 @@ export interface SeoHeadProps {
 
 export function SeoHead({ title, description, path, jsonLd }: SeoHeadProps) {
   const url = `${SITE_URL}${path}`;
+
+  // Signal to global settings that this route owns the document title.
+  useEffect(() => {
+    (window as unknown as { __routeHasSeoTitle?: boolean }).__routeHasSeoTitle = true;
+    return () => {
+      (window as unknown as { __routeHasSeoTitle?: boolean }).__routeHasSeoTitle = false;
+    };
+  }, []);
+
   return (
     <Helmet>
       <title>{title}</title>
