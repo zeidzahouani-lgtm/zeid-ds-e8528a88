@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAutoLogout } from "@/hooks/useAutoLogout";
@@ -12,7 +12,7 @@ import { useAppSettings } from "@/hooks/useAppSettings";
 import { EstablishmentProvider } from "@/contexts/EstablishmentContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import NotFound from "./pages/NotFound";
-import { WithSeo } from "@/components/SeoHead";
+import { WithSeo, SeoHead } from "@/components/SeoHead";
 
 
 const Player = lazy(() => import("./pages/Player"));
