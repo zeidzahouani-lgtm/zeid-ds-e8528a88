@@ -399,6 +399,13 @@ export default function UploadPage() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <SeoHead
+        title="Envoi de contenu sur écran — ScreenFlow by Dravox"
+        description="Page sécurisée d'envoi de contenu : saisissez votre code d'accès pour publier une image ou une vidéo sur l'écran d'affichage dynamique associé."
+        path={`/upload/${screenId ?? ""}`}
+        noindex
+      />
+
       <Card className={`w-full ${mode === "grid" && step === "upload" ? "max-w-2xl" : "max-w-md"}`}>
 
         {step === "code" && (
