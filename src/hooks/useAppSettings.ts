@@ -71,9 +71,12 @@ export function useAppSettings() {
       document.documentElement.style.setProperty("--neon-violet", settings.accent_color);
       document.documentElement.style.setProperty("--neon-violet-glow", settings.accent_color);
     }
-    if (settings.page_title) {
+    // Don't clobber per-route titles managed by react-helmet-async.
+    const helmetTitle = document.querySelector("title[data-rh='true']");
+    if (settings.page_title && !helmetTitle) {
       document.title = settings.page_title;
     }
+
     if (settings.favicon_url) {
       let link = document.querySelector("link[rel='icon']") as HTMLLinkElement;
       if (!link) {
