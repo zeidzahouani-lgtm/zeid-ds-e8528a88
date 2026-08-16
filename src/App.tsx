@@ -74,6 +74,23 @@ function AppSettingsProvider({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Player route with per-screen head tags (private device pages: noindex). */
+function PlayerRoute() {
+  const { id } = useParams<{ id: string }>();
+  return (
+    <>
+      <SeoHead
+        title={`Player ${id ?? ""} — ScreenFlow by Dravox`}
+        description={`Diffusion en direct du contenu programmé sur l'écran ${id ?? ""} via ScreenFlow by Dravox.`}
+        path={`/player/${id ?? ""}`}
+        noindex
+      />
+      <Player />
+    </>
+  );
+}
+
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
