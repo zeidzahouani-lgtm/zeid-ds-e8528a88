@@ -89,10 +89,11 @@ const App = () => (
               <Route path="/forgot-password" element={<WithSeo seo={{ title: "Mot de passe oublié — ScreenFlow by Dravox", description: "Réinitialisez le mot de passe de votre compte ScreenFlow by Dravox en quelques étapes.", path: "/forgot-password" }}><ForgotPassword /></WithSeo>} />
               <Route path="/manual" element={<PublicManual />} />
 
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/player/:id" element={<Player />} />
-              <Route path="/:id" element={<Player />} />
+              <Route path="/reset-password" element={<WithSeo seo={{ title: "Nouveau mot de passe — ScreenFlow by Dravox", description: "Définissez un nouveau mot de passe pour votre compte ScreenFlow by Dravox.", path: "/reset-password", noindex: true }}><ResetPassword /></WithSeo>} />
+              <Route path="/player/:id" element={<PlayerRoute />} />
+              <Route path="/:id" element={<PlayerRoute />} />
               <Route path="/upload/:id" element={<UploadPage />} />
+
               <Route path="/assign-license/:screenId" element={<ProtectedRoute><AssignLicense /></ProtectedRoute>} />
               <Route path="/admin/first-login" element={<FirstAdminLogin />} />
               <Route path="/__compat-test" element={<CompatTest />} />
