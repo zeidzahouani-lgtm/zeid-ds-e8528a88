@@ -1177,6 +1177,7 @@ export type Database = {
       }
       screens: {
         Row: {
+          allow_multi_session: boolean
           created_at: string
           current_media_id: string | null
           debug_mode: number
@@ -1208,6 +1209,7 @@ export type Database = {
           wall_row: number | null
         }
         Insert: {
+          allow_multi_session?: boolean
           created_at?: string
           current_media_id?: string | null
           debug_mode?: number
@@ -1239,6 +1241,7 @@ export type Database = {
           wall_row?: number | null
         }
         Update: {
+          allow_multi_session?: boolean
           created_at?: string
           current_media_id?: string | null
           debug_mode?: number
@@ -1486,6 +1489,7 @@ export type Database = {
       resolve_player_screen: {
         Args: { _screen_key: string }
         Returns: {
+          allow_multi_session: boolean
           current_media_id: string
           debug_mode: number
           establishment_id: string
