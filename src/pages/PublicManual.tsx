@@ -10,6 +10,8 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { useRef } from "react";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
+import { SeoHead } from "@/components/SeoHead";
+
 
 import screenshotLogin from "@/assets/screenshots/login-screen.png";
 import screenshotScreens from "@/assets/screenshots/screens-management.png";
