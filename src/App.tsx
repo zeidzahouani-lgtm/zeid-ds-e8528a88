@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAutoLogout } from "@/hooks/useAutoLogout";
@@ -12,7 +12,7 @@ import { useAppSettings } from "@/hooks/useAppSettings";
 import { EstablishmentProvider } from "@/contexts/EstablishmentContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import NotFound from "./pages/NotFound";
-import { WithSeo } from "@/components/SeoHead";
+import { WithSeo, SeoHead } from "@/components/SeoHead";
 
 
 const Player = lazy(() => import("./pages/Player"));
@@ -74,6 +74,23 @@ function AppSettingsProvider({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Player route with per-screen head tags (private device pages: noindex). */
+function PlayerRoute() {
+  const { id } = useParams<{ id: string }>();
+  return (
+    <>
+      <SeoHead
+        title={`Player ${id ?? ""} — ScreenFlow by Dravox`}
+        description={`Diffusion en direct du contenu programmé sur l'écran ${id ?? ""} via ScreenFlow by Dravox.`}
+        path={`/player/${id ?? ""}`}
+        noindex
+      />
+      <Player />
+    </>
+  );
+}
+
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
@@ -89,10 +106,11 @@ const App = () => (
               <Route path="/forgot-password" element={<WithSeo seo={{ title: "Mot de passe oublié — ScreenFlow by Dravox", description: "Réinitialisez le mot de passe de votre compte ScreenFlow by Dravox en quelques étapes.", path: "/forgot-password" }}><ForgotPassword /></WithSeo>} />
               <Route path="/manual" element={<PublicManual />} />
 
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/player/:id" element={<Player />} />
-              <Route path="/:id" element={<Player />} />
+              <Route path="/reset-password" element={<WithSeo seo={{ title: "Nouveau mot de passe — ScreenFlow by Dravox", description: "Définissez un nouveau mot de passe pour votre compte ScreenFlow by Dravox.", path: "/reset-password", noindex: true }}><ResetPassword /></WithSeo>} />
+              <Route path="/player/:id" element={<PlayerRoute />} />
+              <Route path="/:id" element={<PlayerRoute />} />
               <Route path="/upload/:id" element={<UploadPage />} />
+
               <Route path="/assign-license/:screenId" element={<ProtectedRoute><AssignLicense /></ProtectedRoute>} />
               <Route path="/admin/first-login" element={<FirstAdminLogin />} />
               <Route path="/__compat-test" element={<CompatTest />} />
