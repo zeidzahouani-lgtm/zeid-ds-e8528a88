@@ -82,10 +82,11 @@ const App = () => (
         <BrowserRouter>
           <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-pulse text-muted-foreground">Chargement...</div></div>}>
             <Routes>
-              <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-              <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/login" element={<PublicRoute><WithSeo seo={{ title: "Connexion — ScreenFlow by Dravox", description: "Connectez-vous à ScreenFlow by Dravox pour piloter vos écrans d'affichage dynamique, vos playlists et vos programmations.", path: "/login" }}><Login /></WithSeo></PublicRoute>} />
+              <Route path="/register" element={<PublicRoute><WithSeo seo={{ title: "Demande de compte — ScreenFlow by Dravox", description: "Demandez la création d'un compte ScreenFlow by Dravox pour gérer l'affichage dynamique de votre établissement.", path: "/register" }}><Register /></WithSeo></PublicRoute>} />
+              <Route path="/forgot-password" element={<WithSeo seo={{ title: "Mot de passe oublié — ScreenFlow by Dravox", description: "Réinitialisez le mot de passe de votre compte ScreenFlow by Dravox en quelques étapes.", path: "/forgot-password" }}><ForgotPassword /></WithSeo>} />
               <Route path="/manual" element={<PublicManual />} />
+
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/player/:id" element={<Player />} />
               <Route path="/:id" element={<Player />} />
