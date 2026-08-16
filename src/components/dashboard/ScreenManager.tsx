@@ -3,7 +3,7 @@ import ScreenDetailDialog from "@/components/dashboard/ScreenDetailDialog";
 import { QuickPlaylistDialog } from "@/components/dashboard/QuickPlaylistDialog";
 import { VideoWallDialog } from "@/components/dashboard/VideoWallDialog";
 import { WallConfigDialog } from "@/components/dashboard/WallConfigDialog";
-import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock, RefreshCw, Tv, Power, Eye, ShieldAlert, ShieldOff, Bug, AlertTriangle, Sparkles, Grid3x3, Settings, Type } from "lucide-react";
+import { Monitor, Plus, Trash2, RotateCcw, Wifi, WifiOff, ExternalLink, LayoutGrid, ListMusic, Image, Smartphone, Laptop, Tablet, CalendarClock, RefreshCw, Tv, Power, Eye, ShieldAlert, ShieldOff, Bug, AlertTriangle, Sparkles, Grid3x3, Settings, Type, Copy } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,7 +84,7 @@ export function ScreenManager() {
   const { layouts } = useLayouts();
   const { playlists } = usePlaylists();
   const { programs } = usePrograms();
-  const { currentEstablishmentId } = useEstablishmentContext();
+  const { currentEstablishmentId, isGlobalAdmin } = useEstablishmentContext();
   const queryClient = useQueryClient();
   const screenIds = useMemo(() => screens.map((s: any) => s.id), [screens]);
   const { data: licenseStatuses } = useScreenLicenses(screenIds);
@@ -650,6 +650,29 @@ export function ScreenManager() {
                   >
                     <Type className="h-4 w-4" />
                   </Button>
+                  {isGlobalAdmin && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      title={((screen as any).allow_multi_session ?? false)
+                        ? "Lien partagé activé : plusieurs écrans peuvent lire ce lien (cliquer pour désactiver)"
+                        : "Autoriser la lecture de ce lien sur plusieurs écrans (désactive la vérification de session unique)"}
+                      className={((screen as any).allow_multi_session ?? false) ? "text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10" : ""}
+                      onClick={async () => {
+                        const next = !((screen as any).allow_multi_session ?? false);
+                        try {
+                          await updateScreen.mutateAsync({ id: screen.id, allow_multi_session: next } as any);
+                          toast.success(next
+                            ? "Lecture multi-écrans activée pour ce lien"
+                            : "Session unique rétablie pour ce lien");
+                        } catch {
+                          toast.error("Erreur lors de la mise à jour");
+                        }
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="destructive"
                     size="icon"
