@@ -56,6 +56,20 @@ const sections = [
   { id: "admin", title: "8. Administration", icon: Settings, screenshot: screenshotAdmin, screenshotAlt: "Panneau d'administration", steps: ["Gérez les utilisateurs et rôles.", "Configurez les établissements.", "Gérez les licences.", "Personnalisez l'apparence."] },
 ];
 
+const howToJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  name: "Manuel d'utilisation ScreenFlow by Dravox",
+  description:
+    "Guide pas à pas pour installer ScreenFlow, configurer vos écrans, gérer vos médias, créer des layouts et programmer vos diffusions.",
+  step: sections.map((s, i) => ({
+    "@type": "HowToStep",
+    position: i + 1,
+    name: s.title,
+    itemListElement: s.steps.map((text) => ({ "@type": "HowToDirection", text })),
+  })),
+};
+
 export default function PublicManual() {
   const manualRef = useRef<HTMLDivElement>(null);
 
@@ -65,7 +79,14 @@ export default function PublicManual() {
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
+      <SeoHead
+        title="Manuel d'utilisation — ScreenFlow by Dravox"
+        description="Guide complet ScreenFlow by Dravox : installation, configuration des écrans, gestion des médias, layouts, programmation et assistant IA."
+        path="/manual"
+        jsonLd={howToJsonLd}
+      />
       <AnimatedBackground />
+
       <div className="relative z-10 max-w-4xl mx-auto px-4 py-8 space-y-6">
         <div className="flex items-center justify-between">
           <Link to="/login">
