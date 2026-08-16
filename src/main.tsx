@@ -8,6 +8,7 @@ if (typeof window !== "undefined" && typeof (window as any).ResizeObserver === "
 }
 
 import { createRoot } from "react-dom/client";
+import { HelmetProvider } from "react-helmet-async";
 import App from "./App.tsx";
 import "./index.css";
 import { applyLegacyWebViewCompat } from "./lib/legacy-webview";
@@ -16,4 +17,9 @@ import { applyLegacyWebViewCompat } from "./lib/legacy-webview";
 // and inject CSS shims BEFORE React mounts, so the very first paint is correct.
 applyLegacyWebViewCompat();
 
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(
+  <HelmetProvider>
+    <App />
+  </HelmetProvider>,
+);
+
