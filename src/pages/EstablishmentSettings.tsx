@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,29 +9,19 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import { useEstablishmentSettings } from "@/hooks/useEstablishmentSettings";
+import { useEstablishments } from "@/hooks/useEstablishments";
 import BrandingTab from "@/components/settings/BrandingTab";
 
 export default function EstablishmentSettings() {
   const { currentEstablishmentId, isEstablishmentAdmin, isMarketing, memberships } = useEstablishmentContext();
   const { settings, isLoading, getSetting, upsertSetting } = useEstablishmentSettings();
+  const { establishments } = useEstablishments();
 
   const currentEst = memberships.find(m => m.establishment_id === currentEstablishmentId);
-
-  // Fallback: global admins (or users without membership rows) still need the name
-  const { data: fetchedEst } = useQuery({
-    queryKey: ["establishment_name", currentEstablishmentId],
-    enabled: !!currentEstablishmentId && !currentEst,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("establishments")
-        .select("id, name")
-        .eq("id", currentEstablishmentId!)
-        .maybeSingle();
-      return data;
-    },
-  });
-
-  const establishmentName = currentEst?.establishment?.name || fetchedEst?.name || "Établissement";
+  const selectedEstablishment = establishments.find(establishment => establishment.id === currentEstablishmentId);
+  // Use the same establishment list as the switcher. A membership row may exist
+  // while its joined establishment is absent, so it must not disable the fallback.
+  const establishmentName = currentEst?.establishment?.name || selectedEstablishment?.name || "Établissement";
 
   // Email & AI local state
   const [smtpHost, setSmtpHost] = useState("");
