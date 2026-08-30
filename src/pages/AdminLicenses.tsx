@@ -41,11 +41,22 @@ export default function AdminLicenses() {
     }
   }, [screenFromQR]);
 
-  // Filter screens by selected establishment for creation form
+  // Screens already covered by a license (active or not, non expired assignment)
+  const licensedScreenIds = useMemo(() => {
+    const map = new Map<string, string>(); // screen_id -> license_id
+    for (const l of licenses) {
+      if (l.screen_id) map.set(l.screen_id, l.id);
+    }
+    return map;
+  }, [licenses]);
+
+  // Filter screens by selected establishment for creation form (exclude already licensed)
   const filteredScreensForCreate = useMemo(() => {
-    if (!selectedEstablishment || selectedEstablishment === "none") return screens;
-    return screens.filter((s: any) => s.establishment_id === selectedEstablishment);
-  }, [screens, selectedEstablishment]);
+    const base = (!selectedEstablishment || selectedEstablishment === "none")
+      ? screens
+      : screens.filter((s: any) => s.establishment_id === selectedEstablishment);
+    return base.filter((s: any) => !licensedScreenIds.has(s.id));
+  }, [screens, selectedEstablishment, licensedScreenIds]);
 
   // Reset screen selection when establishment changes
   useEffect(() => {
@@ -55,11 +66,17 @@ export default function AdminLicenses() {
     }
   }, [selectedEstablishment, filteredScreensForCreate]);
 
-  // Get screens filtered by a license's establishment
+  // Get screens filtered by a license's establishment, excluding screens already licensed
   const getScreensForLicense = (license: any) => {
-    if (!license.establishment_id) return screens;
-    return screens.filter((s: any) => s.establishment_id === license.establishment_id);
+    const base = !license.establishment_id
+      ? screens
+      : screens.filter((s: any) => s.establishment_id === license.establishment_id);
+    return base.filter((s: any) => {
+      const holder = licensedScreenIds.get(s.id);
+      return !holder || holder === license.id;
+    });
   };
+
 
   const handleCreate = async () => {
     setCreating(true);
