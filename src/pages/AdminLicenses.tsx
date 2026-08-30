@@ -276,12 +276,18 @@ export default function AdminLicenses() {
                                     <Calendar className="h-3 w-3" />
                                     Expire: {new Date(license.valid_until).toLocaleDateString("fr-FR")}
                                   </span>
-                                  {screenName && (
-                                    <span className="flex items-center gap-1">
-                                      <Monitor className="h-3 w-3" />
-                                      {screenName}
-                                    </span>
+                                  {license.screen_id ? (
+                                    <Badge variant="outline" className="text-[10px] gap-1 border-status-online/40 text-status-online">
+                                      <Monitor className="h-2.5 w-2.5" />
+                                      {screenName || "Écran inconnu"}
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-[10px] gap-1 border-destructive text-destructive font-semibold">
+                                      <Monitor className="h-2.5 w-2.5" />
+                                      Aucun écran affecté
+                                    </Badge>
                                   )}
+
                                   {license.establishment_name && (
                                     <Badge variant="outline" className="text-[10px] gap-1">
                                       <Building2 className="h-2.5 w-2.5" />
