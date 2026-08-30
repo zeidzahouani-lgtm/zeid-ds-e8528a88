@@ -346,8 +346,14 @@ export default function AdminLicenses() {
                               )}
                               {!license.screen_id && (
                                 <Select onValueChange={(val) => {
-                                  if (val) assignScreen.mutate({ id: license.id, screen_id: val });
+                                  if (!val) return;
+                                  if (licensedScreenIds.has(val)) {
+                                    toast.error("Cet écran possède déjà une licence");
+                                    return;
+                                  }
+                                  assignScreen.mutate({ id: license.id, screen_id: val });
                                 }}>
+
                                   <SelectTrigger className="w-[140px] h-8 text-xs">
                                     <SelectValue placeholder="Assigner..." />
                                   </SelectTrigger>
