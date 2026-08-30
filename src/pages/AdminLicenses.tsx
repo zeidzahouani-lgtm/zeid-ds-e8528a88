@@ -321,8 +321,9 @@ export default function AdminLicenses() {
                                 <Badge variant="secondary" className="text-[10px]">Désactivée</Badge>
                               )}
                               {!license.screen_id && (
-                                <Badge variant="outline" className="text-[10px]">Non assignée</Badge>
+                                <Badge variant="destructive" className="text-[10px]">Non assignée</Badge>
                               )}
+
                             </div>
 
                             {/* Actions */}
