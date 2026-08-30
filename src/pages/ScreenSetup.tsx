@@ -736,11 +736,28 @@ export default function ScreenSetup() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">URLs de vos écrans</CardTitle>
-          <CardDescription>
-            Copiez l'URL complète de l'écran à configurer et collez-la dans le navigateur de votre appareil
-          </CardDescription>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <CardTitle className="text-base">URLs de vos écrans</CardTitle>
+              <CardDescription>
+                Copiez l'URL complète de l'écran à configurer et collez-la dans le navigateur de votre appareil
+              </CardDescription>
+            </div>
+            {screens && screens.length > 0 && (
+              <div className="flex items-center gap-2">
+                <CopyButton
+                  text={screens.map((s: any) => `${playerBase}${s.slug || s.id}`).join("\n")}
+                  label={`Copier tous les liens (${screens.length})`}
+                />
+                <CopyButton
+                  text={screens.map((s: any) => `${s.name}\t${playerBase}${s.slug || s.id}`).join("\n")}
+                  label="Copier avec noms"
+                />
+              </div>
+            )}
+          </div>
         </CardHeader>
+
         <CardContent className="space-y-3">
           {screens && screens.length > 0 ? (
             screens.map((s: any) => (
