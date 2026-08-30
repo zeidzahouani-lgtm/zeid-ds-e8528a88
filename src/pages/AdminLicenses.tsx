@@ -79,8 +79,13 @@ export default function AdminLicenses() {
 
 
   const handleCreate = async () => {
+    if (selectedScreen && selectedScreen !== "none" && licensedScreenIds.has(selectedScreen)) {
+      toast.error("Cet écran possède déjà une licence");
+      return;
+    }
     setCreating(true);
     try {
+
       await createLicense.mutateAsync({
         screenId: selectedScreen && selectedScreen !== "none" ? selectedScreen : undefined,
         durationDays: parseInt(durationDays) || 365,
