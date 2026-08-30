@@ -41,11 +41,22 @@ export default function AdminLicenses() {
     }
   }, [screenFromQR]);
 
-  // Filter screens by selected establishment for creation form
+  // Screens already covered by a license (active or not, non expired assignment)
+  const licensedScreenIds = useMemo(() => {
+    const map = new Map<string, string>(); // screen_id -> license_id
+    for (const l of licenses) {
+      if (l.screen_id) map.set(l.screen_id, l.id);
+    }
+    return map;
+  }, [licenses]);
+
+  // Filter screens by selected establishment for creation form (exclude already licensed)
   const filteredScreensForCreate = useMemo(() => {
-    if (!selectedEstablishment || selectedEstablishment === "none") return screens;
-    return screens.filter((s: any) => s.establishment_id === selectedEstablishment);
-  }, [screens, selectedEstablishment]);
+    const base = (!selectedEstablishment || selectedEstablishment === "none")
+      ? screens
+      : screens.filter((s: any) => s.establishment_id === selectedEstablishment);
+    return base.filter((s: any) => !licensedScreenIds.has(s.id));
+  }, [screens, selectedEstablishment, licensedScreenIds]);
 
   // Reset screen selection when establishment changes
   useEffect(() => {
@@ -55,15 +66,26 @@ export default function AdminLicenses() {
     }
   }, [selectedEstablishment, filteredScreensForCreate]);
 
-  // Get screens filtered by a license's establishment
+  // Get screens filtered by a license's establishment, excluding screens already licensed
   const getScreensForLicense = (license: any) => {
-    if (!license.establishment_id) return screens;
-    return screens.filter((s: any) => s.establishment_id === license.establishment_id);
+    const base = !license.establishment_id
+      ? screens
+      : screens.filter((s: any) => s.establishment_id === license.establishment_id);
+    return base.filter((s: any) => {
+      const holder = licensedScreenIds.get(s.id);
+      return !holder || holder === license.id;
+    });
   };
 
+
   const handleCreate = async () => {
+    if (selectedScreen && selectedScreen !== "none" && licensedScreenIds.has(selectedScreen)) {
+      toast.error("Cet écran possède déjà une licence");
+      return;
+    }
     setCreating(true);
     try {
+
       await createLicense.mutateAsync({
         screenId: selectedScreen && selectedScreen !== "none" ? selectedScreen : undefined,
         durationDays: parseInt(durationDays) || 365,
@@ -259,12 +281,18 @@ export default function AdminLicenses() {
                                     <Calendar className="h-3 w-3" />
                                     Expire: {new Date(license.valid_until).toLocaleDateString("fr-FR")}
                                   </span>
-                                  {screenName && (
-                                    <span className="flex items-center gap-1">
-                                      <Monitor className="h-3 w-3" />
-                                      {screenName}
-                                    </span>
+                                  {license.screen_id ? (
+                                    <Badge variant="outline" className="text-[10px] gap-1 border-status-online/40 text-status-online">
+                                      <Monitor className="h-2.5 w-2.5" />
+                                      {screenName || "Écran inconnu"}
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-[10px] gap-1 border-destructive text-destructive font-semibold">
+                                      <Monitor className="h-2.5 w-2.5" />
+                                      Aucun écran affecté
+                                    </Badge>
                                   )}
+
                                   {license.establishment_name && (
                                     <Badge variant="outline" className="text-[10px] gap-1">
                                       <Building2 className="h-2.5 w-2.5" />
@@ -298,8 +326,9 @@ export default function AdminLicenses() {
                                 <Badge variant="secondary" className="text-[10px]">Désactivée</Badge>
                               )}
                               {!license.screen_id && (
-                                <Badge variant="outline" className="text-[10px]">Non assignée</Badge>
+                                <Badge variant="destructive" className="text-[10px]">Non assignée</Badge>
                               )}
+
                             </div>
 
                             {/* Actions */}
@@ -317,8 +346,14 @@ export default function AdminLicenses() {
                               )}
                               {!license.screen_id && (
                                 <Select onValueChange={(val) => {
-                                  if (val) assignScreen.mutate({ id: license.id, screen_id: val });
+                                  if (!val) return;
+                                  if (licensedScreenIds.has(val)) {
+                                    toast.error("Cet écran possède déjà une licence");
+                                    return;
+                                  }
+                                  assignScreen.mutate({ id: license.id, screen_id: val });
                                 }}>
+
                                   <SelectTrigger className="w-[140px] h-8 text-xs">
                                     <SelectValue placeholder="Assigner..." />
                                   </SelectTrigger>
