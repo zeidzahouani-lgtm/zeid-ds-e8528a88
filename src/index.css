@@ -7,49 +7,49 @@
 @layer base {
   :root {
     /* === MODERN LIGHT BRIGHT === */
-    --background: 220 20% 97%;
-    --foreground: 220 30% 12%;
+    --background: 220 25% 98%;
+    --foreground: 222 32% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 30% 12%;
+    --card-foreground: 222 32% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 30% 12%;
+    --popover-foreground: 222 32% 12%;
 
-    --primary: 210 85% 50%;
+    --primary: 217 91% 53%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 18% 93%;
+    --secondary: 220 20% 94%;
     --secondary-foreground: 220 25% 22%;
 
-    --muted: 220 16% 94%;
-    --muted-foreground: 220 12% 40%;
+    --muted: 220 16% 95%;
+    --muted-foreground: 220 12% 42%;
 
-    --accent: 174 60% 40%;
+    --accent: 174 62% 38%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 14% 88%;
-    --input: 220 14% 88%;
-    --ring: 210 85% 50%;
+    --border: 220 16% 89%;
+    --input: 220 16% 89%;
+    --ring: 217 91% 53%;
 
     --radius: 0.75rem;
 
     /* Gradient tokens */
-    --gradient-start: 210 85% 50%;
-    --gradient-end: 174 60% 40%;
+    --gradient-start: 217 91% 55%;
+    --gradient-end: 190 90% 40%;
 
     /* Sidebar */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 220 20% 32%;
-    --sidebar-primary: 210 85% 50%;
+    --sidebar-primary: 217 91% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 174 60% 40%;
+    --sidebar-accent: 174 62% 38%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 220 14% 90%;
-    --sidebar-ring: 210 85% 50%;
+    --sidebar-border: 220 16% 90%;
+    --sidebar-ring: 217 91% 53%;
 
     /* Status */
     --status-online: 152 65% 38%;
@@ -115,15 +115,16 @@
   body {
     @apply bg-background text-foreground antialiased;
     min-height: 100vh;
-  }
-
-  /* Light body (default) */
-  body {
-    background: hsl(220 20% 97%);
+    background: hsl(var(--background));
+    transition: background-color 0.3s ease, color 0.2s ease;
   }
 
   .dark body {
     background: linear-gradient(145deg, hsl(225 30% 8%) 0%, hsl(228 32% 6%) 50%, hsl(225 30% 8%) 100%);
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.18);
   }
 
   h1, h2, h3, h4, h5, h6 {
