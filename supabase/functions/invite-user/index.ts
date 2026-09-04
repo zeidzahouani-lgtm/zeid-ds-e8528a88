@@ -233,15 +233,18 @@ Deno.serve(async (req) => {
       if (!establishmentId || !callerUserId) {
         throw new Error("Établissement requis pour créer un compte marketing");
       }
-      // Verify caller is member of this establishment
+      // Verify caller is admin of this establishment
       const { data: membership } = await adminClient
         .from("user_establishments")
-        .select("id")
+        .select("id, role")
         .eq("user_id", callerUserId)
         .eq("establishment_id", establishmentId)
         .maybeSingle();
       if (!membership) {
         throw new Error("Vous n'êtes pas membre de cet établissement");
+      }
+      if (membership.role !== "admin") {
+        throw new Error("Seul un admin de l'établissement peut inviter des membres");
       }
     }
 
