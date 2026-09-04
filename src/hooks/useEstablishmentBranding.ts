@@ -93,10 +93,15 @@ export function useEstablishmentBranding() {
     }
 
     // --- Background: derive a full contrast-safe palette ---
+    // The app theme always wins: a dark brand background is only applied in
+    // dark mode, a light one only in light mode. Otherwise light mode would
+    // turn dark (unreadable black fields) and vice versa.
     if (bgColor) {
       const c = hexToHsl(bgColor);
-      if (c) {
-        const dark = c.l < 50;
+      const brandIsDark = c ? c.l < 50 : false;
+      const appIsDark = theme === "dark";
+      if (c && brandIsDark === appIsDark) {
+        const dark = appIsDark;
         const fg = dark ? hslStr(220, 15, 93) : hslStr(222, 32, 12);
         const mutedFg = dark ? hslStr(220, 12, 66) : hslStr(220, 12, 42);
         const lift = (dl: number, ds = 0) =>
