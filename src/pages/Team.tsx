@@ -177,6 +177,10 @@ export default function Team() {
   });
 
   const handleInvite = async () => {
+    if (!isEstablishmentAdmin) {
+      toast({ title: "Non autorisé", description: "Seul un admin de l'établissement peut inviter des membres.", variant: "destructive" });
+      return;
+    }
     if (!email || !password) {
       toast({ title: "Champs requis", description: "Email et mot de passe sont obligatoires.", variant: "destructive" });
       return;
