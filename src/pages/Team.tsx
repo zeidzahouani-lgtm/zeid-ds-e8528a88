@@ -23,7 +23,7 @@ interface TeamMember {
 }
 
 export default function Team() {
-  const { currentEstablishmentId, isGlobalAdmin } = useEstablishmentContext();
+  const { currentEstablishmentId, isGlobalAdmin, isEstablishmentAdmin } = useEstablishmentContext();
   const queryClient = useQueryClient();
 
   const [showInvite, setShowInvite] = useState(false);
@@ -244,11 +244,13 @@ export default function Team() {
           <h1 className="text-xl sm:text-2xl font-bold text-foreground">Équipe</h1>
           <p className="text-sm text-muted-foreground mt-1">Gérez les membres marketing de votre établissement</p>
         </div>
-        <Button onClick={() => setShowInvite(true)} className="gap-2" size="sm">
-          <UserPlus className="h-4 w-4" />
-          <span className="hidden sm:inline">Inviter un marketing</span>
-          <span className="sm:hidden">Inviter</span>
-        </Button>
+        {isEstablishmentAdmin && (
+          <Button onClick={() => setShowInvite(true)} className="gap-2" size="sm">
+            <UserPlus className="h-4 w-4" />
+            <span className="hidden sm:inline">Inviter un marketing</span>
+            <span className="sm:hidden">Inviter</span>
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
