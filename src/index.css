@@ -61,49 +61,49 @@
   }
 
   .dark {
-    --background: 225 30% 8%;
-    --foreground: 220 15% 92%;
+    --background: 226 34% 8%;
+    --foreground: 220 18% 93%;
 
-    --card: 225 28% 11%;
-    --card-foreground: 220 15% 92%;
+    --card: 226 30% 11%;
+    --card-foreground: 220 18% 93%;
 
-    --popover: 225 28% 12%;
-    --popover-foreground: 220 15% 92%;
+    --popover: 226 30% 12%;
+    --popover-foreground: 220 18% 93%;
 
-    --primary: 210 85% 62%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 217 91% 65%;
+    --primary-foreground: 226 40% 8%;
 
-    --secondary: 225 22% 16%;
-    --secondary-foreground: 220 15% 85%;
+    --secondary: 226 24% 16%;
+    --secondary-foreground: 220 15% 87%;
 
-    --muted: 225 20% 14%;
-    --muted-foreground: 220 10% 62%;
+    --muted: 226 22% 14%;
+    --muted-foreground: 220 12% 64%;
 
-    --accent: 174 55% 52%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 190 85% 50%;
+    --accent-foreground: 226 40% 8%;
 
-    --destructive: 0 70% 55%;
+    --destructive: 0 72% 58%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 225 18% 18%;
-    --input: 225 18% 18%;
-    --ring: 210 85% 62%;
+    --border: 226 20% 19%;
+    --input: 226 20% 19%;
+    --ring: 217 91% 65%;
 
-    --gradient-start: 210 85% 62%;
-    --gradient-end: 174 55% 52%;
+    --gradient-start: 217 91% 65%;
+    --gradient-end: 190 85% 52%;
 
-    --sidebar-background: 225 30% 6%;
-    --sidebar-foreground: 220 12% 72%;
-    --sidebar-primary: 210 85% 62%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 174 55% 52%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 225 18% 14%;
-    --sidebar-ring: 210 85% 62%;
+    --sidebar-background: 226 34% 6%;
+    --sidebar-foreground: 220 14% 74%;
+    --sidebar-primary: 217 91% 65%;
+    --sidebar-primary-foreground: 226 40% 8%;
+    --sidebar-accent: 190 85% 50%;
+    --sidebar-accent-foreground: 226 40% 8%;
+    --sidebar-border: 226 20% 15%;
+    --sidebar-ring: 217 91% 65%;
 
     --status-online: 152 75% 48%;
     --status-offline: 0 0% 45%;
-    --surface-elevated: 225 25% 13%;
+    --surface-elevated: 226 26% 14%;
   }
 }
 
