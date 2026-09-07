@@ -137,6 +137,43 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
         .order("position", { ascending: true });
       return (data ?? []) as PlaylistItem[];
     }
+
+    // Program default content (shown outside of scheduled slots)
+    if (screenData.program_id) {
+      const { data: prog } = await supabase
+        .from("programs")
+        .select("default_media_id, default_playlist_id")
+        .eq("id", screenData.program_id)
+        .maybeSingle();
+      const p = prog as any;
+      if (p?.default_playlist_id) {
+        const { data } = await supabase
+          .from("playlist_items")
+          .select(`id, media_id, playlist_id, position, duration, media:media_id(${MEDIA_SELECT})`)
+          .eq("playlist_id", p.default_playlist_id)
+          .order("position", { ascending: true });
+        if (data && data.length > 0) return data as PlaylistItem[];
+      }
+      if (p?.default_media_id) {
+        const { data } = await supabase
+          .from("media")
+          .select(MEDIA_SELECT)
+          .eq("id", p.default_media_id)
+          .maybeSingle();
+        if (data) {
+          return [
+            {
+              id: `default-${(data as any).id}`,
+              media_id: (data as any).id,
+              position: 0,
+              duration: (data as any).duration ?? 10,
+              media: data as MediaData,
+            } as unknown as PlaylistItem,
+          ];
+        }
+      }
+    }
+
     const { data } = await supabase
       .from("playlist_items")
       .select(`id, media_id, screen_id, position, duration, media:media_id(${MEDIA_SELECT})`)
@@ -144,6 +181,7 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
       .order("position", { ascending: true });
     return (data ?? []) as PlaylistItem[];
   }, []);
+
 
   const fetchSchedules = useCallback(async (screenData: ScreenData) => {
     let rows: any[] = [];
