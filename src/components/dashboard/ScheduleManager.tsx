@@ -16,11 +16,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ScheduleCalendar } from "./ScheduleCalendar";
 import { EstablishmentAssignSelect } from "@/components/EstablishmentAssignSelect";
+import { ProgramWizard } from "./ProgramWizard";
 
 const DAYS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 
 export function ScheduleManager() {
-  const { programs, isLoading: loadingPrograms, addProgram, deleteProgram, assignEstablishment } = usePrograms();
+  const { programs, isLoading: loadingPrograms, addProgram, deleteProgram, assignEstablishment, setDefaultContent } = usePrograms();
   const { media } = useMedia();
   const { screens } = useScreens();
   const { playlists } = usePlaylists();
@@ -52,6 +53,40 @@ export function ScheduleManager() {
     } catch {
       toast.error("Erreur");
     }
+  };
+
+  const currentProgram: any = programs.find((p) => p.id === selectedProgram);
+  const defaultKind: "none" | "media" | "playlist" = currentProgram?.default_playlist_id
+    ? "playlist"
+    : currentProgram?.default_media_id
+    ? "media"
+    : "none";
+
+  const handleWizardFinish = async (data: any) => {
+    const program = await addProgram.mutateAsync(data.name);
+    if (!program?.id) throw new Error("Programme non créé");
+    if (data.defaultMediaId || data.defaultPlaylistId) {
+      await setDefaultContent.mutateAsync({
+        id: program.id,
+        mediaId: data.defaultMediaId,
+        playlistId: data.defaultPlaylistId,
+      });
+    }
+    if (data.slot) {
+      const { error } = await supabase.from("schedules").insert({
+        program_id: program.id,
+        media_id: data.slot.mediaId,
+        playlist_id: data.slot.playlistId,
+        start_time: data.slot.startTime,
+        end_time: data.slot.endTime,
+        days_of_week: data.slot.days,
+      } as any);
+      if (error) throw error;
+    }
+    if (data.screenIds.length > 0) {
+      await supabase.from("screens").update({ program_id: program.id } as any).in("id", data.screenIds);
+    }
+    setSelectedProgram(program.id);
   };
 
   const handleAdd = async () => {
@@ -122,10 +157,19 @@ export function ScheduleManager() {
             onKeyDown={(e) => e.key === "Enter" && handleCreate()}
             className="max-w-xs"
           />
-          <Button onClick={handleCreate} disabled={!newName.trim()} className="gap-2">
+          <Button onClick={handleCreate} disabled={!newName.trim()} variant="outline" className="gap-2">
             <FolderPlus className="h-4 w-4" /> Créer
           </Button>
+          <ProgramWizard
+            media={media as any}
+            playlists={playlists as any}
+            screens={screens as any}
+            onFinish={handleWizardFinish}
+          />
         </div>
+        <p className="text-xs text-muted-foreground">
+          L'assistant vous guide pas à pas : nom, contenu par défaut, créneaux et écrans.
+        </p>
       </Card>
 
       {/* Select program */}
@@ -162,6 +206,51 @@ export function ScheduleManager() {
           </>
         )}
       </div>
+
+      {selectedProgram && (
+        <Card className="p-4 space-y-3 border-border/50">
+          <p className="text-sm font-medium text-foreground">Contenu par défaut</p>
+          <p className="text-xs text-muted-foreground">
+            Affiché en dehors des créneaux programmés. Dès qu'un créneau démarre, il prend la main, puis
+            l'affichage par défaut reprend automatiquement.
+          </p>
+          <div className="flex flex-wrap gap-3 items-center">
+            <Select
+              value={defaultKind === "playlist" ? `pl:${currentProgram?.default_playlist_id}` : defaultKind === "media" ? `md:${currentProgram?.default_media_id}` : "none"}
+              onValueChange={(v) => {
+                const [kind, id] = v === "none" ? ["none", null] : [v.slice(0, 2), v.slice(3)];
+                setDefaultContent.mutate(
+                  {
+                    id: selectedProgram,
+                    mediaId: kind === "md" ? (id as string) : null,
+                    playlistId: kind === "pl" ? (id as string) : null,
+                  },
+                  {
+                    onSuccess: () => toast.success("Contenu par défaut mis à jour"),
+                    onError: () => toast.error("Erreur"),
+                  }
+                );
+              }}
+            >
+              <SelectTrigger className="w-[300px]">
+                <SelectValue placeholder="Aucun contenu par défaut" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Aucun contenu par défaut</SelectItem>
+                {playlists.map((p) => (
+                  <SelectItem key={`pl:${p.id}`} value={`pl:${p.id}`}>Playlist — {p.name}</SelectItem>
+                ))}
+                {media.map((m) => (
+                  <SelectItem key={`md:${m.id}`} value={`md:${m.id}`}>Média — {m.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {defaultKind !== "none" && (
+              <Badge variant="secondary" className="text-[10px]">Reprise automatique après chaque créneau</Badge>
+            )}
+          </div>
+        </Card>
+      )}
 
       {selectedProgram && (
         <Tabs defaultValue="list" className="space-y-4">

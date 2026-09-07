@@ -1009,6 +1009,8 @@ export type Database = {
       programs: {
         Row: {
           created_at: string
+          default_media_id: string | null
+          default_playlist_id: string | null
           establishment_id: string | null
           id: string
           name: string
@@ -1016,6 +1018,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          default_media_id?: string | null
+          default_playlist_id?: string | null
           establishment_id?: string | null
           id?: string
           name: string
@@ -1023,12 +1027,28 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          default_media_id?: string | null
+          default_playlist_id?: string | null
           establishment_id?: string | null
           id?: string
           name?: string
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "programs_default_media_id_fkey"
+            columns: ["default_media_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programs_default_playlist_id_fkey"
+            columns: ["default_playlist_id"]
+            isOneToOne: false
+            referencedRelation: "playlists"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "programs_establishment_id_fkey"
             columns: ["establishment_id"]
