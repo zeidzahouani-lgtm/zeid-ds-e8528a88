@@ -273,6 +273,9 @@ export default function Library() {
                   <span className="text-xs font-medium truncate flex-1">{item.name}</span>
                   {typeBadge(item.type)}
                 </div>
+                {mediaInfo(item) && (
+                  <p className="text-[11px] text-muted-foreground">{mediaInfo(item)}</p>
+                )}
                 {isGlobalAdmin && (
                   <div onClick={(e) => e.stopPropagation()}>
                     <EstablishmentPicker item={item} />
@@ -303,7 +306,7 @@ export default function Library() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{item.name}</p>
-                <p className="text-xs text-muted-foreground">{item.duration}s</p>
+                <p className="text-xs text-muted-foreground">{mediaInfo(item) || `${item.duration}s`}</p>
               </div>
               {typeBadge(item.type)}
               {isGlobalAdmin && (
