@@ -396,7 +396,7 @@ function ResolutionFrame({ resolution, children }: { resolution?: string | null;
   );
 }
 
-function MediaRenderer({ media, playlistLength, rotateDeg = 0 }: { media: { id: string; name: string; type: string; url: string }; playlistLength?: number; rotateDeg?: number }) {
+function MediaRenderer({ media, playlistLength, rotateDeg = 0, onDuration, fitContain }: { media: { id: string; name: string; type: string; url: string }; playlistLength?: number; rotateDeg?: number; onDuration?: (mediaId: string, seconds: number) => void; fitContain?: boolean }) {
   const containerStyle: React.CSSProperties = {
     position: "relative",
     width: "100%",
