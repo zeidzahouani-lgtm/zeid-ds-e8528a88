@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
+import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,6 +25,7 @@ interface TeamMember {
 
 export default function Team() {
   const { currentEstablishmentId, isGlobalAdmin, isEstablishmentAdmin } = useEstablishmentContext();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const [showInvite, setShowInvite] = useState(false);
@@ -272,7 +274,8 @@ export default function Team() {
             const isMarketing = member.roles.includes("marketing");
             const isAdmin = member.roles.includes("admin");
             // Allow editing marketing accounts and plain users (not other admins, unless caller is global admin)
-            const canEdit = isGlobalAdmin || !isAdmin;
+            const isSelf = user?.id === member.user_id;
+            const canEdit = isGlobalAdmin || isSelf || (isEstablishmentAdmin && !isAdmin);
 
             return (
               <Card key={member.user_id}>
@@ -316,7 +319,7 @@ export default function Team() {
                         >
                           <KeyRound className="h-4 w-4" />
                         </Button>
-                        {!isAdmin && (
+                        {!isAdmin && !isSelf && (isGlobalAdmin || isEstablishmentAdmin) && (
                           <Button
                             variant="ghost"
                             size="icon"
