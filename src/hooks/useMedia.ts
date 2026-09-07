@@ -3,6 +3,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { uploadMediaFile, getMediaType } from "@/lib/supabase-helpers";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 
+/** Read the real duration of a local video/audio file (VOD-accurate playback). */
+async function probeDuration(file: File): Promise<number | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const el = document.createElement("video");
+    const done = (v: number | null) => { URL.revokeObjectURL(url); resolve(v); };
+    el.preload = "metadata";
+    el.onloadedmetadata = () => done(Number.isFinite(el.duration) && el.duration > 0 ? Math.ceil(el.duration) : null);
+    el.onerror = () => done(null);
+    setTimeout(() => done(null), 8000);
+    el.src = url;
+  });
+}
+
 export function useMedia() {
   const queryClient = useQueryClient();
   const { currentEstablishmentId, isGlobalAdmin } = useEstablishmentContext();
@@ -32,11 +46,12 @@ export function useMedia() {
       const type = getMediaType(file);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
+      const realDuration = type === "video" ? await probeDuration(file) : null;
       const { error } = await supabase.from("media").insert({
         name: file.name,
         type,
         url,
-        duration: type === 'image' ? 10 : 30,
+        duration: type === 'image' ? 10 : (realDuration ?? 30),
         file_size: file.size,
         user_id: user.id,
         establishment_id: currentEstablishmentId,
