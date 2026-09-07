@@ -1,0 +1,5 @@
+CREATE POLICY "Admins manage all media" ON public.media FOR ALL TO authenticated USING (has_role(auth.uid(),'admin'::app_role)) WITH CHECK (has_role(auth.uid(),'admin'::app_role));
+CREATE POLICY "Admins manage all playlists" ON public.playlists FOR ALL TO authenticated USING (has_role(auth.uid(),'admin'::app_role)) WITH CHECK (has_role(auth.uid(),'admin'::app_role));
+CREATE POLICY "Admins manage all playlist_items" ON public.playlist_items FOR ALL TO authenticated USING (has_role(auth.uid(),'admin'::app_role)) WITH CHECK (has_role(auth.uid(),'admin'::app_role));
+CREATE POLICY "Admins manage all programs" ON public.programs FOR ALL TO authenticated USING (has_role(auth.uid(),'admin'::app_role)) WITH CHECK (has_role(auth.uid(),'admin'::app_role));
+CREATE POLICY "Admins manage all schedules" ON public.schedules FOR ALL TO authenticated USING (has_role(auth.uid(),'admin'::app_role)) WITH CHECK (has_role(auth.uid(),'admin'::app_role));
