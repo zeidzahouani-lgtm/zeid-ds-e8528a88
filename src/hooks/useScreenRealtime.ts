@@ -322,7 +322,24 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
     if (pl.length === 0) return 0;
     const item = pl[idx % pl.length];
     if (!item) return 10;
-    return item.duration ?? item.media?.duration ?? 10;
+    const base = item.duration ?? item.media?.duration ?? 10;
+    // VOD: if the real video length is longer than the configured duration,
+    // play the video to the end instead of cutting it off.
+    const mid = item.media?.id;
+    if (item.media?.type === "video" && mid) {
+      const real = durationOverridesRef.current.get(mid);
+      if (real && real > base) return real;
+    }
+    return base;
+  }, []);
+
+  /** Called by the player once a <video> reports its real length (VOD streaming). */
+  const reportVideoDuration = useCallback((mediaId: string, seconds: number) => {
+    if (!mediaId || !Number.isFinite(seconds) || seconds <= 0) return;
+    const rounded = Math.ceil(seconds);
+    if (durationOverridesRef.current.get(mediaId) === rounded) return;
+    durationOverridesRef.current.set(mediaId, rounded);
+    setDurationVersion((v) => v + 1);
   }, []);
 
   // Helper to update playlist and bump version (avoids array-ref issues)
@@ -330,6 +347,7 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
     playlistRef.current = pl;
     setPlaylistVersion((v) => v + 1);
   }, []);
+
 
   useEffect(() => {
     if (!screenId) return;
