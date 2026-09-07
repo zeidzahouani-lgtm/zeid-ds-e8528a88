@@ -9,6 +9,27 @@ import { QRCodeSVG } from "qrcode.react";
 import FallbackScreen from "@/components/player/FallbackScreen";
 import DiagnosticOverlay from "@/components/player/DiagnosticOverlay";
 import { audioVideoRef } from "@/lib/player-audio";
+import MobilePlayerControls from "@/components/player/MobilePlayerControls";
+
+/** True on phones / tablets (coarse pointer + small viewport). */
+function useIsTouchDevice() {
+  const [touch, setTouch] = useState(false);
+  useEffect(() => {
+    const check = () =>
+      setTouch(
+        window.matchMedia("(pointer: coarse)").matches &&
+        Math.min(window.innerWidth, window.innerHeight) <= 1024
+      );
+    check();
+    window.addEventListener("resize", check);
+    window.addEventListener("orientationchange", check);
+    return () => {
+      window.removeEventListener("resize", check);
+      window.removeEventListener("orientationchange", check);
+    };
+  }, []);
+  return touch;
+}
 
 // Hook to fetch active contents for a screen filtered by current time
 function useActiveContents(screenId: string | undefined) {
