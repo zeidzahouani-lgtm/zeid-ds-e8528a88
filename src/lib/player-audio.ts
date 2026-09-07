@@ -30,6 +30,8 @@ export function isAudioBlocked() {
 }
 
 async function tryPlayWithSound(el: HTMLVideoElement) {
+  if (paused) { el.muted = muted; try { el.pause(); } catch {} return; }
+  if (muted) { el.muted = true; try { await el.play(); } catch {} return; }
   try {
     el.muted = false;
     el.volume = 1;
@@ -44,6 +46,7 @@ async function tryPlayWithSound(el: HTMLVideoElement) {
     if (!blocked) { blocked = true; notify(); }
   }
 }
+
 
 /** Unmute every registered video (call from a user gesture). */
 export function unlockAudio() {
