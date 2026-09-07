@@ -37,6 +37,7 @@ export function useMedia() {
         type,
         url,
         duration: type === 'image' ? 10 : 30,
+        file_size: file.size,
         user_id: user.id,
         establishment_id: currentEstablishmentId,
       } as any);
