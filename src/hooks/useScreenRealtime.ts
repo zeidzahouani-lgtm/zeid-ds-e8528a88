@@ -106,6 +106,9 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
   const [loading, setLoading] = useState(true);
   const [sessionBlocked, setSessionBlocked] = useState(false);
   const [playlistVersion, setPlaylistVersion] = useState(0);
+  const [durationVersion, setDurationVersion] = useState(0);
+  const durationOverridesRef = useRef<Map<string, number>>(new Map());
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [recovery, setRecovery] = useState<{
     active: boolean;
