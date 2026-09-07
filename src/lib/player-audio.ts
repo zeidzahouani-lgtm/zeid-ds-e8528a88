@@ -112,7 +112,7 @@ export function audioVideoRef(el: HTMLVideoElement | null) {
 }
 
 if (typeof window !== "undefined") {
-  const gesture = () => unlockAudio();
+  const gesture = () => { if (blocked && !muted && !paused) unlockAudio(); };
   ["pointerdown", "keydown", "touchstart", "click"].forEach((ev) =>
     window.addEventListener(ev, gesture, { passive: true })
   );
