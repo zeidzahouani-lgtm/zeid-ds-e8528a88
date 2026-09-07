@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { useMedia } from "@/hooks/useMedia";
 import { useEstablishments } from "@/hooks/useEstablishments";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
+import LibraryAssistant from "@/components/library/LibraryAssistant";
 import { toast } from "sonner";
 
 interface UploadProgress {
@@ -152,6 +153,7 @@ export default function Library() {
           <Button onClick={() => fileRef.current?.click()} className="gap-2" size="sm">
             <Upload className="h-4 w-4" /> Upload
           </Button>
+          <LibraryAssistant media={media as any} />
           <Button variant="outline" onClick={() => setShowIframe(!showIframe)} className="gap-2" size="sm">
             <Link className="h-4 w-4" /> iFrame
           </Button>

@@ -30,6 +30,8 @@ export function isAudioBlocked() {
 }
 
 async function tryPlayWithSound(el: HTMLVideoElement) {
+  if (paused) { el.muted = muted; try { el.pause(); } catch {} return; }
+  if (muted) { el.muted = true; try { await el.play(); } catch {} return; }
   try {
     el.muted = false;
     el.volume = 1;
@@ -45,15 +47,57 @@ async function tryPlayWithSound(el: HTMLVideoElement) {
   }
 }
 
+
 /** Unmute every registered video (call from a user gesture). */
 export function unlockAudio() {
   videos.forEach((el) => {
     el.muted = false;
     el.volume = 1;
-    el.play().catch(() => {});
+    if (!paused) el.play().catch(() => {});
   });
   if (blocked) { blocked = false; notify(); }
+  if (muted) { muted = false; notifyState(); }
 }
+
+/* ---------------------------------------------------------------------------
+ * Manual controls (phone / tablet): mute toggle and play/pause.
+ * ------------------------------------------------------------------------- */
+
+let muted = false;
+let paused = false;
+const stateListeners = new Set<() => void>();
+
+function notifyState() {
+  stateListeners.forEach((l) => { try { l(); } catch {} });
+}
+
+export function onPlaybackStateChange(cb: () => void) {
+  stateListeners.add(cb);
+  return () => { stateListeners.delete(cb); };
+}
+
+export function isPlaybackMuted() { return muted; }
+export function isPlaybackPaused() { return paused; }
+
+export function setPlaybackMuted(next: boolean) {
+  muted = next;
+  videos.forEach((el) => {
+    el.muted = next;
+    if (!next) el.volume = 1;
+  });
+  if (!next && blocked) { blocked = false; notify(); }
+  notifyState();
+}
+
+export function setPlaybackPaused(next: boolean) {
+  paused = next;
+  videos.forEach((el) => {
+    if (next) { try { el.pause(); } catch {} }
+    else el.play().catch(() => {});
+  });
+  notifyState();
+}
+
 
 /** React ref callback: attach to every <video> rendered by the player. */
 export function audioVideoRef(el: HTMLVideoElement | null) {
@@ -68,7 +112,7 @@ export function audioVideoRef(el: HTMLVideoElement | null) {
 }
 
 if (typeof window !== "undefined") {
-  const gesture = () => unlockAudio();
+  const gesture = () => { if (blocked && !muted && !paused) unlockAudio(); };
   ["pointerdown", "keydown", "touchstart", "click"].forEach((ev) =>
     window.addEventListener(ev, gesture, { passive: true })
   );

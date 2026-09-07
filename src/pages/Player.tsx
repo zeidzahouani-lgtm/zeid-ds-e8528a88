@@ -9,6 +9,27 @@ import { QRCodeSVG } from "qrcode.react";
 import FallbackScreen from "@/components/player/FallbackScreen";
 import DiagnosticOverlay from "@/components/player/DiagnosticOverlay";
 import { audioVideoRef } from "@/lib/player-audio";
+import MobilePlayerControls from "@/components/player/MobilePlayerControls";
+
+/** True on phones / tablets (coarse pointer + small viewport). */
+function useIsTouchDevice() {
+  const [touch, setTouch] = useState(false);
+  useEffect(() => {
+    const check = () =>
+      setTouch(
+        window.matchMedia("(pointer: coarse)").matches &&
+        Math.min(window.innerWidth, window.innerHeight) <= 1024
+      );
+    check();
+    window.addEventListener("resize", check);
+    window.addEventListener("orientationchange", check);
+    return () => {
+      window.removeEventListener("resize", check);
+      window.removeEventListener("orientationchange", check);
+    };
+  }, []);
+  return touch;
+}
 
 // Hook to fetch active contents for a screen filtered by current time
 function useActiveContents(screenId: string | undefined) {
@@ -396,7 +417,7 @@ function ResolutionFrame({ resolution, children }: { resolution?: string | null;
   );
 }
 
-function MediaRenderer({ media, playlistLength, rotateDeg = 0 }: { media: { id: string; name: string; type: string; url: string }; playlistLength?: number; rotateDeg?: number }) {
+function MediaRenderer({ media, playlistLength, rotateDeg = 0, onDuration, fitContain }: { media: { id: string; name: string; type: string; url: string }; playlistLength?: number; rotateDeg?: number; onDuration?: (mediaId: string, seconds: number) => void; fitContain?: boolean }) {
   const containerStyle: React.CSSProperties = {
     position: "relative",
     width: "100%",
@@ -414,7 +435,7 @@ function MediaRenderer({ media, playlistLength, rotateDeg = 0 }: { media: { id: 
     width: "100%",
     height: "100%",
     display: "block",
-    objectFit: "cover",
+    objectFit: fitContain ? "contain" : "cover",
     objectPosition: "center center",
     backgroundColor: "#000",
   };
@@ -435,6 +456,11 @@ function MediaRenderer({ media, playlistLength, rotateDeg = 0 }: { media: { id: 
                 autoPlay
                 loop={!playlistLength || playlistLength <= 1}
                 playsInline
+                preload="auto"
+                onLoadedMetadata={(e) => {
+                  const d = (e.currentTarget as HTMLVideoElement).duration;
+                  if (Number.isFinite(d) && d > 0) onDuration?.(media.id, d);
+                }}
               />
             )
           }
@@ -442,6 +468,7 @@ function MediaRenderer({ media, playlistLength, rotateDeg = 0 }: { media: { id: 
       </div>
     );
   }
+
   const mediaStyle: React.CSSProperties = { ...baseMediaStyle, ...MEDIA_LAYER_FIX };
   return (
     <div style={containerStyle}>
@@ -1173,7 +1200,8 @@ export default function Player() {
   const urlDebug1 = typeof window !== "undefined" && window.location.search.indexOf("debug=1") >= 0;
   const urlDebug2 = typeof window !== "undefined" && window.location.search.indexOf("debug=2") >= 0;
   const previewMode = typeof window !== "undefined" && window.location.search.indexOf("preview=1") >= 0;
-  const { screen, media, loading, sessionBlocked, forceTakeover, playlistLength, currentIndex, currentDuration, layoutId, recovery } = useScreenRealtime(id, { previewOnly: previewMode });
+  const { screen, media, loading, sessionBlocked, forceTakeover, playlistLength, currentIndex, currentDuration, layoutId, recovery, reportVideoDuration } = useScreenRealtime(id, { previewOnly: previewMode });
+  const isTouch = useIsTouchDevice();
   const remoteDebugMode = (screen as any)?.debug_mode ?? 0;
   const debugMode = urlDebug1 || remoteDebugMode === 1;
   const hudMode = urlDebug2 || remoteDebugMode === 2;
@@ -1679,7 +1707,7 @@ export default function Player() {
 
   if (layoutId && !media && activeContents.length === 0) {
     return (
-      <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", top: 0, right: 0, bottom: 0, left: 0, width: "100vw", height: "100vh", overflow: "hidden", cursor: "none" }} onClick={requestFullscreen}>
+      <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", top: 0, right: 0, bottom: 0, left: 0, width: "100vw", height: "100vh", overflow: "hidden", cursor: isTouch ? "auto" : "none" }} onClick={isTouch ? undefined : requestFullscreen}>
         {debugMode && <DiagnosticOverlay {...diagBaseProps} />}
         {hudMode && <DiagnosticOverlay {...diagBaseProps} mode="hud" />}
         <ResolutionFrame resolution={screenResolution}>
@@ -1704,6 +1732,7 @@ export default function Player() {
         <Watermark text={branding.watermark} />
         <PlayerSignature show={branding.showSignatureOnPlayer} />
         <ScreenNameOverlay name={screen.name} show={(screen as any)?.show_name ?? false} />
+        <MobilePlayerControls />
       </div>
     );
   }
@@ -1711,7 +1740,7 @@ export default function Player() {
   const rotationStyle = getOrientationStyle(screen.orientation);
 
   return (
-    <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", top: 0, right: 0, bottom: 0, left: 0, width: "100vw", height: "100vh", overflow: "hidden", cursor: "none" }} onClick={requestFullscreen}>
+    <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", top: 0, right: 0, bottom: 0, left: 0, width: "100vw", height: "100vh", overflow: "hidden", cursor: isTouch ? "auto" : "none" }} onClick={isTouch ? undefined : requestFullscreen}>
       {debugMode && <DiagnosticOverlay {...diagBaseProps} />}
       {hudMode && <DiagnosticOverlay {...diagBaseProps} mode="hud" />}
       <ResolutionFrame resolution={screenResolution}>
@@ -1751,7 +1780,7 @@ export default function Player() {
               {activeContents.length > 0 && !media ? (
                 <ActiveContentCarousel contents={activeContents} screenOrientation={screen.orientation} />
               ) : media ? (
-                <MediaRenderer media={media} playlistLength={playlistLength} rotateDeg={orientationDeg(screen.orientation)} />
+                <MediaRenderer media={media} playlistLength={playlistLength} rotateDeg={orientationDeg(screen.orientation)} onDuration={reportVideoDuration} fitContain={isTouch} />
               ) : null}
             </WallTile>
           </div>
@@ -1780,6 +1809,7 @@ export default function Player() {
       <Watermark text={branding.watermark} />
       <PlayerSignature show={branding.showSignatureOnPlayer} />
       <ScreenNameOverlay name={screen.name} show={(screen as any)?.show_name ?? false} />
+      <MobilePlayerControls />
     </div>
   );
 }
