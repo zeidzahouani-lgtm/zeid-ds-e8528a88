@@ -820,14 +820,24 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
     if (previewOnly) return; // Preview follows DB state, no local timer
     const pl = playlistRef.current;
     if (pl.length <= 1) return;
-    const duration = getItemDuration(pl, currentIndex) * 1000;
-    timerRef.current = setTimeout(() => {
-      const next = (currentIndexRef.current + 1) % pl.length;
-      setCurrentIndex(next);
-      resolveMedia(screenRef.current, pl, next);
-    }, duration);
-    return () => clearTimeout(timerRef.current);
+
+    let cancelledByPause = false;
+    const schedule = () => {
+      clearTimeout(timerRef.current);
+      if (isPlaybackPaused()) return; // manual pause (phone / tablet)
+      const duration = getItemDuration(pl, currentIndexRef.current) * 1000;
+      timerRef.current = setTimeout(() => {
+        if (cancelledByPause) return;
+        const next = (currentIndexRef.current + 1) % pl.length;
+        setCurrentIndex(next);
+        resolveMedia(screenRef.current, pl, next);
+      }, duration);
+    };
+    schedule();
+    const off = onPlaybackStateChange(schedule);
+    return () => { cancelledByPause = true; off(); clearTimeout(timerRef.current); };
   }, [currentIndex, playlistVersion, durationVersion, resolveMedia, getItemDuration, previewOnly]);
+
 
   // Periodic schedule check — only in normal mode
   useEffect(() => {
