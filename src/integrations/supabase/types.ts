@@ -655,6 +655,7 @@ export type Database = {
           created_at: string
           duration: number
           establishment_id: string | null
+          file_size: number | null
           id: string
           name: string
           type: string
@@ -665,6 +666,7 @@ export type Database = {
           created_at?: string
           duration?: number
           establishment_id?: string | null
+          file_size?: number | null
           id?: string
           name: string
           type: string
@@ -675,6 +677,7 @@ export type Database = {
           created_at?: string
           duration?: number
           establishment_id?: string | null
+          file_size?: number | null
           id?: string
           name?: string
           type?: string
