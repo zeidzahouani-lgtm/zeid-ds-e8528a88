@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { isPlaybackPaused, onPlaybackStateChange } from "@/lib/player-audio";
 
 interface MediaData {
   id: string;
