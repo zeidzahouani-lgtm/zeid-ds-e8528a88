@@ -414,7 +414,7 @@ function MediaRenderer({ media, playlistLength, rotateDeg = 0, onDuration, fitCo
     width: "100%",
     height: "100%",
     display: "block",
-    objectFit: "cover",
+    objectFit: fitContain ? "contain" : "cover",
     objectPosition: "center center",
     backgroundColor: "#000",
   };
@@ -435,6 +435,11 @@ function MediaRenderer({ media, playlistLength, rotateDeg = 0, onDuration, fitCo
                 autoPlay
                 loop={!playlistLength || playlistLength <= 1}
                 playsInline
+                preload="auto"
+                onLoadedMetadata={(e) => {
+                  const d = (e.currentTarget as HTMLVideoElement).duration;
+                  if (Number.isFinite(d) && d > 0) onDuration?.(media.id, d);
+                }}
               />
             )
           }
@@ -442,6 +447,7 @@ function MediaRenderer({ media, playlistLength, rotateDeg = 0, onDuration, fitCo
       </div>
     );
   }
+
   const mediaStyle: React.CSSProperties = { ...baseMediaStyle, ...MEDIA_LAYER_FIX };
   return (
     <div style={containerStyle}>
