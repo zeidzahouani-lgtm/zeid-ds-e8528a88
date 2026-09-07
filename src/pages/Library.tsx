@@ -76,6 +76,30 @@ export default function Library() {
     }
   };
 
+  const formatSize = (bytes?: number | null) => {
+    if (!bytes && bytes !== 0) return null;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} Ko`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+  };
+
+  const formatDuration = (seconds?: number | null) => {
+    if (!seconds) return null;
+    const m = Math.floor(seconds / 60);
+    const s = Math.round(seconds % 60);
+    return m > 0 ? `${m}:${String(s).padStart(2, "0")}` : `${s}s`;
+  };
+
+  const mediaInfo = (item: any) => {
+    const parts: string[] = [];
+    const size = formatSize((item as any).file_size);
+    if (size) parts.push(size);
+    if (item.type === "video") {
+      const d = formatDuration(item.duration);
+      if (d) parts.push(d);
+    }
+    return parts.join(" • ");
+  };
+
   const typeIcon = (type: string) => {
     if (type === "image") return <Image className="h-4 w-4" />;
     if (type === "video") return <Video className="h-4 w-4" />;
@@ -249,6 +273,9 @@ export default function Library() {
                   <span className="text-xs font-medium truncate flex-1">{item.name}</span>
                   {typeBadge(item.type)}
                 </div>
+                {mediaInfo(item) && (
+                  <p className="text-[11px] text-muted-foreground">{mediaInfo(item)}</p>
+                )}
                 {isGlobalAdmin && (
                   <div onClick={(e) => e.stopPropagation()}>
                     <EstablishmentPicker item={item} />
@@ -279,7 +306,7 @@ export default function Library() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{item.name}</p>
-                <p className="text-xs text-muted-foreground">{item.duration}s</p>
+                <p className="text-xs text-muted-foreground">{mediaInfo(item) || `${item.duration}s`}</p>
               </div>
               {typeBadge(item.type)}
               {isGlobalAdmin && (
