@@ -827,7 +827,7 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
       resolveMedia(screenRef.current, pl, next);
     }, duration);
     return () => clearTimeout(timerRef.current);
-  }, [currentIndex, playlistVersion, resolveMedia, getItemDuration, previewOnly]);
+  }, [currentIndex, playlistVersion, durationVersion, resolveMedia, getItemDuration, previewOnly]);
 
   // Periodic schedule check — only in normal mode
   useEffect(() => {
@@ -954,6 +954,7 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
   return {
     screen, media, loading, sessionBlocked, forceTakeover,
     playlistLength: playlistRef.current.length, currentIndex, currentDuration,
+    reportVideoDuration,
     layoutId: screen?.layout_id ?? null,
     recovery,
   };
