@@ -1707,7 +1707,7 @@ export default function Player() {
 
   if (layoutId && !media && activeContents.length === 0) {
     return (
-      <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", top: 0, right: 0, bottom: 0, left: 0, width: "100vw", height: "100vh", overflow: "hidden", cursor: "none" }} onClick={requestFullscreen}>
+      <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", top: 0, right: 0, bottom: 0, left: 0, width: "100vw", height: "100vh", overflow: "hidden", cursor: isTouch ? "auto" : "none" }} onClick={isTouch ? undefined : requestFullscreen}>
         {debugMode && <DiagnosticOverlay {...diagBaseProps} />}
         {hudMode && <DiagnosticOverlay {...diagBaseProps} mode="hud" />}
         <ResolutionFrame resolution={screenResolution}>
@@ -1732,6 +1732,7 @@ export default function Player() {
         <Watermark text={branding.watermark} />
         <PlayerSignature show={branding.showSignatureOnPlayer} />
         <ScreenNameOverlay name={screen.name} show={(screen as any)?.show_name ?? false} />
+        <MobilePlayerControls />
       </div>
     );
   }
@@ -1739,7 +1740,7 @@ export default function Player() {
   const rotationStyle = getOrientationStyle(screen.orientation);
 
   return (
-    <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", top: 0, right: 0, bottom: 0, left: 0, width: "100vw", height: "100vh", overflow: "hidden", cursor: "none" }} onClick={requestFullscreen}>
+    <div ref={containerRef} style={{ ...playerBgStyle, position: "fixed", top: 0, right: 0, bottom: 0, left: 0, width: "100vw", height: "100vh", overflow: "hidden", cursor: isTouch ? "auto" : "none" }} onClick={isTouch ? undefined : requestFullscreen}>
       {debugMode && <DiagnosticOverlay {...diagBaseProps} />}
       {hudMode && <DiagnosticOverlay {...diagBaseProps} mode="hud" />}
       <ResolutionFrame resolution={screenResolution}>
@@ -1808,6 +1809,7 @@ export default function Player() {
       <Watermark text={branding.watermark} />
       <PlayerSignature show={branding.showSignatureOnPlayer} />
       <ScreenNameOverlay name={screen.name} show={(screen as any)?.show_name ?? false} />
+      <MobilePlayerControls />
     </div>
   );
 }
