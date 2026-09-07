@@ -7,6 +7,8 @@ export interface Program {
   name: string;
   user_id: string | null;
   establishment_id: string | null;
+  default_media_id?: string | null;
+  default_playlist_id?: string | null;
   created_at: string;
 }
 
@@ -61,6 +63,21 @@ export function usePrograms() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["programs"] }),
   });
 
+  const setDefaultContent = useMutation({
+    mutationFn: async ({
+      id,
+      mediaId,
+      playlistId,
+    }: { id: string; mediaId: string | null; playlistId: string | null }) => {
+      const { error } = await supabase
+        .from("programs")
+        .update({ default_media_id: mediaId, default_playlist_id: playlistId } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["programs"] }),
+  });
+
   const assignEstablishment = useMutation({
     mutationFn: async ({ id, establishmentId }: { id: string; establishmentId: string | null }) => {
       const { error } = await supabase
@@ -75,5 +92,5 @@ export function usePrograms() {
     },
   });
 
-  return { programs, isLoading, addProgram, deleteProgram, renameProgram, assignEstablishment };
+  return { programs, isLoading, addProgram, deleteProgram, renameProgram, assignEstablishment, setDefaultContent };
 }
