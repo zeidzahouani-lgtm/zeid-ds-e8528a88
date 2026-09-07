@@ -44,6 +44,8 @@ Deno.serve(async (req) => {
     // Helper: check if caller is admin of an establishment that the target user belongs to as marketing
     const isCallerEstabAdminOfTarget = async (targetId: string): Promise<boolean> => {
       if (!callerUserId || !targetId) return false;
+      // A user may always manage their own account
+      if (callerUserId === targetId) return true;
       const adminClient = createClient(supabaseUrl, serviceRoleKey);
       // Get establishments where caller is admin
       const { data: callerAdminEstabs } = await adminClient
