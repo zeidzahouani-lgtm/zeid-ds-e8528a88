@@ -97,7 +97,7 @@ export default function LibraryAssistant({ media }: { media: MediaItem[] }) {
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl w-[calc(100vw-1.5rem)] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
+        <DialogContent className="max-w-2xl w-[calc(100vw-1.5rem)] max-h-[90vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6 [&>*]:min-w-0">
           <DialogHeader>
             <DialogTitle>Assistant de diffusion</DialogTitle>
             <DialogDescription>
