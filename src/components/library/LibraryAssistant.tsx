@@ -150,7 +150,7 @@ export default function LibraryAssistant({ media }: { media: MediaItem[] }) {
                   );
                 })}
               </div>
-            </ScrollArea>
+            </div>
 
             <div className="flex items-center justify-between gap-3 rounded-md border p-3">
               <div className="min-w-0">
