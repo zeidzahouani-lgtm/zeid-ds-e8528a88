@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Wand2 } from "lucide-react";
 import { useScreens } from "@/hooks/useScreens";
@@ -97,7 +97,7 @@ export default function LibraryAssistant({ media }: { media: MediaItem[] }) {
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl w-[calc(100vw-1.5rem)] max-h-[90vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6 [&>*]:min-w-0">
           <DialogHeader>
             <DialogTitle>Assistant de diffusion</DialogTitle>
             <DialogDescription>
@@ -126,15 +126,15 @@ export default function LibraryAssistant({ media }: { media: MediaItem[] }) {
               </Button>
             </div>
 
-            <ScrollArea className="h-64 rounded-md border p-2">
+            <div className="h-64 overflow-y-auto rounded-md border p-2">
               <div className="space-y-1">
                 {media.map((m) => {
                   const on = selected[m.id] != null;
                   return (
-                    <div key={m.id} className="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-muted/50">
-                      <Checkbox checked={on} onCheckedChange={() => toggle(m)} />
-                      <span className="flex-1 truncate text-sm">{m.name}</span>
-                      <Badge variant="secondary" className="text-[10px]">{m.type}</Badge>
+                    <div key={m.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50">
+                      <Checkbox checked={on} onCheckedChange={() => toggle(m)} className="shrink-0" />
+                      <span className="flex-1 min-w-0 truncate text-sm">{m.name}</span>
+                      <Badge variant="secondary" className="text-[10px] shrink-0 hidden sm:inline-flex">{m.type}</Badge>
                       <Input
                         type="number"
                         min={1}
@@ -143,27 +143,27 @@ export default function LibraryAssistant({ media }: { media: MediaItem[] }) {
                         onChange={(e) =>
                           setSelected((p) => ({ ...p, [m.id]: Math.max(1, Number(e.target.value) || 1) }))
                         }
-                        className="h-8 w-20"
+                        className="h-8 w-16 shrink-0"
                       />
-                      <span className="text-xs text-muted-foreground">s</span>
+                      <span className="text-xs text-muted-foreground shrink-0">s</span>
                     </div>
                   );
                 })}
               </div>
-            </ScrollArea>
+            </div>
 
-            <div className="flex items-center justify-between rounded-md border p-3">
-              <div>
+            <div className="flex items-center justify-between gap-3 rounded-md border p-3">
+              <div className="min-w-0">
                 <p className="text-sm font-medium">Affichage par défaut</p>
                 <p className="text-xs text-muted-foreground">
                   Crée une playlist assignée à l'écran, reprise entre les programmations.
                 </p>
               </div>
-              <Switch checked={makeDefault} onCheckedChange={setMakeDefault} />
+              <Switch checked={makeDefault} onCheckedChange={setMakeDefault} className="shrink-0" />
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
             <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
             <Button disabled={!screenId || ids.length === 0 || saving} onClick={apply}>
               {saving ? "Application…" : "Appliquer"}
