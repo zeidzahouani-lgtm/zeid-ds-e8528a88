@@ -152,18 +152,18 @@ export default function LibraryAssistant({ media }: { media: MediaItem[] }) {
               </div>
             </ScrollArea>
 
-            <div className="flex items-center justify-between rounded-md border p-3">
-              <div>
+            <div className="flex items-center justify-between gap-3 rounded-md border p-3">
+              <div className="min-w-0">
                 <p className="text-sm font-medium">Affichage par défaut</p>
                 <p className="text-xs text-muted-foreground">
                   Crée une playlist assignée à l'écran, reprise entre les programmations.
                 </p>
               </div>
-              <Switch checked={makeDefault} onCheckedChange={setMakeDefault} />
+              <Switch checked={makeDefault} onCheckedChange={setMakeDefault} className="shrink-0" />
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
             <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
             <Button disabled={!screenId || ids.length === 0 || saving} onClick={apply}>
               {saving ? "Application…" : "Appliquer"}
