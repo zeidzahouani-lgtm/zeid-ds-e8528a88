@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Wand2 } from "lucide-react";
 import { useScreens } from "@/hooks/useScreens";
@@ -134,7 +134,7 @@ export default function LibraryAssistant({ media }: { media: MediaItem[] }) {
                     <div key={m.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50">
                       <Checkbox checked={on} onCheckedChange={() => toggle(m)} className="shrink-0" />
                       <span className="flex-1 min-w-0 truncate text-sm">{m.name}</span>
-                      <Badge variant="secondary" className="text-[10px] shrink-0 hidden xs:inline-flex">{m.type}</Badge>
+                      <Badge variant="secondary" className="text-[10px] shrink-0 hidden sm:inline-flex">{m.type}</Badge>
                       <Input
                         type="number"
                         min={1}
