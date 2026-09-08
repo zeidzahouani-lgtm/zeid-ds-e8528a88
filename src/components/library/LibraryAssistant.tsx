@@ -126,7 +126,7 @@ export default function LibraryAssistant({ media }: { media: MediaItem[] }) {
               </Button>
             </div>
 
-            <ScrollArea className="h-64 rounded-md border p-2">
+            <div className="h-64 overflow-y-auto rounded-md border p-2">
               <div className="space-y-1">
                 {media.map((m) => {
                   const on = selected[m.id] != null;
