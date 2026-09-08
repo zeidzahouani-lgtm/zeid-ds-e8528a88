@@ -97,7 +97,7 @@ export default function LibraryAssistant({ media }: { media: MediaItem[] }) {
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl w-[calc(100vw-1.5rem)] max-h-[90vh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Assistant de diffusion</DialogTitle>
             <DialogDescription>
@@ -131,10 +131,10 @@ export default function LibraryAssistant({ media }: { media: MediaItem[] }) {
                 {media.map((m) => {
                   const on = selected[m.id] != null;
                   return (
-                    <div key={m.id} className="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-muted/50">
-                      <Checkbox checked={on} onCheckedChange={() => toggle(m)} />
-                      <span className="flex-1 truncate text-sm">{m.name}</span>
-                      <Badge variant="secondary" className="text-[10px]">{m.type}</Badge>
+                    <div key={m.id} className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50">
+                      <Checkbox checked={on} onCheckedChange={() => toggle(m)} className="shrink-0" />
+                      <span className="flex-1 min-w-0 truncate text-sm">{m.name}</span>
+                      <Badge variant="secondary" className="text-[10px] shrink-0 hidden xs:inline-flex">{m.type}</Badge>
                       <Input
                         type="number"
                         min={1}
@@ -143,9 +143,9 @@ export default function LibraryAssistant({ media }: { media: MediaItem[] }) {
                         onChange={(e) =>
                           setSelected((p) => ({ ...p, [m.id]: Math.max(1, Number(e.target.value) || 1) }))
                         }
-                        className="h-8 w-20"
+                        className="h-8 w-16 shrink-0"
                       />
-                      <span className="text-xs text-muted-foreground">s</span>
+                      <span className="text-xs text-muted-foreground shrink-0">s</span>
                     </div>
                   );
                 })}
