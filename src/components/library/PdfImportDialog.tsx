@@ -36,10 +36,19 @@ const DEFAULT_DURATION = 10;
 export default function PdfImportDialog({ file, onClose, onImport }: Props) {
   const [pages, setPages] = useState<PageItem[]>([]);
   const [selected, setSelected] = useState<Record<number, boolean>>({});
+  const [durations, setDurations] = useState<Record<number, number>>({});
+  const [createPlaylist, setCreatePlaylist] = useState(true);
+  const [playlistName, setPlaylistName] = useState("");
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const docRef = useRef<any>(null);
+
+  useEffect(() => {
+    setDurations({});
+    setCreatePlaylist(true);
+    setPlaylistName(file ? file.name.replace(/\.pdf$/i, "") : "");
+  }, [file]);
 
   useEffect(() => {
     let cancelled = false;
