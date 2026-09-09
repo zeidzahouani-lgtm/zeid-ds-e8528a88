@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import * as pdfjsLib from "pdfjs-dist";
+import { loadPdfJs } from "@/lib/pdfjs-loader";
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -7,10 +7,6 @@ import { Progress } from "@/components/ui/progress";
 import { FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.mjs",
-  import.meta.url
-).toString();
 
 interface PageItem {
   page: number;
@@ -46,6 +42,7 @@ export default function PdfImportDialog({ file, onClose, onImport }: Props) {
       setLoading(true);
       try {
         const buf = await file.arrayBuffer();
+        const pdfjsLib = await loadPdfJs();
         const doc = await pdfjsLib.getDocument({ data: buf }).promise;
         if (cancelled) return;
         docRef.current = doc;
