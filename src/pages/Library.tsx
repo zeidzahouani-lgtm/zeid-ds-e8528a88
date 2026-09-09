@@ -12,6 +12,7 @@ import { useEstablishments } from "@/hooks/useEstablishments";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import LibraryAssistant from "@/components/library/LibraryAssistant";
 import PdfImportDialog from "@/components/library/PdfImportDialog";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface UploadProgress {
