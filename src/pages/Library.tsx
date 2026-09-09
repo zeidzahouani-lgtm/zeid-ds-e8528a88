@@ -167,7 +167,7 @@ export default function Library() {
           <Button variant="outline" onClick={() => setShowIframe(!showIframe)} className="gap-2" size="sm">
             <Link className="h-4 w-4" /> iFrame
           </Button>
-          <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" multiple className="hidden" onChange={handleUpload} />
+          <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,application/pdf" multiple className="hidden" onChange={handleUpload} />
         </div>
       </div>
 
@@ -338,6 +338,15 @@ export default function Library() {
           ))}
         </div>
       )}
+
+      <PdfImportDialog
+        file={pdfFile}
+        onClose={() => setPdfFile(null)}
+        onImport={async (files) => {
+          await uploadFiles(files);
+          toast.success(`${files.length} page(s) ajoutée(s)`);
+        }}
+      />
 
       {/* Preview dialog */}
       <Dialog open={!!preview} onOpenChange={(open) => { if (!open) setPreview(null); }}>
