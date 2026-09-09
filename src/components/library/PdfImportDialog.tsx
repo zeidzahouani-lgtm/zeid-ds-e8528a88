@@ -111,9 +111,20 @@ export default function PdfImportDialog({ file, onClose, onImport }: Props) {
     setImporting(true);
     setProgress(0);
     try {
-      const files: File[] = [];
-      for (const p of selectedPages) files.push(await renderPageFile(p));
-      await onImport(files, setProgress);
+      const items: PdfImportItem[] = [];
+      for (const p of selectedPages) {
+        items.push({
+          file: await renderPageFile(p),
+          duration: Math.max(1, durations[p] ?? DEFAULT_DURATION),
+        });
+      }
+      const wantPlaylist = selectedPages.length > 1 && createPlaylist;
+      const base = (file?.name || "document.pdf").replace(/\.pdf$/i, "");
+      await onImport(
+        items,
+        { playlistName: wantPlaylist ? (playlistName.trim() || base) : null },
+        setProgress
+      );
       onClose();
     } catch {
       toast.error("Erreur lors de l'import du PDF");
@@ -122,6 +133,7 @@ export default function PdfImportDialog({ file, onClose, onImport }: Props) {
       setProgress(0);
     }
   };
+
 
   const allSelected = pages.length > 0 && selectedPages.length === pages.length;
 
