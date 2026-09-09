@@ -13,14 +13,25 @@ interface PageItem {
   thumb: string;
 }
 
+export interface PdfImportItem {
+  file: File;
+  duration: number;
+}
+
 interface Props {
   file: File | null;
   onClose: () => void;
-  /** Called with one JPEG file per selected page. */
-  onImport: (files: File[], onProgress: (percent: number) => void) => Promise<void>;
+  /** Called with one JPEG file (+ durée) par page sélectionnée. */
+  onImport: (
+    items: PdfImportItem[],
+    options: { playlistName: string | null },
+    onProgress: (percent: number) => void
+  ) => Promise<void>;
 }
 
 const RENDER_SCALE = 2; // export quality
+const DEFAULT_DURATION = 10;
+
 
 export default function PdfImportDialog({ file, onClose, onImport }: Props) {
   const [pages, setPages] = useState<PageItem[]>([]);
