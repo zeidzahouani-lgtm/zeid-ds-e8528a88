@@ -352,11 +352,43 @@ export default function Library() {
       <PdfImportDialog
         file={pdfFile}
         onClose={() => setPdfFile(null)}
-        onImport={async (files) => {
-          await uploadFiles(files);
-          toast.success(`${files.length} page(s) ajoutée(s)`);
+        onImport={async (items, options, onProgress) => {
+          const ids = await uploadFiles(
+            items.map((i) => i.file),
+            items.map((i) => i.duration),
+            onProgress
+          );
+          toast.success(`${ids.length} page(s) ajoutée(s)`);
+          if (options.playlistName && ids.length > 1) {
+            try {
+              const { data: { user } } = await supabase.auth.getUser();
+              const { data: playlist, error } = await supabase
+                .from("playlists")
+                .insert({
+                  name: options.playlistName,
+                  user_id: user?.id,
+                  establishment_id: currentEstablishmentId,
+                } as any)
+                .select("id")
+                .single();
+              if (error) throw error;
+              const { error: itemsError } = await supabase.from("playlist_items").insert(
+                ids.map((mediaId, idx) => ({
+                  playlist_id: playlist.id,
+                  media_id: mediaId,
+                  position: idx,
+                  duration: items[idx]?.duration ?? 10,
+                })) as any
+              );
+              if (itemsError) throw itemsError;
+              toast.success(`Playlist "${options.playlistName}" créée`);
+            } catch {
+              toast.error("Playlist non créée");
+            }
+          }
         }}
       />
+
 
       {/* Preview dialog */}
       <Dialog open={!!preview} onOpenChange={(open) => { if (!open) setPreview(null); }}>
