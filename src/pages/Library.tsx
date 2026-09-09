@@ -12,6 +12,7 @@ import { useEstablishments } from "@/hooks/useEstablishments";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import LibraryAssistant from "@/components/library/LibraryAssistant";
 import PdfImportDialog from "@/components/library/PdfImportDialog";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface UploadProgress {
@@ -21,7 +22,7 @@ interface UploadProgress {
 
 export default function Library() {
   const { media, isLoading, uploadMutation, addIframeMutation, deleteMutation, assignEstablishmentMutation } = useMedia();
-  const { isGlobalAdmin } = useEstablishmentContext();
+  const { isGlobalAdmin, currentEstablishmentId } = useEstablishmentContext();
   const { establishments } = useEstablishments();
   const [iframeName, setIframeName] = useState("");
   const [iframeUrl, setIframeUrl] = useState("");
@@ -42,18 +43,26 @@ export default function Library() {
     });
   }, [media, search, typeFilter]);
 
-  const uploadFiles = async (fileList: File[]) => {
+  const uploadFiles = async (
+    fileList: File[],
+    durations?: number[],
+    onOverallProgress?: (percent: number) => void
+  ): Promise<string[]> => {
     setUploads(fileList.map((f) => ({ name: f.name, percent: 0 })));
+    const ids: string[] = [];
 
     for (let i = 0; i < fileList.length; i++) {
       const file = fileList[i];
       try {
-        await uploadMutation.mutateAsync({
+        const res = await uploadMutation.mutateAsync({
           file,
+          duration: durations?.[i],
           onProgress: (percent) => {
             setUploads((prev) => prev.map((u, idx) => (idx === i ? { ...u, percent } : u)));
+            onOverallProgress?.(Math.round(((i + percent / 100) / fileList.length) * 100));
           },
         });
+        if (res?.id) ids.push(res.id);
         toast.success(`${file.name} uploadé`);
       } catch {
         toast.error(`Erreur: ${file.name}`);
@@ -61,7 +70,9 @@ export default function Library() {
     }
     setUploads([]);
     if (fileRef.current) fileRef.current.value = "";
+    return ids;
   };
+
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -342,11 +353,43 @@ export default function Library() {
       <PdfImportDialog
         file={pdfFile}
         onClose={() => setPdfFile(null)}
-        onImport={async (files) => {
-          await uploadFiles(files);
-          toast.success(`${files.length} page(s) ajoutée(s)`);
+        onImport={async (items, options, onProgress) => {
+          const ids = await uploadFiles(
+            items.map((i) => i.file),
+            items.map((i) => i.duration),
+            onProgress
+          );
+          toast.success(`${ids.length} page(s) ajoutée(s)`);
+          if (options.playlistName && ids.length > 1) {
+            try {
+              const { data: { user } } = await supabase.auth.getUser();
+              const { data: playlist, error } = await supabase
+                .from("playlists")
+                .insert({
+                  name: options.playlistName,
+                  user_id: user?.id,
+                  establishment_id: currentEstablishmentId,
+                } as any)
+                .select("id")
+                .single();
+              if (error) throw error;
+              const { error: itemsError } = await supabase.from("playlist_items").insert(
+                ids.map((mediaId, idx) => ({
+                  playlist_id: playlist.id,
+                  media_id: mediaId,
+                  position: idx,
+                  duration: items[idx]?.duration ?? 10,
+                })) as any
+              );
+              if (itemsError) throw itemsError;
+              toast.success(`Playlist "${options.playlistName}" créée`);
+            } catch {
+              toast.error("Playlist non créée");
+            }
+          }
         }}
       />
+
 
       {/* Preview dialog */}
       <Dialog open={!!preview} onOpenChange={(open) => { if (!open) setPreview(null); }}>

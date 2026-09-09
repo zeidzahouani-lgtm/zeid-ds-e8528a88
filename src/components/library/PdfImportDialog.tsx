@@ -3,6 +3,7 @@ import { loadPdfJs } from "@/lib/pdfjs-loader";
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -13,22 +14,42 @@ interface PageItem {
   thumb: string;
 }
 
+export interface PdfImportItem {
+  file: File;
+  duration: number;
+}
+
 interface Props {
   file: File | null;
   onClose: () => void;
-  /** Called with one JPEG file per selected page. */
-  onImport: (files: File[], onProgress: (percent: number) => void) => Promise<void>;
+  /** Called with one JPEG file (+ durée) par page sélectionnée. */
+  onImport: (
+    items: PdfImportItem[],
+    options: { playlistName: string | null },
+    onProgress: (percent: number) => void
+  ) => Promise<void>;
 }
 
 const RENDER_SCALE = 2; // export quality
+const DEFAULT_DURATION = 10;
+
 
 export default function PdfImportDialog({ file, onClose, onImport }: Props) {
   const [pages, setPages] = useState<PageItem[]>([]);
   const [selected, setSelected] = useState<Record<number, boolean>>({});
+  const [durations, setDurations] = useState<Record<number, number>>({});
+  const [createPlaylist, setCreatePlaylist] = useState(true);
+  const [playlistName, setPlaylistName] = useState("");
   const [loading, setLoading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState(0);
   const docRef = useRef<any>(null);
+
+  useEffect(() => {
+    setDurations({});
+    setCreatePlaylist(true);
+    setPlaylistName(file ? file.name.replace(/\.pdf$/i, "") : "");
+  }, [file]);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,9 +121,20 @@ export default function PdfImportDialog({ file, onClose, onImport }: Props) {
     setImporting(true);
     setProgress(0);
     try {
-      const files: File[] = [];
-      for (const p of selectedPages) files.push(await renderPageFile(p));
-      await onImport(files, setProgress);
+      const items: PdfImportItem[] = [];
+      for (const p of selectedPages) {
+        items.push({
+          file: await renderPageFile(p),
+          duration: Math.max(1, durations[p] ?? DEFAULT_DURATION),
+        });
+      }
+      const wantPlaylist = selectedPages.length > 1 && createPlaylist;
+      const base = (file?.name || "document.pdf").replace(/\.pdf$/i, "");
+      await onImport(
+        items,
+        { playlistName: wantPlaylist ? (playlistName.trim() || base) : null },
+        setProgress
+      );
       onClose();
     } catch {
       toast.error("Erreur lors de l'import du PDF");
@@ -111,6 +143,7 @@ export default function PdfImportDialog({ file, onClose, onImport }: Props) {
       setProgress(0);
     }
   };
+
 
   const allSelected = pages.length > 0 && selectedPages.length === pages.length;
 
@@ -150,28 +183,65 @@ export default function PdfImportDialog({ file, onClose, onImport }: Props) {
 
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-[45vh] overflow-y-auto pr-1">
               {pages.map((p) => (
-                <button
-                  key={p.page}
-                  type="button"
-                  onClick={() => setSelected((s) => ({ ...s, [p.page]: !s[p.page] }))}
-                  className={`relative rounded-md border overflow-hidden text-left transition-colors ${
-                    selected[p.page] ? "border-primary ring-1 ring-primary" : "border-border"
-                  }`}
-                >
-                  <img src={p.thumb} alt={`Page ${p.page}`} className="w-full bg-white" />
-                  <div className="absolute top-1.5 left-1.5">
-                    <Checkbox checked={!!selected[p.page]} className="bg-background" />
+                <div key={p.page} className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => setSelected((s) => ({ ...s, [p.page]: !s[p.page] }))}
+                    className={`relative block w-full rounded-md border overflow-hidden text-left transition-colors ${
+                      selected[p.page] ? "border-primary ring-1 ring-primary" : "border-border"
+                    }`}
+                  >
+                    <img src={p.thumb} alt={`Page ${p.page}`} className="w-full bg-white" />
+                    <div className="absolute top-1.5 left-1.5">
+                      <Checkbox checked={!!selected[p.page]} className="bg-background" />
+                    </div>
+                    <span className="absolute bottom-1 right-1 text-[10px] bg-background/80 rounded px-1">
+                      p.{p.page}
+                    </span>
+                  </button>
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      min={1}
+                      value={durations[p.page] ?? DEFAULT_DURATION}
+                      disabled={!selected[p.page] || importing}
+                      onChange={(e) =>
+                        setDurations((d) => ({ ...d, [p.page]: Number(e.target.value) }))
+                      }
+                      className="h-7 text-xs"
+                    />
+                    <span className="text-[11px] text-muted-foreground">s</span>
                   </div>
-                  <span className="absolute bottom-1 right-1 text-[10px] bg-background/80 rounded px-1">
-                    p.{p.page}
-                  </span>
-                </button>
+                </div>
               ))}
             </div>
+
+            {selectedPages.length > 1 && (
+              <div className="rounded-md border p-3 space-y-2">
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={createPlaylist}
+                    onCheckedChange={(v) => setCreatePlaylist(!!v)}
+                    disabled={importing}
+                  />
+                  Créer une playlist avec les {selectedPages.length} pages sélectionnées
+                </label>
+                {createPlaylist && (
+                  <Input
+                    value={playlistName}
+                    onChange={(e) => setPlaylistName(e.target.value)}
+                    placeholder="Nom de la playlist"
+                    disabled={importing}
+                    className="h-9"
+                  />
+                )}
+              </div>
+            )}
 
             {importing && <Progress value={progress} className="h-2" />}
           </>
         )}
+
 
         <DialogFooter className="flex-col-reverse gap-2 sm:flex-row">
           <Button variant="outline" onClick={onClose} disabled={importing}>
