@@ -3,6 +3,7 @@ import { loadPdfJs } from "@/lib/pdfjs-loader";
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
