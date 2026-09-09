@@ -42,6 +42,7 @@ export default function PdfImportDialog({ file, onClose, onImport }: Props) {
       setLoading(true);
       try {
         const buf = await file.arrayBuffer();
+        const pdfjsLib = await loadPdfJs();
         const doc = await pdfjsLib.getDocument({ data: buf }).promise;
         if (cancelled) return;
         docRef.current = doc;
