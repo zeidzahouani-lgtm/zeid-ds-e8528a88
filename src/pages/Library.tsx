@@ -11,6 +11,7 @@ import { useMedia } from "@/hooks/useMedia";
 import { useEstablishments } from "@/hooks/useEstablishments";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import LibraryAssistant from "@/components/library/LibraryAssistant";
+import PdfImportDialog from "@/components/library/PdfImportDialog";
 import { toast } from "sonner";
 
 interface UploadProgress {
@@ -30,6 +31,7 @@ export default function Library() {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [preview, setPreview] = useState<any>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(() => {
@@ -40,10 +42,7 @@ export default function Library() {
     });
   }, [media, search, typeFilter]);
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    const fileList = Array.from(files);
+  const uploadFiles = async (fileList: File[]) => {
     setUploads(fileList.map((f) => ({ name: f.name, percent: 0 })));
 
     for (let i = 0; i < fileList.length; i++) {
@@ -61,6 +60,17 @@ export default function Library() {
       }
     }
     setUploads([]);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    const all = Array.from(files);
+    const pdf = all.find((f) => f.type === "application/pdf" || /\.pdf$/i.test(f.name));
+    const others = all.filter((f) => f !== pdf);
+    if (others.length) await uploadFiles(others);
+    if (pdf) setPdfFile(pdf);
     if (fileRef.current) fileRef.current.value = "";
   };
 
@@ -157,7 +167,7 @@ export default function Library() {
           <Button variant="outline" onClick={() => setShowIframe(!showIframe)} className="gap-2" size="sm">
             <Link className="h-4 w-4" /> iFrame
           </Button>
-          <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm" multiple className="hidden" onChange={handleUpload} />
+          <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,application/pdf" multiple className="hidden" onChange={handleUpload} />
         </div>
       </div>
 
@@ -328,6 +338,15 @@ export default function Library() {
           ))}
         </div>
       )}
+
+      <PdfImportDialog
+        file={pdfFile}
+        onClose={() => setPdfFile(null)}
+        onImport={async (files) => {
+          await uploadFiles(files);
+          toast.success(`${files.length} page(s) ajoutée(s)`);
+        }}
+      />
 
       {/* Preview dialog */}
       <Dialog open={!!preview} onOpenChange={(open) => { if (!open) setPreview(null); }}>
