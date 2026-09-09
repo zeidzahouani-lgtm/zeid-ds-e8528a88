@@ -63,6 +63,17 @@ export default function Library() {
     if (fileRef.current) fileRef.current.value = "";
   };
 
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    const all = Array.from(files);
+    const pdf = all.find((f) => f.type === "application/pdf" || /\.pdf$/i.test(f.name));
+    const others = all.filter((f) => f !== pdf);
+    if (others.length) await uploadFiles(others);
+    if (pdf) setPdfFile(pdf);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
   const handleAddIframe = async () => {
     if (!iframeName || !iframeUrl) return;
     try {
