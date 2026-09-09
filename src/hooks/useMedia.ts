@@ -41,25 +41,27 @@ export function useMedia() {
   });
 
   const uploadMutation = useMutation({
-    mutationFn: async ({ file, onProgress }: { file: File; onProgress?: (p: number) => void }) => {
+    mutationFn: async ({ file, onProgress, duration }: { file: File; onProgress?: (p: number) => void; duration?: number }) => {
       const url = await uploadMediaFile(file, onProgress);
       const type = getMediaType(file);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
       const realDuration = type === "video" ? await probeDuration(file) : null;
-      const { error } = await supabase.from("media").insert({
+      const { data, error } = await supabase.from("media").insert({
         name: file.name,
         type,
         url,
-        duration: type === 'image' ? 10 : (realDuration ?? 30),
+        duration: duration ?? (type === 'image' ? 10 : (realDuration ?? 30)),
         file_size: file.size,
         user_id: user.id,
         establishment_id: currentEstablishmentId,
-      } as any);
+      } as any).select("id").single();
       if (error) throw error;
+      return data as { id: string };
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["media"] }),
   });
+
 
   const addIframeMutation = useMutation({
     mutationFn: async ({ name, url }: { name: string; url: string }) => {
