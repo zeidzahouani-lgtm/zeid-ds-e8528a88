@@ -42,18 +42,26 @@ export default function Library() {
     });
   }, [media, search, typeFilter]);
 
-  const uploadFiles = async (fileList: File[]) => {
+  const uploadFiles = async (
+    fileList: File[],
+    durations?: number[],
+    onOverallProgress?: (percent: number) => void
+  ): Promise<string[]> => {
     setUploads(fileList.map((f) => ({ name: f.name, percent: 0 })));
+    const ids: string[] = [];
 
     for (let i = 0; i < fileList.length; i++) {
       const file = fileList[i];
       try {
-        await uploadMutation.mutateAsync({
+        const res = await uploadMutation.mutateAsync({
           file,
+          duration: durations?.[i],
           onProgress: (percent) => {
             setUploads((prev) => prev.map((u, idx) => (idx === i ? { ...u, percent } : u)));
+            onOverallProgress?.(Math.round(((i + percent / 100) / fileList.length) * 100));
           },
         });
+        if (res?.id) ids.push(res.id);
         toast.success(`${file.name} uploadé`);
       } catch {
         toast.error(`Erreur: ${file.name}`);
@@ -61,7 +69,9 @@ export default function Library() {
     }
     setUploads([]);
     if (fileRef.current) fileRef.current.value = "";
+    return ids;
   };
+
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
