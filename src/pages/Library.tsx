@@ -22,7 +22,7 @@ interface UploadProgress {
 
 export default function Library() {
   const { media, isLoading, uploadMutation, addIframeMutation, deleteMutation, assignEstablishmentMutation } = useMedia();
-  const { isGlobalAdmin } = useEstablishmentContext();
+  const { isGlobalAdmin, currentEstablishmentId } = useEstablishmentContext();
   const { establishments } = useEstablishments();
   const [iframeName, setIframeName] = useState("");
   const [iframeUrl, setIframeUrl] = useState("");
