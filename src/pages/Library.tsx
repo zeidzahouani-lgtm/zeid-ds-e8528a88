@@ -11,6 +11,7 @@ import { useMedia } from "@/hooks/useMedia";
 import { useEstablishments } from "@/hooks/useEstablishments";
 import { useEstablishmentContext } from "@/contexts/EstablishmentContext";
 import LibraryAssistant from "@/components/library/LibraryAssistant";
+import PdfImportDialog from "@/components/library/PdfImportDialog";
 import { toast } from "sonner";
 
 interface UploadProgress {
@@ -30,6 +31,7 @@ export default function Library() {
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [preview, setPreview] = useState<any>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(() => {
