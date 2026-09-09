@@ -42,10 +42,7 @@ export default function Library() {
     });
   }, [media, search, typeFilter]);
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    const fileList = Array.from(files);
+  const uploadFiles = async (fileList: File[]) => {
     setUploads(fileList.map((f) => ({ name: f.name, percent: 0 })));
 
     for (let i = 0; i < fileList.length; i++) {
