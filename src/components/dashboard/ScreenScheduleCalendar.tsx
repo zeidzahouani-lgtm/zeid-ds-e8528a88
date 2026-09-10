@@ -106,8 +106,38 @@ export function ScreenScheduleCalendar() {
       toast.error("Choisissez d'abord un écran");
       return;
     }
+    setEditingId(null);
+    setMediaId("");
+    setPlaylistId("");
+    setKind("media");
+    setStartTime("08:00");
+    setEndTime("18:00");
+    setRepetition("once");
+    setCustomDays([]);
+    setEndDate("");
+    setReminder("15");
     setOpen(true);
   };
+
+  const openEdit = (sch: ScreenSchedule) => {
+    setEditingId(sch.id);
+    setKind(sch.playlist_id ? "playlist" : "media");
+    setMediaId(sch.media_id ?? "");
+    setPlaylistId(sch.playlist_id ?? "");
+    setStartTime(sch.start_time.slice(0, 5));
+    setEndTime(sch.end_time.slice(0, 5));
+    if (sch.start_date && sch.start_date === sch.end_date) setRepetition("once");
+    else if (sch.days_of_week.length === 7) setRepetition("daily");
+    else if (sch.days_of_week.join() === "1,2,3,4,5") setRepetition("weekdays");
+    else if (sch.days_of_week.length === 1) setRepetition("weekly");
+    else setRepetition("custom");
+    setCustomDays(sch.days_of_week ?? []);
+    setEndDate(sch.end_date && sch.end_date !== sch.start_date ? sch.end_date : "");
+    setReminder(sch.reminder_minutes ? String(sch.reminder_minutes) : "0");
+    if (sch.start_date) setSelectedDate(parseISO(sch.start_date));
+    setOpen(true);
+  };
+
 
   const handleSave = async () => {
     if (!selectedDate) {
