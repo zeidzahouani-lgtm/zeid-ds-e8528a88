@@ -57,6 +57,7 @@ export function ScreenScheduleCalendar() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [kind, setKind] = useState<"media" | "playlist">("media");
   const [mediaId, setMediaId] = useState("");
