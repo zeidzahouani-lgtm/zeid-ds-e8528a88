@@ -28,6 +28,12 @@ export default function Schedules() {
           <TabsTrigger value="screen-calendar" className="gap-2">
             <CalendarDays className="h-4 w-4" /> Calendrier par écran
           </TabsTrigger>
+          <TabsTrigger value="tracking" className="gap-2">
+            <ListChecks className="h-4 w-4" /> Suivi
+          </TabsTrigger>
+          <TabsTrigger value="screen-view" className="gap-2">
+            <MonitorPlay className="h-4 w-4" /> Vue écran
+          </TabsTrigger>
           <TabsTrigger value="programs" className="gap-2">
             <FolderCog className="h-4 w-4" /> Programmes
           </TabsTrigger>
