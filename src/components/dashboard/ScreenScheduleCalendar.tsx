@@ -343,7 +343,7 @@ export function ScreenScheduleCalendar() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Planifier un créneau</DialogTitle>
+            <DialogTitle>{editingId ? "Modifier le créneau" : "Planifier un créneau"}</DialogTitle>
             <DialogDescription>
               {currentScreen?.name} —{" "}
               {selectedDate && format(selectedDate, "EEEE d MMMM yyyy", { locale: fr })}
