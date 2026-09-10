@@ -108,9 +108,22 @@ export function ScreenScheduleCalendar() {
   };
 
   const handleSave = async () => {
-    if (!selectedDate) return;
-    if (kind === "media" && !mediaId) return;
-    if (kind === "playlist" && !playlistId) return;
+    if (!selectedDate) {
+      toast.error("Choisissez une date dans le calendrier");
+      return;
+    }
+    if (kind === "media" && !mediaId) {
+      toast.error("Choisissez un média à diffuser");
+      return;
+    }
+    if (kind === "playlist" && !playlistId) {
+      toast.error("Choisissez une playlist à diffuser");
+      return;
+    }
+    if (endTime <= startTime) {
+      toast.error("L'heure de fin doit être après l'heure de début");
+      return;
+    }
     const days = resolveDays(selectedDate);
     if (days.length === 0) {
       toast.error("Sélectionnez au moins un jour");
@@ -133,13 +146,14 @@ export function ScreenScheduleCalendar() {
       setOpen(false);
       setMediaId("");
       setPlaylistId("");
-    } catch (e) {
-      console.error(e);
-      toast.error("Erreur lors de la planification");
+    } catch (e: any) {
+      console.error("Erreur planification créneau:", e);
+      toast.error(e?.message || "Erreur lors de la planification");
     } finally {
       setSaving(false);
     }
   };
+
 
   return (
     <div className="space-y-4">
