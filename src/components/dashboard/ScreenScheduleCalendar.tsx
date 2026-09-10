@@ -437,7 +437,7 @@ export function ScreenScheduleCalendar() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
             <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Enregistrement..." : "Planifier"}
+              {saving ? "Enregistrement..." : editingId ? "Enregistrer" : "Planifier"}
             </Button>
           </DialogFooter>
         </DialogContent>
