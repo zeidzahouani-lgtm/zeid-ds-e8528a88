@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarDays, FolderCog } from "lucide-react";
+import { CalendarDays, FolderCog, ListChecks, MonitorPlay } from "lucide-react";
 import { ScheduleManager } from "@/components/dashboard/ScheduleManager";
 import { ScreenScheduleCalendar } from "@/components/dashboard/ScreenScheduleCalendar";
+import { ScheduleTracking } from "@/components/dashboard/ScheduleTracking";
+import { ScreenUpcomingView } from "@/components/dashboard/ScreenUpcomingView";
 import { useScheduleReminders } from "@/hooks/useScheduleReminders";
 
 export default function Schedules() {
