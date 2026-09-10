@@ -17,6 +17,7 @@ import { useScreens } from "@/hooks/useScreens";
 import { useMedia } from "@/hooks/useMedia";
 import { usePlaylists } from "@/hooks/usePlaylists";
 import { useScreenSchedules, type ScreenSchedule } from "@/hooks/useScreenSchedules";
+import { durationMinutes, formatDuration, nextOccurrence } from "@/lib/schedule-utils";
 
 const DAYS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 
