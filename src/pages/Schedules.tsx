@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarDays, FolderCog } from "lucide-react";
+import { CalendarDays, FolderCog, ListChecks, MonitorPlay } from "lucide-react";
 import { ScheduleManager } from "@/components/dashboard/ScheduleManager";
 import { ScreenScheduleCalendar } from "@/components/dashboard/ScreenScheduleCalendar";
+import { ScheduleTracking } from "@/components/dashboard/ScheduleTracking";
+import { ScreenUpcomingView } from "@/components/dashboard/ScreenUpcomingView";
 import { useScheduleReminders } from "@/hooks/useScheduleReminders";
 
 export default function Schedules() {
@@ -26,6 +28,12 @@ export default function Schedules() {
           <TabsTrigger value="screen-calendar" className="gap-2">
             <CalendarDays className="h-4 w-4" /> Calendrier par écran
           </TabsTrigger>
+          <TabsTrigger value="tracking" className="gap-2">
+            <ListChecks className="h-4 w-4" /> Suivi
+          </TabsTrigger>
+          <TabsTrigger value="screen-view" className="gap-2">
+            <MonitorPlay className="h-4 w-4" /> Vue écran
+          </TabsTrigger>
           <TabsTrigger value="programs" className="gap-2">
             <FolderCog className="h-4 w-4" /> Programmes
           </TabsTrigger>
@@ -33,6 +41,12 @@ export default function Schedules() {
 
         <TabsContent value="screen-calendar">
           <ScreenScheduleCalendar />
+        </TabsContent>
+        <TabsContent value="tracking">
+          <ScheduleTracking />
+        </TabsContent>
+        <TabsContent value="screen-view">
+          <ScreenUpcomingView />
         </TabsContent>
         <TabsContent value="programs">
           <ScheduleManager />

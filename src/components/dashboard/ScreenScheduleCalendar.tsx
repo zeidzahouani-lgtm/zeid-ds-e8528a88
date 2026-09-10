@@ -9,7 +9,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarDays, Clock, Plus, Trash2, Tv, Bell, BellOff, Repeat } from "lucide-react";
+import { CalendarDays, Clock, Plus, Trash2, Tv, Bell, BellOff, Repeat, Pencil, CalendarClock, Timer } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
@@ -17,6 +17,7 @@ import { useScreens } from "@/hooks/useScreens";
 import { useMedia } from "@/hooks/useMedia";
 import { usePlaylists } from "@/hooks/usePlaylists";
 import { useScreenSchedules, type ScreenSchedule } from "@/hooks/useScreenSchedules";
+import { durationMinutes, formatDuration, nextOccurrence } from "@/lib/schedule-utils";
 
 const DAYS = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
 
@@ -56,6 +57,7 @@ export function ScreenScheduleCalendar() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const [kind, setKind] = useState<"media" | "playlist">("media");
   const [mediaId, setMediaId] = useState("");
@@ -104,8 +106,38 @@ export function ScreenScheduleCalendar() {
       toast.error("Choisissez d'abord un écran");
       return;
     }
+    setEditingId(null);
+    setMediaId("");
+    setPlaylistId("");
+    setKind("media");
+    setStartTime("08:00");
+    setEndTime("18:00");
+    setRepetition("once");
+    setCustomDays([]);
+    setEndDate("");
+    setReminder("15");
     setOpen(true);
   };
+
+  const openEdit = (sch: ScreenSchedule) => {
+    setEditingId(sch.id);
+    setKind(sch.playlist_id ? "playlist" : "media");
+    setMediaId(sch.media_id ?? "");
+    setPlaylistId(sch.playlist_id ?? "");
+    setStartTime(sch.start_time.slice(0, 5));
+    setEndTime(sch.end_time.slice(0, 5));
+    if (sch.start_date && sch.start_date === sch.end_date) setRepetition("once");
+    else if (sch.days_of_week.length === 7) setRepetition("daily");
+    else if (sch.days_of_week.join() === "1,2,3,4,5") setRepetition("weekdays");
+    else if (sch.days_of_week.length === 1) setRepetition("weekly");
+    else setRepetition("custom");
+    setCustomDays(sch.days_of_week ?? []);
+    setEndDate(sch.end_date && sch.end_date !== sch.start_date ? sch.end_date : "");
+    setReminder(sch.reminder_minutes ? String(sch.reminder_minutes) : "0");
+    if (sch.start_date) setSelectedDate(parseISO(sch.start_date));
+    setOpen(true);
+  };
+
 
   const handleSave = async () => {
     if (!selectedDate) {
@@ -132,7 +164,7 @@ export function ScreenScheduleCalendar() {
     const dateStr = format(selectedDate, "yyyy-MM-dd");
     setSaving(true);
     try {
-      await addSchedule.mutateAsync({
+      const payload = {
         media_id: kind === "media" ? mediaId : null,
         playlist_id: kind === "playlist" ? playlistId : null,
         start_time: startTime,
@@ -141,9 +173,16 @@ export function ScreenScheduleCalendar() {
         start_date: dateStr,
         end_date: repetition === "once" ? dateStr : endDate || null,
         reminder_minutes: reminder === "0" ? null : Number(reminder),
-      });
-      toast.success("Créneau planifié");
+      };
+      if (editingId) {
+        await updateSchedule.mutateAsync({ id: editingId, ...payload } as any);
+        toast.success("Créneau modifié");
+      } else {
+        await addSchedule.mutateAsync(payload);
+        toast.success("Créneau planifié");
+      }
       setOpen(false);
+      setEditingId(null);
       setMediaId("");
       setPlaylistId("");
     } catch (e: any) {
@@ -234,6 +273,17 @@ export function ScreenScheduleCalendar() {
                         {sch.start_time.slice(0, 5)} – {sch.end_time.slice(0, 5)}
                       </Badge>
                       <Badge variant="secondary" className="text-[10px] gap-1">
+                        <Timer className="h-3 w-3" />
+                        {formatDuration(durationMinutes(sch))}
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px] gap-1">
+                        <CalendarClock className="h-3 w-3" />
+                        {(() => {
+                          const n = nextOccurrence(sch);
+                          return n ? `Prochaine : ${format(n, "EEE d MMM HH:mm", { locale: fr })}` : "Plus de diffusion";
+                        })()}
+                      </Badge>
+                      <Badge variant="secondary" className="text-[10px] gap-1">
                         <Repeat className="h-3 w-3" />
                         {sch.days_of_week.length === 7
                           ? "Tous les jours"
@@ -263,9 +313,17 @@ export function ScreenScheduleCalendar() {
                         </Badge>
                       )}
                       <Button
-                        variant="destructive"
+                        variant="outline"
                         size="icon"
                         className="h-7 w-7 ml-auto"
+                        onClick={() => openEdit(sch)}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="h-7 w-7"
                         onClick={() => {
                           deleteSchedule.mutate(sch.id);
                           toast.success("Créneau supprimé");
@@ -285,7 +343,7 @@ export function ScreenScheduleCalendar() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Planifier un créneau</DialogTitle>
+            <DialogTitle>{editingId ? "Modifier le créneau" : "Planifier un créneau"}</DialogTitle>
             <DialogDescription>
               {currentScreen?.name} —{" "}
               {selectedDate && format(selectedDate, "EEEE d MMMM yyyy", { locale: fr })}
@@ -379,7 +437,7 @@ export function ScreenScheduleCalendar() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Annuler</Button>
             <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Enregistrement..." : "Planifier"}
+              {saving ? "Enregistrement..." : editingId ? "Enregistrer" : "Planifier"}
             </Button>
           </DialogFooter>
         </DialogContent>
