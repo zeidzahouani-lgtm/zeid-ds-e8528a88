@@ -42,6 +42,12 @@ export default function Schedules() {
         <TabsContent value="screen-calendar">
           <ScreenScheduleCalendar />
         </TabsContent>
+        <TabsContent value="tracking">
+          <ScheduleTracking />
+        </TabsContent>
+        <TabsContent value="screen-view">
+          <ScreenUpcomingView />
+        </TabsContent>
         <TabsContent value="programs">
           <ScheduleManager />
         </TabsContent>
