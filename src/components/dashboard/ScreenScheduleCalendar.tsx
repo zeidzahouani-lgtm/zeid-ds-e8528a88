@@ -313,9 +313,17 @@ export function ScreenScheduleCalendar() {
                         </Badge>
                       )}
                       <Button
-                        variant="destructive"
+                        variant="outline"
                         size="icon"
                         className="h-7 w-7 ml-auto"
+                        onClick={() => openEdit(sch)}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="h-7 w-7"
                         onClick={() => {
                           deleteSchedule.mutate(sch.id);
                           toast.success("Créneau supprimé");
