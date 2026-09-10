@@ -1135,6 +1135,7 @@ export type Database = {
           media_id: string | null
           playlist_id: string | null
           program_id: string | null
+          reminder_minutes: number | null
           screen_id: string | null
           start_date: string | null
           start_time: string
@@ -1149,6 +1150,7 @@ export type Database = {
           media_id?: string | null
           playlist_id?: string | null
           program_id?: string | null
+          reminder_minutes?: number | null
           screen_id?: string | null
           start_date?: string | null
           start_time?: string
@@ -1163,6 +1165,7 @@ export type Database = {
           media_id?: string | null
           playlist_id?: string | null
           program_id?: string | null
+          reminder_minutes?: number | null
           screen_id?: string | null
           start_date?: string | null
           start_time?: string
