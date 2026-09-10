@@ -9,7 +9,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarDays, Clock, Plus, Trash2, Tv, Bell, BellOff, Repeat } from "lucide-react";
+import { CalendarDays, Clock, Plus, Trash2, Tv, Bell, BellOff, Repeat, Pencil, CalendarClock, Timer } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
