@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,8 +20,10 @@ export function ScreenUpcomingView() {
   const [autoAdvance, setAutoAdvance] = useState(false);
   const [tick, setTick] = useState(0);
 
+  const lastLaunchedRef = useRef<string | null>(null);
+
   useEffect(() => {
-    const t = setInterval(() => setTick((v) => v + 1), 30_000);
+    const t = setInterval(() => setTick((v) => v + 1), 10_000);
     return () => clearInterval(t);
   }, []);
 
@@ -46,17 +48,28 @@ export function ScreenUpcomingView() {
     });
   };
 
-  // Passage automatique au créneau suivant dès qu'il démarre
+  // Passage automatique au créneau suivant dès qu'il démarre (une seule fois par créneau)
   useEffect(() => {
-    if (!autoAdvance || !screenId) return;
-    const starting = upcoming.find((r) => r.state === "running");
-    if (starting) {
-      launch.mutate(starting.sch, {
-        onError: () => {},
-      });
+    if (!autoAdvance) {
+      lastLaunchedRef.current = null;
+      return;
     }
+    if (!screenId) return;
+    const starting = upcoming.find((r) => r.state === "running");
+    if (!starting) return;
+    if (lastLaunchedRef.current === starting.sch.id) return;
+    lastLaunchedRef.current = starting.sch.id;
+    launch.mutate(starting.sch, {
+      onSuccess: () =>
+        toast.success(
+          `Créneau lancé : ${starting.sch.playlist?.name ?? starting.sch.media?.name ?? "contenu"}`,
+        ),
+      onError: () => {
+        lastLaunchedRef.current = null;
+      },
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoAdvance, screenId, tick]);
+  }, [autoAdvance, screenId, tick, upcoming]);
 
   return (
     <div className="space-y-4">
