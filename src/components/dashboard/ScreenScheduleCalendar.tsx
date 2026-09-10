@@ -164,7 +164,7 @@ export function ScreenScheduleCalendar() {
     const dateStr = format(selectedDate, "yyyy-MM-dd");
     setSaving(true);
     try {
-      await addSchedule.mutateAsync({
+      const payload = {
         media_id: kind === "media" ? mediaId : null,
         playlist_id: kind === "playlist" ? playlistId : null,
         start_time: startTime,
@@ -173,9 +173,16 @@ export function ScreenScheduleCalendar() {
         start_date: dateStr,
         end_date: repetition === "once" ? dateStr : endDate || null,
         reminder_minutes: reminder === "0" ? null : Number(reminder),
-      });
-      toast.success("Créneau planifié");
+      };
+      if (editingId) {
+        await updateSchedule.mutateAsync({ id: editingId, ...payload } as any);
+        toast.success("Créneau modifié");
+      } else {
+        await addSchedule.mutateAsync(payload);
+        toast.success("Créneau planifié");
+      }
       setOpen(false);
+      setEditingId(null);
       setMediaId("");
       setPlaylistId("");
     } catch (e: any) {
