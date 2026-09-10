@@ -62,7 +62,7 @@ export function useLaunchSchedule() {
       } else {
         throw new Error("Ce créneau n'a aucun contenu associé");
       }
-      const { error } = await supabase.from("screens").update(updates).eq("id", sch.screen_id);
+      const { error } = await supabase.from("screens").update(updates as any).eq("id", sch.screen_id);
       if (error) throw error;
     },
     onSuccess: () => {
