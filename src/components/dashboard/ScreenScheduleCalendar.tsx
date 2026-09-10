@@ -273,6 +273,17 @@ export function ScreenScheduleCalendar() {
                         {sch.start_time.slice(0, 5)} – {sch.end_time.slice(0, 5)}
                       </Badge>
                       <Badge variant="secondary" className="text-[10px] gap-1">
+                        <Timer className="h-3 w-3" />
+                        {formatDuration(durationMinutes(sch))}
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px] gap-1">
+                        <CalendarClock className="h-3 w-3" />
+                        {(() => {
+                          const n = nextOccurrence(sch);
+                          return n ? `Prochaine : ${format(n, "EEE d MMM HH:mm", { locale: fr })}` : "Plus de diffusion";
+                        })()}
+                      </Badge>
+                      <Badge variant="secondary" className="text-[10px] gap-1">
                         <Repeat className="h-3 w-3" />
                         {sch.days_of_week.length === 7
                           ? "Tous les jours"
