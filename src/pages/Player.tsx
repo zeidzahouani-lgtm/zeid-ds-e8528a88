@@ -1247,6 +1247,10 @@ export default function Player() {
     };
   }, []);
 
+  // Connecté = réseau navigateur ET serveur joignable (sonde 10 s du hook).
+  const connected = isOnline && serverReachable;
+
+
   // Wall info (if this screen is part of a video wall) — reactive to wall row/col changes
   const [wallInfo, setWallInfo] = useState<{ rows: number; cols: number } | null>(null);
   useEffect(() => {
