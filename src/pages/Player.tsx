@@ -1,6 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useScreenRealtime } from "@/hooks/useScreenRealtime";
-import { MonitorPlay, ShieldOff, KeyRound, MonitorX } from "lucide-react";
+import { MonitorPlay, ShieldOff, KeyRound, MonitorX, WifiOff } from "lucide-react";
 import React, { useEffect, useState, useRef, useCallback, Component, type ErrorInfo, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import WidgetRenderer from "@/components/widgets/WidgetRenderer";
@@ -671,6 +671,25 @@ function Watermark({ text }: { text: string }) {
   );
 }
 
+function OfflineWatermark({ online }: { online: boolean }) {
+  if (online) return null;
+  return (
+    <div style={{
+      position: "absolute", bottom: 44, right: 16, zIndex: 51,
+      display: "flex", alignItems: "center", gap: 6,
+      backgroundColor: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)",
+      color: "rgba(255,255,255,0.85)", fontSize: 12, fontWeight: 600,
+      letterSpacing: "0.05em", pointerEvents: "none",
+      padding: "6px 12px", borderRadius: 8,
+      border: "1px solid rgba(255,255,255,0.12)",
+      textTransform: "uppercase",
+    }}>
+      <WifiOff style={{ width: 14, height: 14, opacity: 0.9 }} />
+      <span>Hors ligne</span>
+    </div>
+  );
+}
+
 function ScreenNameOverlay({ name, show }: { name: string; show: boolean }) {
   if (!show) return null;
   return (
@@ -921,6 +940,7 @@ function LicenseScreen({
   logoUrl,
   showLogo,
   logoSize,
+  online,
 }: {
   containerRef: React.RefObject<HTMLDivElement>;
   requestFullscreen: () => void;
@@ -931,7 +951,7 @@ function LicenseScreen({
   logoUrl: string;
   showLogo: boolean;
   logoSize?: "small" | "medium" | "large" | "xlarge";
-
+  online: boolean;
 }) {
 
   const [key, setKey] = useState("");
@@ -1014,6 +1034,7 @@ function LicenseScreen({
           Vérification automatique toutes les 5 secondes
         </p>
       </div>
+      <OfflineWatermark online={online} />
     </div>
   );
 }
@@ -1210,8 +1231,22 @@ export default function Player() {
   const [visible, setVisible] = useState(true);
   const [hasContent, setHasContent] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>();
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof navigator === "undefined") return;
+    const onOnline = () => setIsOnline(true);
+    const onOffline = () => setIsOnline(false);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    setIsOnline(navigator.onLine);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+    };
+  }, []);
 
   // Wall info (if this screen is part of a video wall) — reactive to wall row/col changes
   const [wallInfo, setWallInfo] = useState<{ rows: number; cols: number } | null>(null);
@@ -1622,6 +1657,7 @@ export default function Player() {
             />
           )}
         </div>
+        <OfflineWatermark online={isOnline} />
       </div>
     );
   }
@@ -1658,6 +1694,7 @@ export default function Player() {
           </p>
         </div>
         <Watermark text={branding.watermark} />
+        <OfflineWatermark online={isOnline} />
       </div>
     );
   }
@@ -1681,6 +1718,7 @@ export default function Player() {
             />
           )}
         </div>
+        <OfflineWatermark online={isOnline} />
       </div>
     );
   }
@@ -1698,6 +1736,7 @@ export default function Player() {
         logoUrl={branding.logoUrl}
         showLogo={branding.showLogo}
         logoSize={branding.logoSize}
+        online={isOnline}
       />
 
     );
@@ -1732,6 +1771,7 @@ export default function Player() {
         <Watermark text={branding.watermark} />
         <PlayerSignature show={branding.showSignatureOnPlayer} />
         <ScreenNameOverlay name={screen.name} show={(screen as any)?.show_name ?? false} />
+        <OfflineWatermark online={isOnline} />
         <MobilePlayerControls />
       </div>
     );
@@ -1809,6 +1849,7 @@ export default function Player() {
       <Watermark text={branding.watermark} />
       <PlayerSignature show={branding.showSignatureOnPlayer} />
       <ScreenNameOverlay name={screen.name} show={(screen as any)?.show_name ?? false} />
+      <OfflineWatermark online={isOnline} />
       <MobilePlayerControls />
     </div>
   );
