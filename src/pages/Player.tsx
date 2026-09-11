@@ -1735,6 +1735,7 @@ export default function Player() {
         logoUrl={branding.logoUrl}
         showLogo={branding.showLogo}
         logoSize={branding.logoSize}
+        online={isOnline}
       />
 
     );
