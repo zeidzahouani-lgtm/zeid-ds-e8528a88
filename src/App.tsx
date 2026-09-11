@@ -24,6 +24,7 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const PublicManual = lazy(() => import("./pages/PublicManual"));
 const DashboardHome = lazy(() => import("./pages/DashboardHome"));
 const Displays = lazy(() => import("./pages/Displays"));
+const ConnectedScreens = lazy(() => import("./pages/ConnectedScreens"));
 const Library = lazy(() => import("./pages/Library"));
 const Playlists = lazy(() => import("./pages/Playlists"));
 const Schedules = lazy(() => import("./pages/Schedules"));
@@ -119,6 +120,7 @@ const App = () => (
               <Route element={<ProtectedRoute><EstablishmentProvider><DashboardLayout /></EstablishmentProvider></ProtectedRoute>}>
                 <Route path="/" element={<DashboardHome />} />
                 <Route path="/displays" element={<Displays />} />
+                <Route path="/connected-screens" element={<ConnectedScreens />} />
                 <Route path="/library" element={<Library />} />
                 <Route path="/playlists" element={<Playlists />} />
                 <Route path="/schedules" element={<Schedules />} />

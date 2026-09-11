@@ -1,4 +1,4 @@
-import { Tv, Image, ListMusic, Clock, LayoutDashboard, LogOut, User, LayoutGrid, Users, Building2, Settings, Palette, Key, Sparkles, Mail, AtSign, ClipboardList, BookOpen, BarChart3, DatabaseBackup, Activity, ShieldCheck, ScrollText, AlertTriangle } from "lucide-react";
+import { Tv, Image, ListMusic, Clock, LayoutDashboard, LogOut, User, LayoutGrid, Users, Building2, Settings, Palette, Key, Sparkles, Mail, AtSign, ClipboardList, BookOpen, BarChart3, DatabaseBackup, Activity, ShieldCheck, ScrollText, AlertTriangle, Wifi } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -28,6 +28,7 @@ import { MonitorPlay } from "lucide-react";
 const mainItems = [
   { title: "Tableau de bord", url: "/", icon: LayoutDashboard },
   { title: "Écrans", url: "/displays", icon: Tv },
+  { title: "Écrans connectés", url: "/connected-screens", icon: Wifi },
   { title: "Bibliothèque", url: "/library", icon: Image },
   { title: "Layouts", url: "/layouts", icon: LayoutGrid },
   { title: "Playlists", url: "/playlists", icon: ListMusic },

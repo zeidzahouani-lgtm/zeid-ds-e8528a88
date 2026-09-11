@@ -120,6 +120,10 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
     lastError: string | null;
   }>({ active: false, reason: null, attempt: 0, nextRetryMs: 0, lastError: null });
 
+  // Connectivité réelle vis-à-vis du serveur (pas seulement navigator.onLine)
+  const [serverReachable, setServerReachable] = useState(true);
+  const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
+
 
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
   const schedulesRef = useRef<ScheduleRow[]>([]);
@@ -795,11 +799,22 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
       const realId = realScreenIdRef.current;
       if (!realId) return;
 
-      const { data } = await supabase
-        .from("screens")
-        .select(SCREEN_SELECT)
-        .eq("id", realId)
-        .maybeSingle();
+      let data: unknown = null;
+      try {
+        const res = await supabase
+          .from("screens")
+          .select(SCREEN_SELECT)
+          .eq("id", realId)
+          .maybeSingle();
+        if (res.error) throw res.error;
+        data = res.data;
+        setServerReachable(true);
+        setLastSyncAt(Date.now());
+      } catch (_) {
+        // Serveur injoignable : on reste sur le cache, l'affichage continue.
+        setServerReachable(false);
+        return;
+      }
 
       const nextScreen = data as unknown as ScreenData | null;
       if (!nextScreen) return;
@@ -1019,6 +1034,8 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
     playlistLength: playlistRef.current.length, currentIndex, currentDuration,
     reportVideoDuration,
     layoutId: screen?.layout_id ?? null,
+    serverReachable,
+    lastSyncAt,
     recovery,
   };
 
