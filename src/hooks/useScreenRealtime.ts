@@ -120,6 +120,10 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
     lastError: string | null;
   }>({ active: false, reason: null, attempt: 0, nextRetryMs: 0, lastError: null });
 
+  // Connectivité réelle vis-à-vis du serveur (pas seulement navigator.onLine)
+  const [serverReachable, setServerReachable] = useState(true);
+  const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
+
 
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
   const schedulesRef = useRef<ScheduleRow[]>([]);
