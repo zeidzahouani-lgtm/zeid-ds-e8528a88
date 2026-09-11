@@ -1716,6 +1716,7 @@ export default function Player() {
             />
           )}
         </div>
+        <OfflineWatermark online={isOnline} />
       </div>
     );
   }
