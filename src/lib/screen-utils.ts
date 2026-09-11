@@ -3,16 +3,12 @@
  * Centralises the "is this screen really online?" logic so every view agrees.
  */
 
-/** A screen is considered stale (offline) if its heartbeat is older than this. */
-export const HEARTBEAT_STALE_MS = 120_000; // 120s to reduce false offline on TV hardware
-
 /**
- * Extra tolerance window when the DB still says "online".
- * Protects against client clock skew (laptop in wrong timezone / desync) which
- * would otherwise mark fresh screens as offline for some viewers (notably
- * Marketing accounts on browsers with skewed system clocks).
+ * A screen is considered stale (offline) if its heartbeat is older than this.
+ * Players send a heartbeat every 5s, so 30s = ~6 missed beats: fast detection
+ * while still tolerating short network hiccups on TV hardware.
  */
-const ONLINE_STATUS_GRACE_MS = 10 * 60_000; // 10 min
+export const HEARTBEAT_STALE_MS = 30_000;
 
 /**
  * Returns true if the screen should be considered online.
