@@ -1229,6 +1229,7 @@ export default function Player() {
   const [visible, setVisible] = useState(true);
   const [hasContent, setHasContent] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>();
 
