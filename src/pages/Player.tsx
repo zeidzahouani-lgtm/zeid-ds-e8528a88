@@ -1771,6 +1771,7 @@ export default function Player() {
         <Watermark text={branding.watermark} />
         <PlayerSignature show={branding.showSignatureOnPlayer} />
         <ScreenNameOverlay name={screen.name} show={(screen as any)?.show_name ?? false} />
+        <OfflineWatermark online={isOnline} />
         <MobilePlayerControls />
       </div>
     );
