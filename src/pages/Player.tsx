@@ -1034,6 +1034,7 @@ function LicenseScreen({
           Vérification automatique toutes les 5 secondes
         </p>
       </div>
+      <OfflineWatermark online={online} />
     </div>
   );
 }
