@@ -647,6 +647,15 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
         setCurrentIndex(0);
         resolveMedia(activeScreenData, pl, 0);
         setLoading(false);
+
+        // Sauvegarde hors ligne : configuration + téléchargement des médias
+        saveSnapshot(screenId, {
+          screen: activeScreenData,
+          playlist: pl,
+          schedules: sch,
+          media: null,
+        });
+        precacheMedia(collectMediaUrls(pl, sch, null));
       };
 
       const multiSession = !!(screenData as any).allow_multi_session;
