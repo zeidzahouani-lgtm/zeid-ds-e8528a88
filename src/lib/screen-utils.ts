@@ -15,10 +15,9 @@ export const HEARTBEAT_STALE_MS = 30_000;
  *
  * Logic:
  *  1. Recent heartbeat (< HEARTBEAT_STALE_MS) → online.
- *  2. status === 'online' AND heartbeat within ONLINE_STATUS_GRACE_MS → online
- *     (handles client clock skew where heartbeats look "stale").
- *  3. status === 'online' with no heartbeat at all → online (legacy screens).
- *  4. Otherwise → offline.
+ *  2. Heartbeat "in the future" (client clock behind) + DB status online → online.
+ *  3. No heartbeat at all → fall back to the DB status (legacy screens).
+ *  4. Otherwise → offline (stale heartbeat wins over a stale DB status flag).
  */
 export function isScreenReallyOnline(screen: {
   status?: string;
@@ -30,12 +29,8 @@ export function isScreenReallyOnline(screen: {
   if (hb) {
     const age = Date.now() - new Date(hb).getTime();
     if (age < HEARTBEAT_STALE_MS) return true;
-    // Trust DB status flag within a generous grace window to avoid false
-    // "offline" caused by client clock skew.
-    if (isStatusOnline && age < ONLINE_STATUS_GRACE_MS) return true;
-    // If clock is way ahead (negative age), the heartbeat is "in the future"
-    // from the client's POV — also treat as online when DB agrees.
-    if (isStatusOnline && age < 0) return true;
+    // Clock skew: heartbeat timestamp ahead of the local clock.
+    if (age < 0 && isStatusOnline) return true;
     return false;
   }
 
