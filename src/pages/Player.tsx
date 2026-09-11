@@ -674,18 +674,17 @@ function Watermark({ text }: { text: string }) {
 function OfflineWatermark({ online }: { online: boolean }) {
   if (online) return null;
   return (
-    <div style={{
-      position: "absolute", bottom: 44, right: 16, zIndex: 51,
-      display: "flex", alignItems: "center", gap: 6,
-      backgroundColor: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)",
-      color: "rgba(255,255,255,0.85)", fontSize: 12, fontWeight: 600,
-      letterSpacing: "0.05em", pointerEvents: "none",
-      padding: "6px 12px", borderRadius: 8,
-      border: "1px solid rgba(255,255,255,0.12)",
-      textTransform: "uppercase",
-    }}>
-      <WifiOff style={{ width: 14, height: 14, opacity: 0.9 }} />
-      <span>Hors ligne</span>
+    <div
+      title="Hors ligne"
+      style={{
+        position: "fixed", bottom: 14, right: 14, zIndex: 2147483000,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        width: 26, height: 26, borderRadius: 999,
+        backgroundColor: "rgba(0,0,0,0.35)",
+        pointerEvents: "none", opacity: 0.5,
+      }}
+    >
+      <WifiOff style={{ width: 15, height: 15, color: "rgba(255,255,255,0.9)" }} />
     </div>
   );
 }
@@ -1221,7 +1220,7 @@ export default function Player() {
   const urlDebug1 = typeof window !== "undefined" && window.location.search.indexOf("debug=1") >= 0;
   const urlDebug2 = typeof window !== "undefined" && window.location.search.indexOf("debug=2") >= 0;
   const previewMode = typeof window !== "undefined" && window.location.search.indexOf("preview=1") >= 0;
-  const { screen, media, loading, sessionBlocked, forceTakeover, playlistLength, currentIndex, currentDuration, layoutId, recovery, reportVideoDuration } = useScreenRealtime(id, { previewOnly: previewMode });
+  const { screen, media, loading, sessionBlocked, forceTakeover, playlistLength, currentIndex, currentDuration, layoutId, recovery, reportVideoDuration, serverReachable } = useScreenRealtime(id, { previewOnly: previewMode });
   const isTouch = useIsTouchDevice();
   const remoteDebugMode = (screen as any)?.debug_mode ?? 0;
   const debugMode = urlDebug1 || remoteDebugMode === 1;
