@@ -838,8 +838,19 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
       const [pl, sch] = await Promise.all([fetchPlaylist(nextScreen), fetchSchedules(nextScreen)]);
       updatePlaylist(pl);
       schedulesRef.current = sch;
-      setCurrentIndex(0);
-      resolveMedia(nextScreen, pl, 0, { skipDbUpdate: true });
+
+      // Reconnexion / mise à jour reçue pendant la lecture : conserver le
+      // média en cours s'il existe toujours dans la nouvelle configuration,
+      // pour ne jamais couper l'affichage en plein milieu d'un contenu.
+      const playingId = mediaRef.current?.id;
+      const keepIdx = playingId ? pl.findIndex((item) => item.media?.id === playingId) : -1;
+      if (keepIdx >= 0) {
+        setCurrentIndex(keepIdx);
+        resolveMedia(nextScreen, pl, keepIdx, { skipDbUpdate: true });
+      } else {
+        setCurrentIndex(0);
+        resolveMedia(nextScreen, pl, 0, { skipDbUpdate: true });
+      }
 
       // Mise à jour du cache hors ligne après chaque changement de config
       saveSnapshot(screenId, { screen: nextScreen, playlist: pl, schedules: sch, media: null });
