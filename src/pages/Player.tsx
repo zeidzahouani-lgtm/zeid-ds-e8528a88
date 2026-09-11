@@ -1233,6 +1233,19 @@ export default function Player() {
   const containerRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number>();
 
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof navigator === "undefined") return;
+    const onOnline = () => setIsOnline(true);
+    const onOffline = () => setIsOnline(false);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    setIsOnline(navigator.onLine);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+    };
+  }, []);
+
   // Wall info (if this screen is part of a video wall) — reactive to wall row/col changes
   const [wallInfo, setWallInfo] = useState<{ rows: number; cols: number } | null>(null);
   useEffect(() => {
