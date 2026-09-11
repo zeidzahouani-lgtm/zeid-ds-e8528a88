@@ -3,26 +3,21 @@
  * Centralises the "is this screen really online?" logic so every view agrees.
  */
 
-/** A screen is considered stale (offline) if its heartbeat is older than this. */
-export const HEARTBEAT_STALE_MS = 120_000; // 120s to reduce false offline on TV hardware
-
 /**
- * Extra tolerance window when the DB still says "online".
- * Protects against client clock skew (laptop in wrong timezone / desync) which
- * would otherwise mark fresh screens as offline for some viewers (notably
- * Marketing accounts on browsers with skewed system clocks).
+ * A screen is considered stale (offline) if its heartbeat is older than this.
+ * Players send a heartbeat every 5s, so 30s = ~6 missed beats: fast detection
+ * while still tolerating short network hiccups on TV hardware.
  */
-const ONLINE_STATUS_GRACE_MS = 10 * 60_000; // 10 min
+export const HEARTBEAT_STALE_MS = 30_000;
 
 /**
  * Returns true if the screen should be considered online.
  *
  * Logic:
  *  1. Recent heartbeat (< HEARTBEAT_STALE_MS) → online.
- *  2. status === 'online' AND heartbeat within ONLINE_STATUS_GRACE_MS → online
- *     (handles client clock skew where heartbeats look "stale").
- *  3. status === 'online' with no heartbeat at all → online (legacy screens).
- *  4. Otherwise → offline.
+ *  2. Heartbeat "in the future" (client clock behind) + DB status online → online.
+ *  3. No heartbeat at all → fall back to the DB status (legacy screens).
+ *  4. Otherwise → offline (stale heartbeat wins over a stale DB status flag).
  */
 export function isScreenReallyOnline(screen: {
   status?: string;
@@ -34,12 +29,8 @@ export function isScreenReallyOnline(screen: {
   if (hb) {
     const age = Date.now() - new Date(hb).getTime();
     if (age < HEARTBEAT_STALE_MS) return true;
-    // Trust DB status flag within a generous grace window to avoid false
-    // "offline" caused by client clock skew.
-    if (isStatusOnline && age < ONLINE_STATUS_GRACE_MS) return true;
-    // If clock is way ahead (negative age), the heartbeat is "in the future"
-    // from the client's POV — also treat as online when DB agrees.
-    if (isStatusOnline && age < 0) return true;
+    // Clock skew: heartbeat timestamp ahead of the local clock.
+    if (age < 0 && isStatusOnline) return true;
     return false;
   }
 
