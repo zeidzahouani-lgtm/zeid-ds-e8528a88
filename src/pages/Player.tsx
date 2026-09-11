@@ -1660,7 +1660,7 @@ export default function Player() {
             />
           )}
         </div>
-        <OfflineWatermark online={isOnline} />
+        <OfflineWatermark online={connected} />
       </div>
     );
   }
@@ -1697,7 +1697,7 @@ export default function Player() {
           </p>
         </div>
         <Watermark text={branding.watermark} />
-        <OfflineWatermark online={isOnline} />
+        <OfflineWatermark online={connected} />
       </div>
     );
   }
@@ -1721,7 +1721,7 @@ export default function Player() {
             />
           )}
         </div>
-        <OfflineWatermark online={isOnline} />
+        <OfflineWatermark online={connected} />
       </div>
     );
   }
@@ -1739,7 +1739,7 @@ export default function Player() {
         logoUrl={branding.logoUrl}
         showLogo={branding.showLogo}
         logoSize={branding.logoSize}
-        online={isOnline}
+        online={connected}
       />
 
     );
@@ -1774,7 +1774,7 @@ export default function Player() {
         <Watermark text={branding.watermark} />
         <PlayerSignature show={branding.showSignatureOnPlayer} />
         <ScreenNameOverlay name={screen.name} show={(screen as any)?.show_name ?? false} />
-        <OfflineWatermark online={isOnline} />
+        <OfflineWatermark online={connected} />
         <MobilePlayerControls />
       </div>
     );
@@ -1852,7 +1852,7 @@ export default function Player() {
       <Watermark text={branding.watermark} />
       <PlayerSignature show={branding.showSignatureOnPlayer} />
       <ScreenNameOverlay name={screen.name} show={(screen as any)?.show_name ?? false} />
-      <OfflineWatermark online={isOnline} />
+      <OfflineWatermark online={connected} />
       <MobilePlayerControls />
     </div>
   );
