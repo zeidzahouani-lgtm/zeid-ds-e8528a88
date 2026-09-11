@@ -857,6 +857,10 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
       precacheMedia(collectMediaUrls(pl, sch, null));
     };
 
+    // Sonde de (re)connexion toutes les 10 s : hors ligne l'appel échoue
+    // silencieusement et l'affichage continue depuis le cache ; dès que le
+    // réseau revient, les mises à jour sont appliquées sans couper le média
+    // en cours (voir la logique de préservation plus haut).
     const interval = setInterval(() => {
       syncScreenState().catch(() => {});
     }, 10000);
