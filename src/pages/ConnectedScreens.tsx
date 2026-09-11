@@ -40,7 +40,7 @@ export default function ConnectedScreens() {
 
   const { data: screens = [], isLoading } = useQuery({
     queryKey: ["connected_screens", currentEstablishmentId, isGlobalAdmin],
-    refetchInterval: 10_000,
+    refetchInterval: 5_000,
     queryFn: async (): Promise<ScreenRow[]> => {
       let query = supabase
         .from("screens")
