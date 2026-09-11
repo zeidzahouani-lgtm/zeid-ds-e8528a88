@@ -129,9 +129,12 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
   const screenRef = useRef<ScreenData | null>(null);
   const playlistRef = useRef<PlaylistItem[]>([]);
   const currentIndexRef = useRef(0);
+  const mediaRef = useRef<MediaData | null>(null);
 
   // Keep currentIndexRef in sync
   useEffect(() => { currentIndexRef.current = currentIndex; }, [currentIndex]);
+  // Keep mediaRef in sync (used to preserve playback across background syncs)
+  useEffect(() => { mediaRef.current = media; }, [media]);
 
   const fetchPlaylist = useCallback(async (screenData: ScreenData) => {
     if (screenData.playlist_id) {
