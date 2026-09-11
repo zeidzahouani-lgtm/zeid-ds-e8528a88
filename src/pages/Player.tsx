@@ -1692,6 +1692,7 @@ export default function Player() {
           </p>
         </div>
         <Watermark text={branding.watermark} />
+        <OfflineWatermark online={isOnline} />
       </div>
     );
   }
