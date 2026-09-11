@@ -799,11 +799,22 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
       const realId = realScreenIdRef.current;
       if (!realId) return;
 
-      const { data } = await supabase
-        .from("screens")
-        .select(SCREEN_SELECT)
-        .eq("id", realId)
-        .maybeSingle();
+      let data: unknown = null;
+      try {
+        const res = await supabase
+          .from("screens")
+          .select(SCREEN_SELECT)
+          .eq("id", realId)
+          .maybeSingle();
+        if (res.error) throw res.error;
+        data = res.data;
+        setServerReachable(true);
+        setLastSyncAt(Date.now());
+      } catch (_) {
+        // Serveur injoignable : on reste sur le cache, l'affichage continue.
+        setServerReachable(false);
+        return;
+      }
 
       const nextScreen = data as unknown as ScreenData | null;
       if (!nextScreen) return;
