@@ -671,6 +671,25 @@ function Watermark({ text }: { text: string }) {
   );
 }
 
+function OfflineWatermark({ online }: { online: boolean }) {
+  if (online) return null;
+  return (
+    <div style={{
+      position: "absolute", bottom: 44, right: 16, zIndex: 51,
+      display: "flex", alignItems: "center", gap: 6,
+      backgroundColor: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)",
+      color: "rgba(255,255,255,0.85)", fontSize: 12, fontWeight: 600,
+      letterSpacing: "0.05em", pointerEvents: "none",
+      padding: "6px 12px", borderRadius: 8,
+      border: "1px solid rgba(255,255,255,0.12)",
+      textTransform: "uppercase",
+    }}>
+      <WifiOff style={{ width: 14, height: 14, opacity: 0.9 }} />
+      <span>Hors ligne</span>
+    </div>
+  );
+}
+
 function ScreenNameOverlay({ name, show }: { name: string; show: boolean }) {
   if (!show) return null;
   return (
