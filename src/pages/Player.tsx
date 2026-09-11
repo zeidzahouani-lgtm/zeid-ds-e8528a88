@@ -1427,6 +1427,16 @@ export default function Player() {
         await supabase.from("screens").update({ pending_action: null } as any).eq("id", screen.id);
       } catch {}
 
+      // Anti-boucle : ne pas recharger plus d'une fois toutes les 60s
+      if (action === "resync" || action === "reboot") {
+        try {
+          const key = `player_last_reload_${screen.id}`;
+          const last = Number(sessionStorage.getItem(key) || 0);
+          if (Date.now() - last < 60_000) return;
+          sessionStorage.setItem(key, String(Date.now()));
+        } catch {}
+      }
+
       if (action === "shutdown") {
         // Display a black "Off" overlay (browsers can't power off the device)
         try {
