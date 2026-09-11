@@ -17,8 +17,9 @@ interface ScreenRow {
 }
 
 const ACTION_LABELS: Record<string, string> = {
-  resync: "Re-synchronisation",
+  resync: "Synchronisation en cours",
   restart: "Redémarrage",
+  reboot: "Redémarrage",
   shutdown: "Extinction",
 };
 
@@ -60,10 +61,11 @@ export default function ConnectedScreens() {
   const pending = screens
     .map((s) => {
       const reasons: string[] = [];
-      if (s.pending_action) reasons.push(ACTION_LABELS[s.pending_action] ?? s.pending_action);
-      const hb = s.player_heartbeat_at ? new Date(s.player_heartbeat_at).getTime() : 0;
-      const up = s.updated_at ? new Date(s.updated_at).getTime() : 0;
-      if (!isScreenReallyOnline(s) && up > hb) reasons.push("Configuration modifiée hors ligne");
+      if (s.pending_action === "resync") {
+        reasons.push(isScreenReallyOnline(s) ? "Synchronisation en cours" : "En attente de connexion");
+      } else if (s.pending_action) {
+        reasons.push(ACTION_LABELS[s.pending_action] ?? s.pending_action);
+      }
       return { screen: s, reasons };
     })
     .filter((p) => p.reasons.length > 0);
