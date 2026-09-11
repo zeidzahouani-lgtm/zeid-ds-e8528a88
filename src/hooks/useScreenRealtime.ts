@@ -837,6 +837,10 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
       schedulesRef.current = sch;
       setCurrentIndex(0);
       resolveMedia(nextScreen, pl, 0, { skipDbUpdate: true });
+
+      // Mise à jour du cache hors ligne après chaque changement de config
+      saveSnapshot(screenId, { screen: nextScreen, playlist: pl, schedules: sch, media: null });
+      precacheMedia(collectMediaUrls(pl, sch, null));
     };
 
     const interval = setInterval(() => {
