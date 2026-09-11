@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { isPlaybackPaused, onPlaybackStateChange } from "@/lib/player-audio";
+import { loadSnapshot, saveSnapshot, precacheMedia, collectMediaUrls } from "@/lib/offline-player";
 
 interface MediaData {
   id: string;
@@ -359,6 +360,26 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
     let cancelled = false;
 
     const init = async () => {
+      // ---- Démarrage hors ligne : rejoue immédiatement la dernière config connue.
+      // La résolution réseau continue ensuite en tâche de fond et écrase ces
+      // valeurs dès que la connexion revient.
+      if (!previewOnly) {
+        const snap = loadSnapshot(screenId);
+        if (snap?.screen) {
+          const cachedScreen = snap.screen as ScreenData;
+          setScreen(cachedScreen);
+          screenRef.current = cachedScreen;
+          realScreenIdRef.current = cachedScreen.id;
+          playlistRef.current = (snap.playlist || []) as PlaylistItem[];
+          setPlaylistVersion((v) => v + 1);
+          schedulesRef.current = (snap.schedules || []) as ScheduleRow[];
+          setCurrentIndex(0);
+          resolveMedia(cachedScreen, playlistRef.current, 0, { skipDbUpdate: true });
+          setLoading(false);
+          precacheMedia(collectMediaUrls(snap.playlist || [], snap.schedules || [], snap.media));
+        }
+      }
+
       // Continuous recovery loop: never gives up while network / RPC errors
       // occur. Only returns null when the row is *confirmed* absent (no error,
       // no data) across multiple attempts — a real "not found".
@@ -646,6 +667,15 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
         setCurrentIndex(0);
         resolveMedia(activeScreenData, pl, 0);
         setLoading(false);
+
+        // Sauvegarde hors ligne : configuration + téléchargement des médias
+        saveSnapshot(screenId, {
+          screen: activeScreenData,
+          playlist: pl,
+          schedules: sch,
+          media: null,
+        });
+        precacheMedia(collectMediaUrls(pl, sch, null));
       };
 
       const multiSession = !!(screenData as any).allow_multi_session;
@@ -807,6 +837,10 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
       schedulesRef.current = sch;
       setCurrentIndex(0);
       resolveMedia(nextScreen, pl, 0, { skipDbUpdate: true });
+
+      // Mise à jour du cache hors ligne après chaque changement de config
+      saveSnapshot(screenId, { screen: nextScreen, playlist: pl, schedules: sch, media: null });
+      precacheMedia(collectMediaUrls(pl, sch, null));
     };
 
     const interval = setInterval(() => {

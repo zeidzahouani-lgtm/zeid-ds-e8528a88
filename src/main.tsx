@@ -12,6 +12,10 @@ import { HelmetProvider } from "react-helmet-async";
 import App from "./App.tsx";
 import "./index.css";
 import { applyLegacyWebViewCompat } from "./lib/legacy-webview";
+import { registerPlayerServiceWorker } from "./lib/offline-player";
+
+// Cache app shell + médias pour que les écrans continuent d'afficher hors ligne
+registerPlayerServiceWorker();
 
 // Detect old Chromium/WebView (e.g. Android TV boxes stuck on Chrome 80)
 // and inject CSS shims BEFORE React mounts, so the very first paint is correct.
