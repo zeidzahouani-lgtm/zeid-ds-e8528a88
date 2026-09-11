@@ -1034,6 +1034,8 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
     playlistLength: playlistRef.current.length, currentIndex, currentDuration,
     reportVideoDuration,
     layoutId: screen?.layout_id ?? null,
+    serverReachable,
+    lastSyncAt,
     recovery,
   };
 
