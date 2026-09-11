@@ -129,9 +129,12 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
   const screenRef = useRef<ScreenData | null>(null);
   const playlistRef = useRef<PlaylistItem[]>([]);
   const currentIndexRef = useRef(0);
+  const mediaRef = useRef<MediaData | null>(null);
 
   // Keep currentIndexRef in sync
   useEffect(() => { currentIndexRef.current = currentIndex; }, [currentIndex]);
+  // Keep mediaRef in sync (used to preserve playback across background syncs)
+  useEffect(() => { mediaRef.current = media; }, [media]);
 
   const fetchPlaylist = useCallback(async (screenData: ScreenData) => {
     if (screenData.playlist_id) {
@@ -835,14 +838,29 @@ export function useScreenRealtime(screenId: string | undefined, options?: { prev
       const [pl, sch] = await Promise.all([fetchPlaylist(nextScreen), fetchSchedules(nextScreen)]);
       updatePlaylist(pl);
       schedulesRef.current = sch;
-      setCurrentIndex(0);
-      resolveMedia(nextScreen, pl, 0, { skipDbUpdate: true });
+
+      // Reconnexion / mise à jour reçue pendant la lecture : conserver le
+      // média en cours s'il existe toujours dans la nouvelle configuration,
+      // pour ne jamais couper l'affichage en plein milieu d'un contenu.
+      const playingId = mediaRef.current?.id;
+      const keepIdx = playingId ? pl.findIndex((item) => item.media?.id === playingId) : -1;
+      if (keepIdx >= 0) {
+        setCurrentIndex(keepIdx);
+        resolveMedia(nextScreen, pl, keepIdx, { skipDbUpdate: true });
+      } else {
+        setCurrentIndex(0);
+        resolveMedia(nextScreen, pl, 0, { skipDbUpdate: true });
+      }
 
       // Mise à jour du cache hors ligne après chaque changement de config
       saveSnapshot(screenId, { screen: nextScreen, playlist: pl, schedules: sch, media: null });
       precacheMedia(collectMediaUrls(pl, sch, null));
     };
 
+    // Sonde de (re)connexion toutes les 10 s : hors ligne l'appel échoue
+    // silencieusement et l'affichage continue depuis le cache ; dès que le
+    // réseau revient, les mises à jour sont appliquées sans couper le média
+    // en cours (voir la logique de préservation plus haut).
     const interval = setInterval(() => {
       syncScreenState().catch(() => {});
     }, 10000);
